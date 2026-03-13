@@ -5,12 +5,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient, UserRole } from '../generated/prisma';
-
-const prisma = new PrismaClient({
-  log: [], // Disable logging to save memory
-  errorFormat: 'minimal',
-});
+import { UserRole } from '../generated/prisma';
+import { prismaClient as prisma } from '../utils/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -183,13 +179,14 @@ export const requireUser = (
     return;
   }
 
-  // CREATOR, APPROVER and ADMIN roles are allowed
-  if (req.user.role !== 'CREATOR' && req.user.role !== 'APPROVER' && req.user.role !== 'ADMIN') {
+  // CREATOR, APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
+  const role = String(req.user.role || '');
+  if (role !== 'CREATOR' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       error: 'User access required. Invalid role.',
       code: 'INVALID_ROLE',
-      userRole: req.user.role
+      userRole: role
     });
     return;
   }
@@ -198,7 +195,7 @@ export const requireUser = (
 };
 
 /**
- * Require APPROVER or ADMIN role
+ * Require APPROVER, CATEGORY_HEAD or ADMIN role
  * Must be used after authenticate middleware
  */
 export const requireApprover = (
@@ -216,14 +213,15 @@ export const requireApprover = (
     return;
   }
 
-  // APPROVER and ADMIN roles are allowed
-  if (req.user.role !== 'APPROVER' && req.user.role !== 'ADMIN') {
+  // APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
+  const role = String(req.user.role || '');
+  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       error: 'Approver access required. You do not have permission to access this resource.',
       code: 'INSUFFICIENT_PERMISSIONS',
       requiredRole: 'APPROVER',
-      userRole: req.user.role
+      userRole: role
     });
     return;
   }

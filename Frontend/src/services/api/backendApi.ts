@@ -9,6 +9,7 @@ export interface BackendExtractionRequest {
   customPrompt?: string;
   discoveryMode?: boolean;
   fileName?: string; // Original filename for backend to use in saving
+  folderName?: string; // Folder name for vendor code derivation
 }
 
 export interface BackendExtractionResponse {
@@ -179,6 +180,8 @@ export class BackendApiService {
   async extractFromFile(file: File, schema: SchemaItem[], categoryName?: string, discoveryMode = false): Promise<EnhancedExtractionResult> {
     try {
       const token = localStorage.getItem('authToken');
+      const relativePath = ((file as File & { webkitRelativePath?: string }).webkitRelativePath || '').trim();
+      const folderName = relativePath.includes('/') ? relativePath.split('/')[0] : '';
 
       const formData = new FormData();
       formData.append('image', file);
@@ -190,6 +193,10 @@ export class BackendApiService {
 
       if (discoveryMode) {
         formData.append('discoveryMode', 'true');
+      }
+
+      if (folderName) {
+        formData.append('folderName', folderName);
       }
 
       // Updated endpoint: /api/user/extract/upload
@@ -244,6 +251,8 @@ export class BackendApiService {
   }): Promise<EnhancedExtractionResult> {
     try {
       console.log('🔍 Multi-crop API call:', { fileName: file.name, category: categoryName });
+      const relativePath = ((file as File & { webkitRelativePath?: string }).webkitRelativePath || '').trim();
+      const folderName = relativePath.includes('/') ? relativePath.split('/')[0] : '';
 
       const formData = new FormData();
       formData.append('image', file);
@@ -259,6 +268,10 @@ export class BackendApiService {
 
       if (subDepartment) {
         formData.append('subDepartment', subDepartment);
+      }
+
+      if (folderName) {
+        formData.append('folderName', folderName);
       }
 
       const response = await fetch(`${this.baseURL}/extract/multi-crop`, {
@@ -438,6 +451,7 @@ export class BackendApiService {
     discoveryMode?: boolean;
     customPrompt?: string;
     fileName?: string;
+    folderName?: string;
   }): Promise<EnhancedExtractionResult & {
     category: {
       code: string;

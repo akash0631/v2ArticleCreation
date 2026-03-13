@@ -775,6 +775,7 @@ Return JSON only (no markdown):
   "ocr": {
     "rawLines": ["line1", "line2"],
     "division": "string or null",
+    "vendor_code": "string or null",
     "vendor_name": "string or null",
     "design_number": "string or null",
     "ppt_number": "string or null",
@@ -905,6 +906,7 @@ IMPORTANT:
 
       const metadataMapping: Record<string, string> = {
         'vendorName': 'vendor_name',
+        'vendorCode': 'vendor_code',
         'designNumber': 'design_number',
         'pptNumber': 'ppt_number',
         'price': 'rate',
@@ -933,6 +935,7 @@ IMPORTANT:
         : {} as Record<string, any>;
 
       const metadataAliases: Record<string, string[]> = {
+        vendor_code: ['vendorcode', 'vendor_code', 'vendor code', 'vendor id', 'vendor no', 'vendor_number', 'vendor number', 'vendor'],
         vendor_name: ['vendorname', 'vendor_name', 'vendor name', 'vendor', 'brand'],
         design_number: ['designnumber', 'design_number', 'design number', 'design_no', 'design no', 'design'],
         ppt_number: ['pptnumber', 'ppt_number', 'ppt number', 'ppt_no', 'ppt no', 'ppt'],

@@ -11,7 +11,10 @@ export const APP_CONFIG = {
   
   // Backend API Configuration
   api: {
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+    baseURL: import.meta.env.VITE_API_BASE_URL || (() => {
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+      return `http://${hostname}:5000/api`;
+    })(),
   },
   
   // Development settings

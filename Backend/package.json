@@ -18,7 +18,8 @@
     "db:seed:slow": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
-    "db:test": "ts-node scripts/test-db-queries.ts"
+    "db:test": "ts-node scripts/test-db-queries.ts",
+    "db:backfill:image-urls": "ts-node scripts/backfill-image-urls.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed-fast.ts"

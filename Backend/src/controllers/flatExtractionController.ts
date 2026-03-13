@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import { prismaClient as prisma } from '../utils/prisma';
 
 export class FlatExtractionController {
     /**
@@ -25,6 +23,9 @@ export class FlatExtractionController {
                 // Approvers see extractions within their assigned scope
                 if (division) where.division = division;
                 if (subDivision) where.subDivision = subDivision;
+            } else if (role === 'CATEGORY_HEAD') {
+                // Category heads see all extractions within their assigned division
+                if (division) where.division = division;
             } else if (role === 'ADMIN') {
                 // Admins see all - no filters applied
             } else {

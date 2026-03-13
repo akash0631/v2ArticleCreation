@@ -59,7 +59,7 @@ const AdminCreateUserSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(6).max(128),
   name: z.string().min(1).max(100),
-  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'APPROVER']).optional().default('USER'),
+  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'APPROVER', 'CATEGORY_HEAD']).optional().default('USER'),
   division: z.string().optional().nullable(),
   subDivision: z.string().optional().nullable(),
 });
@@ -1008,6 +1008,16 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const validated = AdminCreateUserSchema.parse(req.body);
 
+    if ((validated.role === 'CREATOR' || validated.role === 'APPROVER') && (!validated.division || !validated.subDivision)) {
+      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for Creators and Approvers' });
+      return;
+    }
+
+    if (validated.role === 'CATEGORY_HEAD' && !validated.division) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
+      return;
+    }
+
     const existing = await prisma.user.findUnique({
       where: { email: validated.email.toLowerCase() },
       select: { id: true, isActive: true }
@@ -1029,7 +1039,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
           name: validated.name,
           role: validated.role,
           division: validated.division,
-          subDivision: validated.subDivision,
+          subDivision: validated.role === 'CATEGORY_HEAD' ? null : validated.subDivision,
           isActive: true,
         },
         select: {
@@ -1055,7 +1065,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         name: validated.name,
         role: validated.role,
         division: validated.division,
-        subDivision: validated.subDivision,
+        subDivision: validated.role === 'CATEGORY_HEAD' ? null : validated.subDivision,
         isActive: true,
       },
       select: {
@@ -1097,12 +1107,26 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const finalRole = validated.role ?? existingUser.role;
+    const finalDivision = validated.division !== undefined ? validated.division : existingUser.division;
+    const finalSubDivision = validated.subDivision !== undefined ? validated.subDivision : existingUser.subDivision;
+
+    if ((finalRole === 'CREATOR' || finalRole === 'APPROVER') && (!finalDivision || !finalSubDivision)) {
+      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for Creators and Approvers' });
+      return;
+    }
+
+    if (finalRole === 'CATEGORY_HEAD' && !finalDivision) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
+      return;
+    }
+
     // Prepare update data
     const updateData: any = {
       name: validated.name,
       role: validated.role,
       division: validated.division,
-      subDivision: validated.subDivision,
+      subDivision: finalRole === 'CATEGORY_HEAD' ? null : validated.subDivision,
       email: validated.email ? validated.email.toLowerCase() : undefined,
     };
 
@@ -1231,91 +1255,49 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
   try {
     const { dateFrom, dateTo, status } = req.query;
 
-    // Build where clause
-    const where: any = {};
-
-    // Filter by date range if provided
-    if (dateFrom || dateTo) {
-      where.createdAt = {};
-      if (dateFrom) {
-        where.createdAt.gte = new Date(dateFrom as string);
-      }
-      if (dateTo) {
-        where.createdAt.lte = new Date(dateTo as string);
-      }
-    }
-
-    // Filter by status if provided
-    if (status) {
-      where.status = status as string;
-    }
-
-    // Get extraction jobs with costs (limited to most recent 500 for performance)
-    // Using flat table because it has the API cost and rate data
-    const jobs = await prisma.extractionResultFlat.findMany({
-      where: {
-        ...(dateFrom || dateTo ? {
-          createdAt: {
-            ...(dateFrom ? { gte: new Date(dateFrom as string) } : {}),
-            ...(dateTo ? { lte: new Date(dateTo as string) } : {})
-          }
-        } : {}),
-        ...(status ? { extractionStatus: status as string } : {})
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-      select: {
-        jobId: true,
-        apiCost: true,
-        rate: true,
-        createdAt: true,
-        extractionStatus: true,
-        majorCategory: true,
-        // We can get category code from majorCategory
-      },
-    });
-
-    // Helper to parse rate (handle Decimal, string, or number)
-    const parseRate = (rateVal: any): number => {
-      if (!rateVal) return 0;
-      // If it's a Decimal object (from Prisma)
-      if (typeof rateVal === 'object' && rateVal !== null && 'toNumber' in rateVal) {
-        return rateVal.toNumber();
-      }
-      // If it's a string
-      if (typeof rateVal === 'string') {
-        const clean = rateVal.replace(/[^0-9.]/g, '');
-        return parseFloat(clean) || 0;
-      }
-      // If it's already a number
-      if (typeof rateVal === 'number') {
-        return rateVal;
-      }
-      return 0;
+    const flatWhere: any = {
+      ...(dateFrom || dateTo ? {
+        createdAt: {
+          ...(dateFrom ? { gte: new Date(dateFrom as string) } : {}),
+          ...(dateTo ? { lte: new Date(dateTo as string) } : {})
+        }
+      } : {}),
+      ...(status ? { extractionStatus: status as string } : {})
     };
 
-    // Calculate totals
-    // costPrice = apiCost (what we pay)
-    // sellingPrice = rate (what user sells for)
-    const totalCostPrice = jobs.reduce((sum, job) => sum + (job.apiCost ? parseFloat(job.apiCost.toString()) : 0), 0);
-    const totalSellingPrice = jobs.reduce((sum, job) => sum + parseRate(job.rate), 0);
+    const [summary, statusGroups, totalJobsWithCosts] = await Promise.all([
+      prisma.extractionResultFlat.aggregate({
+        where: flatWhere,
+        _sum: {
+          apiCost: true,
+          rate: true
+        }
+      }),
+      prisma.extractionResultFlat.groupBy({
+        by: ['extractionStatus'],
+        where: flatWhere,
+        _count: { _all: true },
+        _sum: {
+          apiCost: true,
+          rate: true
+        }
+      }),
+      prisma.extractionResultFlat.count({ where: flatWhere })
+    ]);
+
+    const totalCostPrice = summary._sum.apiCost ? parseFloat(summary._sum.apiCost.toString()) : 0;
+    const totalSellingPrice = summary._sum.rate ? parseFloat(summary._sum.rate.toString()) : 0;
     const totalProfit = totalSellingPrice - totalCostPrice;
     const profitMargin = totalSellingPrice > 0 ? ((totalProfit / totalSellingPrice) * 100).toFixed(2) : '0.00';
 
-    // Group by status
     const statusBreakdown: any = {};
-    jobs.forEach((job) => {
-      const status = job.extractionStatus || 'UNKNOWN';
-      if (!statusBreakdown[status]) {
-        statusBreakdown[status] = {
-          count: 0,
-          totalCostPrice: 0,
-          totalSellingPrice: 0,
-        };
-      }
-      statusBreakdown[status].count += 1;
-      statusBreakdown[status].totalCostPrice += job.apiCost ? parseFloat(job.apiCost.toString()) : 0;
-      statusBreakdown[status].totalSellingPrice += parseRate(job.rate);
+    statusGroups.forEach((group) => {
+      const statusKey = group.extractionStatus || 'UNKNOWN';
+      statusBreakdown[statusKey] = {
+        count: group._count._all,
+        totalCostPrice: group._sum.apiCost ? parseFloat(group._sum.apiCost.toString()) : 0,
+        totalSellingPrice: group._sum.rate ? parseFloat(group._sum.rate.toString()) : 0,
+      };
     });
 
     res.json({
@@ -1325,7 +1307,7 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
         totalSellingPrice: parseFloat(totalSellingPrice.toFixed(2)),
         totalProfit: parseFloat(totalProfit.toFixed(2)),
         profitMargin: parseFloat(profitMargin),
-        totalJobsWithCosts: jobs.length,
+        totalJobsWithCosts,
         jobsWithoutCosts: 0, // Flat table entries should have costs
         statusBreakdown,
       },
@@ -1367,11 +1349,10 @@ export const getImageUsageAnalytics = async (req: Request, res: Response): Promi
       where.categoryId = parseInt(categoryId as string);
     }
 
-    // Get extraction jobs (limited to most recent 500 for performance)
+    // Get extraction jobs for full filtered dataset
     const jobs = await prisma.extractionJob.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: 500,
       select: {
         id: true,
         imageUrl: true,
@@ -1447,16 +1428,21 @@ export const getImageUsageAnalytics = async (req: Request, res: Response): Promi
  */
 export const getDetailedExpenses = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { limit = 100, offset = 0 } = req.query;
+    const { limit, offset } = req.query;
 
-    // Fetch detailed expense data from flat table
+    const parsedLimit = typeof limit === 'string' ? parseInt(limit, 10) : undefined;
+    const parsedOffset = typeof offset === 'string' ? parseInt(offset, 10) : 0;
+
+    const whereClause = {
+      extractionStatus: 'COMPLETED', // Only show completed extractions
+    } as const;
+
+    // Fetch detailed expense data from flat table (full dataset by default)
     const expenses = await prisma.extractionResultFlat.findMany({
-      where: {
-        extractionStatus: 'COMPLETED', // Only show completed extractions
-      },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
-      take: parseInt(limit as string),
-      skip: parseInt(offset as string),
+      ...(Number.isFinite(parsedLimit as number) && (parsedLimit as number) > 0 ? { take: parsedLimit } : {}),
+      ...(parsedOffset > 0 ? { skip: parsedOffset } : {}),
       select: {
         jobId: true,
         imageName: true,
@@ -1484,10 +1470,12 @@ export const getDetailedExpenses = async (req: Request, res: Response): Promise<
       createdAt: expense.createdAt,
     }));
 
+    const totalCount = await prisma.extractionResultFlat.count({ where: whereClause });
+
     res.json({
       success: true,
       data: formattedExpenses,
-      total: formattedExpenses.length,
+      total: totalCount,
     });
   } catch (error: any) {
     console.error('Error fetching detailed expenses:', error);

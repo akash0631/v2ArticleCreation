@@ -145,7 +145,7 @@ export interface AdminUser {
   id: number;
   email: string;
   name: string;
-  role: 'ADMIN' | 'CREATOR' | 'APPROVER';
+  role: 'ADMIN' | 'CREATOR' | 'APPROVER' | 'CATEGORY_HEAD';
   division?: string | null;
   subDivision?: string | null;
   isActive: boolean;
@@ -400,7 +400,7 @@ export const createUser = async (payload: {
   email: string;
   password: string;
   name: string;
-  role?: 'ADMIN' | 'CREATOR' | 'APPROVER';
+  role?: 'ADMIN' | 'CREATOR' | 'APPROVER' | 'CATEGORY_HEAD';
   division?: string;
   subDivision?: string;
 }): Promise<AdminUser> => {

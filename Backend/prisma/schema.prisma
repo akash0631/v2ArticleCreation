@@ -450,6 +450,7 @@ enum UserRole {
   USER
   CREATOR
   APPROVER
+  CATEGORY_HEAD
 
   @@map("user_role")
 }

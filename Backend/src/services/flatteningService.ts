@@ -1,6 +1,5 @@
-import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
+import { prismaClient as prisma } from '../utils/prisma';
 
 /**
  * Sanitize a value that should be numeric.
@@ -50,7 +49,12 @@ export class FlatteningService {
             return;
         }
 
-        const flatData = this.mapToFlatStructure(job);
+        const existingFlat = await prisma.extractionResultFlat.findUnique({
+            where: { jobId },
+            select: { vendorCode: true }
+        });
+
+        const flatData = this.mapToFlatStructure(job, existingFlat?.vendorCode || null);
 
         // Upsert to flat table (create or update)
         await prisma.extractionResultFlat.upsert({
@@ -65,7 +69,7 @@ export class FlatteningService {
     /**
      * Map extraction job to flat structure
      */
-    private mapToFlatStructure(job: any): any {
+    private mapToFlatStructure(job: any, existingVendorCode: string | null = null): any {
         const resultsMap = new Map();
 
         // Build map of attribute key -> value
@@ -114,6 +118,7 @@ export class FlatteningService {
 
             // All 41 Attributes
             majorCategory: resultsMap.get('major_category') || job.category?.code, // T-Shirt, Jeans, etc.
+            mcCode: getMcCodeByMajorCategory(resultsMap.get('major_category') || job.category?.code),
             vendorName: resultsMap.get('vendor_name'),
             designNumber: resultsMap.get('design_number'),
             pptNumber: resultsMap.get('ppt_number'),
@@ -154,6 +159,7 @@ export class FlatteningService {
             wash: resultsMap.get('wash'),
             fatherBelt: resultsMap.get('father_belt'),
             childBelt: resultsMap.get('child_belt_detail'),
+            vendorCode: resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode || null,
 
             // Hierarchy Mapping
             division: job.category?.subDepartment?.department?.name || resultsMap.get('division') || null,

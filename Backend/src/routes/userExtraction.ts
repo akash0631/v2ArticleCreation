@@ -10,6 +10,7 @@ import { EnhancedExtractionController } from '../controllers/enhancedExtractionC
 import { flatExtractionController } from '../controllers/flatExtractionController';
 import { validateRequest } from '../middleware/errorHandler';
 import * as adminController from '../controllers/adminController';
+import { prismaClient as prisma } from '../utils/prisma';
 
 const router = Router();
 const enhancedController = new EnhancedExtractionController();
@@ -154,9 +155,6 @@ router.get('/attributes', adminController.getAllMasterAttributes);
 // Get user's extraction history
 router.get('/history', async (req, res) => {
   try {
-    const { PrismaClient } = await import('../generated/prisma');
-    const prisma = new PrismaClient();
-
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
@@ -165,9 +163,11 @@ router.get('/history', async (req, res) => {
     const where: any = {};
 
     // RBAC Filtering Logic for Extraction Jobs
-    if (user.role === 'CREATOR') {
+    const role = String(user.role || '');
+
+    if (role === 'CREATOR') {
       where.userId = user.id;
-    } else if (user.role === 'APPROVER') {
+    } else if (role === 'APPROVER') {
       // Approvers filter by category hierarchy
       where.category = {
         subDepartment: {
@@ -177,7 +177,16 @@ router.get('/history', async (req, res) => {
           }
         }
       };
-    } else if (user.role === 'ADMIN') {
+    } else if (role === 'CATEGORY_HEAD') {
+      // Category Heads see all records in their division
+      where.category = {
+        subDepartment: {
+          department: {
+            name: user.division || undefined
+          }
+        }
+      };
+    } else if (role === 'ADMIN') {
       // Admins see all
     }
 
@@ -248,19 +257,26 @@ router.get('/history', async (req, res) => {
 // Get user's extraction statistics
 router.get('/stats', async (req, res) => {
   try {
-    const { PrismaClient } = await import('../generated/prisma');
-    const prisma = new PrismaClient();
-
     const user = req.user!;
     const where: any = {};
 
     // RBAC Filtering Logic (same as /history)
-    if (user.role === 'CREATOR') {
+    const role = String(user.role || '');
+
+    if (role === 'CREATOR') {
       where.userId = user.id;
-    } else if (user.role === 'APPROVER') {
+    } else if (role === 'APPROVER') {
       where.category = {
         subDepartment: {
           code: user.subDivision || undefined,
+          department: {
+            name: user.division || undefined
+          }
+        }
+      };
+    } else if (role === 'CATEGORY_HEAD') {
+      where.category = {
+        subDepartment: {
           department: {
             name: user.division || undefined
           }

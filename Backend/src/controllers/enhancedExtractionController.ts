@@ -21,6 +21,7 @@ export class EnhancedExtractionController {
     userId?: number;
     result: EnhancedExtractionResult;
     originalFilename?: string;
+    folderName?: string;
     department?: string;
     subDepartment?: string;
   }) {
@@ -42,7 +43,51 @@ export class EnhancedExtractionController {
         return Array.from(tokens);
       };
 
-      const { image, schema, categoryName, userId, result, originalFilename, department, subDepartment } = params;
+      const { image, schema, categoryName, userId, result, originalFilename, folderName, department, subDepartment } = params;
+
+      const extractVendorCodeFromMetadata = (metadata: any): string | null => {
+        if (!metadata || typeof metadata !== 'object') return null;
+
+        const pick = (...keys: string[]) => {
+          for (const key of keys) {
+            const value = metadata[key];
+            if (value !== null && value !== undefined && String(value).trim() !== '') {
+              return String(value).trim();
+            }
+          }
+          return null;
+        };
+
+        const directValue = pick('vendorCode', 'vendor_code', 'vendor code', 'vendorcode');
+        if (directValue) return directValue;
+
+        const rawLines: string[] = Array.isArray(metadata.rawLines)
+          ? metadata.rawLines.map((line: any) => String(line || '')).filter(Boolean)
+          : [];
+
+        const labeledLine = rawLines.find((line: string) => /vendor\s*code|vendor\s*id|vendor\s*#|vendor\b/i.test(line));
+        if (labeledLine) {
+          const matched = labeledLine.match(/vendor(?:\s*code|\s*id|\s*#)?\s*[:\-]?\s*([A-Za-z0-9._\/-]+)/i);
+          if (matched?.[1]) return matched[1].trim();
+        }
+
+        return null;
+      };
+
+      const sanitizeVendorCode = (value?: string | null): string | null => {
+        if (!value) return null;
+        const cleaned = String(value)
+          .trim()
+          .replace(/^['"`]+|['"`]+$/g, '')
+          .replace(/[^A-Za-z0-9._\/-]/g, '')
+          .slice(0, 100);
+        return cleaned || null;
+      };
+
+      // Priority: folder name > OCR whiteboard metadata > manual approver entry (left blank initially)
+      const folderVendorCode = sanitizeVendorCode(folderName);
+      const ocrVendorCode = sanitizeVendorCode(extractVendorCodeFromMetadata(result.extractedMetadata as any));
+      const resolvedVendorCode = folderVendorCode || ocrVendorCode || null;
 
       // Extract potential code from composite name (e.g. "Mens - ML" -> "ML" or "Mens-ML" -> "ML")
       let potentialCode = categoryName;
@@ -164,6 +209,31 @@ export class EnhancedExtractionController {
             confidence: 95,
             extractionMethod: 'VLM'
           });
+        }
+      }
+
+      if (resolvedVendorCode) {
+        const vendorCodeToken = normalizeToken('vendor_code');
+        const vendorCodeAltToken = normalizeToken('vendor code');
+        const vendorCodeAttributeId = attributeIdByKey.get(vendorCodeToken)
+          || attributeIdByKey.get(vendorCodeAltToken);
+
+        if (vendorCodeAttributeId) {
+          const existingEntry = attributeEntries.find(entry => entry.attributeId === vendorCodeAttributeId);
+          if (existingEntry) {
+            existingEntry.rawValue = resolvedVendorCode;
+            existingEntry.finalValue = resolvedVendorCode;
+            existingEntry.confidence = 95;
+            existingEntry.extractionMethod = 'OCR';
+          } else {
+            attributeEntries.push({
+              attributeId: vendorCodeAttributeId,
+              rawValue: resolvedVendorCode,
+              finalValue: resolvedVendorCode,
+              confidence: 95,
+              extractionMethod: 'OCR'
+            });
+          }
         }
       }
 
@@ -360,13 +430,24 @@ export class EnhancedExtractionController {
       }
 
 
+      const relativePathFromBody = (req.body?.relativePath || req.body?.webkitRelativePath || '') as string;
+      const folderNameFromBody = (req.body?.folderName || req.body?.vendorCodeFolder || '') as string;
+      const effectiveFolderName = folderNameFromBody
+        || (relativePathFromBody && relativePathFromBody.includes('/') ? relativePathFromBody.split('/')[0] : undefined)
+        || (req.file.originalname.includes('/') ? req.file.originalname.split('/')[0] : undefined)
+        || (req.file.originalname.includes('\\') ? req.file.originalname.split('\\')[0] : undefined)
+        || undefined;
+      const originalFilenameWithoutExt = (req.file.originalname.split(/[\\/]/).pop() || req.file.originalname)
+        .replace(/\.[^/.]+$/, '');
+
       await this.persistExtractionJob({
         image: imagePath,
         schema: parsedSchema,
         categoryName,
         userId: req.user?.id,
         result,
-        originalFilename: req.file.originalname.replace(/\.[^/.]+$/, ""), // Remove extension
+        originalFilename: originalFilenameWithoutExt,
+        folderName: effectiveFolderName,
         department: enforcedDepartment,
         subDepartment: enforcedSubDepartment
       });
@@ -405,13 +486,15 @@ export class EnhancedExtractionController {
         subDepartment,
         season,
         occasion,
-        fileName // Optional: original filename
+        fileName, // Optional: original filename
+        folderName // Optional: vendor code source from uploaded folder
       }: ExtractionRequest & {
         department?: string;
         subDepartment?: string;
         season?: string;
         occasion?: string;
         fileName?: string;
+        folderName?: string;
       } = req.body;
 
       // RBAC: Enforce Division/SubDivision for Creators
@@ -517,13 +600,21 @@ export class EnhancedExtractionController {
         return;
       }
 
+      const parsedFolderFromFileName = typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
+        ? fileName.split(/[\\/]/)[0]
+        : null;
+      const originalFilenameWithoutExt = (typeof fileName === 'string' && fileName.length > 0
+        ? fileName.split(/[\\/]/).pop() || fileName
+        : undefined)?.replace(/\.[^/.]+$/, '');
+
       await this.persistExtractionJob({
         image: imagePath, // Now stores R2 URL instead of filename
         schema,
         categoryName,
         userId: req.user?.id,
         result,
-        originalFilename: fileName ? fileName.replace(/\.[^/.]+$/, "") : undefined, // Remove extension if filename provided
+        originalFilename: originalFilenameWithoutExt,
+        folderName: folderName || parsedFolderFromFileName || undefined,
         department: enforcedDepartment,
         subDepartment: enforcedSubDepartment
       });
@@ -643,7 +734,9 @@ export class EnhancedExtractionController {
         sellingPrice,
         notes,
         discoveryMode,
-        customPrompt
+        customPrompt,
+        fileName,
+        folderName
       } = req.body;
 
       // Validate required fields
@@ -731,6 +824,13 @@ export class EnhancedExtractionController {
         categoryName: category.name,
         userId: req.user?.id,
         result,
+        originalFilename: typeof fileName === 'string'
+          ? (fileName.split(/[\\/]/).pop() || fileName).replace(/\.[^/.]+$/, '')
+          : undefined,
+        folderName: folderName
+          || (typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
+            ? fileName.split(/[\\/]/)[0]
+            : undefined),
         department: category.department.name,
         subDepartment: category.subDepartment.code
       });

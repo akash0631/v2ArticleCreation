@@ -161,6 +161,9 @@ export const useImageExtraction = () => {
 
       const start = performance.now();
       try {
+        const relativePath = ((row.file as File & { webkitRelativePath?: string }).webkitRelativePath || '').trim();
+        const folderName = relativePath.includes('/') ? relativePath.split('/')[0] : undefined;
+
         // Convert file to base64 using compression service
         const base64Image = await compress(row.file);
 
@@ -181,7 +184,8 @@ export const useImageExtraction = () => {
             sellingPrice: metadata.sellingPrice,
             notes: metadata.notes,
             discoveryMode: discoveryEnabled === true,
-            fileName: row.originalFileName
+            fileName: row.originalFileName,
+            folderName
           });
         } else {
           // Fall back to legacy extraction without metadata
@@ -191,7 +195,8 @@ export const useImageExtraction = () => {
             schema,
             categoryName: categoryName ?? "",
             discoveryMode: discoveryEnabled === true, // Explicit boolean check
-            fileName: row.originalFileName
+            fileName: row.originalFileName,
+            folderName
           });
         }
 

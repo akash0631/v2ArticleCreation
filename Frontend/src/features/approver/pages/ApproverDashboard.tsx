@@ -5,9 +5,77 @@ import { ApproverTable } from '../components/ApproverTable';
 import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
+// @ts-ignore
+import mcCodeData from '../../../data/mccode.json';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+type McCodeRow = {
+    'MC CD'?: number | string;
+    MC_DESC?: string;
+    'mc code'?: number | string;
+    'mc des'?: string;
+    'hsn code'?: number | string;
+};
+
+type McCodePayload = McCodeRow[] | { Sheet1?: McCodeRow[] };
+
+const normalizeCategory = (value?: string | null): string =>
+    (value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '_')
+        .replace(/_*-_*/g, '-')
+        .replace(/[^A-Z0-9_\-]/g, '');
+
+const payload = mcCodeData as McCodePayload;
+
+const sourceRows: McCodeRow[] = Array.isArray(payload)
+    ? payload
+    : (payload.Sheet1 || []);
+
+const mcCodeLookup = new Map<string, string>(
+    sourceRows
+        .map((row) => {
+            const category = row.MC_DESC ?? row['mc des'];
+            const code = row['MC CD'] ?? row['mc code'];
+            return { category, code };
+        })
+        .filter((row) => !!row.category && row.code !== undefined && row.code !== null)
+        .map((row) => [normalizeCategory(row.category), String(row.code)])
+);
+
+const inferMcCode = (majorCategory?: string | null): string | null => {
+    const key = normalizeCategory(majorCategory);
+    if (!key) return null;
+    return mcCodeLookup.get(key) || null;
+};
+
+const parseNumericValue = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+    const cleaned = String(value)
+        .replace(/[₹$€£¥]/g, '')
+        .replace(/\s+/g, '')
+        .replace(/\/-$/, '')
+        .replace(/\/$/, '')
+        .replace(/-$/, '')
+        .trim();
+    const match = cleaned.match(/^-?\d+(\.\d+)?/);
+    if (!match) return null;
+    const parsed = parseFloat(match[0]);
+    return Number.isNaN(parsed) ? null : parsed;
+};
+
+const calculateMrpFromRate = (rateOrCost: unknown): number | null => {
+    const rate = parseNumericValue(rateOrCost);
+    if (rate === null) return null;
+
+    const priceWithMargin = rate + (rate * 0.47);
+    return Math.ceil(priceWithMargin / 25) * 25;
+};
 
 export default function ApproverDashboard() {
     const [items, setItems] = useState<ApproverItem[]>([]);
@@ -93,7 +161,11 @@ export default function ApproverDashboard() {
             if (!response.ok) throw new Error('Failed to fetch items');
 
             const result = await response.json();
-            setItems(result.data || []);
+            const withMcCode = (result.data || []).map((item: ApproverItem) => ({
+                ...item,
+                mcCode: item.mcCode || inferMcCode(item.majorCategory)
+            }));
+            setItems(withMcCode);
         } catch (error) {
             message.error('Failed to load items');
         } finally {
@@ -128,7 +200,14 @@ export default function ApproverDashboard() {
 
                     if (!response.ok) throw new Error('Approval failed');
 
-                    message.success('Items approved successfully');
+                    const payload = await response.json();
+
+                    if (payload?.sapSync) {
+                        message.success(`Approved ${payload.count}. SAP sync: ${payload.sapSync.synced} synced, ${payload.sapSync.failed} failed.`);
+                    } else {
+                        message.success('Items approved successfully');
+                    }
+
                     setSelectedRowKeys([]);
                     fetchItems();
                 } catch (error) {
@@ -226,7 +305,7 @@ export default function ApproverDashboard() {
             // New business fields
             vendorCode: item.vendorCode,
             mrp: item.mrp,
-            mcCode: item.mcCode,
+            mcCode: item.mcCode || inferMcCode(item.majorCategory),
             segment: item.segment,
             season: item.season,
             hsnTaxCode: item.hsnTaxCode,
@@ -243,6 +322,18 @@ export default function ApproverDashboard() {
             const values = await form.validateFields();
             const token = localStorage.getItem('authToken');
 
+            // Auto-fill mcCode based on majorCategory
+            // Populate when category changes OR mcCode is empty.
+            if (values.majorCategory && (values.majorCategory !== editingItem?.majorCategory || !values.mcCode)) {
+                values.mcCode = inferMcCode(values.majorCategory) || values.mcCode;
+            }
+
+            // Always derive MRP from Rate/Cost:
+            // MRP = ceil((rate + 33%) / 25) * 25
+            if (values.rate !== undefined) {
+                values.mrp = calculateMrpFromRate(values.rate);
+            }
+
             const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${editingItem?.id}`, {
                 method: 'PUT',
                 headers: {
@@ -252,14 +343,25 @@ export default function ApproverDashboard() {
                 body: JSON.stringify(values)
             });
 
-            if (!response.ok) throw new Error('Update failed');
+            if (!response.ok) {
+                let errorText = 'Failed to update item';
+                try {
+                    const payload = await response.json();
+                    if (payload?.error) {
+                        errorText = payload.error;
+                    }
+                } catch {
+                    // keep default fallback
+                }
+                throw new Error(errorText);
+            }
 
             message.success('Item updated');
             setIsEditModalOpen(false);
             setEditingItem(null);
             fetchItems();
         } catch (error) {
-            message.error('Failed to update item');
+            message.error(error instanceof Error ? error.message : 'Failed to update item');
         }
     };
 
@@ -285,10 +387,15 @@ export default function ApproverDashboard() {
                 </Form.Item>
             </Col>
             <Col span={12}>
+                <Form.Item name="majorCategory" label="Major Category">
+                    <Input />
+                </Form.Item>
+            </Col>
+            <Col span={12}>
                 <Form.Item name="division" label="Division">
                     <Select
-                        allowClear={user?.role !== 'APPROVER'}
-                        disabled={user?.role === 'APPROVER' && !!user?.division}
+                        allowClear={user?.role !== 'APPROVER' && user?.role !== 'CATEGORY_HEAD'}
+                        disabled={(user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD') && !!user?.division}
                         onChange={(val) => {
                             // Cascade: reset subDivision when division changes
                             setModalDivision(val);
@@ -338,7 +445,12 @@ export default function ApproverDashboard() {
             </Col>
             <Col span={12}>
                 <Form.Item name="rate" label="Rate">
-                    <Input />
+                    <Input
+                        onChange={(e) => {
+                            const mrp = calculateMrpFromRate(e.target.value);
+                            form.setFieldsValue({ mrp });
+                        }}
+                    />
                 </Form.Item>
             </Col>
             <Col span={12}>
@@ -513,6 +625,12 @@ export default function ApproverDashboard() {
                         const index = newData.findIndex((item) => item.id === row.id);
                         if (index > -1) {
                             const item = newData[index];
+
+                            // Auto-fill mcCode based on majorCategory
+                            if (row.majorCategory && (row.majorCategory !== item.majorCategory || !row.mcCode)) {
+                                row.mcCode = inferMcCode(row.majorCategory) || row.mcCode;
+                            }
+
                             newData.splice(index, 1, {
                                 ...item,
                                 ...row,

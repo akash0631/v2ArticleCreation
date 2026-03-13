@@ -233,7 +233,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             title: 'Image',
             key: 'image',
             width: 80,
-            fixed: 'left' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <div style={{ width: 64, height: 64, borderRadius: 8, overflow: 'hidden', background: '#f5f5f5' }}>
                     {row.imageUrl ? (
@@ -260,7 +259,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             title: 'Ref Details (Editable)',
             key: 'details',
             width: 200,
-            fixed: 'left' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <Text strong>{row.articleNumber || row.designNumber || 'No Article #'}</Text>
@@ -279,7 +277,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             key: 'division',
             width: 120,
             editable: true,
-            fixed: 'left' as const,
         },
         {
             title: 'Sub-Division',
@@ -287,7 +284,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             key: 'subDivision',
             width: 120,
             editable: true,
-            fixed: 'left' as const,
         },
         {
             title: 'Major Category',
@@ -295,13 +291,11 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             key: 'majorCategory',
             width: 150,
             editable: true,
-            fixed: 'left' as const,
         },
         {
             title: 'Status',
             key: 'status',
             width: 120,
-            fixed: 'left' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <Tag color={
@@ -369,10 +363,32 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
         // Business & SAP Fields
         { title: 'Vendor Code', dataIndex: 'vendorCode', key: 'vendorCode', width: 130, editable: true },
         { title: 'MRP', dataIndex: 'mrp', key: 'mrp', width: 100, editable: true },
-        { title: 'MC Code', dataIndex: 'mcCode', key: 'mcCode', width: 120, editable: true },
+        {
+            title: 'MC Code',
+            dataIndex: 'mcCode',
+            key: 'mcCode',
+            width: 120,
+            editable: true,
+            render: (value: unknown) => {
+                const text = value == null ? '' : String(value).trim();
+                if (!text || text.toUpperCase() === 'NA' || text.toUpperCase() === 'N/A') return '';
+                return text;
+            }
+        },
         { title: 'Segment', dataIndex: 'segment', key: 'segment', width: 120, editable: true },
         { title: 'Season', dataIndex: 'season', key: 'season', width: 120, editable: true },
-        { title: 'HSN Tax Code', dataIndex: 'hsnTaxCode', key: 'hsnTaxCode', width: 140, editable: true },
+        {
+            title: 'HSN Tax Code',
+            dataIndex: 'hsnTaxCode',
+            key: 'hsnTaxCode',
+            width: 140,
+            editable: true,
+            render: (value: unknown) => {
+                const text = value == null ? '' : String(value).trim();
+                if (!text || text.toUpperCase() === 'NA' || text.toUpperCase() === 'N/A') return '';
+                return text;
+            }
+        },
         { title: 'Article Desc', dataIndex: 'articleDescription', key: 'articleDescription', width: 200, ellipsis: true, editable: true },
         { title: 'Fashion Grid', dataIndex: 'fashionGrid', key: 'fashionGrid', width: 130, editable: true },
         { title: 'Year', dataIndex: 'year', key: 'year', width: 100, editable: true },
@@ -397,7 +413,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             title: 'Actions',
             key: 'actions',
             width: 80,
-            fixed: 'right' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <Button
                     icon={<EditOutlined />}
@@ -462,9 +477,9 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                 // RBAC: Restrict editing for Approvers
                 const field = String(col.dataIndex);
                 let canEditField = col.editable;
-                if (user?.role === 'APPROVER') {
+                if (user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD') {
                     if (field === 'division' && !!user.division) canEditField = false;
-                    if (field === 'subDivision' && !!user.subDivision) canEditField = false;
+                    if (user?.role === 'APPROVER' && field === 'subDivision' && !!user.subDivision) canEditField = false;
                 }
 
                 if (!canEditField) {

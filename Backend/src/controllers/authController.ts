@@ -4,14 +4,9 @@
  */
 
 import { Request, Response } from 'express';
-import { PrismaClient } from '../generated/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient({
-  log: [], // Disable logging to save memory
-  errorFormat: 'minimal', // Minimal error format to save memory
-});
+import { prismaClient as prisma } from '../utils/prisma';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -30,6 +25,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         res.status(400).json({ success: false, error: 'Division and Sub-Division are required for Creators and Approvers' });
         return;
       }
+    }
+
+    if (role === 'CATEGORY_HEAD' && !division) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
+      return;
     }
 
     if (password.length < 6) {
@@ -58,7 +58,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         name,
         role: role || 'USER', // Default role if not provided
         division: division || null,
-        subDivision: subDivision || null,
+        subDivision: role === 'CATEGORY_HEAD' ? null : (subDivision || null),
         isActive: true,
       },
       select: {

@@ -1,7 +1,7 @@
-import { PrismaClient } from '../generated/prisma';
+import { prismaClient as prisma } from '../utils/prisma';
 
 export class SchemaService {
-  private prisma = new PrismaClient();
+  private prisma = prisma;
 
   /**
    * Load category schema from database

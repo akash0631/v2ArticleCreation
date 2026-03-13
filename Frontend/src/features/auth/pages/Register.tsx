@@ -113,11 +113,12 @@ export default function Register() {
             >
               <Option value="CREATOR">Creator</Option>
               <Option value="APPROVER">Approver</Option>
+              <Option value="CATEGORY_HEAD">Category Head</Option>
               <Option value="ADMIN">Admin</Option>
             </Select>
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"
@@ -135,21 +136,23 @@ export default function Register() {
                 </Select>
               </Form.Item>
 
-              <Form.Item
-                name="subDivision"
-                rules={[{ required: true, message: 'Please select a Sub-Division!' }]}
-              >
-                <Select
-                  placeholder="Select Sub-Division"
-                  suffixIcon={<AppstoreOutlined />}
-                  disabled={!selectedDepartmentId}
-                  loading={selectedDepartmentId !== null && subDepartments.length === 0}
+              {selectedRole !== 'CATEGORY_HEAD' && (
+                <Form.Item
+                  name="subDivision"
+                  rules={[{ required: true, message: 'Please select a Sub-Division!' }]}
                 >
-                  {subDepartments.map(sub => (
-                    <Option key={sub.id} value={sub.code}>{sub.name} ({sub.code})</Option>
-                  ))}
-                </Select>
-              </Form.Item>
+                  <Select
+                    placeholder="Select Sub-Division"
+                    suffixIcon={<AppstoreOutlined />}
+                    disabled={!selectedDepartmentId}
+                    loading={selectedDepartmentId !== null && subDepartments.length === 0}
+                  >
+                    {subDepartments.map(sub => (
+                      <Option key={sub.id} value={sub.code}>{sub.name} ({sub.code})</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              )}
             </>
           )}
 

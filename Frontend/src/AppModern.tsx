@@ -66,8 +66,8 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   if (user) {
     const userData = JSON.parse(user);
-    // Allow ADMIN or APPROVER
-    if (userData.role !== 'APPROVER' && userData.role !== 'ADMIN') {
+    // Allow ADMIN, APPROVER or CATEGORY_HEAD
+    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'ADMIN') {
       return <Navigate to="/dashboard" replace />;
     }
   }
@@ -85,8 +85,8 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   if (user) {
     const userData = JSON.parse(user);
-    // Approvers should not access creation/extraction pages
-    if (userData.role === 'APPROVER') {
+    // Approver-side roles should not access creator pages
+    if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
     }
   }

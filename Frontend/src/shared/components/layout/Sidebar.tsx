@@ -32,7 +32,7 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       icon: <DashboardOutlined />,
       label: <Link to="/dashboard">Dashboard</Link>,
     },
-    ...(userRole !== 'APPROVER' ? [{
+    ...(userRole !== 'APPROVER' && userRole !== 'CATEGORY_HEAD' ? [{
       key: '/products',
       icon: <UploadOutlined />,
       label: <Link to="/products">Products</Link>,
@@ -42,8 +42,8 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       icon: <UploadOutlined />,
       label: <Link to="/extraction">Extraction</Link>,
     },
-    // Approver Dashboard - Visible to ADMIN and APPROVER
-    ...((userRole === 'ADMIN' || userRole === 'APPROVER') ? [{
+    // Approver Dashboard - Visible to ADMIN, APPROVER and CATEGORY_HEAD
+    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD') ? [{
       key: '/approver',
       icon: <CheckSquareOutlined />,
       label: <Link to="/approver">Approver</Link>,
