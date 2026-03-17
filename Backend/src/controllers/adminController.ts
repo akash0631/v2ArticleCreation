@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { prismaClient as prisma } from '../utils/prisma';
+import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 
 // ═══════════════════════════════════════════════════════
@@ -1265,7 +1265,7 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
       ...(status ? { extractionStatus: status as string } : {})
     };
 
-    const [summary, statusGroups, totalJobsWithCosts] = await Promise.all([
+    const [summary, statusGroups, totalJobsWithCosts] = await withPrismaRetry(() => Promise.all([
       prisma.extractionResultFlat.aggregate({
         where: flatWhere,
         _sum: {
@@ -1283,7 +1283,7 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
         }
       }),
       prisma.extractionResultFlat.count({ where: flatWhere })
-    ]);
+    ]));
 
     const totalCostPrice = summary._sum.apiCost ? parseFloat(summary._sum.apiCost.toString()) : 0;
     const totalSellingPrice = summary._sum.rate ? parseFloat(summary._sum.rate.toString()) : 0;

@@ -26,13 +26,33 @@ export class CacheService {
       const redisHost = process.env.REDIS_HOST || 'localhost';
       const redisPort = parseInt(process.env.REDIS_PORT || '6379');
       const redisPassword = process.env.REDIS_PASSWORD;
+      const useTls = process.env.REDIS_TLS === 'true' || (redisUrl?.startsWith('rediss://') ?? false);
+
+      const commonOptions = {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: true,
+        lazyConnect: true,
+        connectTimeout: 10000,
+        keepAlive: 30000,
+        retryStrategy: (times: number) => Math.min(times * 500, 5000),
+        reconnectOnError: (error: Error) => {
+          const message = error.message?.toLowerCase() || '';
+          if (
+            message.includes('econnreset') ||
+            message.includes('connection is closed') ||
+            message.includes('socket closed unexpectedly')
+          ) {
+            return true;
+          }
+          return false;
+        }
+      };
 
       if (redisUrl) {
         // Use Redis URL (for cloud deployments)
         this.redis = new Redis(redisUrl, {
-          maxRetriesPerRequest: 3,
-          enableReadyCheck: true,
-          lazyConnect: true
+          ...commonOptions,
+          ...(useTls ? { tls: {} } : {})
         });
       } else if (process.env.ENABLE_REDIS === 'true') {
         // Use host/port configuration
@@ -40,9 +60,8 @@ export class CacheService {
           host: redisHost,
           port: redisPort,
           password: redisPassword,
-          maxRetriesPerRequest: 3,
-          enableReadyCheck: true,
-          lazyConnect: true
+          ...commonOptions,
+          ...(useTls ? { tls: {} } : {})
         });
       } else {
         console.log('ℹ️  Redis caching disabled (set ENABLE_REDIS=true to enable)');
@@ -51,19 +70,34 @@ export class CacheService {
 
       // Connect to Redis
       this.redis.connect().then(() => {
-        this.enabled = true;
-        console.log('✅ Redis cache connected successfully');
-        console.log(`📊 Cache TTL: ${this.TTL}s (${Math.round(this.TTL / 60)} minutes)`);
+        // status transitions handled in event listeners
       }).catch((error) => {
         console.warn('⚠️  Redis connection failed, caching disabled:', error.message);
         this.enabled = false;
         this.redis = null;
       });
 
+      this.redis.on('ready', () => {
+        const wasDisabled = !this.enabled;
+        this.enabled = true;
+        if (wasDisabled) {
+          console.log('✅ Redis cache connected successfully');
+          console.log(`📊 Cache TTL: ${this.TTL}s (${Math.round(this.TTL / 60)} minutes)`);
+        }
+      });
+
+      this.redis.on('close', () => {
+        this.enabled = false;
+      });
+
+      this.redis.on('end', () => {
+        this.enabled = false;
+        console.warn('⚠️  Redis connection ended');
+      });
+
       // Handle Redis errors
       this.redis.on('error', (error) => {
         console.error('❌ Redis error:', error.message);
-        this.enabled = false;
       });
 
       this.redis.on('reconnecting', () => {

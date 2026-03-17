@@ -10,6 +10,68 @@ import { PrismaClient } from '../generated/prisma';
 // Singleton instance
 let prisma: PrismaClient | null = null;
 
+const TRANSIENT_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1017']);
+
+function isTransientPrismaError(error: any): boolean {
+  const code = error?.code as string | undefined;
+  const message = String(error?.message || '').toLowerCase();
+
+  if (code && TRANSIENT_PRISMA_CODES.has(code)) {
+    return true;
+  }
+
+  return (
+    message.includes('connection reset') ||
+    message.includes('forcibly closed by the remote host') ||
+    message.includes('server has closed the connection') ||
+    message.includes('can\'t reach database server')
+  );
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function resetPrismaClient(): Promise<void> {
+  if (prisma) {
+    try {
+      await prisma.$disconnect();
+    } catch {
+      // Ignore disconnect errors during reset
+    }
+    prisma = null;
+  }
+}
+
+export async function withPrismaRetry<T>(
+  operation: () => Promise<T>,
+  options: { maxRetries?: number; baseDelayMs?: number } = {}
+): Promise<T> {
+  const maxRetries = options.maxRetries ?? 2;
+  const baseDelayMs = options.baseDelayMs ?? 250;
+
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+
+      const canRetry = attempt < maxRetries && isTransientPrismaError(error);
+      if (!canRetry) {
+        throw error;
+      }
+
+      await resetPrismaClient();
+      getPrismaClient();
+      await wait(baseDelayMs * Math.pow(2, attempt));
+    }
+  }
+
+  throw lastError;
+}
+
 export function getPrismaClient(): PrismaClient {
   if (!prisma) {
     prisma = new PrismaClient({
