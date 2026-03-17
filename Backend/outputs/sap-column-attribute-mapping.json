@@ -1,0 +1,630 @@
+{
+  "generatedAt": "2026-03-17T03:54:28.040Z",
+  "sourceUrl": "https://my-dab-app.azurewebsites.net/api/ET_ZCT04_CHAR_GET_RFC",
+  "totalSapColumns": 69,
+  "mappedColumns": 38,
+  "unmappedColumns": 31,
+  "columns": [
+    {
+      "sapColumn": "AGE_SEGMENT",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "ID",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_ACC_COL",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_ADD_ACC",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_ADD_ACC1",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_BLT_MAIN_STYLE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_BLT_SIZE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_BTM_FOLD",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 111,
+      "attributeKey": "BOTTOM_FOLD",
+      "attributeLabel": "BOTTOM FOLD",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_BTN_MAIN_MVGR",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 118,
+      "attributeKey": "BUTTON",
+      "attributeLabel": "BUTTON",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_BUYING_TYPE",
+      "mapped": true,
+      "matchedBy": "key-normalized",
+      "attributeId": 134,
+      "attributeKey": "BUYING_TYPE",
+      "attributeLabel": "BUYING_TYPE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_COLLAR",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 105,
+      "attributeKey": "COLLAR",
+      "attributeLabel": "COLLAR",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_COLLAR_SIZE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_COMPOSITION",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 95,
+      "attributeKey": "COMPOSITION",
+      "attributeLabel": "COMPOSITION",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_CONSTRUCTION",
+      "mapped": true,
+      "matchedBy": "key-normalized",
+      "attributeId": 97,
+      "attributeKey": "CONSTRUCTION",
+      "attributeLabel": "CONSTRUCTION",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_COUNT",
+      "mapped": true,
+      "matchedBy": "key-normalized",
+      "attributeId": 100,
+      "attributeKey": "COUNT",
+      "attributeLabel": "COUNT",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_DC_EDGE_LOOP",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 117,
+      "attributeKey": "DRAWCORD",
+      "attributeLabel": "DRAWCORD ",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_DC_SUB_STYLE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_EMB_TYPE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 127,
+      "attributeKey": "EMBROIDERY_TYPE",
+      "attributeLabel": "EMBROIDERY_TYPE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_EMBROIDERY",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 126,
+      "attributeKey": "EMBROIDERY",
+      "attributeLabel": "EMBROIDERY",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_FAB",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 92,
+      "attributeKey": "FABRIC_MAIN_MVGR",
+      "attributeLabel": "FABRIC MAIN MVGR",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_FAB_DIV",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_FAB_WEIGHT",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 98,
+      "attributeKey": "GRAM_PER_SQUARE_METER",
+      "attributeLabel": "GRAM PER SQUARE METER",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_FAB2",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_FINISH",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 96,
+      "attributeKey": "FINISH",
+      "attributeLabel": "FINISH",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_FIT",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 114,
+      "attributeKey": "FIT",
+      "attributeLabel": "FIT",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_FO_BTN_STYLE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 112,
+      "attributeKey": "FRONT_OPEN_STYLE",
+      "attributeLabel": "FRONT OPEN STYLE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_GSM",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 98,
+      "attributeKey": "GRAM_PER_SQUARE_METER",
+      "attributeLabel": "GRAM PER SQUARE METER",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_LENGTH",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 116,
+      "attributeKey": "LENGTH",
+      "attributeLabel": "LENGTH",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_LYCRA",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 102,
+      "attributeKey": "LYCRA_NON\nLYCRA",
+      "attributeLabel": "LYCRA/NON\nLYCRA",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_MACRO_MVGR",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_MAIN_MVGR",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 92,
+      "attributeKey": "FABRIC_MAIN_MVGR",
+      "attributeLabel": "FABRIC MAIN MVGR",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_MAIN_STYLE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_NECK_BAND",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 103,
+      "attributeKey": "NECK",
+      "attributeLabel": "NECK",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_NECK_BAND_STYLE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_OUNZ",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_PATCH_TYPE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 125,
+      "attributeKey": "PATCH_TYPE",
+      "attributeLabel": "PATCH TYPE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PATCHES",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 124,
+      "attributeKey": "PATCHES",
+      "attributeLabel": "PATCHES",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PATTERN",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 115,
+      "attributeKey": "PATTERN",
+      "attributeLabel": "PATTERN",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PD",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_PLACEMENT",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 122,
+      "attributeKey": "PRINT_PLACEMENT",
+      "attributeLabel": "PRINT_PLACEMENT",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PLACKET",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 107,
+      "attributeKey": "PLACKET",
+      "attributeLabel": "PLACKET",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_POCKET",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 113,
+      "attributeKey": "POCKET_TYPE",
+      "attributeLabel": "POCKET TYPE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PRINT_PLACEMENT",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 122,
+      "attributeKey": "PRINT_PLACEMENT",
+      "attributeLabel": "PRINT_PLACEMENT",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PRINT_STYLE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 123,
+      "attributeKey": "PRINT_STYLE",
+      "attributeLabel": "PRINT_STYLE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_PRINT_TYPE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 121,
+      "attributeKey": "PRINT_TYPE",
+      "attributeLabel": "PRINT TYPE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_SET",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_SHADE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 101,
+      "attributeKey": "SHADE",
+      "attributeLabel": "SHADE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_SLEEVES_MAIN_STYLE",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 110,
+      "attributeKey": "SLEEVE",
+      "attributeLabel": "SLEEVE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_SUB_STYLE_BLT",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_SUB_STYLE_BTN_CLR",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_WASH",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 128,
+      "attributeKey": "WASH",
+      "attributeLabel": "WASH",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_WASH_COLOR",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_WEAVE_1",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 93,
+      "attributeKey": "WEAVE",
+      "attributeLabel": "WEAVE",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_WEAVE_2",
+      "mapped": true,
+      "matchedBy": "key-normalized",
+      "attributeId": 94,
+      "attributeKey": "WEAVE_2",
+      "attributeLabel": "WEAVE 2",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_WEAVE_3",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "M_YARN",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 90,
+      "attributeKey": "YARN_01",
+      "attributeLabel": "YARN-01",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_YARN_02",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 91,
+      "attributeKey": "YARN_02",
+      "attributeLabel": "YARN-02",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_ZIP",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 119,
+      "attributeKey": "ZIPPER",
+      "attributeLabel": "ZIPPER",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "M_ZIP_COL",
+      "mapped": true,
+      "matchedBy": "alias",
+      "attributeId": 120,
+      "attributeKey": "ZIP_COLOUR",
+      "attributeLabel": "ZIP COLOUR",
+      "attributeType": "SELECT"
+    },
+    {
+      "sapColumn": "MATNR",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "NO_OF_POCKET",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "OTHER_MVGR3",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "OTHER_MVGR4",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "OTHER_MVGR5",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "OTHER_MVGR6",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "OTHER_MVGR7",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "POCKET_PLACEMENT",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "PUR_DATE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    },
+    {
+      "sapColumn": "SQL_DATE",
+      "mapped": false,
+      "matchedBy": "none",
+      "attributeId": null,
+      "attributeKey": null,
+      "attributeLabel": null,
+      "attributeType": null
+    }
+  ]
+}
