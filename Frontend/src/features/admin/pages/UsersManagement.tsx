@@ -14,7 +14,7 @@ import {
   message,
   Space,
 } from 'antd';
-import { PlusOutlined, UserOutlined, ShopOutlined, AppstoreOutlined, EditOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, UserOutlined, ShopOutlined, AppstoreOutlined, EditOutlined, DownloadOutlined, UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import { createUser, updateUser, deactivateUser, getUsers, getDepartments, type AdminUser } from '../../../services/adminApi';
 import ExcelJS from 'exceljs';
 import * as XLSX from 'xlsx';
@@ -28,6 +28,7 @@ export default function UsersManagement() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('CREATOR');
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [form] = Form.useForm();
 
@@ -49,6 +50,24 @@ export default function UsersManagement() {
     const dept = departments.find(d => d.id === selectedDeptId);
     return dept?.subDepartments || [];
   }, [selectedDeptId, departments]);
+
+  // Filter users based on search term
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return users.filter((u) => u.isActive);
+    }
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return users.filter((u) => 
+      u.isActive && (
+        u.name.toLowerCase().includes(lowerSearchTerm) ||
+        u.email.toLowerCase().includes(lowerSearchTerm) ||
+        (u.division && u.division.toLowerCase().includes(lowerSearchTerm)) ||
+        (u.subDivision && u.subDivision.toLowerCase().includes(lowerSearchTerm)) ||
+        u.role.toLowerCase().includes(lowerSearchTerm)
+      )
+    );
+  }, [users, searchTerm]);
 
   const divisionNames = useMemo(() => {
     const base = ['MEN', 'LADIES', 'KIDS'];
@@ -481,10 +500,25 @@ export default function UsersManagement() {
       </Card>
 
       <Card style={{ marginTop: 16 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="Search by name, email, division, or role..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ maxWidth: 400 }}
+            allowClear
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+          />
+          {searchTerm && (
+            <Text type="secondary" style={{ marginLeft: 12 }}>
+              Found {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+            </Text>
+          )}
+        </div>
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={users.filter((u) => u.isActive)}
+          dataSource={filteredUsers}
           loading={isLoading}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: 'No users found' }}

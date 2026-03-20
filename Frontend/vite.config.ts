@@ -25,5 +25,18 @@ export default defineConfig({
   },
   build: {
     sourcemap: true, // Enable source maps for Sentry
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: false,
+    allowedHosts: [
+      'articlecreation.v2retail.net',
+      'www.articlecreation.v2retail.net',
+      'localhost',
+      '127.0.0.1',
+      '192.168.151.46',
+      '.trycloudflare.com' // Allow all Cloudflare tunnel URLs
+    ]
   }
 })
