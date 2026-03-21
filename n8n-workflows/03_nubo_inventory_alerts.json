@@ -1,0 +1,60 @@
+{
+  "name": "Nubo Inventory Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "30 2 * * *" }] }
+      },
+      "id": "inv-schedule",
+      "name": "Daily 8AM IST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.RISTA_API_URL }}/v1/inventory/current",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.RISTA_API_TOKEN }}" },
+            { "name": "X-Store-ID", "value": "={{ $env.RISTA_STORE_ID }}" }
+          ]
+        }
+      },
+      "id": "fetch-inventory",
+      "name": "Fetch Rista Inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\n\n// Expensive items need tighter threshold (3x reorder level)\nconst expensiveItems = ['Guacamole','Protein Plus','Parmesan','Matcha Mix','Almond'];\n\nconst lowStock = items.filter(item => {\n  const multiplier = expensiveItems.some(e => (item.name||'').includes(e)) ? 3 : 1;\n  return parseFloat(item.quantity||0) <= parseFloat(item.reorder_level||0) * multiplier;\n});\n\nif (lowStock.length === 0) return [];\n\nconst today = new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short'});\n\nconst critical = lowStock.filter(i => parseFloat(i.quantity||0) <= parseFloat(i.reorder_level||0));\nconst warning = lowStock.filter(i => parseFloat(i.quantity||0) > parseFloat(i.reorder_level||0));\n\nlet msg = `*Nubo Inventory Alert — ${today}*\\n`;\n\nif (critical.length > 0) {\n  msg += `\\n🔴 *Critical (below reorder level)*\\n`;\n  msg += critical.map(i => `• ${i.name}: ${i.quantity}${i.unit} (min: ${i.reorder_level}${i.unit})`).join('\\n');\n}\n\nif (warning.length > 0) {\n  msg += `\\n\\n🟡 *Low stock (order soon)*\\n`;\n  msg += warning.map(i => `• ${i.name}: ${i.quantity}${i.unit}`).join('\\n');\n}\n\nmsg += `\\n\\nAction: Contact Om Sai or check alternates`;\n\nreturn [{ json: { message: msg, criticalCount: critical.length, warningCount: warning.length } }];"
+      },
+      "id": "check-stock",
+      "name": "Check Low Stock",
+      "type": "n8n-nodes-base.code",
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openclaw-agent.happyocean-047968bd.centralindia.azurecontainerapps.io/webhook/send",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={ \"to\": \"whatsapp\", \"message\": \"{{ $json.message }}\" }"
+      },
+      "id": "send-inv-alert",
+      "name": "Send Inventory Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Daily 8AM IST": { "main": [[{ "node": "Fetch Rista Inventory" }]] },
+    "Fetch Rista Inventory": { "main": [[{ "node": "Check Low Stock" }]] },
+    "Check Low Stock": { "main": [[{ "node": "Send Inventory Alert" }]] }
+  },
+  "active": true,
+  "settings": { "timezone": "Asia/Kolkata" }
+}
