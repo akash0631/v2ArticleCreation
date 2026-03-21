@@ -54,47 +54,27 @@
         "fullForm": "NYLON"
       },
       {
-        "shortForm": "BMB",
-        "fullForm": "BAMBOO"
+        "shortForm": "FLX",
+        "fullForm": "FLEX"
       },
       {
         "shortForm": "PC",
         "fullForm": "POLY COTTON"
       },
       {
-        "shortForm": "MTLC",
-        "fullForm": "MATTALIC"
-      },
-      {
         "shortForm": "ACR",
         "fullForm": "ACRYLIC"
       },
       {
-        "shortForm": "P VIS",
+        "shortForm": "PV",
         "fullForm": "POLY VISCOSE"
-      },
-      {
-        "shortForm": "PVC",
-        "fullForm": "POLY VISCOSE COTTON"
       },
       {
         "shortForm": "CP",
         "fullForm": "COTTON POLY"
       },
       {
-        "shortForm": "ORG",
-        "fullForm": "ORGANIC"
-      },
-      {
-        "shortForm": "IMP",
-        "fullForm": "IMPORTED"
-      },
-      {
-        "shortForm": "C FLX",
-        "fullForm": "COTTON FLEC"
-      },
-      {
-        "shortForm": "W ACR",
+        "shortForm": "W_ACR",
         "fullForm": "WOOL/ACRYLIC"
       },
       {
@@ -102,63 +82,16 @@
         "fullForm": "COTTON/WOOL/ACRYLIC"
       },
       {
-        "shortForm": "CP VIS",
-        "fullForm": "COTTON/POLY/VISCOSE"
+        "shortForm": "RECLE",
+        "fullForm": "RECYCLE"
       },
       {
-        "shortForm": "PN",
-        "fullForm": "POLY/NYLON"
-      },
-      {
-        "shortForm": "TNCL",
-        "fullForm": "TENCIL"
-      },
-      {
-        "shortForm": "CHN",
-        "fullForm": "CHENNIEL"
-      },
-      {
-        "shortForm": "SILK",
-        "fullForm": "SILK"
-      },
-      {
-        "shortForm": "FLX",
-        "fullForm": "FLEX"
+        "shortForm": "RFD",
+        "fullForm": "READY FOR DYING"
       },
       {
         "shortForm": "LINN",
         "fullForm": "LINNEN"
-      },
-      {
-        "shortForm": "LTHR",
-        "fullForm": "LEATHER"
-      },
-      {
-        "shortForm": "C LINN",
-        "fullForm": "COTTON LINNEN"
-      },
-      {
-        "shortForm": "P LINN",
-        "fullForm": "POLY LINEN"
-      },
-      {
-        "shortForm": "P FLX",
-        "fullForm": "POLY/FLEX"
-      },
-      {
-        "shortForm": "JUTE",
-        "fullForm": "JUTE"
-      },
-      {
-        "shortForm": "C VIS LINN",
-        "fullForm": "COTTON/VIS/LINNEN"
-      },
-      {
-        "shortForm": "TNCL CHN",
-        "fullForm": "TENSIL/CHENNIEL"
-      },
-      {
-
       }
     ]
   },
@@ -169,12 +102,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ATY",
-        "fullForm": "ATY"
-      },
-      {
         "shortForm": "DTY",
         "fullForm": "DTY"
+      },
+      {
+        "shortForm": "ATY",
+        "fullForm": "ATY"
       },
       {
         "shortForm": "FLMNT",
@@ -189,20 +122,52 @@
         "fullForm": "LUREX"
       },
       {
-        "shortForm": "MOD",
-        "fullForm": "MODAL"
+        "shortForm": "SLUB",
+        "fullForm": "SLUB"
+      },
+      {
+        "shortForm": "RYN",
+        "fullForm": "RAYON"
       },
       {
         "shortForm": "LYCL",
         "fullForm": "LYOCIL"
       },
       {
-        "shortForm": "SLB",
-        "fullForm": "SLUB"
+        "shortForm": "MOD",
+        "fullForm": "MODAL"
+      },
+      {
+        "shortForm": "CARDED",
+        "fullForm": "CARDED"
+      },
+      {
+        "shortForm": "GZA",
+        "fullForm": "GIZA"
+      },
+      {
+        "shortForm": "DUP",
+        "fullForm": "DUPION"
+      },
+      {
+        "shortForm": "SYRO",
+        "fullForm": "SYRO"
+      },
+      {
+        "shortForm": "CMPCT",
+        "fullForm": "COMPACT"
       },
       {
         "shortForm": "CSHMR",
         "fullForm": "CASHMERE"
+      },
+      {
+        "shortForm": "S DIAL",
+        "fullForm": "SEMI DAIL"
+      },
+      {
+        "shortForm": "DAIL",
+        "fullForm": "DAIL"
       },
       {
         "shortForm": "PSHMN",
@@ -225,44 +190,20 @@
         "fullForm": "MELANGE"
       },
       {
-        "shortForm": "SYRO",
-        "fullForm": "SYRO"
+        "shortForm": "TRLN",
+        "fullForm": "TERELENE"
       },
       {
-        "shortForm": "DAIL",
-        "fullForm": "DAIL"
-      },
-      {
-        "shortForm": "S DIAL",
-        "fullForm": "SEMI DAIL"
-      },
-      {
-        "shortForm": "CMPCT",
-        "fullForm": "COMPACT"
-      },
-      {
-        "shortForm": "CARDED",
-        "fullForm": "CARDED"
-      },
-      {
-        "shortForm": "COMBD",
-        "fullForm": "COMBED"
-      },
-      {
-        "shortForm": "OE",
-        "fullForm": "OPEN END YARN"
-      },
-      {
-        "shortForm": "CF YARN",
+        "shortForm": "CF_YARN",
         "fullForm": "COMBED FIBER YARN"
       },
       {
-        "shortForm": "T/R",
-        "fullForm": "TERLENE/RAYON"
+        "shortForm": "PP",
+        "fullForm": "POLY PROPYLENE"
       },
       {
-        "shortForm": "TRLN",
-        "fullForm": "TERELENE"
+        "shortForm": "HEMP",
+        "fullForm": "HEMP"
       },
       {
         "shortForm": "TRCT",
@@ -273,40 +214,32 @@
         "fullForm": "CHENNIEL"
       },
       {
-        "shortForm": "HEMP",
-        "fullForm": "HEMP"
+        "shortForm": "T/R",
+        "fullForm": "TERLENE/RAYON"
       },
       {
-        "shortForm": "PP",
-        "fullForm": "POLY PROPYLENE"
+        "shortForm": "OE",
+        "fullForm": "OPEN END YARN"
       },
       {
-        "shortForm": "NOVELTY",
-        "fullForm": "NVLT"
+        "shortForm": "COMBD",
+        "fullForm": "COMBED"
       },
       {
-        "shortForm": "TENCIL",
-        "fullForm": "TNCL"
+        "shortForm": "NVLT",
+        "fullForm": "NOVELTY"
       },
       {
-        "shortForm": "INDIAN",
-        "fullForm": "IND"
+        "shortForm": "TNCL",
+        "fullForm": "TENCIL"
       },
       {
-        "shortForm": "RFD",
-        "fullForm": "READY FOR DYING"
+        "shortForm": "IND",
+        "fullForm": "INDIGO"
       },
       {
-        "shortForm": "RYN",
-        "fullForm": "RAYON"
-      },
-      {
-        "shortForm": "GZA",
-        "fullForm": "GIZA"
-      },
-      {
-        "shortForm": "DUP",
-        "fullForm": "DUPION"
+        "shortForm": "-",
+        "fullForm": "-"
       }
     ]
   },
@@ -321,36 +254,92 @@
         "fullForm": "SOLID"
       },
       {
-        "shortForm": "PRT",
-        "fullForm": "PRINTED"
+        "shortForm": "Y/D_CHK",
+        "fullForm": "YARN-DYED CHECKS"
       },
       {
-        "shortForm": "PRT CHK",
-        "fullForm": "PRINT CHECKS"
-      },
-      {
-        "shortForm": "Y/D CHK",
-        "fullForm": "YARN DYED CHECK"
-      },
-      {
-        "shortForm": "STP",
-        "fullForm": "STIRPE"
-      },
-      {
-        "shortForm": "H-STP",
-        "fullForm": "HORIZONTAL STRIPE"
-      },
-      {
-        "shortForm": "V-STP",
-        "fullForm": "VERTICAL STRIPE"
-      },
-      {
-        "shortForm": "E-STP",
+        "shortForm": "ENG_STP",
         "fullForm": "ENGINEERING STRIPE"
       },
       {
-        "shortForm": "FAB_FATHER_MVGR",
-        "fullForm": "FAB_FATHER_MVGR"
+        "shortForm": "H_STP",
+        "fullForm": "HORIZONTAL STRIPE"
+      },
+      {
+        "shortForm": "V_STP",
+        "fullForm": "VERTICAL STRIPE"
+      },
+      {
+        "shortForm": "CHK_PRT",
+        "fullForm": "CHECK PRINT"
+      },
+      {
+        "shortForm": "ANML_PRT",
+        "fullForm": "ANIMAL PRINT"
+      },
+      {
+        "shortForm": "AOP_ABST",
+        "fullForm": "ALL OVER PRINT - ABSTRACT"
+      },
+      {
+        "shortForm": "AOP_BOOTY",
+        "fullForm": "ALL OVER PRINT - BOOTY"
+      },
+      {
+        "shortForm": "AOP_CLOUD",
+        "fullForm": "ALL OVER PRINT - CLOUD"
+      },
+      {
+        "shortForm": "AOP_FLRL",
+        "fullForm": "ALL OVER PRINT - FLORAL"
+      },
+      {
+        "shortForm": "AOP_GMTL",
+        "fullForm": "ALL OVER PRINT - GEOMETRIC"
+      },
+      {
+        "shortForm": "AOP_TRPL",
+        "fullForm": "ALL OVER PRINT - TROPICAL"
+      },
+      {
+        "shortForm": "AOP_ANML",
+        "fullForm": "ALL OVER PRINT - ANIMAL"
+      },
+      {
+        "shortForm": "AOP_CRTN",
+        "fullForm": "ALL OVER PRINT - CARTOON"
+      },
+      {
+        "shortForm": "AOP_CMFG",
+        "fullForm": "ALL OVER PRINT - CAMOUFLAGE"
+      },
+      {
+        "shortForm": "AOP_NUM",
+        "fullForm": "ALL OVER PRINT - NUMERIC"
+      },
+      {
+        "shortForm": "AOP_ALPHA",
+        "fullForm": "ALL OVER PRINT - APLHABATICAL"
+      },
+      {
+        "shortForm": "AOP_SCRF",
+        "fullForm": "ALL OVER PRINT - SCARF"
+      },
+      {
+        "shortForm": "AOP_PSLY",
+        "fullForm": "ALL OVER PRINT - PAISLEY"
+      },
+      {
+        "shortForm": "AOP_BANDHANI",
+        "fullForm": "ALL OVER PRINT - BANDHANI"
+      },
+      {
+        "shortForm": "AOP_AMD",
+        "fullForm": "ALL OVER PRINT AHMEDABAD"
+      },
+      {
+        "shortForm": "AOP_JPR",
+        "fullForm": "ALL OVER PRINT JAIPURI"
       }
     ]
   },
@@ -377,60 +366,24 @@
         "fullForm": "RIB"
       },
       {
-        "shortForm": "2 T TR",
-        "fullForm": "2 T TERRY"
+        "shortForm": "FLC",
+        "fullForm": "FLEECE"
       },
       {
-        "shortForm": "3 T TR",
-        "fullForm": "3 T TERRY"
+        "shortForm": "LFR",
+        "fullForm": "SEERSUCKER"
       },
       {
         "shortForm": "PIQ",
         "fullForm": "PIQUE"
       },
       {
-        "shortForm": "PLN",
-        "fullForm": "PLAIN"
+        "shortForm": "PCRN",
+        "fullForm": "POPCORN"
       },
       {
         "shortForm": "TWL",
         "fullForm": "TWILL"
-      },
-      {
-        "shortForm": "BDY",
-        "fullForm": "DOBBY"
-      },
-      {
-        "shortForm": "JAQ",
-        "fullForm": "JACQUARD"
-      },
-      {
-        "shortForm": "LNO",
-        "fullForm": "LENO"
-      },
-      {
-        "shortForm": "F KNIT",
-        "fullForm": "FLAT KNIT"
-      },
-      {
-        "shortForm": "BOND",
-        "fullForm": "BONDED"
-      },
-      {
-        "shortForm": "FUR",
-        "fullForm": "FURR"
-      },
-      {
-        "shortForm": "P FLC",
-        "fullForm": "POLLAR FLEECE"
-      },
-      {
-        "shortForm": "VLR",
-        "fullForm": "VELLORE"
-      },
-      {
-        "shortForm": "VLVT",
-        "fullForm": "VELVET"
       },
       {
         "shortForm": "STN",
@@ -441,12 +394,312 @@
         "fullForm": "CREPE"
       },
       {
-        "shortForm": "PXF",
+        "shortForm": "OXF",
         "fullForm": "OXFORD"
       },
       {
-        "shortForm": "DBL CLTH",
+        "shortForm": "DBY",
+        "fullForm": "DOBBY"
+      },
+      {
+        "shortForm": "JAQ",
+        "fullForm": "JAQUARD"
+      },
+      {
+        "shortForm": "LNO",
+        "fullForm": "LENO"
+      },
+      {
+        "shortForm": "FL_KNIT",
+        "fullForm": "FLAT KNIT"
+      },
+      {
+        "shortForm": "D_CLTH",
         "fullForm": "DOUBLE CLOTH"
+      },
+      {
+        "shortForm": "FUR",
+        "fullForm": "FUR"
+      },
+      {
+        "shortForm": "P_FLC",
+        "fullForm": "POLAR FLEECE"
+      },
+      {
+        "shortForm": "VELR",
+        "fullForm": "VELLORE"
+      },
+      {
+        "shortForm": "VLV",
+        "fullForm": "VELVET"
+      },
+      {
+        "shortForm": "DTY",
+        "fullForm": "DTY"
+      },
+      {
+        "shortForm": "RYN",
+        "fullForm": "RAYON"
+      },
+      {
+        "shortForm": "MOD",
+        "fullForm": "MODAL"
+      },
+      {
+        "shortForm": "DUPN",
+        "fullForm": "DUPION"
+      },
+      {
+        "shortForm": "SIMR",
+        "fullForm": "CASHMERE"
+      },
+      {
+        "shortForm": "PASHMINA",
+        "fullForm": "PASHMINA"
+      },
+      {
+        "shortForm": "SWD",
+        "fullForm": "SUEDE"
+      },
+      {
+        "shortForm": "TNCL",
+        "fullForm": "TENCIL"
+      },
+      {
+        "shortForm": "ROMA",
+        "fullForm": "ROMA"
+      },
+      {
+        "shortForm": "OTMN",
+        "fullForm": "AUTOMAN"
+      },
+      {
+        "shortForm": "SCOBA",
+        "fullForm": "SCOOBA"
+      },
+      {
+        "shortForm": "CAM",
+        "fullForm": "CAMBRIC"
+      },
+      {
+        "shortForm": "VOIL",
+        "fullForm": "VOIL"
+      },
+      {
+        "shortForm": "POP",
+        "fullForm": "POPLIN"
+      },
+      {
+        "shortForm": "DBY_SLUB",
+        "fullForm": "CHAMBRAY"
+      },
+      {
+        "shortForm": "FLFL",
+        "fullForm": "FILAFIL"
+      },
+      {
+        "shortForm": "SLK_DNM",
+        "fullForm": "SILK DENIM"
+      },
+      {
+        "shortForm": "MONO",
+        "fullForm": "MONO"
+      },
+      {
+        "shortForm": "SHRN",
+        "fullForm": "SHIRIN"
+      },
+      {
+        "shortForm": "DFDL",
+        "fullForm": "DAFFODIL"
+      },
+      {
+        "shortForm": "HRY",
+        "fullForm": "HAIRY"
+      },
+      {
+        "shortForm": "BUTTER_LOVE",
+        "fullForm": "BUTTERLOVE"
+      },
+      {
+        "shortForm": "SHRPA",
+        "fullForm": "SHERPA"
+      },
+      {
+        "shortForm": "V_RIB",
+        "fullForm": "VERIGATED RIB"
+      },
+      {
+        "shortForm": "BOND",
+        "fullForm": "BONDED"
+      },
+      {
+        "shortForm": "GGT",
+        "fullForm": "GEORGETTE"
+      },
+      {
+        "shortForm": "CHF",
+        "fullForm": "CHIFFON"
+      },
+      {
+        "shortForm": "BBL",
+        "fullForm": "BUBBLE SOFT"
+      },
+      {
+        "shortForm": "SUPER_SOFT",
+        "fullForm": "SUPER SOFT"
+      },
+      {
+        "shortForm": "TPU",
+        "fullForm": "THERMOPLASTIC POLYURETHANE FABRIC."
+      },
+      {
+        "shortForm": "NEXA",
+        "fullForm": "NEXA"
+      },
+      {
+        "shortForm": "MUFFIN",
+        "fullForm": "MUFFIN"
+      },
+      {
+        "shortForm": "ZARA_DBY",
+        "fullForm": "ZARA DOBBY"
+      },
+      {
+        "shortForm": "DRF",
+        "fullForm": "DRI-FIT"
+      },
+      {
+        "shortForm": "COD",
+        "fullForm": "CORDUROY"
+      },
+      {
+        "shortForm": "VIS",
+        "fullForm": "VISCOSE"
+      },
+      {
+        "shortForm": "TRC",
+        "fullForm": "TRICOT"
+      },
+      {
+        "shortForm": "RBSTP",
+        "fullForm": "RIBS STOP"
+      },
+      {
+        "shortForm": "B_EYE",
+        "fullForm": "BIRD'S  EYE"
+      },
+      {
+        "shortForm": "FK_CTN",
+        "fullForm": "FAKE COTTON"
+      },
+      {
+        "shortForm": "PU",
+        "fullForm": "POLYURETHANE."
+      },
+      {
+        "shortForm": "H_D",
+        "fullForm": "HIGH DENSITY"
+      },
+      {
+        "shortForm": "BTR_NS",
+        "fullForm": "BUTTER NS"
+      },
+      {
+        "shortForm": "CHN_BND",
+        "fullForm": "CHINA BONDING"
+      },
+      {
+        "shortForm": "ANTP",
+        "fullForm": "ANTIPILING"
+      },
+      {
+        "shortForm": "BBY_SFT",
+        "fullForm": "BABY SOFT"
+      },
+      {
+        "shortForm": "VSLN",
+        "fullForm": "VISLONE"
+      },
+      {
+        "shortForm": "RNBW",
+        "fullForm": "RAINBOW"
+      },
+      {
+        "shortForm": "KRR",
+        "fullForm": "KARERA"
+      },
+      {
+        "shortForm": "ZRCH",
+        "fullForm": "ZURICH"
+      },
+      {
+        "shortForm": "JRKN",
+        "fullForm": "JARKAN"
+      },
+      {
+        "shortForm": "SILK_WOOL",
+        "fullForm": "SILK WOOL"
+      },
+      {
+        "shortForm": "MMRY",
+        "fullForm": "MEMORY"
+      },
+      {
+        "shortForm": "MKLN",
+        "fullForm": "MOKLINO"
+      },
+      {
+        "shortForm": "PU_SHINE",
+        "fullForm": "PU_SHINE"
+      },
+      {
+        "shortForm": "MICRO_LFR",
+        "fullForm": "MICRO LAFER"
+      },
+      {
+        "shortForm": "DBL_TWL",
+        "fullForm": "DOUBLE TWILL"
+      },
+      {
+        "shortForm": "MSLN",
+        "fullForm": "MUSLIN"
+      },
+      {
+        "shortForm": "NS",
+        "fullForm": "NORMAL SOFT"
+      },
+      {
+        "shortForm": "CNVS",
+        "fullForm": "CANVAS"
+      },
+      {
+        "shortForm": "DRF_SJ",
+        "fullForm": "DRIFIT SINGLE JERSEY"
+      },
+      {
+        "shortForm": "THML",
+        "fullForm": "THERMAL"
+      },
+      {
+        "shortForm": "CHKN",
+        "fullForm": "CHICKEN"
+      },
+      {
+        "shortForm": "LTHR",
+        "fullForm": "LEATHER"
+      },
+      {
+        "shortForm": "INJ_RIB",
+        "fullForm": "INJECTED RIB"
+      },
+      {
+        "shortForm": "ORGNZ",
+        "fullForm": "ORGANZA"
+      },
+      {
+        "shortForm": "KNIT",
+        "fullForm": "KNIT"
       }
     ]
   },
@@ -457,28 +710,24 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ROMA",
-        "fullForm": "ROMA"
+        "shortForm": "STRT",
+        "fullForm": "STRUCTURE"
       },
       {
-        "shortForm": "ATMN",
-        "fullForm": "AUTOMAN"
+        "shortForm": "LP_KNIT",
+        "fullForm": "LOOP KNIT"
       },
       {
-        "shortForm": "SCBA",
-        "fullForm": "SCOOBA"
-      },
-      {
-        "shortForm": "ATSTRP",
-        "fullForm": "AUTOSTRIPPER"
+        "shortForm": "ATSTPR",
+        "fullForm": "AUTOSTRIPER"
       },
       {
         "shortForm": "FDSTPR",
-        "fullForm": "FEEDERSTRIPER"
+        "fullForm": "FEEDER STRIPER"
       },
       {
         "shortForm": "JAQ",
-        "fullForm": "JACQUARD"
+        "fullForm": "JAQUARD"
       },
       {
         "shortForm": "TCOT",
@@ -489,24 +738,20 @@
         "fullForm": "MESH"
       },
       {
-        "shortForm": "MINI JAQ",
+        "shortForm": "MINI_JAQ",
         "fullForm": "MINI JACQAURD"
       },
       {
-        "shortForm": "TRF JAQ",
+        "shortForm": "TRF_JAQ",
         "fullForm": "TRANSFER JACQAURD"
       },
       {
-        "shortForm": "PIQ",
-        "fullForm": "PIQUE"
+        "shortForm": "CRUS",
+        "fullForm": "SRUS"
       },
       {
-        "shortForm": "FLT BK",
+        "shortForm": "FLT_BK",
         "fullForm": "FLAT BACK"
-      },
-      {
-        "shortForm": "FLC",
-        "fullForm": "FLEECE"
       },
       {
         "shortForm": "1X1",
@@ -529,68 +774,24 @@
         "fullForm": "POINTAL"
       },
       {
-        "shortForm": "H COMB",
+        "shortForm": "HNYCMB",
         "fullForm": "HONEY COMB"
       },
       {
-        "shortForm": "D TUCK",
+        "shortForm": "D_TUCK",
         "fullForm": "DOUBLE TUCK"
       },
       {
-        "shortForm": "PCRN",
-        "fullForm": "POPCORN"
-      },
-      {
-        "shortForm": "S TUCK",
-        "fullForm": "SINGLE TUK"
-      },
-      {
-        "shortForm": "SRCKR",
-        "fullForm": "SEERSUCKER"
+        "shortForm": "S_TUCK",
+        "fullForm": "SINGLE TUCK"
       },
       {
         "shortForm": "CRNCL",
         "fullForm": "CRINCKLED"
       },
       {
-        "shortForm": "HRNGBN",
-        "fullForm": "HARRINGBONE"
-      },
-      {
-        "shortForm": "BRKN TWL",
-        "fullForm": "BROCKEN TWILL"
-      },
-      {
-        "shortForm": "FMA",
-        "fullForm": "FOMA"
-      },
-      {
-        "shortForm": "PFIL",
-        "fullForm": "POLYFILL"
-      },
-      {
-        "shortForm": "SHRP",
-        "fullForm": "SHERPA"
-      },
-      {
-        "shortForm": "D NEEDLE",
-        "fullForm": "DROP NEEDLE"
-      },
-      {
-        "shortForm": "2X1",
-        "fullForm": "2X1"
-      },
-      {
-        "shortForm": "CMB",
-        "fullForm": "CAMBRIC"
-      },
-      {
-        "shortForm": "VOIL",
-        "fullForm": "VOIL"
-      },
-      {
-        "shortForm": "POP",
-        "fullForm": "POPLIN"
+        "shortForm": "DGNL",
+        "fullForm": "DIAGONAL"
       },
       {
         "shortForm": "SHTNG",
@@ -621,12 +822,92 @@
         "fullForm": "2/2"
       },
       {
-        "shortForm": "CHMB",
-        "fullForm": "CHAMBRAY"
+        "shortForm": "HRNGBN",
+        "fullForm": "HARRINGBONE"
+      },
+      {
+        "shortForm": "BRKN_TWL",
+        "fullForm": "BROKEN TWILL"
+      },
+      {
+        "shortForm": "D_NDL",
+        "fullForm": "DROP NEEDLE"
+      },
+      {
+        "shortForm": "GRDL",
+        "fullForm": "GRINDLE"
+      },
+      {
+        "shortForm": "LRX",
+        "fullForm": "LUREX"
       },
       {
         "shortForm": "CRP",
         "fullForm": "CREPE"
+      },
+      {
+        "shortForm": "GIZA",
+        "fullForm": "GIZA"
+      },
+      {
+        "shortForm": "LYCL",
+        "fullForm": "LYOCIL"
+      },
+      {
+        "shortForm": "SLUB",
+        "fullForm": "SLUB"
+      },
+      {
+        "shortForm": "FOMA",
+        "fullForm": "FOMA"
+      },
+      {
+        "shortForm": "PLFL",
+        "fullForm": "POLYFILL"
+      },
+      {
+        "shortForm": "SHRP",
+        "fullForm": "SHERPA"
+      },
+      {
+        "shortForm": "NEPS",
+        "fullForm": "NEPS"
+      },
+      {
+        "shortForm": "MLNG",
+        "fullForm": "MELANGE"
+      },
+      {
+        "shortForm": "SYRO",
+        "fullForm": "SYRO"
+      },
+      {
+        "shortForm": "2_T_TR",
+        "fullForm": "2 THREAD TERRY"
+      },
+      {
+        "shortForm": "3_T_TR",
+        "fullForm": "3 THREAD TERRY"
+      },
+      {
+        "shortForm": "PLN",
+        "fullForm": "PLAIN"
+      },
+      {
+        "shortForm": "CHKN",
+        "fullForm": "CHICKEN"
+      },
+      {
+        "shortForm": "BRSHNG",
+        "fullForm": "BRUSHING"
+      },
+      {
+        "shortForm": "W_RSNG",
+        "fullForm": "W RAISING"
+      },
+      {
+        "shortForm": "IND",
+        "fullForm": "INDIGO"
       }
     ]
   },
@@ -637,240 +918,244 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "100% CTN",
-        "fullForm": "100% COTTON"
-      },
-      {
-        "shortForm": "100% CTN MLNG",
+        "shortForm": "100%_CTN_MLNG",
         "fullForm": "100% COTTON  MELANGE"
       },
       {
-        "shortForm": "100% MODAL",
-        "fullForm": "100% MODAL"
+        "shortForm": "100%_CTN",
+        "fullForm": "100% COTTON"
       },
       {
-        "shortForm": "100% NYLON",
-        "fullForm": "100% NYLON"
-      },
-      {
-        "shortForm": "100% POLY MLNG",
-        "fullForm": "100% POLY MELANGE"
-      },
-      {
-        "shortForm": "100% POLY",
-        "fullForm": "100% POLY"
-      },
-      {
-        "shortForm": "100% VIS",
-        "fullForm": "100% VISCOSE"
-      },
-      {
-        "shortForm": "100% VIS MLNG",
-        "fullForm": "100% VISCOSE   MELANGE"
-      },
-      {
-        "shortForm": "100% VIS SLUB",
-        "fullForm": "100% VISCOSE   SLUB"
-      },
-      {
-        "shortForm": "40% CTN, 60% POLY",
-        "fullForm": "40% COTTON , 60% POLY"
-      },
-      {
-        "shortForm": "40% POLY, 60% NYLON",
-        "fullForm": "40% POLY, 60% NYLON"
-      },
-      {
-        "shortForm": "44% VIS, 39% CTN, 17% LIN",
-        "fullForm": "44% VISCOSE  , 39% COTTON , 17% LIN"
-      },
-      {
-        "shortForm": "60% CTN, 40% POLY",
-        "fullForm": "60% COTTON , 40% POLY"
-      },
-      {
-        "shortForm": "60% NYLON, 40% POLY",
-        "fullForm": "60% NYLON, 40% POLY"
-      },
-      {
-        "shortForm": "60% POLY, 40% NYLON",
-        "fullForm": "60% POLY, 40% NYLON"
-      },
-      {
-        "shortForm": "60% POLY, 40% VIS",
-        "fullForm": "60% POLY, 40% VISCOSE"
-      },
-      {
-        "shortForm": "67% VIS, 33% POLY",
-        "fullForm": "67% VISCOSE  , 33% POLY"
-      },
-      {
-        "shortForm": "67% CTN, 33% POLY",
-        "fullForm": "67% COTTON , 33% POLY"
-      },
-      {
-        "shortForm": "70% CTN, 30% POLY",
-        "fullForm": "70% COTTON , 30% POLY"
-      },
-      {
-        "shortForm": "75% VIS, 25% POLY",
-        "fullForm": "75% VISCOSE  , 25% POLY"
-      },
-      {
-        "shortForm": "75% CTN, 25% LINEN",
-        "fullForm": "75% COTTON , 25% LINEN"
-      },
-      {
-        "shortForm": "80% CTN, 20% POLY",
-        "fullForm": "80% COTTON , 20% POLY"
-      },
-      {
-        "shortForm": "80% POLY, 20% NYLON",
-        "fullForm": "80% POLY, 20% NYLON"
-      },
-      {
-        "shortForm": "85% CTN, 15% LYCRA",
-        "fullForm": "85% COTTON , 15% LYCRA"
-      },
-      {
-        "shortForm": "85% POLY, 15% LYCRA",
-        "fullForm": "85% POLY, 15% LYCRA"
-      },
-      {
-        "shortForm": "86% VIS, 14% NYLON",
-        "fullForm": "86% VISCOSE  , 14% NYLON"
-      },
-      {
-        "shortForm": "90% POLY, 10% LYCRA",
-        "fullForm": "90% POLY, 10% LYCRA"
-      },
-      {
-        "shortForm": "92% CTN, 8% LYCRA",
-        "fullForm": "92% COTTON , 8% LYCRA"
-      },
-      {
-        "shortForm": "92% POLY, 8% LYCRA",
-        "fullForm": "92% POLY, 8% LYCRA"
-      },
-      {
-        "shortForm": "95% CTN, 5% LYCRA",
-        "fullForm": "95% COTTON , 5% LYCRA"
-      },
-      {
-        "shortForm": "95% CTN MLNG, 5% LYCRA",
-        "fullForm": "95% COTTON  MELANGE   , 5% LYCRA"
-      },
-      {
-        "shortForm": "95% CTN, 5% SPDX",
-        "fullForm": "95% COTTON , 5% SPDX"
-      },
-      {
-        "shortForm": "95% NYLON, 5% LYCRA",
-        "fullForm": "95% NYLON, 5% LYCRA"
-      },
-      {
-        "shortForm": "95% POLY MLNG, 5% LYCRA",
-        "fullForm": "95% POLY MELANGE   , 5% LYCRA"
-      },
-      {
-        "shortForm": "95% POLY, 5% LYCRA",
-        "fullForm": "95% POLY, 5% LYCRA"
-      },
-      {
-        "shortForm": "95% VIS MLNG, 5% LYCRA",
-        "fullForm": "95% VISCOSE   MELANGE   , 5% LYCRA"
-      },
-      {
-        "shortForm": "95% VIS SLUB, 5% LYCRA",
-        "fullForm": "95% VISCOSE   SLUB, 5% LYCRA"
-      },
-      {
-        "shortForm": "95% VIS, 5% LYCRA",
-        "fullForm": "95% VISCOSE  , 5% LYCRA"
-      },
-      {
-        "shortForm": "97% CTN MLNG, 3% LYCRA",
-        "fullForm": "97% COTTON  MELANGE   , 3% LYCRA"
-      },
-      {
-        "shortForm": "97% CTN, 3% LYCRA",
-        "fullForm": "97% COTTON , 3% LYCRA"
-      },
-      {
-        "shortForm": "97% POLY MLNG, 3% LYCRA",
-        "fullForm": "97% POLY MELANGE   , 3% LYCRA"
-      },
-      {
-        "shortForm": "97% POLY, 3% LYCRA",
-        "fullForm": "97% POLY, 3% LYCRA"
-      },
-      {
-        "shortForm": "97% VIS, 3% LYCRA",
-        "fullForm": "97% VISCOSE  , 3% LYCRA"
-      },
-      {
-        "shortForm": "97% VIS MLNG, 3% LYCRA",
-        "fullForm": "97% VISCOSE   MELANGE   , 3% LYCRA"
-      },
-      {
-        "shortForm": "97% VIS SLUB, 3% LYCRA",
-        "fullForm": "97% VISCOSE   SLUB, 3% LYCRA"
-      },
-      {
-        "shortForm": "98% CTN MLNG, 2% LYCRA",
-        "fullForm": "98% COTTON  MELANGE   , 2% LYCRA"
-      },
-      {
-        "shortForm": "98% CTN, 2% LYCRA",
-        "fullForm": "98% COTTON , 2% LYCRA"
-      },
-      {
-        "shortForm": "98% POLY MLNG, 2% LYCRA",
-        "fullForm": "98% POLY MELANGE   , 2% LYCRA"
-      },
-      {
-        "shortForm": "98% POLY, 2% LYCRA",
-        "fullForm": "98% POLY, 2% LYCRA"
-      },
-      {
-        "shortForm": "98% VIS MLNG, 2% LYCRA",
-        "fullForm": "98% VISCOSE   MELANGE   , 2% LYCRA"
-      },
-      {
-        "shortForm": "98% VIS SLUB, 2% LYCRA",
-        "fullForm": "98% VISCOSE   SLUB, 2% LYCRA"
-      },
-      {
-        "shortForm": "98% VIS, 2% LYCRA",
-        "fullForm": "98% VISCOSE  , 2% LYCRA"
-      },
-      {
-        "shortForm": "52% CTN, 48% POLY",
-        "fullForm": "52% COTTON , 48% POLY"
-      },
-      {
-        "shortForm": "100% JUTE",
+        "shortForm": "100%_JUTE",
         "fullForm": "100% JUTE"
       },
       {
-        "shortForm": "100% RAYON",
+        "shortForm": "100%_MODAL",
+        "fullForm": "100% MODAL"
+      },
+      {
+        "shortForm": "100%_NYLON",
+        "fullForm": "100% NYLON"
+      },
+      {
+        "shortForm": "100%_VIS_MLNG",
+        "fullForm": "100% VISCOSE   MELANGE"
+      },
+      {
+        "shortForm": "100%_POLY_MLNG",
+        "fullForm": "100% POLY MELANGE"
+      },
+      {
+        "shortForm": "100%_RAYON",
         "fullForm": "100% RAYON"
       },
       {
-        "shortForm": "100% SILK",
+        "shortForm": "100%_POLY",
+        "fullForm": "100% POLY"
+      },
+      {
+        "shortForm": "67%_CTN_33%_POLY",
+        "fullForm": "67% COTTON , 33% POLY"
+      },
+      {
+        "shortForm": "100%_SILK",
         "fullForm": "100% SILK"
       },
       {
-        "shortForm": "100% LINEN",
+        "shortForm": "100%_VIS",
+        "fullForm": "100% VISCOSE"
+      },
+      {
+        "shortForm": "60%_NYLON_40%_POLY",
+        "fullForm": "60% NYLON, 40% POLY"
+      },
+      {
+        "shortForm": "67%_VIS_33%_POLY",
+        "fullForm": "67% VISCOSE  , 33% POLY"
+      },
+      {
+        "shortForm": "100%_VIS_SLUB",
+        "fullForm": "100% VISCOSE   SLUB"
+      },
+      {
+        "shortForm": "60%_POLY_40%_VIS",
+        "fullForm": "60% POLY, 40% VISCOSE"
+      },
+      {
+        "shortForm": "60%_POLY_40%_NYLON",
+        "fullForm": "60% POLY, 40% NYLON"
+      },
+      {
+        "shortForm": "100%_LINEN",
         "fullForm": "100% LINEN"
       },
       {
-        "shortForm": "80% CTN, 20% LINEN",
+        "shortForm": "40%_CTN_60%_POLY",
+        "fullForm": "40% COTTON , 60% POLY"
+      },
+      {
+        "shortForm": "40%_POLY_60%_NYLON",
+        "fullForm": "40% POLY, 60% NYLON"
+      },
+      {
+        "shortForm": "44%_VIS_39%_CTN_17%_LIN",
+        "fullForm": "44% VISCOSE  , 39% COTTON , 17% LIN"
+      },
+      {
+        "shortForm": "60%_CTN_40%_POLY",
+        "fullForm": "60% COTTON , 40% POLY"
+      },
+      {
+        "shortForm": "80%_POLY_20%_NYLON",
+        "fullForm": "80% POLY, 20% NYLON"
+      },
+      {
+        "shortForm": "75%_CTN_25%_LINEN",
+        "fullForm": "75% COTTON , 25% LINEN"
+      },
+      {
+        "shortForm": "86%_VIS_14%_NYLON",
+        "fullForm": "86% VISCOSE  , 14% NYLON"
+      },
+      {
+        "shortForm": "85%_POLY_15%_LYCRA",
+        "fullForm": "85% POLY, 15% LYCRA"
+      },
+      {
+        "shortForm": "80%_CTN_20%_LINEN",
         "fullForm": "80% COTTON , 20% LINEN"
       },
       {
-        "shortForm": "93% CTN, 7% LINEN",
+        "shortForm": "85%_CTN_15%_LYCRA",
+        "fullForm": "85% COTTON , 15% LYCRA"
+      },
+      {
+        "shortForm": "80%_CTN_20%_POLY",
+        "fullForm": "80% COTTON , 20% POLY"
+      },
+      {
+        "shortForm": "75%_VIS_25%_POLY",
+        "fullForm": "75% VISCOSE  , 25% POLY"
+      },
+      {
+        "shortForm": "70%_CTN_30%_POLY",
+        "fullForm": "70% COTTON , 30% POLY"
+      },
+      {
+        "shortForm": "90%_POLY_10%_LYCRA",
+        "fullForm": "90% POLY, 10% LYCRA"
+      },
+      {
+        "shortForm": "92%_CTN_8%_LYCRA",
+        "fullForm": "92% COTTON , 8% LYCRA"
+      },
+      {
+        "shortForm": "92%_POLY_8%_LYCRA",
+        "fullForm": "92% POLY, 8% LYCRA"
+      },
+      {
+        "shortForm": "93%_CTN_7%_LINEN",
         "fullForm": "93% COTTON , 7% LINEN"
+      },
+      {
+        "shortForm": "95%_CTN_5%_LYCRA",
+        "fullForm": "95% COTTON , 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_CTN_MLNG_5%_LYCRA",
+        "fullForm": "95% COTTON  MELANGE   , 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_CTN_5%_SPDX",
+        "fullForm": "95% COTTON , 5% SPANDEX"
+      },
+      {
+        "shortForm": "95%_NYLON_5%_LYCRA",
+        "fullForm": "95% NYLON, 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_POLY_MLNG_5%_LYCRA",
+        "fullForm": "95% POLY MELANGE   , 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_POLY_5%_LYCRA",
+        "fullForm": "95% POLY, 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_VIS_MLNG_5%_LYCRA",
+        "fullForm": "95% VISCOSE   MELANGE   , 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_VIS_SLUB_5%_LYCRA",
+        "fullForm": "95% VISCOSE   SLUB, 5% LYCRA"
+      },
+      {
+        "shortForm": "95%_VIS_5%_LYCRA",
+        "fullForm": "95% VISCOSE  , 5% LYCRA"
+      },
+      {
+        "shortForm": "97%_CTN_MLNG_3%_LYCRA",
+        "fullForm": "97% COTTON  MELANGE   , 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_CTN_3%_LYCRA",
+        "fullForm": "97% COTTON , 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_POLY_MLNG_3%_LYCRA",
+        "fullForm": "97% POLY MELANGE   , 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_POLY_3%_LYCRA",
+        "fullForm": "97% POLY, 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_VIS_3%_LYCRA",
+        "fullForm": "97% VISCOSE  , 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_VIS_MLNG_3%_LYCRA",
+        "fullForm": "97% VISCOSE   MELANGE   , 3% LYCRA"
+      },
+      {
+        "shortForm": "97%_VIS_SLUB_3%_LYCRA",
+        "fullForm": "97% VISCOSE   SLUB, 3% LYCRA"
+      },
+      {
+        "shortForm": "98%_CTN_MLNG_2%_LYCRA",
+        "fullForm": "98% COTTON  MELANGE   , 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_CTN_2%_LYCRA",
+        "fullForm": "98% COTTON , 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_POLY_MLNG_2%_LYCRA",
+        "fullForm": "98% POLY MELANGE   , 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_POLY_2%_LYCRA",
+        "fullForm": "98% POLY, 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_VIS_MLNG_2%_LYCRA",
+        "fullForm": "98% VISCOSE   MELANGE   , 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_VIS_SLUB_2%_LYCRA",
+        "fullForm": "98% VISCOSE   SLUB, 2% LYCRA"
+      },
+      {
+        "shortForm": "98%_VIS_2%_LYCRA",
+        "fullForm": "98% VISCOSE  , 2% LYCRA"
+      },
+      {
+        "shortForm": "52%_CTN_48%_POLY",
+        "fullForm": "52% COTTON , 48% POLY"
+      },
+      {
+        "shortForm": "-",
+        "fullForm": "-"
       }
     ]
   },
@@ -881,19 +1166,19 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "N S FINISH",
-        "fullForm": "NORMAL SOFT FINISH"
-      },
-      {
-        "shortForm": "PCH FINISH",
+        "shortForm": "PCH_FINISH",
         "fullForm": "PEACH FINISH"
       },
       {
-        "shortForm": "MS FINISH",
+        "shortForm": "N_S_FINISH",
+        "fullForm": "NORMAL SOFT FINISH"
+      },
+      {
+        "shortForm": "MS_FINISH",
         "fullForm": "MICROSAND FINISH"
       },
       {
-        "shortForm": "ETI FINISH",
+        "shortForm": "ETI_FINISH",
         "fullForm": "EASY TO IRON FINISH"
       },
       {
@@ -901,32 +1186,52 @@
         "fullForm": "LIQUID AMMONIA FINISH"
       },
       {
+        "shortForm": "ANT MCRBL FINISH",
+        "fullForm": "ANTI MICROBIAL FINISH"
+      },
+      {
         "shortForm": "LQ AMN & MSTR CTRL FINISH",
         "fullForm": "LIQUID AMMONIA AND MOISTURE CONTROL FINISH"
+      },
+      {
+        "shortForm": "DRY_ARO_FINISH",
+        "fullForm": "DRY AERO FINISH"
       },
       {
         "shortForm": "MSTR MGMT FINISH",
         "fullForm": "MOISTURE MANAGEMENT FINISH"
       },
       {
-        "shortForm": "DRY ARO FINISH",
-        "fullForm": "DRY AIRO FINISH"
+        "shortForm": "WTR RPLNT",
+        "fullForm": "WATER REPELLENT"
       },
       {
         "shortForm": "BRUSH",
         "fullForm": "BRUSHING"
       },
       {
-        "shortForm": "RSN FINISH",
+        "shortForm": "RSN_FINISH",
         "fullForm": "RESIN FINISH"
       },
       {
-        "shortForm": "ANT MCRBL FINISH",
-        "fullForm": "ANTI MICROBIAL FINISH"
+        "shortForm": "SHRT SRCKR CRNCL",
+        "fullForm": "SHIRT SEERSUCKER/CRINKLE"
       },
       {
-        "shortForm": "ODR CTRL FINISH",
+        "shortForm": "CRBN FINISH",
+        "fullForm": "CARBON FINISH"
+      },
+      {
+        "shortForm": "ODR_CTRL_FINISH",
         "fullForm": "ODOUR CONTROL FINISH"
+      },
+      {
+        "shortForm": "GLD_FINISH",
+        "fullForm": "GOLD FINISH (D.BIO+SILICON)"
+      },
+      {
+        "shortForm": "DRM_WASH",
+        "fullForm": "DRUM WASH"
       },
       {
         "shortForm": "ANT STTC FINISH",
@@ -937,8 +1242,8 @@
         "fullForm": "BIO/SILICON/ANTI STATIC/WICKING"
       },
       {
-        "shortForm": "BIO SIL",
-        "fullForm": "BIO/SILICON"
+        "shortForm": "BIO_SIL",
+        "fullForm": "BIO_SIL"
       },
       {
         "shortForm": "HEAT STNG",
@@ -949,36 +1254,20 @@
         "fullForm": "WINCH WASH"
       },
       {
-        "shortForm": "SHRT SRCKR CRNCL",
-        "fullForm": "SHIRT SEERSUCKER/CRINKLE"
+        "shortForm": "FIRE PRF",
+        "fullForm": "FIRE PROOF"
       },
       {
-        "shortForm": "DRM WASH",
-        "fullForm": "DRUM WASH"
-      },
-      {
-        "shortForm": "GLD FINISH",
-        "fullForm": "GOLD FINISH (D.BIO+SILICON)"
-      },
-      {
-        "shortForm": "CRBN FINISH",
-        "fullForm": "CARBON FINISH"
-      },
-      {
-        "shortForm": "WTR RPLNT",
-        "fullForm": "WATER REPELLENT"
-      },
-      {
-        "shortForm": "WTR PRF",
-        "fullForm": "WATER PROOF"
+        "shortForm": "LAFFER",
+        "fullForm": "LAFFER"
       },
       {
         "shortForm": "FIRE REPLNT",
         "fullForm": "FIRE REPELLENT"
       },
       {
-        "shortForm": "FIRE PRF",
-        "fullForm": "FIRE PROOF"
+        "shortForm": "WTR PRF",
+        "fullForm": "WATER PROOF"
       }
     ]
   },
@@ -989,64 +1278,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "86*54",
-        "fullForm": "86*54"
-      },
-      {
-        "shortForm": "92*120",
-        "fullForm": "92*120"
-      },
-      {
-        "shortForm": "92*80",
-        "fullForm": "92*80"
-      },
-      {
-        "shortForm": "96*48",
-        "fullForm": "96*48"
-      },
-      {
-        "shortForm": "96*84",
-        "fullForm": "96*84"
-      },
-      {
-        "shortForm": "RIB 1*1",
-        "fullForm": "RIB 1*1"
-      },
-      {
-        "shortForm": "SJ",
-        "fullForm": "SJ"
-      },
-      {
-        "shortForm": "PIQ",
-        "fullForm": "PIQ"
-      },
-      {
-        "shortForm": "TERRY",
-        "fullForm": "TERRY"
-      },
-      {
-        "shortForm": "JAQ",
-        "fullForm": "JAQ"
-      },
-      {
-        "shortForm": "RIB 2*1",
-        "fullForm": "RIB 2*1"
-      },
-      {
-        "shortForm": "FLEECE",
-        "fullForm": "FLEECE"
-      },
-      {
-        "shortForm": "INL",
-        "fullForm": "INL"
+        "shortForm": "101*56",
+        "fullForm": "101*56"
       },
       {
         "shortForm": "101*53",
         "fullForm": "101*53"
-      },
-      {
-        "shortForm": "101*56",
-        "fullForm": "101*56"
       },
       {
         "shortForm": "104*44",
@@ -1061,16 +1298,24 @@
         "fullForm": "108*76"
       },
       {
+        "shortForm": "124*60",
+        "fullForm": "124*60"
+      },
+      {
         "shortForm": "110*45",
         "fullForm": "110*45"
+      },
+      {
+        "shortForm": "114*98",
+        "fullForm": "114*98"
       },
       {
         "shortForm": "110*80",
         "fullForm": "110*80"
       },
       {
-        "shortForm": "114*98",
-        "fullForm": "114*98"
+        "shortForm": "178*74",
+        "fullForm": "178*74"
       },
       {
         "shortForm": "116*88",
@@ -1081,12 +1326,24 @@
         "fullForm": "120*70"
       },
       {
-        "shortForm": "124*60",
-        "fullForm": "124*60"
+        "shortForm": "144*72",
+        "fullForm": "144*72"
+      },
+      {
+        "shortForm": "162*92",
+        "fullForm": "162*92"
       },
       {
         "shortForm": "124*64",
         "fullForm": "124*64"
+      },
+      {
+        "shortForm": "160*128",
+        "fullForm": "160*128"
+      },
+      {
+        "shortForm": "155*80",
+        "fullForm": "155*80"
       },
       {
         "shortForm": "125*64",
@@ -1109,44 +1366,20 @@
         "fullForm": "140*90"
       },
       {
-        "shortForm": "144*72",
-        "fullForm": "144*72"
-      },
-      {
-        "shortForm": "155*80",
-        "fullForm": "155*80"
-      },
-      {
-        "shortForm": "160*128",
-        "fullForm": "160*128"
-      },
-      {
-        "shortForm": "162*92",
-        "fullForm": "162*92"
-      },
-      {
-        "shortForm": "178*74",
-        "fullForm": "178*74"
-      },
-      {
-        "shortForm": "180*100",
-        "fullForm": "180*100"
-      },
-      {
-        "shortForm": "185*104",
-        "fullForm": "185*104"
+        "shortForm": "210*110",
+        "fullForm": "210*110"
       },
       {
         "shortForm": "200*180",
         "fullForm": "200*180"
       },
       {
-        "shortForm": "204*96",
-        "fullForm": "204*96"
+        "shortForm": "48*48",
+        "fullForm": "48*48"
       },
       {
-        "shortForm": "210*110",
-        "fullForm": "210*110"
+        "shortForm": "48*36",
+        "fullForm": "48*36"
       },
       {
         "shortForm": "220*95",
@@ -1157,12 +1390,16 @@
         "fullForm": "350*200"
       },
       {
-        "shortForm": "48*36",
-        "fullForm": "48*36"
+        "shortForm": "204*96",
+        "fullForm": "204*96"
       },
       {
-        "shortForm": "48*48",
-        "fullForm": "48*48"
+        "shortForm": "185*104",
+        "fullForm": "185*104"
+      },
+      {
+        "shortForm": "180*100",
+        "fullForm": "180*100"
       },
       {
         "shortForm": "52*44",
@@ -1259,6 +1496,34 @@
       {
         "shortForm": "85*64",
         "fullForm": "85*64"
+      },
+      {
+        "shortForm": "86*54",
+        "fullForm": "86*54"
+      },
+      {
+        "shortForm": "92*120",
+        "fullForm": "92*120"
+      },
+      {
+        "shortForm": "92*80",
+        "fullForm": "92*80"
+      },
+      {
+        "shortForm": "96*48",
+        "fullForm": "96*48"
+      },
+      {
+        "shortForm": "96*84",
+        "fullForm": "96*84"
+      },
+      {
+        "shortForm": "RIB 1*1",
+        "fullForm": "RIB 1*1"
+      },
+      {
+        "shortForm": "-",
+        "fullForm": "-"
       }
     ]
   },
@@ -1269,264 +1534,264 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "110G",
-        "fullForm": "110G"
+        "shortForm": "105",
+        "fullForm": "105"
       },
       {
-        "shortForm": "120G",
-        "fullForm": "120G"
+        "shortForm": "100",
+        "fullForm": "100"
       },
       {
-        "shortForm": "130G",
-        "fullForm": "130G"
+        "shortForm": "110",
+        "fullForm": "110"
       },
       {
-        "shortForm": "140G",
-        "fullForm": "140G"
+        "shortForm": "115",
+        "fullForm": "115"
       },
       {
-        "shortForm": "150G",
-        "fullForm": "150G"
+        "shortForm": "116",
+        "fullForm": "116"
       },
       {
-        "shortForm": "160G",
-        "fullForm": "160G"
+        "shortForm": "135",
+        "fullForm": "135"
       },
       {
-        "shortForm": "170G",
-        "fullForm": "170G"
+        "shortForm": "118",
+        "fullForm": "118"
       },
       {
-        "shortForm": "180G",
-        "fullForm": "180G"
+        "shortForm": "123",
+        "fullForm": "123"
       },
       {
-        "shortForm": "190G",
-        "fullForm": "190G"
+        "shortForm": "120",
+        "fullForm": "120"
       },
       {
-        "shortForm": "200G",
-        "fullForm": "200G"
+        "shortForm": "180",
+        "fullForm": "180"
       },
       {
-        "shortForm": "210G",
-        "fullForm": "210G"
+        "shortForm": "125",
+        "fullForm": "125"
       },
       {
-        "shortForm": "220G",
-        "fullForm": "220G"
+        "shortForm": "130",
+        "fullForm": "130"
       },
       {
-        "shortForm": "230G",
-        "fullForm": "230G"
+        "shortForm": "153",
+        "fullForm": "153"
       },
       {
-        "shortForm": "240G",
-        "fullForm": "240G"
+        "shortForm": "175",
+        "fullForm": "175"
       },
       {
-        "shortForm": "250G",
-        "fullForm": "250G"
+        "shortForm": "139",
+        "fullForm": "139"
       },
       {
-        "shortForm": "270G",
-        "fullForm": "270G"
+        "shortForm": "170",
+        "fullForm": "170"
       },
       {
-        "shortForm": "280G",
-        "fullForm": "280G"
+        "shortForm": "160",
+        "fullForm": "160"
       },
       {
-        "shortForm": "290G",
-        "fullForm": "290G"
+        "shortForm": "140",
+        "fullForm": "140"
       },
       {
-        "shortForm": "300G",
-        "fullForm": "300G"
+        "shortForm": "145",
+        "fullForm": "145"
       },
       {
-        "shortForm": "310G",
-        "fullForm": "310G"
+        "shortForm": "149",
+        "fullForm": "149"
       },
       {
-        "shortForm": "320G",
-        "fullForm": "320G"
+        "shortForm": "150",
+        "fullForm": "150"
       },
       {
-        "shortForm": "330G",
-        "fullForm": "330G"
+        "shortForm": "152",
+        "fullForm": "152"
       },
       {
-        "shortForm": "340G",
-        "fullForm": "340G"
+        "shortForm": "210",
+        "fullForm": "210"
       },
       {
-        "shortForm": "350G",
-        "fullForm": "350G"
+        "shortForm": "195",
+        "fullForm": "195"
       },
       {
-        "shortForm": "360G",
-        "fullForm": "360G"
+        "shortForm": "230",
+        "fullForm": "230"
       },
       {
-        "shortForm": "370G",
-        "fullForm": "370G"
+        "shortForm": "225",
+        "fullForm": "225"
       },
       {
-        "shortForm": "380G",
-        "fullForm": "380G"
+        "shortForm": "215",
+        "fullForm": "215"
       },
       {
-        "shortForm": "390G",
-        "fullForm": "390G"
+        "shortForm": "220",
+        "fullForm": "220"
       },
       {
-        "shortForm": "400G",
-        "fullForm": "400G"
+        "shortForm": "200",
+        "fullForm": "200"
       },
       {
-        "shortForm": "410G",
-        "fullForm": "410G"
+        "shortForm": "190",
+        "fullForm": "190"
       },
       {
-        "shortForm": "420G",
-        "fullForm": "420G"
+        "shortForm": "185",
+        "fullForm": "185"
       },
       {
-        "shortForm": "430G",
-        "fullForm": "430G"
+        "shortForm": "240",
+        "fullForm": "240"
       },
       {
-        "shortForm": "440G",
-        "fullForm": "440G"
+        "shortForm": "243",
+        "fullForm": "243"
       },
       {
-        "shortForm": "450G",
-        "fullForm": "450G"
+        "shortForm": "250",
+        "fullForm": "250"
       },
       {
-        "shortForm": "100G",
-        "fullForm": "100G"
+        "shortForm": "260",
+        "fullForm": "260"
       },
       {
-        "shortForm": "105G",
-        "fullForm": "105G"
+        "shortForm": "280",
+        "fullForm": "280"
       },
       {
-        "shortForm": "115G",
-        "fullForm": "115G"
+        "shortForm": "285",
+        "fullForm": "285"
       },
       {
-        "shortForm": "116G",
-        "fullForm": "116G"
+        "shortForm": "290",
+        "fullForm": "290"
       },
       {
-        "shortForm": "118G",
-        "fullForm": "118G"
+        "shortForm": "295",
+        "fullForm": "295"
       },
       {
-        "shortForm": "123G",
-        "fullForm": "123G"
+        "shortForm": "300",
+        "fullForm": "300"
       },
       {
-        "shortForm": "125G",
-        "fullForm": "125G"
+        "shortForm": "310",
+        "fullForm": "310"
       },
       {
-        "shortForm": "135G",
-        "fullForm": "135G"
+        "shortForm": "315",
+        "fullForm": "315"
       },
       {
-        "shortForm": "139G",
-        "fullForm": "139G"
+        "shortForm": "320",
+        "fullForm": "320"
       },
       {
-        "shortForm": "145G",
-        "fullForm": "145G"
+        "shortForm": "340",
+        "fullForm": "340"
       },
       {
-        "shortForm": "149G",
-        "fullForm": "149G"
+        "shortForm": "350",
+        "fullForm": "350"
       },
       {
-        "shortForm": "152G",
-        "fullForm": "152G"
+        "shortForm": "380",
+        "fullForm": "380"
       },
       {
-        "shortForm": "153G",
-        "fullForm": "153G"
+        "shortForm": "385",
+        "fullForm": "385"
       },
       {
-        "shortForm": "175G",
-        "fullForm": "175G"
+        "shortForm": "55",
+        "fullForm": "55"
       },
       {
-        "shortForm": "185G",
-        "fullForm": "185G"
+        "shortForm": "60",
+        "fullForm": "60"
       },
       {
-        "shortForm": "195G",
-        "fullForm": "195G"
+        "shortForm": "65",
+        "fullForm": "65"
       },
       {
-        "shortForm": "215G",
-        "fullForm": "215G"
+        "shortForm": "80",
+        "fullForm": "80"
       },
       {
-        "shortForm": "225G",
-        "fullForm": "225G"
+        "shortForm": "85",
+        "fullForm": "85"
       },
       {
-        "shortForm": "243G",
-        "fullForm": "243G"
+        "shortForm": "90",
+        "fullForm": "90"
       },
       {
-        "shortForm": "260G",
-        "fullForm": "260G"
+        "shortForm": "95",
+        "fullForm": "95"
       },
       {
-        "shortForm": "285G",
-        "fullForm": "285G"
+        "shortForm": "450",
+        "fullForm": "450"
       },
       {
-        "shortForm": "295G",
-        "fullForm": "295G"
+        "shortForm": "500",
+        "fullForm": "500"
       },
       {
-        "shortForm": "315G",
-        "fullForm": "315G"
+        "shortForm": "270",
+        "fullForm": "270"
       },
       {
-        "shortForm": "385G",
-        "fullForm": "385G"
+        "shortForm": "460",
+        "fullForm": "460"
       },
       {
-        "shortForm": "55G",
-        "fullForm": "55G"
+        "shortForm": "510",
+        "fullForm": "510"
       },
       {
-        "shortForm": "60G",
-        "fullForm": "60G"
+        "shortForm": "370",
+        "fullForm": "370"
       },
       {
-        "shortForm": "65G",
-        "fullForm": "65G"
+        "shortForm": "480",
+        "fullForm": "480"
       },
       {
-        "shortForm": "80G",
-        "fullForm": "80G"
+        "shortForm": "390",
+        "fullForm": "390"
       },
       {
-        "shortForm": "85G",
-        "fullForm": "85G"
+        "shortForm": "400",
+        "fullForm": "400"
       },
       {
-        "shortForm": "90G",
-        "fullForm": "90G"
+        "shortForm": "420",
+        "fullForm": "420"
       },
       {
-        "shortForm": "95G",
-        "fullForm": "95G"
+        "shortForm": "330",
+        "fullForm": "330"
       }
     ]
   },
@@ -1537,32 +1802,28 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "10 OZ",
-        "fullForm": "10 OZ"
+        "shortForm": "10OZ",
+        "fullForm": "10OZ"
       },
       {
-        "shortForm": "12 OZ",
-        "fullForm": "12 OZ"
+        "shortForm": "12.0OZ",
+        "fullForm": "12.0OZ"
       },
       {
-        "shortForm": "13 OZ",
-        "fullForm": "13 OZ"
+        "shortForm": "13-14OZ",
+        "fullForm": "13-14OZ"
       },
       {
-        "shortForm": "15 OZ",
-        "fullForm": "15 OZ"
+        "shortForm": "15OZ",
+        "fullForm": "15OZ"
       },
       {
-        "shortForm": "5 OZ",
-        "fullForm": "5 OZ"
+        "shortForm": "5-7OZ",
+        "fullForm": "5-7OZ"
       },
       {
-        "shortForm": "6.5 OZ",
-        "fullForm": "6.5 OZ"
-      },
-      {
-        "shortForm": "8 OZ",
-        "fullForm": "8 OZ"
+        "shortForm": "8.0OZ",
+        "fullForm": "8.0OZ"
       }
     ]
   },
@@ -1573,36 +1834,44 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "100D",
-        "fullForm": "100D"
+        "shortForm": "10L",
+        "fullForm": "10 LINEN"
       },
       {
-        "shortForm": "10L",
-        "fullForm": "10L"
+        "shortForm": "100D",
+        "fullForm": "100 DENIER"
       },
       {
         "shortForm": "10S",
-        "fullForm": "10S"
+        "fullForm": "10 SINGLE PLY"
       },
       {
         "shortForm": "150D",
-        "fullForm": "150D"
+        "fullForm": "150 DENIER"
       },
       {
         "shortForm": "16S",
-        "fullForm": "16S"
+        "fullForm": "16 SINGLE PLY"
+      },
+      {
+        "shortForm": "20D",
+        "fullForm": "20 DENIER"
       },
       {
         "shortForm": "2/30S",
-        "fullForm": "2/30S"
-      },
-      {
-        "shortForm": "20S",
-        "fullForm": "20S"
+        "fullForm": "2/30 SINGLE PLY"
       },
       {
         "shortForm": "20S+20S",
-        "fullForm": "20S+20S"
+        "fullForm": "20 SINGLE PLY+20 SINGLE PLY"
+      },
+      {
+        "shortForm": "20S",
+        "fullForm": "20 SINGLE PLY"
+      },
+      {
+        "shortForm": "30S+26S",
+        "fullForm": "30 SINGLE PLY+26 SINGLE PLY"
       },
       {
         "shortForm": "20\"",
@@ -1610,27 +1879,39 @@
       },
       {
         "shortForm": "200D",
-        "fullForm": "200D"
+        "fullForm": "200 DENIER"
       },
       {
-        "shortForm": "20D",
-        "fullForm": "20D"
+        "shortForm": "25L",
+        "fullForm": "25 LINEN"
+      },
+      {
+        "shortForm": "30S/ 30S /10S",
+        "fullForm": "30S/ 30S /10S"
       },
       {
         "shortForm": "20L",
-        "fullForm": "20L"
+        "fullForm": "20 LINEN"
+      },
+      {
+        "shortForm": "30S/ 30S /12S",
+        "fullForm": "30S/ 30S /12S"
+      },
+      {
+        "shortForm": "30S",
+        "fullForm": "30 SINGLE PLY"
       },
       {
         "shortForm": "21S",
-        "fullForm": "21S"
+        "fullForm": "21 SINGLE PLY"
       },
       {
         "shortForm": "22S",
-        "fullForm": "22S"
+        "fullForm": "22 SINGLE PLY"
       },
       {
         "shortForm": "24S",
-        "fullForm": "24S"
+        "fullForm": "24 SINGLE PLY"
       },
       {
         "shortForm": "24S/ 24S /10S",
@@ -1638,47 +1919,23 @@
       },
       {
         "shortForm": "24S+20S",
-        "fullForm": "24S+20S"
-      },
-      {
-        "shortForm": "25L",
-        "fullForm": "25L"
-      },
-      {
-        "shortForm": "30S",
-        "fullForm": "30S"
-      },
-      {
-        "shortForm": "30S/ 30S /12S",
-        "fullForm": "30S/ 30S /12S"
-      },
-      {
-        "shortForm": "30S/ 30S /10S",
-        "fullForm": "30S/ 30S /10S"
-      },
-      {
-        "shortForm": "30S+26S",
-        "fullForm": "30S+26S"
-      },
-      {
-        "shortForm": "30S+20S",
-        "fullForm": "30S+20S"
-      },
-      {
-        "shortForm": "30S HT",
-        "fullForm": "30S HT"
-      },
-      {
-        "shortForm": "30S*20S",
-        "fullForm": "30S*20S"
-      },
-      {
-        "shortForm": "34S",
-        "fullForm": "34S"
+        "fullForm": "24 SINGLE PLY+20 SINGLE PLY"
       },
       {
         "shortForm": "34S/ 34S /12S",
         "fullForm": "34S/ 34S /12S"
+      },
+      {
+        "shortForm": "30S*20S",
+        "fullForm": "30 SINGLE PLY+20 SINGLE PLY"
+      },
+      {
+        "shortForm": "40S",
+        "fullForm": "40 SINGLE PLY"
+      },
+      {
+        "shortForm": "36S",
+        "fullForm": "36 SINGLE PLY"
       },
       {
         "shortForm": "34S/ 34S /10S",
@@ -1689,12 +1946,16 @@
         "fullForm": "34\""
       },
       {
-        "shortForm": "36S",
-        "fullForm": "36S"
+        "shortForm": "34S",
+        "fullForm": "34 SINGLE PLY"
       },
       {
-        "shortForm": "40S",
-        "fullForm": "40S"
+        "shortForm": "30S HT",
+        "fullForm": "30S HT"
+      },
+      {
+        "shortForm": "30S+20S",
+        "fullForm": "30 SINGLE PLY+20 SINGLE PLY"
       },
       {
         "shortForm": "40S/ 40S/ 20S",
@@ -1706,55 +1967,55 @@
       },
       {
         "shortForm": "40D",
-        "fullForm": "40D"
+        "fullForm": "40 DENIER"
       },
       {
         "shortForm": "40L",
-        "fullForm": "40L"
+        "fullForm": "40 LINEN"
       },
       {
         "shortForm": "450D",
-        "fullForm": "450D"
+        "fullForm": "450 DENIER"
       },
       {
         "shortForm": "50S",
-        "fullForm": "50S"
+        "fullForm": "50 SINGLE PLY"
       },
       {
         "shortForm": "50D",
-        "fullForm": "50D"
+        "fullForm": "50 DENIER"
       },
       {
         "shortForm": "50S SPDX",
-        "fullForm": "50S SPDX"
+        "fullForm": "50 SINGLE PLY SPDX"
       },
       {
         "shortForm": "600D",
-        "fullForm": "600D"
+        "fullForm": "600 DENIER"
       },
       {
         "shortForm": "60L",
-        "fullForm": "60L"
+        "fullForm": "60 LINEN"
       },
       {
         "shortForm": "60S",
-        "fullForm": "60S"
+        "fullForm": "60 SINGLE PLY"
       },
       {
         "shortForm": "70D",
-        "fullForm": "70D"
+        "fullForm": "70 DENIER"
       },
       {
         "shortForm": "70L",
-        "fullForm": "70L"
+        "fullForm": "70 LINEN"
       },
       {
         "shortForm": "75S+75S",
-        "fullForm": "75S+75S"
+        "fullForm": "75 SINGLE PLY+75 SINGLE PLY"
       },
       {
         "shortForm": "75D",
-        "fullForm": "75D"
+        "fullForm": "75 DENIER"
       },
       {
         "shortForm": "75D+20D",
@@ -1766,15 +2027,15 @@
       },
       {
         "shortForm": "800D",
-        "fullForm": "800D"
+        "fullForm": "800 DENIER"
       },
       {
         "shortForm": "80D",
-        "fullForm": "80D"
+        "fullForm": "80 DENIER"
       },
       {
         "shortForm": "85D",
-        "fullForm": "85D"
+        "fullForm": "85 DENIER"
       },
       {
         "shortForm": "Ne 30/1",
@@ -1801,24 +2062,28 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "MIX",
-        "fullForm": "MIX"
-      },
-      {
         "shortForm": "LIGHT",
         "fullForm": "LIGHT"
+      },
+      {
+        "shortForm": "MIX",
+        "fullForm": "MIXTURE"
       },
       {
         "shortForm": "DARK",
         "fullForm": "DARK"
       },
       {
-        "shortForm": "MEDIUM",
+        "shortForm": "MED",
         "fullForm": "MEDIUM"
       },
       {
         "shortForm": "NEON",
         "fullForm": "NEON"
+      },
+      {
+        "shortForm": "2_TONE",
+        "fullForm": "2_TONE"
       }
     ]
   },
@@ -1829,12 +2094,20 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "LCR",
-        "fullForm": "LCR"
+        "shortForm": "N_LYC",
+        "fullForm": "NON LYCRA"
       },
       {
-        "shortForm": "NON LCR",
-        "fullForm": "NON LCR"
+        "shortForm": "LCR",
+        "fullForm": "LYCRA"
+      },
+      {
+        "shortForm": "2W_LYC",
+        "fullForm": "2 WAY LYCRA"
+      },
+      {
+        "shortForm": "4W_LYC",
+        "fullForm": "4 WAY LYCRA"
       }
     ]
   },
@@ -1845,12 +2118,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "RN",
-        "fullForm": "ROUND NECK"
-      },
-      {
         "shortForm": "VN",
         "fullForm": "V NECK"
+      },
+      {
+        "shortForm": "RN",
+        "fullForm": "ROUND NECK"
       },
       {
         "shortForm": "HUD",
@@ -1865,39 +2138,51 @@
         "fullForm": "BAND COLLAR"
       },
       {
+        "shortForm": "CWL_NK",
+        "fullForm": "COWL NECK"
+      },
+      {
         "shortForm": "HNL_NK",
         "fullForm": "HENLEY NECK"
+      },
+      {
+        "shortForm": "TRTL_NK",
+        "fullForm": "TURTLE NECK"
       },
       {
         "shortForm": "BOAT_NK",
         "fullForm": "BOAT NECK"
       },
       {
-        "shortForm": "TN",
-        "fullForm": "TURTLE NECK"
-      },
-      {
         "shortForm": "HLT_NK",
-        "fullForm": "HALTER NECK"
+        "fullForm": "HALT NECK"
       },
       {
         "shortForm": "CUBAN_CLR",
         "fullForm": "CUBAN COLLAR"
       },
       {
-        "shortForm": "CWL_NK",
-        "fullForm": "COWL NECK"
+        "shortForm": "DBL_CLR",
+        "fullForm": "DOUBLE COLLAR"
       },
       {
         "shortForm": "CNT_CLR",
         "fullForm": "CONTRAST COLLAR"
       },
       {
+        "shortForm": "HN",
+        "fullForm": "HN"
+      },
+      {
+        "shortForm": "DEZ_CLR",
+        "fullForm": "DEZ_CLR"
+      },
+      {
         "shortForm": "BTN_DWN_CLR",
         "fullForm": "BUTTON DOWN COLLAR"
       },
       {
-        "shortForm": "POLO_NK",
+        "shortForm": "PN",
         "fullForm": "POLO NECK"
       },
       {
@@ -1905,24 +2190,16 @@
         "fullForm": "SQUARE NECK"
       },
       {
-        "shortForm": "KEYHOLE_NK",
-        "fullForm": "KEYHOLE NECK"
+        "shortForm": "KEY_HL_NK",
+        "fullForm": "KEY HOLE NECK"
       },
       {
         "shortForm": "SCOOP_NK",
         "fullForm": "SCOOP NECK"
       },
       {
-        "shortForm": "DBL_CLR",
-        "fullForm": "DOUBLE COLLAR"
-      },
-      {
-        "shortForm": "DEZ_CLR",
-        "fullForm": "DESIGNER COLLAR"
-      },
-      {
-        "shortForm": "HIGH_NK",
-        "fullForm": "HIGH NECK"
+        "shortForm": "FUR_CLR",
+        "fullForm": "FUR COLLAR"
       }
     ]
   },
@@ -1933,92 +2210,100 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "NECK_BAND_STYLE",
-        "fullForm": "YARN"
-      },
-      {
-        "shortForm": "DTM RIB NK",
-        "fullForm": "DYEBLE RIB NECK"
-      },
-      {
-        "shortForm": "CNT RIB NK",
+        "shortForm": "CNT_RIB_NK",
         "fullForm": "CONTRAST RIB NECK"
       },
       {
-        "shortForm": "RAW EDGE NK",
+        "shortForm": "DTM_RIB_NK",
+        "fullForm": "DYEBLE RIB NECK"
+      },
+      {
+        "shortForm": "RAW_EDGE_NK",
         "fullForm": "RAW EDGE NECK"
       },
       {
-        "shortForm": "ZARA NK",
+        "shortForm": "ZARA_NK",
         "fullForm": "ZARA NECK"
       },
       {
-        "shortForm": "BRAND RIB NK",
+        "shortForm": "BRND_RIB_NK",
         "fullForm": "BRAND RIB NECK"
       },
       {
-        "shortForm": "LOGO RIB NK",
+        "shortForm": "HLF_ZIP",
+        "fullForm": "HLF_ZIP"
+      },
+      {
+        "shortForm": "LOGO_RIB_NK",
         "fullForm": "LOGO RIB NECK"
       },
       {
-        "shortForm": "TPNG RIB NK",
-        "fullForm": "TIPPING  RIB NECK"
-      },
-      {
-        "shortForm": "JAQ RIB NK",
+        "shortForm": "JAQ_RIB_NK",
         "fullForm": "JAQUARD  RIB NECK"
       },
       {
-        "shortForm": "RIB + TPNG NK",
-        "fullForm": "RIB TIPPING NECK"
+        "shortForm": "TPNG_RIB_NK",
+        "fullForm": "TIPPING  RIB NECK"
       },
       {
-        "shortForm": "RIB CUT TPNG NK",
+        "shortForm": "RIB_TPNG_NK",
+        "fullForm": "RIB_TPNG_NK"
+      },
+      {
+        "shortForm": "RIB_CUT_TPNG_NK",
         "fullForm": "RIB CUT TIPPING NECK"
       },
       {
-        "shortForm": "RN HUD",
-        "fullForm": "ROUND NECK HOOD"
+        "shortForm": "RN_ZIP",
+        "fullForm": "ROUND NECK ZIP"
       },
       {
-        "shortForm": "VN HUD",
+        "shortForm": "SNAP_BTN_SHLDR_NK",
+        "fullForm": "SNAP BUTTON SHOULDER NECK"
+      },
+      {
+        "shortForm": "VN_HD",
         "fullForm": "V-NECK HOOD"
       },
       {
-        "shortForm": "HN HUD",
-        "fullForm": "HENLEY NECK HOOD"
-      },
-      {
-        "shortForm": "HNL_NK 2 BTN",
-        "fullForm": "HENLEY NECK 2 BUTTON"
-      },
-      {
-        "shortForm": "HNL_NK 3 BTN",
-        "fullForm": "HENLEY NECK 3 BUTTON"
-      },
-      {
-        "shortForm": "HNL_NK 4 BTN",
-        "fullForm": "HENLEY NECK 5 BUTTON"
-      },
-      {
-        "shortForm": "HNL_NK 5 BTN",
-        "fullForm": "HENLEY NECK 5 BUTTON"
-      },
-      {
-        "shortForm": "RN ZIP",
-        "fullForm": "ROUND NECK ZIP"
+        "shortForm": "MANDARIAN_NK",
+        "fullForm": "MANDARIAN NECK"
       },
       {
         "shortForm": "ENVLP_NK",
         "fullForm": "ENVELOP NECK"
       },
       {
-        "shortForm": "MANDARIAN NK",
-        "fullForm": "MANDARIAN NECK"
+        "shortForm": "HN_HUD",
+        "fullForm": "HIGH NECK HOOD"
       },
       {
-        "shortForm": "SNAP_BTN_SHLDR_NK",
-        "fullForm": "SNAP BUTTON SHOULDER NECK"
+        "shortForm": "HNL_NK_2_BTN",
+        "fullForm": "HENLEY NECK 2 BUTTON"
+      },
+      {
+        "shortForm": "HNL_NK_3_BTN",
+        "fullForm": "HENLEY NECK 3 BUTTON"
+      },
+      {
+        "shortForm": "HNL_NK_4_BTN",
+        "fullForm": "HENLEY NECK 4 BUTTON"
+      },
+      {
+        "shortForm": "HNL_NK_5_BTN",
+        "fullForm": "HENLEY NECK 5 BUTTON"
+      },
+      {
+        "shortForm": "HNL_HD",
+        "fullForm": "HENLEY NECK HOOD"
+      },
+      {
+        "shortForm": "RN_HUD",
+        "fullForm": "ROUND NECK HOOD"
+      },
+      {
+        "shortForm": "MOCK_NK_ HL_ZIP",
+        "fullForm": "MOCK_NK_ HL_ZIP"
       }
     ]
   },
@@ -2093,71 +2378,71 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "RIB PLKT",
-        "fullForm": "RIB PLACKET"
-      },
-      {
-        "shortForm": "POLO PLKT",
+        "shortForm": "POLO_PLKT",
         "fullForm": "POLO PLACKET"
       },
       {
-        "shortForm": "PLN PLKT",
+        "shortForm": "RIB_PLKT",
+        "fullForm": "RIB PLACKET"
+      },
+      {
+        "shortForm": "PLN_PLKT",
         "fullForm": "PLAIN PLACKET"
       },
       {
-        "shortForm": "TXT PLKT",
+        "shortForm": "TXT_PLKT",
         "fullForm": "TEXTILE PLACKET"
       },
       {
-        "shortForm": "BRND PRT PLKT",
-        "fullForm": "BRAND PRINT PLACKET"
+        "shortForm": "BRD_PRT",
+        "fullForm": "BRAND PRINT"
       },
       {
-        "shortForm": "CTRL PLKT",
-        "fullForm": "CENTRAL PLACKET"
-      },
-      {
-        "shortForm": "JAQ PLKT",
-        "fullForm": "JAQUARD PLACKET"
-      },
-      {
-        "shortForm": "ZIP PLKT",
-        "fullForm": "ZIP PLACKET"
-      },
-      {
-        "shortForm": "CON. ZIP PLKT",
-        "fullForm": "CONCEALED ZIP PLACKET"
-      },
-      {
-        "shortForm": "GOLD ZIP PLKT",
-        "fullForm": "GOLDEN ZIP PLACKET"
-      },
-      {
-        "shortForm": "SLV ZIP PLKT",
+        "shortForm": "SLV_ZIP_PLKT",
         "fullForm": "SILVER ZIP PLACKET"
       },
       {
-        "shortForm": "MULT ZIP PLKT",
+        "shortForm": "CTRL_PLKT",
+        "fullForm": "CENTRAL PLACKET"
+      },
+      {
+        "shortForm": "ZIP_PLKT",
+        "fullForm": "ZIP PLACKET"
+      },
+      {
+        "shortForm": "JAQ_PLKT",
+        "fullForm": "JAQUARD PLACKET"
+      },
+      {
+        "shortForm": "CON._ZIP_PLKT",
+        "fullForm": "CONCEALED ZIP PLACKET"
+      },
+      {
+        "shortForm": "GOLD_ZIP_PLKT",
+        "fullForm": "GOLDEN ZIP PLACKET"
+      },
+      {
+        "shortForm": "MULT_ZIP_PLKT",
         "fullForm": "MULTY ZIP PLACKET"
       },
       {
-        "shortForm": "LAYER PLKT",
+        "shortForm": "LAYER_PLKT",
         "fullForm": "LAYER PLACKET"
       },
       {
-        "shortForm": "EMB PLKT",
+        "shortForm": "EMB_PLKT",
         "fullForm": "EMBROIDERY PLACKET"
       },
       {
-        "shortForm": "ZIP + BTN PLKT",
+        "shortForm": "ZIP_+_BTN_PLKT",
         "fullForm": "ZIP+ BUTTON PLACKET"
       },
       {
         "shortForm": "DBL_PLKT",
-        "fullForm": "BOUBLE PLACKET"
+        "fullForm": "DOUBLE PLACKET"
       },
       {
-        "shortForm": "NON FUNCTIONAL",
+        "shortForm": "NON_FNCTL",
         "fullForm": "NON FUNCTIONAL"
       }
     ]
@@ -2169,23 +2454,23 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ELS_BLT",
-        "fullForm": "ELASTIC BELT"
+        "shortForm": "CON_BLT",
+        "fullForm": "CONTRAST BELT"
       },
       {
-        "shortForm": "CONT_BLT",
-        "fullForm": "CONTRAST BELT"
+        "shortForm": "ELS_BLT",
+        "fullForm": "ELASTIC BELT"
       },
       {
         "shortForm": "FLEXI",
         "fullForm": "FLEXI"
       },
       {
-        "shortForm": "IE",
+        "shortForm": "I_ELS",
         "fullForm": "INNER ELASTIC"
       },
       {
-        "shortForm": "OE",
+        "shortForm": "O_ELS",
         "fullForm": "OUTER ELASTIC"
       },
       {
@@ -2193,15 +2478,15 @@
         "fullForm": "HALF ELASTIC BELT"
       },
       {
-        "shortForm": "3/4 ELS_BLT",
-        "fullForm": "3/4 ELASTIC BELT"
-      },
-      {
         "shortForm": "ADJUST_BLT",
         "fullForm": "ADJUSTABLE BELT"
       },
       {
-        "shortForm": "FIXED _BLT",
+        "shortForm": "3/4_ELS_BLT",
+        "fullForm": "3/4 ELASTIC BELT"
+      },
+      {
+        "shortForm": "F_BLT",
         "fullForm": "FIXED BELT"
       }
     ]
@@ -2213,68 +2498,68 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "SLF GTHR BLT",
-        "fullForm": "SELF GATHER BELT"
+        "shortForm": "SLF_RELX_BLT",
+        "fullForm": "SLF_RELX_BLT"
       },
       {
-        "shortForm": "SLF RELX BLT",
-        "fullForm": "SELF RELAX BELT"
+        "shortForm": "SLF_GTHR_BLT",
+        "fullForm": "SLF_GTHR_BLT"
       },
       {
-        "shortForm": "TOP BLT TPNG",
-        "fullForm": "TOP BELT TIPPING"
+        "shortForm": "TOP_BLT_TPNG",
+        "fullForm": "TOP_BLT_TPNG"
       },
       {
-        "shortForm": "DTM RIB BLT",
-        "fullForm": "DYE TO MATCH RIB BELT"
+        "shortForm": "DTM_RIB_BLT",
+        "fullForm": "DTM_RIB_BLT"
       },
       {
-        "shortForm": "CNT RIB BLT",
-        "fullForm": "CONTRAST RIB BELT"
+        "shortForm": "CNT_RIB_BLT",
+        "fullForm": "CNT_RIB_BLT"
       },
       {
-        "shortForm": "TPNG RIB BLT",
-        "fullForm": "TIPPING RIB BELT"
+        "shortForm": "RIB_CTRT_BLT",
+        "fullForm": "RIB_CTRT_BLT"
       },
       {
-        "shortForm": "BRND RIB BLT",
-        "fullForm": "BRAND RIB BELT"
+        "shortForm": "TPNG_RIB_BLT",
+        "fullForm": "TPNG_RIB_BLT"
       },
       {
-        "shortForm": "SELF C&S BLT",
-        "fullForm": "SELF CUT &SEW BELT"
+        "shortForm": "SELF_C&S_BLT",
+        "fullForm": "SELF_C&S_BLT"
       },
       {
-        "shortForm": "RIB & SLF C&S BLT",
-        "fullForm": "RIB & SELF CUT ANS SEW BELT"
+        "shortForm": "BRND_RIB_BLT",
+        "fullForm": "BRND_RIB_BLT"
       },
       {
-        "shortForm": "SLF CTRT BLT",
-        "fullForm": "SELF CONTRAST BELT"
+        "shortForm": "RIB&SLF_C&S_BLT",
+        "fullForm": "RIB&SLF_C&S_BLT"
       },
       {
-        "shortForm": "RIB CTRT BLT",
-        "fullForm": "RIB CONTRAST BELT"
+        "shortForm": "SLF_CTRT_BLT",
+        "fullForm": "SLF_CTRT_BLT"
       },
       {
-        "shortForm": "BRND ELS BLT",
-        "fullForm": "BRAND ELASTIC BELT"
+        "shortForm": "BRND_ELS_BLT",
+        "fullForm": "BRND_ELS_BLT"
       },
       {
-        "shortForm": "BRND LG BLT",
-        "fullForm": "BRAND LOGO BELT"
+        "shortForm": "BRND_LG_BLT",
+        "fullForm": "BRND_LG_BLT"
       },
       {
-        "shortForm": "ELS CTRT BLT",
-        "fullForm": "ELASTIC CONTRAST BELT"
+        "shortForm": "ELS_CON_BLT",
+        "fullForm": "ELS_CON_BLT"
       },
       {
         "shortForm": "CTRT_FLAT_KNIT",
-        "fullForm": "CONTRAST FLAT KNIT"
+        "fullForm": "CTRT_FLAT_KNIT"
       },
       {
         "shortForm": "ROLL_UP",
-        "fullForm": "ROLL UP"
+        "fullForm": "ROLL_UP"
       }
     ]
   },
@@ -2285,36 +2570,44 @@
     "type": "SELECT",
     "allowedValues": [
       {
+        "shortForm": "BL_SLV",
+        "fullForm": "BELL SLEEVE"
+      },
+      {
         "shortForm": "QTR_SLV",
         "fullForm": "QUARTER SLEEVE"
       },
       {
-        "shortForm": "BELL_SLV",
-        "fullForm": "BELL SLEEVE"
-      },
-      {
-        "shortForm": "BUTTERFLY_SLV",
+        "shortForm": "BTRFLY_SLV",
         "fullForm": "BUTTERFLY SLEEVE"
       },
       {
-        "shortForm": "CAP_SLV",
+        "shortForm": "C_SLV",
         "fullForm": "CAP SLEEVE"
       },
       {
-        "shortForm": "CLD_SHLDR",
+        "shortForm": "CLD_SLDR",
         "fullForm": "COLD SHOULDER"
       },
       {
-        "shortForm": "KIMONO_SLV",
-        "fullForm": "KIMONO SLEEVE"
+        "shortForm": "BATWING_SLV",
+        "fullForm": "BATWING SLEEVE"
       },
       {
-        "shortForm": "OFF_SHLDR",
-        "fullForm": "OFF SHOULDER"
+        "shortForm": "KIMNO_SLV",
+        "fullForm": "KIMONO SLEEVE"
       },
       {
         "shortForm": "REG_SLV",
         "fullForm": "REGULAR SLEEVE"
+      },
+      {
+        "shortForm": "OFF_SLDR",
+        "fullForm": "OFF SHOULDER"
+      },
+      {
+        "shortForm": "RIB_FNSH",
+        "fullForm": "RIB FINISH"
       },
       {
         "shortForm": "RGLN_SLV",
@@ -2325,27 +2618,39 @@
         "fullForm": "PUFF SLEEVE"
       },
       {
-        "shortForm": "BATWING_SLV",
-        "fullForm": "BATWING SLEEVE"
+        "shortForm": "ZIP_SLV",
+        "fullForm": "ZIP SLEEVE"
+      },
+      {
+        "shortForm": "DOLMAN_SLV",
+        "fullForm": "DOLMAN SLEEVE"
       },
       {
         "shortForm": "BISHOP_SLV",
         "fullForm": "BISHOP SLEEVE"
       },
       {
+        "shortForm": "CRG",
+        "fullForm": "CARGO"
+      },
+      {
+        "shortForm": "ONE_SLDR",
+        "fullForm": "ONE SHOULDER"
+      },
+      {
         "shortForm": "DR_SLV",
         "fullForm": "DROP SHOULDER SLEEVE"
       },
       {
-        "shortForm": "FLARED_SLV",
+        "shortForm": "FLR_SLV",
         "fullForm": "FLARED SLEEVE"
       },
       {
-        "shortForm": "KAFTAN_SLV",
+        "shortForm": "KFTN_SLV",
         "fullForm": "KAFTAN SLEEVE"
       },
       {
-        "shortForm": "ROLL_UP",
+        "shortForm": "ROL_UP",
         "fullForm": "ROLL UP"
       },
       {
@@ -2353,60 +2658,36 @@
         "fullForm": "SLEEVELESS"
       },
       {
-        "shortForm": "CAP",
-        "fullForm": "CAP SLEEVE"
-      },
-      {
-        "shortForm": "PUFF SLV",
-        "fullForm": "PUFF SLEEVE"
-      },
-      {
-        "shortForm": "ONE SHOULDER",
-        "fullForm": "ONE SHOULDER"
-      },
-      {
-        "shortForm": "CARGO",
-        "fullForm": "CARGO"
-      },
-      {
-        "shortForm": "DOLMAN_SLV",
-        "fullForm": "DOLMAN SLEEVE"
-      },
-      {
-        "shortForm": "RIB FINISH",
-        "fullForm": "RIB FINISH"
-      },
-      {
-        "shortForm": "SELF FOLD",
-        "fullForm": "SELF FOLD"
-      },
-      {
-        "shortForm": "TIPPING",
-        "fullForm": "TIPPING"
+        "shortForm": "PRT_SLV",
+        "fullForm": "PRINT SLEEVE"
       },
       {
         "shortForm": "EXTEND_SLV",
         "fullForm": "EXTEND SLEEVE"
       },
       {
-        "shortForm": "ROLL_UP_SLV",
-        "fullForm": "ROLL UP SLEEVE"
+        "shortForm": "HS_TPNG",
+        "fullForm": "HALF SLEEVE WITH TIPPING"
+      },
+      {
+        "shortForm": "HS_FLAT_TPNG",
+        "fullForm": "HALF SLEEVE FLAT TPNG"
       },
       {
         "shortForm": "BONE",
         "fullForm": "BONE"
       },
       {
-        "shortForm": "PRT_SLV",
-        "fullForm": "PRINT SLEEVE"
+        "shortForm": "TPNG_SLV",
+        "fullForm": "TIPPING SLEEVE"
       },
       {
-        "shortForm": "HS_TIPPING",
-        "fullForm": "HALF SLEEVE WITH TIPPING"
+        "shortForm": "SLF_FLD_FNSH",
+        "fullForm": "SELF FOLD FINISH"
       },
       {
-        "shortForm": "HS_FLAT_TPNG",
-        "fullForm": "HALF SLEEVE FLAT TPNG"
+        "shortForm": "CUF_SLV",
+        "fullForm": "CUFF SLEEVE"
       }
     ]
   },
@@ -2417,68 +2698,64 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "BTM_ELS",
-        "fullForm": "BOTTOM ELASTIC"
-      },
-      {
         "shortForm": "BTM_RIB",
         "fullForm": "BOTTOM RIB"
       },
       {
-        "shortForm": "BTM OPEN",
+        "shortForm": "BTM_ELS",
+        "fullForm": "BOTTOM ELASTIC"
+      },
+      {
+        "shortForm": "BTM_OPEN",
         "fullForm": "BOTTOM OPEN"
       },
       {
-        "shortForm": "SLF FOLD",
+        "shortForm": "SLF_FOLD",
         "fullForm": "SELF FOLD"
       },
       {
-        "shortForm": "UP_ FOLD",
+        "shortForm": "UP_FLD",
         "fullForm": "UP FOLD"
+      },
+      {
+        "shortForm": "SMKNG",
+        "fullForm": "SMOKING"
       },
       {
         "shortForm": "TPNG",
         "fullForm": "TIPPING"
       },
       {
-        "shortForm": "BTM_FRNG",
-        "fullForm": "BOTTOM FLARING"
+        "shortForm": "CON_BTM_FLD",
+        "fullForm": "CONTRAST BOTTOM FOLD"
       },
       {
-        "shortForm": "CONT_BTM_FLD",
-        "fullForm": "CONTRAST BOTTOM FOLD"
+        "shortForm": "BTM_FRNG",
+        "fullForm": "BOTTOM FLARING"
       },
       {
         "shortForm": "RAW_EDGE",
         "fullForm": "RAW EDGE"
       },
       {
-        "shortForm": "WITH ELASTIC & ADJUSTER",
+        "shortForm": "W_ELS_ADJTR",
         "fullForm": "WITH ELASTIC & ADJUSTER"
-      },
-      {
-        "shortForm": "SMOKING",
-        "fullForm": "SMOKING"
       },
       {
         "shortForm": "SCALOP",
         "fullForm": "SCALOP"
       },
       {
-        "shortForm": "LACE FINISH",
+        "shortForm": "LCE_FNS",
         "fullForm": "LACE FINISH"
-      },
-      {
-        "shortForm": "RAW EDGE",
-        "fullForm": "RAW EDGE"
-      },
-      {
-        "shortForm": "RAW EDGE W OLOCK",
-        "fullForm": "RAW EDGE W O'LOCK"
       },
       {
         "shortForm": "WD_ADJSTR",
         "fullForm": "WAISTBAND ADJUSTER"
+      },
+      {
+        "shortForm": "RAW_EDGE_W_O'LC",
+        "fullForm": "RAW EDGE WITH OVER-LOCK"
       }
     ]
   },
@@ -2489,40 +2766,48 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "F/O STYLE",
-        "fullForm": "YARN"
-      },
-      {
-        "shortForm": "2 BTN",
-        "fullForm": "2  BUTTON"
-      },
-      {
-        "shortForm": "3 BTN",
+        "shortForm": "3_BTN",
         "fullForm": "3  BUTTON"
       },
       {
-        "shortForm": "4 BTN",
+        "shortForm": "2_BTN",
+        "fullForm": "2  BUTTON"
+      },
+      {
+        "shortForm": "4_BTN",
         "fullForm": "4  BUTTON"
       },
       {
-        "shortForm": "5 BTN",
+        "shortForm": "5_BTN",
         "fullForm": "5  BUTTON"
       },
       {
-        "shortForm": "6 BTN",
+        "shortForm": "6_BTN",
         "fullForm": "6  BUTTON"
       },
       {
-        "shortForm": "7 BTN",
+        "shortForm": "7_BTN",
         "fullForm": "7  BUTTON"
       },
       {
-        "shortForm": "8 BTN",
+        "shortForm": "FO_ZIP",
+        "fullForm": "FRONT OPEN ZIP"
+      },
+      {
+        "shortForm": "8_BTN",
         "fullForm": "8  BUTTON"
       },
       {
-        "shortForm": "F_ZIP",
-        "fullForm": "FRONT ZIP"
+        "shortForm": "RN_FUL_ZIP",
+        "fullForm": "ROUND NECK FULL ZIP"
+      },
+      {
+        "shortForm": "RN_FO_BTN",
+        "fullForm": "ROUND NECK FRONT OPEN BUTTON"
+      },
+      {
+        "shortForm": "HD_FUL_ZIP",
+        "fullForm": "HOOD FULL ZIP"
       }
     ]
   },
@@ -2533,60 +2818,84 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "BOX_PLEAT_PKT",
-        "fullForm": "BOX PLEATED POCKET"
-      },
-      {
         "shortForm": "GATHER_PKT",
         "fullForm": "GATHER POCKET"
       },
       {
-        "shortForm": "ZIPPER_PKT",
-        "fullForm": "ZIPPER POCKET"
+        "shortForm": "B_PLEAT_PKT",
+        "fullForm": "BOX PLEATED POCKET"
       },
       {
-        "shortForm": "CARGO_PKT_WD_TAPE",
+        "shortForm": "ZIP_PKT",
+        "fullForm": "ZIP PLACKET"
+      },
+      {
+        "shortForm": "CRG_PKT_WD_TAPE",
         "fullForm": "CARGO POCKET  WD TAPE"
       },
       {
-        "shortForm": "PKT WITH ZIP",
+        "shortForm": "PKT_W_ZIP",
         "fullForm": "POCKET WITH ZIP"
       },
       {
-        "shortForm": "PKT WITH SIDE_RIB",
-        "fullForm": "POCKET WITH SIDE RIB"
+        "shortForm": "V_BONE_PKT",
+        "fullForm": "V SHAPED BONE PACKET"
       },
       {
-        "shortForm": "PATCH_PKT",
-        "fullForm": "PATCH POCKET"
+        "shortForm": "PKT_WITH_SIDE_RIB",
+        "fullForm": "POCKET WITH SIDE RIB"
       },
       {
         "shortForm": "WELT_PKT",
         "fullForm": "WELT POCKET"
       },
       {
-        "shortForm": "LOOP PKT",
+        "shortForm": "PCH_PKT",
+        "fullForm": "PATCH POCKET"
+      },
+      {
+        "shortForm": "LP_PKT",
         "fullForm": "LOOP POCKET"
       },
       {
         "shortForm": "KNG_PKT",
-        "fullForm": "KANGAROO POCKET"
+        "fullForm": "KNGAROO POCKET"
       },
       {
-        "shortForm": "V_BONE PKT",
-        "fullForm": "V SHAPED BONE PACKET"
-      },
-      {
-        "shortForm": "H_BONE PKT",
-        "fullForm": "HORIZONTAL BONE  POCKET"
+        "shortForm": "H_BONE_PKT",
+        "fullForm": "HERRINGBONE POCKET"
       },
       {
         "shortForm": "C_BONE_PKT",
         "fullForm": "C SHAPED BONE POCKET"
       },
       {
-        "shortForm": "SIDE POCKET",
+        "shortForm": "SD_PKT",
         "fullForm": "SIDE POCKET"
+      },
+      {
+        "shortForm": "1_PKT",
+        "fullForm": "SINGLE POCKET"
+      },
+      {
+        "shortForm": "CRG_PKT",
+        "fullForm": "CARGO POCKET"
+      },
+      {
+        "shortForm": "1_PKT_FLP",
+        "fullForm": "1_PKT_FLP"
+      },
+      {
+        "shortForm": "DPKT_FLP",
+        "fullForm": "DOUBLE POCKET WITH FLAP"
+      },
+      {
+        "shortForm": "2_PCH_PKT",
+        "fullForm": "DOUBLE PATCH POCKET"
+      },
+      {
+        "shortForm": "COIN_POCKET",
+        "fullForm": "COIN POCKET"
       }
     ]
   },
@@ -2597,48 +2906,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "BGY FIT",
+        "shortForm": "BGY_FIT",
         "fullForm": "BAGGY FIT"
-      },
-      {
-        "shortForm": "BLN FIT",
-        "fullForm": "BALOON FIT"
-      },
-      {
-        "shortForm": "OVERSIZED",
-        "fullForm": "OVERSIZED"
-      },
-      {
-        "shortForm": "D SHLD",
-        "fullForm": "DROP SHOULDER"
-      },
-      {
-        "shortForm": "SLIM FIT",
-        "fullForm": "SLIM_FIT"
-      },
-      {
-        "shortForm": "REG FIT",
-        "fullForm": "REGULAR FIT"
-      },
-      {
-        "shortForm": "SKNY FIT",
-        "fullForm": "SKINNY FIT"
-      },
-      {
-        "shortForm": "FLARE FIT",
-        "fullForm": "FLARE FIT"
-      },
-      {
-        "shortForm": "RLX FIT",
-        "fullForm": "RELAX FIT"
       },
       {
         "shortForm": "B_CUT",
         "fullForm": "BOOTCUT FIT"
-      },
-      {
-        "shortForm": "BGY_FIT",
-        "fullForm": "BAGGY FIT"
       },
       {
         "shortForm": "BLN_FIT",
@@ -2650,51 +2923,79 @@
       },
       {
         "shortForm": "BOXY",
-        "fullForm": "BOXY FIT"
+        "fullForm": "BOXY"
       },
       {
-        "shortForm": "STRT_FIT",
-        "fullForm": "STRAIGHT FIT"
+        "shortForm": "SLIM",
+        "fullForm": "SLIM_FIT"
+      },
+      {
+        "shortForm": "OVERSIZED",
+        "fullForm": "OVERSIZED"
       },
       {
         "shortForm": "TAPRD",
         "fullForm": "TAPERED FIT"
       },
       {
+        "shortForm": "STRAIGHT",
+        "fullForm": "STRAIGHT FIT"
+      },
+      {
+        "shortForm": "ULTRA_BGY_FIT",
+        "fullForm": "ULTRA BAGGY FIT"
+      },
+      {
+        "shortForm": "D_SHLD",
+        "fullForm": "DROP SHOULDER"
+      },
+      {
         "shortForm": "MOM_FIT",
         "fullForm": "MOM FIT"
       },
       {
-        "shortForm": "SLIM_FIT",
-        "fullForm": "SLIM_FIT"
+        "shortForm": "RELX_FIT",
+        "fullForm": "RELAX FIT"
       },
       {
-        "shortForm": "NRW_FIT",
+        "shortForm": "BARRL_FIT",
+        "fullForm": "BARREL FIT"
+      },
+      {
+        "shortForm": "N_FIT",
         "fullForm": "NARROW FIT"
+      },
+      {
+        "shortForm": "DAD FIT",
+        "fullForm": "DAD FIT"
+      },
+      {
+        "shortForm": "TRSR_FIT",
+        "fullForm": "TROUSER FIT"
       },
       {
         "shortForm": "REG_FIT",
         "fullForm": "REGULAR FIT"
       },
       {
-        "shortForm": "STRAIGHT",
-        "fullForm": "STRAIGHT FIT"
-      },
-      {
-        "shortForm": "WIDE_LEG",
+        "shortForm": "WD_LEG",
         "fullForm": "WIDE LEG"
       },
       {
-        "shortForm": "SKINNY FIT",
+        "shortForm": "SKNY_FT",
         "fullForm": "SKINNY FIT"
       },
       {
-        "shortForm": "RELAX FIT",
-        "fullForm": "RELAX FIT"
+        "shortForm": "FLARE_FIT",
+        "fullForm": "FLARE FIT"
       },
       {
-        "shortForm": "RLX_FIT",
-        "fullForm": "RELAX FIT"
+        "shortForm": "BOYFRND_FIT",
+        "fullForm": "BOYFRIEND FIT"
+      },
+      {
+        "shortForm": "LOOSE",
+        "fullForm": "LOOSE"
       }
     ]
   },
@@ -2705,12 +3006,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "1_LYR",
-        "fullForm": "1 LAYER"
-      },
-      {
         "shortForm": "2_C&S",
         "fullForm": "2 CUT N SEW"
+      },
+      {
+        "shortForm": "1_LYR",
+        "fullForm": "1 LAYER"
       },
       {
         "shortForm": "2_H_C&S",
@@ -2725,16 +3026,24 @@
         "fullForm": "2 VERTICAL CUT N SEW"
       },
       {
+        "shortForm": "A_LINE",
+        "fullForm": "A LINE"
+      },
+      {
         "shortForm": "3_C&S",
         "fullForm": "3 CUT N SEW"
+      },
+      {
+        "shortForm": "3_LYR",
+        "fullForm": "3 LAYER"
       },
       {
         "shortForm": "3_H_C&S",
         "fullForm": "3 HORIZONTAL CUT N SEW"
       },
       {
-        "shortForm": "3_LYR",
-        "fullForm": "3 LAYER"
+        "shortForm": "CHIKANKARI",
+        "fullForm": "CHIKANKARI"
       },
       {
         "shortForm": "3_V_C&S",
@@ -2745,8 +3054,24 @@
         "fullForm": "4 LAYER"
       },
       {
-        "shortForm": "A_LINE",
-        "fullForm": "A LINE"
+        "shortForm": "BSC",
+        "fullForm": "BASIC"
+      },
+      {
+        "shortForm": "CARGO",
+        "fullForm": "CARGO"
+      },
+      {
+        "shortForm": "AFGHANI",
+        "fullForm": "AFGHANI"
+      },
+      {
+        "shortForm": "CAPRI",
+        "fullForm": "CAPRI"
+      },
+      {
+        "shortForm": "C&S",
+        "fullForm": "CUT N SEW"
       },
       {
         "shortForm": "ANGRKH",
@@ -2762,43 +3087,47 @@
       },
       {
         "shortForm": "BK_LESS",
-        "fullForm": "BACK LESS"
+        "fullForm": "BK LESS"
       },
       {
-        "shortForm": "BSC",
-        "fullForm": "BASIC"
+        "shortForm": "BOMBER",
+        "fullForm": "BOMBER"
       },
       {
-        "shortForm": "C&S",
-        "fullForm": "CUT AND SEW"
+        "shortForm": "DUNGRY",
+        "fullForm": "DUNGRY"
       },
       {
-        "shortForm": "CARGO",
-        "fullForm": "CARGO"
+        "shortForm": "DHOTI",
+        "fullForm": "DHOTI"
       },
       {
-        "shortForm": "CROP",
-        "fullForm": "CROP"
-      },
-      {
-        "shortForm": "DANGRI",
-        "fullForm": "DANGRI"
-      },
-      {
-        "shortForm": "E_STP",
-        "fullForm": "ENGINIEERED STRIPE"
-      },
-      {
-        "shortForm": "FDNG",
-        "fullForm": "FEEDING"
+        "shortForm": "FLAIR",
+        "fullForm": "FLAIR"
       },
       {
         "shortForm": "FISH_CUT",
         "fullForm": "FISH CUT"
       },
       {
-        "shortForm": "FLAIR",
-        "fullForm": "FLAIR"
+        "shortForm": "E_STP",
+        "fullForm": "ENGINEERING STRIPE"
+      },
+      {
+        "shortForm": "FDNG",
+        "fullForm": "FEEDING"
+      },
+      {
+        "shortForm": "DRAWER",
+        "fullForm": "DRAWER"
+      },
+      {
+        "shortForm": "CROP",
+        "fullForm": "CROP"
+      },
+      {
+        "shortForm": "CHRDR",
+        "fullForm": "CHOORIDAR"
       },
       {
         "shortForm": "FO",
@@ -2823,6 +3152,10 @@
       {
         "shortForm": "HALTER",
         "fullForm": "HALTER"
+      },
+      {
+        "shortForm": "JDPR",
+        "fullForm": "JODHPURI"
       },
       {
         "shortForm": "JGR",
@@ -2865,10 +3198,6 @@
         "fullForm": "PHULKARI"
       },
       {
-        "shortForm": "PINTUCK",
-        "fullForm": "PINTUCK"
-      },
-      {
         "shortForm": "PLEATED",
         "fullForm": "PLEATED"
       },
@@ -2877,20 +3206,12 @@
         "fullForm": "PUFFER"
       },
       {
-        "shortForm": "PUSH UP",
-        "fullForm": "PUSH UP"
-      },
-      {
-        "shortForm": "ROMPER",
-        "fullForm": "ROMPER"
-      },
-      {
         "shortForm": "RUFFLES",
         "fullForm": "RUFFLES"
       },
       {
         "shortForm": "RVSL",
-        "fullForm": "REVERSIBLE"
+        "fullForm": "RVSL"
       },
       {
         "shortForm": "SEAMLESS",
@@ -2898,11 +3219,11 @@
       },
       {
         "shortForm": "SHRG",
-        "fullForm": "SHRUG"
+        "fullForm": "SHRG"
       },
       {
         "shortForm": "SMKNG",
-        "fullForm": "SMOKING"
+        "fullForm": "SMKNG"
       },
       {
         "shortForm": "STOLE",
@@ -2911,6 +3232,10 @@
       {
         "shortForm": "THONGS",
         "fullForm": "THONGS"
+      },
+      {
+        "shortForm": "TRUNK",
+        "fullForm": "TRUNK"
       },
       {
         "shortForm": "TUBE",
@@ -2930,43 +3255,71 @@
       },
       {
         "shortForm": "FO_BTN",
-        "fullForm": "FRONT OPEN BUTTON"
+        "fullForm": "FO_BTN"
       },
       {
-        "shortForm": "AFGHANI",
-        "fullForm": "AFGHANI"
+        "shortForm": "PLN",
+        "fullForm": "PLN"
       },
       {
-        "shortForm": "CAPRI",
-        "fullForm": "CAPRI"
+        "shortForm": "STRAIGHT",
+        "fullForm": "STRAIGHT"
       },
       {
-        "shortForm": "CHIKANKARI",
-        "fullForm": "CHIKANKARI"
+        "shortForm": "BTM_ELS",
+        "fullForm": "BTM_ELS"
       },
       {
-        "shortForm": "CHRDR",
-        "fullForm": "CHURIDAR"
+        "shortForm": "TIERED",
+        "fullForm": "TIERED"
       },
       {
-        "shortForm": "DHOTI",
-        "fullForm": "DHOTI"
+        "shortForm": "PYJAMA",
+        "fullForm": "PYJAMA"
       },
       {
-        "shortForm": "DRAWER",
-        "fullForm": "DRAWER"
+        "shortForm": "FO_ZIP",
+        "fullForm": "FO_ZIP"
       },
       {
-        "shortForm": "JDPR",
-        "fullForm": "JODHPURI"
+        "shortForm": "PUFF",
+        "fullForm": "PUFF"
       },
       {
-        "shortForm": "TRUNK",
-        "fullForm": "TRUNK"
+        "shortForm": "FROCK",
+        "fullForm": "FROCK"
       },
       {
-        "shortForm": "BOMBER",
-        "fullForm": "BOMBER"
+        "shortForm": "FNCY",
+        "fullForm": "FNCY"
+      },
+      {
+        "shortForm": "AOP",
+        "fullForm": "AOP"
+      },
+      {
+        "shortForm": "HD",
+        "fullForm": "HD"
+      },
+      {
+        "shortForm": "BTM_FLD",
+        "fullForm": "BTM_FLD"
+      },
+      {
+        "shortForm": "DGT_PRT",
+        "fullForm": "DGT_PRT"
+      },
+      {
+        "shortForm": "SKULL",
+        "fullForm": "SKULL"
+      },
+      {
+        "shortForm": "ENG_STP",
+        "fullForm": "ENG_STP"
+      },
+      {
+        "shortForm": "SD_PTY",
+        "fullForm": "SD_PTY"
       }
     ]
   },
@@ -2981,22 +3334,6 @@
         "fullForm": "FULL LENGTH"
       },
       {
-        "shortForm": "CROP",
-        "fullForm": "CROP LENGTH"
-      },
-      {
-        "shortForm": "LONG",
-        "fullForm": "LONG LENGTH"
-      },
-      {
-        "shortForm": "REG",
-        "fullForm": "REGULAR LENGTH"
-      },
-      {
-        "shortForm": "SHRT",
-        "fullForm": "SHORT LENGTH"
-      },
-      {
         "shortForm": "ANK",
         "fullForm": "ANKLE LENGTH"
       },
@@ -3005,12 +3342,24 @@
         "fullForm": "KNEE LENGTH"
       },
       {
+        "shortForm": "CROP",
+        "fullForm": "CROP"
+      },
+      {
+        "shortForm": "LONG",
+        "fullForm": "LONG LENGTH"
+      },
+      {
         "shortForm": "REGULAR",
         "fullForm": "REGULAR LENGTH"
       },
       {
         "shortForm": "CALF",
-        "fullForm": "CALF LENGTH"
+        "fullForm": "CALF"
+      },
+      {
+        "shortForm": "SHRT",
+        "fullForm": "SHORT LENGTH"
       }
     ]
   },
@@ -3021,15 +3370,15 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ROUND DC",
-        "fullForm": "ROUND DRAWCORD"
-      },
-      {
         "shortForm": "FLAT DC",
         "fullForm": "FLAT DRAWCORD"
       },
       {
-        "shortForm": "SLF FAB",
+        "shortForm": "ROUND_DC",
+        "fullForm": "ROUND DRAWCORD"
+      },
+      {
+        "shortForm": "SLF_FAB",
         "fullForm": "SELF FABRIC"
       },
       {
@@ -3041,16 +3390,20 @@
         "fullForm": "DYBLE POM POM"
       },
       {
+        "shortForm": "CTN_TAPE",
+        "fullForm": "COTTON TAPE"
+      },
+      {
         "shortForm": "WO_POM_POM",
         "fullForm": "WITH OUT POM POM"
       },
       {
-        "shortForm": "TWILL TAPE",
-        "fullForm": "TWILL TAPE"
-      },
-      {
         "shortForm": "DESIGNER",
         "fullForm": "DESIGNER DRAWCORD"
+      },
+      {
+        "shortForm": "TWL_TAPE",
+        "fullForm": "TWILL TAPE"
       },
       {
         "shortForm": "ELASTIC",
@@ -3061,11 +3414,11 @@
         "fullForm": "THREAD"
       },
       {
-        "shortForm": "COTTON TAPE",
-        "fullForm": "COTTON TAPE"
+        "shortForm": "RFD_DRWCRD",
+        "fullForm": "READY FOR DYING DRAWCORD"
       },
       {
-        "shortForm": "GROSSGRAIN TAPE",
+        "shortForm": "GRS_GRN_TAPE",
         "fullForm": "GROSSGRAIN TAPE"
       },
       {
@@ -3087,10 +3440,6 @@
       {
         "shortForm": "JAQ_DRWCRD",
         "fullForm": "JAQUARD DRAWCORD"
-      },
-      {
-        "shortForm": "RFD_DRWCRD",
-        "fullForm": "READY FOR DYING DRAWCORD"
       }
     ]
   },
@@ -3101,63 +3450,75 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "BTN_MAIN_MVGR",
-        "fullForm": "YARN"
-      },
-      {
-        "shortForm": "4HOLE_MTL_BTN",
-        "fullForm": "4HOLE METAL BUTTON"
-      },
-      {
         "shortForm": "WDN",
         "fullForm": "WOODEN"
       },
       {
-        "shortForm": "4HOLE_PLSTC_BTN",
+        "shortForm": "4HOL_MTL_BTN",
+        "fullForm": "4HOLE METAL BUTTON"
+      },
+      {
+        "shortForm": "4HOL_PLS_BTN",
         "fullForm": "4HOLE PLASTIC BUTTON"
       },
       {
-        "shortForm": "4HOLE_WDN_BTN",
+        "shortForm": "4HOL_WDN_BTN",
         "fullForm": "4HOLE WOODEN BUTTON"
       },
       {
-        "shortForm": "MTL",
-        "fullForm": "METAL"
+        "shortForm": "MTL_BTN",
+        "fullForm": "METAL BUTTON"
       },
       {
-        "shortForm": "DOWN HOLE",
+        "shortForm": "4HOL_NLN_BTN",
+        "fullForm": "4HOLE NYLON BUTTON"
+      },
+      {
+        "shortForm": "DWN_HOL",
         "fullForm": "DOWN HOLE"
-      },
-      {
-        "shortForm": "DTM",
-        "fullForm": "DYE TO MATCH"
       },
       {
         "shortForm": "FNCY_MTL_BTN",
         "fullForm": "FANCY METAL BATCH"
       },
       {
-        "shortForm": "FNCY_PLST_BTN",
+        "shortForm": "DTM",
+        "fullForm": "DYE TO MATCH"
+      },
+      {
+        "shortForm": "FNCY_PLS_BTN",
         "fullForm": "FANCY PLASTIC BUTTON"
       },
       {
-        "shortForm": "SNAP_MTL_BTN",
+        "shortForm": "SNP_MTL_BTN",
         "fullForm": "SNAP METAL BUTTON"
       },
       {
-        "shortForm": "4HOLE_NLN_BTN",
-        "fullForm": "4HOLE NYLON BUTTON"
+        "shortForm": "WDN_BTN",
+        "fullForm": "WOODEN BUTTON"
       },
       {
-        "shortForm": "DYE CAST",
-        "fullForm": "DYE CAST"
+        "shortForm": "SHEL_BTN",
+        "fullForm": "SHELL BUTTON"
       },
       {
-        "shortForm": "GLASS BTN",
+        "shortForm": "DYE_CAST",
+        "fullForm": "DYE_CAST"
+      },
+      {
+        "shortForm": "SLF_FAB",
+        "fullForm": "SELF FABRIC"
+      },
+      {
+        "shortForm": "LTHR_BTN",
+        "fullForm": "LEATHER BUTTON"
+      },
+      {
+        "shortForm": "GLASS_BTN",
         "fullForm": "GLASS BTN"
       },
       {
-        "shortForm": "HORN_BTN",
+        "shortForm": "HRN_BTN",
         "fullForm": "HORN_BTN"
       },
       {
@@ -3165,7 +3526,7 @@
         "fullForm": "METAL HOOK"
       },
       {
-        "shortForm": "PLASTIC",
+        "shortForm": "PLS_BTN",
         "fullForm": "PLATIC BUTTON"
       },
       {
@@ -3173,20 +3534,8 @@
         "fullForm": "STUDS"
       },
       {
-        "shortForm": "WDN_BTN",
-        "fullForm": "WOODEN BUTTON"
-      },
-      {
-        "shortForm": "LEATHER BTN",
-        "fullForm": "LEATHER BUTTON"
-      },
-      {
-        "shortForm": "FAB COVER BTN",
-        "fullForm": "FABRIC  COVERED BOTTON"
-      },
-      {
-        "shortForm": "SHELL_BTN",
-        "fullForm": "SHELL BUTTON"
+        "shortForm": "REMOVE",
+        "fullForm": "REMOVE"
       }
     ]
   },
@@ -3197,12 +3546,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "CON_ZIP",
-        "fullForm": "CONCEALED ZIP"
-      },
-      {
         "shortForm": "MTL_ZIP",
         "fullForm": "METAL ZIP"
+      },
+      {
+        "shortForm": "CON_ZIP",
+        "fullForm": "CONCEALED ZIP"
       },
       {
         "shortForm": "PLS_ZIP",
@@ -3221,36 +3570,32 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "DTM",
-        "fullForm": "DYE TO MATCH"
-      },
-      {
         "shortForm": "GOLD",
         "fullForm": "GOLD"
       },
       {
-        "shortForm": "MLTI",
-        "fullForm": "MULTICOLOR ZIP"
+        "shortForm": "DTM",
+        "fullForm": "DYE TO MATCH"
       },
       {
-        "shortForm": "GUN MTL",
+        "shortForm": "MULT_CLR",
+        "fullForm": "MULTI COLOR ZIP"
+      },
+      {
+        "shortForm": "GUN_MTL",
         "fullForm": "GUN METAL"
       },
       {
-        "shortForm": "GLD",
-        "fullForm": "GOLD"
-      },
-      {
-        "shortForm": "SLV",
+        "shortForm": "SLVR",
         "fullForm": "SILVER"
-      },
-      {
-        "shortForm": "WHT",
-        "fullForm": "WHITE"
       },
       {
         "shortForm": "BLK",
         "fullForm": "BLACK"
+      },
+      {
+        "shortForm": "WHT",
+        "fullForm": "WHITE"
       },
       {
         "shortForm": "RFD",
@@ -3265,19 +3610,19 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "DISCHARGE",
-        "fullForm": "DISCHARGE"
-      },
-      {
         "shortForm": "FLOCK",
         "fullForm": "FLOCK"
+      },
+      {
+        "shortForm": "DCHRG",
+        "fullForm": "DISCHARGE"
       },
       {
         "shortForm": "FOIL",
         "fullForm": "FOIL"
       },
       {
-        "shortForm": "BAGRU",
+        "shortForm": "BGRU",
         "fullForm": "BAGRU"
       },
       {
@@ -3285,28 +3630,28 @@
         "fullForm": "DIGITAL PRINT"
       },
       {
+        "shortForm": "PLSTSL_PRT",
+        "fullForm": "PLASTIC SOLE PRINT"
+      },
+      {
         "shortForm": "RTRY",
         "fullForm": "ROTARY"
+      },
+      {
+        "shortForm": "HD",
+        "fullForm": "HOOD"
       },
       {
         "shortForm": "PIGMENT",
         "fullForm": "PIGMENT"
       },
       {
-        "shortForm": "HD",
-        "fullForm": "HIGH DENSITY"
-      },
-      {
-        "shortForm": "SUBLIMATION",
+        "shortForm": "SBLMTN",
         "fullForm": "SUBLIMITAION"
       },
       {
         "shortForm": "RBR_PRT",
         "fullForm": "RUBBER PRINT"
-      },
-      {
-        "shortForm": "PLSTSL_PRT",
-        "fullForm": "PLASTIC SOLE PRINT"
       },
       {
         "shortForm": "KHADI",
@@ -3321,12 +3666,16 @@
         "fullForm": "PUFF"
       },
       {
-        "shortForm": "EMBOSS",
+        "shortForm": "EMBS",
         "fullForm": "EMBOSS"
       },
       {
         "shortForm": "REFLCTV_PRT",
         "fullForm": "REFLECTIVE PRINT"
+      },
+      {
+        "shortForm": "HT",
+        "fullForm": "HEAT TRANSFER"
       }
     ]
   },
@@ -3337,12 +3686,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "FRONT",
-        "fullForm": "FRONT"
-      },
-      {
         "shortForm": "NECK",
         "fullForm": "NECK"
+      },
+      {
+        "shortForm": "FRONT",
+        "fullForm": "FRONT"
       },
       {
         "shortForm": "BACK",
@@ -3357,28 +3706,28 @@
         "fullForm": "BOTTOM"
       },
       {
-        "shortForm": "NK & BTM",
-        "fullForm": "NECK & BOTTOM"
+        "shortForm": "PKT",
+        "fullForm": "POCKET PRINT"
       },
       {
-        "shortForm": "BELT",
-        "fullForm": "BELT"
+        "shortForm": "NK&BTM",
+        "fullForm": "NECK & BOTTOM"
       },
       {
         "shortForm": "CHEST",
         "fullForm": "CHEST"
       },
       {
-        "shortForm": "FRT & BCK & SLV",
+        "shortForm": "BELT",
+        "fullForm": "BELT"
+      },
+      {
+        "shortForm": "FRNT&BK&SLV",
         "fullForm": "FONT & BACK AND SLEEVE"
       },
       {
-        "shortForm": "FRT & BCK",
+        "shortForm": "FRNT&BK",
         "fullForm": "FRONT AND BACK"
-      },
-      {
-        "shortForm": "PKT",
-        "fullForm": "POCKET PRINT"
       },
       {
         "shortForm": "AOP",
@@ -3393,12 +3742,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ANML",
-        "fullForm": "ANIMAL"
-      },
-      {
         "shortForm": "BRAND",
         "fullForm": "BRAND"
+      },
+      {
+        "shortForm": "ANML",
+        "fullForm": "ANIMAL"
       },
       {
         "shortForm": "CRTN",
@@ -3413,36 +3762,36 @@
         "fullForm": "NUMERIC"
       },
       {
-        "shortForm": "TYPOGRAPHY",
-        "fullForm": "TYPOGRAPHY"
-      },
-      {
-        "shortForm": "STONE",
-        "fullForm": "STONE"
+        "shortForm": "PSLY",
+        "fullForm": "PESSELY PRINT"
       },
       {
         "shortForm": "CONV_PRT",
         "fullForm": "CONVERSATIONAL PRINT"
       },
       {
-        "shortForm": "FLRL",
-        "fullForm": "FLORAL PRINT"
+        "shortForm": "STONE",
+        "fullForm": "STONE"
       },
       {
-        "shortForm": "SCARF_PRT",
+        "shortForm": "SCRF_PRT",
         "fullForm": "SCARF PRINT"
       },
       {
-        "shortForm": "PSLY",
-        "fullForm": "PESSELY PRINT"
+        "shortForm": "IKAT",
+        "fullForm": "IKAT"
       },
       {
         "shortForm": "ABST_PRT",
         "fullForm": "ABSTRACT PRINT"
       },
       {
-        "shortForm": "TRPCL",
-        "fullForm": "TROPICAL PRINT"
+        "shortForm": "BOOTY_PRT",
+        "fullForm": "BOOTY PRINT"
+      },
+      {
+        "shortForm": "SHIBORI",
+        "fullForm": "SHIBORI"
       },
       {
         "shortForm": "BANDHANI",
@@ -3461,16 +3810,56 @@
         "fullForm": "DABU"
       },
       {
-        "shortForm": "IKAT",
-        "fullForm": "IKAT"
+        "shortForm": "AOP_ABST",
+        "fullForm": "ALL OVER PRINT - ABSTRACT"
       },
       {
-        "shortForm": "SHIBORI",
-        "fullForm": "SHIBORI"
+        "shortForm": "AOP_TRPL",
+        "fullForm": "ALL OVER PRINT - TROPICAL"
       },
       {
-        "shortForm": "BOOTY_PRT",
-        "fullForm": "BOOTY PRINT"
+        "shortForm": "AOP_CHKS",
+        "fullForm": "ALL OVER PRINT - CHECKS"
+      },
+      {
+        "shortForm": "AOP_FLRL",
+        "fullForm": "ALL OVER PRINT - FLORAL"
+      },
+      {
+        "shortForm": "AOP_GMTL",
+        "fullForm": "ALL OVER PRINT - GEOMETRIC"
+      },
+      {
+        "shortForm": "AOP_TYPO",
+        "fullForm": "ALL OVER PRINT - TYPOGRAPHY"
+      },
+      {
+        "shortForm": "AOP_SCARF",
+        "fullForm": "AOP_SCARF"
+      },
+      {
+        "shortForm": "AOP_BOOTY",
+        "fullForm": "ALL OVER PRINT - BOOTY"
+      },
+      {
+        "shortForm": "AOP_EMB",
+        "fullForm": "ALL OVER PRINT EMBROIDERY"
+      },
+      {
+        "shortForm": "AOP_AMD",
+        "fullForm": "ALL OVER PRINT AHMEDABAD"
+      },
+      {
+        "shortForm": "AOP_JPR",
+        "fullForm": "ALL OVER PRINT JAIPURI"
+      },
+      {
+        "shortForm": "AOP_PRT",
+        "fullForm": "AOP_PRT"
+      },
+      {
+        "shortForm": "TYPOGRAPHY",
+        "fullForm": "TYPOGRAPHY"
       }
     ]
   },
@@ -3481,64 +3870,56 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "CANVAS",
-        "fullForm": "CANVAS"
-      },
-      {
-        "shortForm": "D-MASS",
+        "shortForm": "D_MASS",
         "fullForm": "D-MASS"
       },
       {
+        "shortForm": "CNVS",
+        "fullForm": "CANVAS"
+      },
+      {
         "shortForm": "PVC",
-        "fullForm": "PVC"
+        "fullForm": "CARTOON"
       },
       {
         "shortForm": "SILCON",
-        "fullForm": "SILCON"
+        "fullForm": "CAMOUFLAGE"
       },
       {
-        "shortForm": "PATCH FELT",
+        "shortForm": "PCH_FLT",
         "fullForm": "PATCH FELT"
-      },
-      {
-        "shortForm": "TOWEL",
-        "fullForm": "TOWEL"
-      },
-      {
-        "shortForm": "EMBSD",
-        "fullForm": "EMBOSSED"
-      },
-      {
-        "shortForm": "LASER CUT",
-        "fullForm": "LASER CUT"
-      },
-      {
-        "shortForm": "STUD",
-        "fullForm": "STUD"
-      },
-      {
-        "shortForm": "EMBRD",
-        "fullForm": "EMBROIDERIED"
       },
       {
         "shortForm": "RBR",
         "fullForm": "RUBBER"
       },
       {
-        "shortForm": "WOVEN",
-        "fullForm": "WOVEN"
+        "shortForm": "TOWEL",
+        "fullForm": "TOWEL"
       },
       {
-        "shortForm": "FLT",
-        "fullForm": "FELT"
+        "shortForm": "LSR_CUT",
+        "fullForm": "LASER CUT"
+      },
+      {
+        "shortForm": "EMBSD",
+        "fullForm": "EMBOSSED"
+      },
+      {
+        "shortForm": "STUD",
+        "fullForm": "STUD"
       },
       {
         "shortForm": "EMB",
         "fullForm": "EMBROIDERY"
       },
       {
+        "shortForm": "WO_PCH",
+        "fullForm": "WOVEN PATCH"
+      },
+      {
         "shortForm": "PU",
-        "fullForm": "POLY URETHANE"
+        "fullForm": "POLYURETHANE."
       }
     ]
   },
@@ -3549,16 +3930,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "CRTN_PTCH",
-        "fullForm": "CARTOON PATCH"
-      },
-      {
-        "shortForm": "BRAND LOGO",
-        "fullForm": "BRAND LOGO"
-      },
-      {
         "shortForm": "ANIMAL",
         "fullForm": "ANIMAL"
+      },
+      {
+        "shortForm": "BRND_LG",
+        "fullForm": "BRAND LOGO"
       },
       {
         "shortForm": "CRTN",
@@ -3569,44 +3946,112 @@
         "fullForm": "NUMERIC"
       },
       {
-        "shortForm": "TYPO",
-        "fullForm": "TYPOGRAPHY"
+        "shortForm": "SLK_EMB",
+        "fullForm": "SILK EMBROIDERY"
       },
       {
-        "shortForm": "EMB_PATCH",
-        "fullForm": "EMBROIDERY PATCH"
-      },
-      {
-        "shortForm": "WVN PTCH",
-        "fullForm": "WOVEN PATCH"
-      },
-      {
-        "shortForm": "SLCN PTCH",
-        "fullForm": "SILICON PATCH"
-      },
-      {
-        "shortForm": "FLT_PTCH",
-        "fullForm": "FELT PATCH"
-      },
-      {
-        "shortForm": "LTHR_PCH",
-        "fullForm": "LEATHER PATCH"
-      },
-      {
-        "shortForm": "STUDS",
-        "fullForm": "STUDS"
+        "shortForm": "PKT_SQUARE",
+        "fullForm": "POCKET SQUARE"
       },
       {
         "shortForm": "STN_WRK",
         "fullForm": "STONE WORK"
       },
       {
-        "shortForm": "CHST_PCH",
+        "shortForm": "TYPOGRAPHY",
+        "fullForm": "TYPOGRAPHY"
+      },
+      {
+        "shortForm": "BRND_NM",
+        "fullForm": "BRAND NAME"
+      },
+      {
+        "shortForm": "TRNG",
+        "fullForm": "TRNG"
+      },
+      {
+        "shortForm": "CLR BROTCH",
+        "fullForm": "COLLAR BROTCH"
+      },
+      {
+        "shortForm": "PKT_BRCH",
+        "fullForm": "POCKET BROTCH"
+      },
+      {
+        "shortForm": "LTHR_PCH",
+        "fullForm": "LEATHER PATCH"
+      },
+      {
+        "shortForm": "PCH_WRK",
+        "fullForm": "PATCH WORK"
+      },
+      {
+        "shortForm": "EMB_PCH",
+        "fullForm": "EMBROIDERY PATCH"
+      },
+      {
+        "shortForm": "TERRY_PCH",
+        "fullForm": "TERRY PATCH"
+      },
+      {
+        "shortForm": "STUDS",
+        "fullForm": "STUDS"
+      },
+      {
+        "shortForm": "BRCH",
+        "fullForm": "BROTCH"
+      },
+      {
+        "shortForm": "WVN_PCH",
+        "fullForm": "WOVEN PATCH"
+      },
+      {
+        "shortForm": "SLCN_PTCH",
+        "fullForm": "SILICON PATCH"
+      },
+      {
+        "shortForm": "TAPE",
+        "fullForm": "TAPE"
+      },
+      {
+        "shortForm": "FLT_PTCH",
+        "fullForm": "FELT PATCH"
+      },
+      {
+        "shortForm": "BDR_LACE",
+        "fullForm": "BORDER LACE"
+      },
+      {
+        "shortForm": "BDR_SHFL",
+        "fullForm": "BORDER SCHIFFILI"
+      },
+      {
+        "shortForm": "BTM_EMB",
+        "fullForm": "BOTTOM EMBROIDERY"
+      },
+      {
+        "shortForm": "BTM_FRAYED",
+        "fullForm": "BOTTOM FRAYED"
+      },
+      {
+        "shortForm": "CH_PCH",
         "fullForm": "CHEST PATCH"
       },
       {
-        "shortForm": "STONE WORK",
-        "fullForm": "STONE WORK"
+        "shortForm": "CRTN_PCH",
+        "fullForm": "CARTOON PATCH"
+      },
+      {
+        "shortForm": "FLAP",
+        "fullForm": "FLAP"
+      },
+      {
+        "shortForm": "SEQ_WRK",
+        "fullForm": "SEQUINS WORK"
+      },
+      {
+        "shortForm": "MTL_ID",
+        "fullForm": "METAL ID"
       }
     ]
   },
@@ -3617,19 +4062,19 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "DORI_EMB",
-        "fullForm": "DORI EMBROIDERY"
+        "shortForm": "EMB_TAPE",
+        "fullForm": "EMBROIDERY TAPE"
       },
       {
-        "shortForm": "EMB TAPE",
-        "fullForm": "EMBROIDERY TAPE"
+        "shortForm": "DORI_EMB",
+        "fullForm": "DORI EMBROIDERY"
       },
       {
         "shortForm": "GOTTA_PATTI",
         "fullForm": "GOTTA PATTI"
       },
       {
-        "shortForm": "LACE",
+        "shortForm": "LCE",
         "fullForm": "LACE ALL OVER PRINT"
       },
       {
@@ -3637,32 +4082,32 @@
         "fullForm": "SWAROSKI WORK"
       },
       {
-        "shortForm": "STONE WORK",
-        "fullForm": "STONE WORK"
+        "shortForm": "BEADS",
+        "fullForm": "BEADS"
       },
       {
-        "shortForm": "CUT_WRK",
-        "fullForm": "CUT WORK"
+        "shortForm": "STN_WRK",
+        "fullForm": "STONE WORK"
       },
       {
         "shortForm": "MIRROR_WRK",
         "fullForm": "MIRROR WORK"
       },
       {
-        "shortForm": "ZARI EMB",
-        "fullForm": "ZARI EMBROIDERY"
-      },
-      {
-        "shortForm": "SEQ_WRK",
-        "fullForm": "SEQUINS WRK"
-      },
-      {
-        "shortForm": "BEADS",
-        "fullForm": "BEADS"
+        "shortForm": "CUT_WRK",
+        "fullForm": "CUT WORK"
       },
       {
         "shortForm": "THREAD_WRK",
         "fullForm": "THREAD WORK"
+      },
+      {
+        "shortForm": "ZARI_EMB",
+        "fullForm": "ZARI EMBROIDERY"
+      },
+      {
+        "shortForm": "SEQ_WRK",
+        "fullForm": "SEQUINS WORK"
       }
     ]
   },
@@ -3673,12 +4118,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "BRND EMB",
-        "fullForm": "BRAND EMBROIDERY"
-      },
-      {
         "shortForm": "FLRL_EMB",
         "fullForm": "FLORAL EMROIDERY"
+      },
+      {
+        "shortForm": "BRND_EMB",
+        "fullForm": "BRAND EMBROIDERY"
       },
       {
         "shortForm": "PAISLEY EMB",
@@ -3705,12 +4150,12 @@
     "type": "SELECT",
     "allowedValues": [
       {
-        "shortForm": "ACID_STONE",
-        "fullForm": "ACID STONE"
+        "shortForm": "A_WSH",
+        "fullForm": "ACID  WASH"
       },
       {
-        "shortForm": "ACID",
-        "fullForm": "ACID"
+        "shortForm": "ACID_STONE",
+        "fullForm": "ACID STONE"
       },
       {
         "shortForm": "BATA",
@@ -3725,32 +4170,52 @@
         "fullForm": "BLAST"
       },
       {
-        "shortForm": "CHN_WSH",
-        "fullForm": "CHINA WASH"
+        "shortForm": "BLEECH",
+        "fullForm": "BLEECH"
       },
       {
-        "shortForm": "COLD",
-        "fullForm": "COLD"
+        "shortForm": "CHN_WSH",
+        "fullForm": "CHINA WASH"
       },
       {
         "shortForm": "CLOUD",
         "fullForm": "CLOUD"
       },
       {
+        "shortForm": "COLD",
+        "fullForm": "COLD"
+      },
+      {
+        "shortForm": "COLD_PIGMENT",
+        "fullForm": "COLD PIGMENT"
+      },
+      {
         "shortForm": "ENZM",
         "fullForm": "ENZYM"
       },
       {
-        "shortForm": "ICE OR SNOW",
+        "shortForm": "ICE_OR_SNOW",
         "fullForm": "ICE OR SNOW"
       },
       {
-        "shortForm": "BLEECH",
-        "fullForm": "BLEECH"
+        "shortForm": "OD",
+        "fullForm": "OVER DYED"
+      },
+      {
+        "shortForm": "OMBRE",
+        "fullForm": "OMBRE"
       },
       {
         "shortForm": "RINSE",
         "fullForm": "RINSE"
+      },
+      {
+        "shortForm": "SHIBORI",
+        "fullForm": "SHIBORI"
+      },
+      {
+        "shortForm": "SLCN_WSH",
+        "fullForm": "SILICON WASH"
       },
       {
         "shortForm": "SOFTNER",
@@ -3773,28 +4238,8 @@
         "fullForm": "WISKER"
       },
       {
-        "shortForm": "A_WASH",
-        "fullForm": "ACID WASH"
-      },
-      {
-        "shortForm": "OD",
-        "fullForm": "OVER-DYE"
-      },
-      {
-        "shortForm": "SIL_WSH",
-        "fullForm": "SILICON WASH"
-      },
-      {
-        "shortForm": "SHIBORI",
-        "fullForm": "SHIBORI"
-      },
-      {
-        "shortForm": "OMBRE",
-        "fullForm": "OMBRE"
-      },
-      {
-        "shortForm": "COLD_PIGMENT",
-        "fullForm": "COLD PIGMENT"
+        "shortForm": "OD_ENZ",
+        "fullForm": "OVER DYED ENZYME"
       }
     ]
   },
@@ -3805,424 +4250,356 @@
     "type": "TEXT",
     "allowedValues": [
       {
-        "shortForm": "AF_BLU",
-        "fullForm": "AIR FORCE BLUE"
-      },
-      {
-        "shortForm": "ALMOND",
-        "fullForm": "ALMOND"
-      },
-      {
-        "shortForm": "APRICOT",
-        "fullForm": "APRICOT"
-      },
-      {
-        "shortForm": "AQUA",
-        "fullForm": "AQUA"
-      },
-      {
-        "shortForm": "ASH_GRY",
-        "fullForm": "ASH GRY"
-      },
-      {
-        "shortForm": "BEIGE",
+        "shortForm": "BEG",
         "fullForm": "BEIGE"
       },
       {
-        "shortForm": "BLU",
-        "fullForm": "BLUE"
-      },
-      {
-        "shortForm": "BRW",
-        "fullForm": "BROWN"
-      },
-      {
-        "shortForm": "BTL_GRN",
-        "fullForm": "BOTTEL GREEN"
-      },
-      {
-        "shortForm": "CADET_BL",
-        "fullForm": "CADETBLUE"
-      },
-      {
-        "shortForm": "CHARCOAL",
-        "fullForm": "CHARCOAL"
-      },
-      {
-        "shortForm": "CHOCOLATE",
-        "fullForm": "CHOCOLATE"
-      },
-      {
-        "shortForm": "CHRY_RANI",
-        "fullForm": "CHERRY RANI"
-      },
-      {
-        "shortForm": "COFFEE",
-        "fullForm": "COFFEE"
-      },
-      {
-        "shortForm": "CRM",
-        "fullForm": "CREAM"
-      },
-      {
-        "shortForm": "CRT_RD",
-        "fullForm": "CARRET RED"
-      },
-      {
-        "shortForm": "D GRY",
-        "fullForm": "DARK GREY"
-      },
-      {
-        "shortForm": "D_BLU",
-        "fullForm": "DARK BLUE"
-      },
-      {
-        "shortForm": "D_BRWN",
-        "fullForm": "DARK BROWN"
-      },
-      {
-        "shortForm": "D_GRN",
-        "fullForm": "DARK GREEN"
-      },
-      {
-        "shortForm": "D_MINT",
-        "fullForm": "DARK MINT"
-      },
-      {
-        "shortForm": "D_OLV_GRN",
-        "fullForm": "DARK OLIVE GREEN"
-      },
-      {
-        "shortForm": "D_PCH",
-        "fullForm": "DARK PEACH"
-      },
-      {
-        "shortForm": "D_TAN",
-        "fullForm": "DARK TAN"
-      },
-      {
-        "shortForm": "D_TEAL",
-        "fullForm": "DARK TEAL"
-      },
-      {
-        "shortForm": "DNM_BLU",
-        "fullForm": "DENIM BLUE"
-      },
-      {
-        "shortForm": "ECRU",
-        "fullForm": "ECRU"
-      },
-      {
-        "shortForm": "F_PNK",
-        "fullForm": "FUCHSIA PINK"
-      },
-      {
-        "shortForm": "FAWN",
-        "fullForm": "FAWN"
-      },
-      {
-        "shortForm": "GOLDEN_BRWN",
-        "fullForm": "GOLDEN BROWN"
-      },
-      {
-        "shortForm": "GRY_MEL",
-        "fullForm": "GREY MELANGE"
-      },
-      {
-        "shortForm": "GUNMETAL_GRY",
-        "fullForm": "GUNMETAL GREY"
-      },
-      {
-        "shortForm": "L GRY",
-        "fullForm": "LIGHT GREY"
+        "shortForm": "D_BEG",
+        "fullForm": "D BEIGE"
       },
       {
         "shortForm": "L_BEG",
         "fullForm": "LIGHT BEIGE"
       },
       {
-        "shortForm": "ICE_BL",
-        "fullForm": "ICEBLUE"
+        "shortForm": "L_BIS",
+        "fullForm": "LIGHT BISKUT"
       },
       {
-        "shortForm": "KHAKI",
-        "fullForm": "KHAKI"
-      },
-      {
-        "shortForm": "L_BLU",
-        "fullForm": "LIGHT BLUE"
-      },
-      {
-        "shortForm": "L_BRWN",
-        "fullForm": "LIGHT BROWN"
-      },
-      {
-        "shortForm": "L_CHRY",
-        "fullForm": "LIGHT CHERRY"
-      },
-      {
-        "shortForm": "L_CRT",
-        "fullForm": "LIGHT CARROT"
-      },
-      {
-        "shortForm": "L_GRN",
-        "fullForm": "LIGHT GREEN"
-      },
-      {
-        "shortForm": "L_GRY",
-        "fullForm": "LIGHT GREY"
-      },
-      {
-        "shortForm": "L_KHK",
-        "fullForm": "LIGHT KHAKI"
-      },
-      {
-        "shortForm": "L_LEM",
-        "fullForm": "LIGHT LEMON"
-      },
-      {
-        "shortForm": "L_MINT",
-        "fullForm": "LIGHT MINT"
-      },
-      {
-        "shortForm": "L_OLV_GRN",
-        "fullForm": "LIGHT OLIVE GREEN"
-      },
-      {
-        "shortForm": "L_ORG",
-        "fullForm": "LIGHT ORANGE"
-      },
-      {
-        "shortForm": "L_PCH",
-        "fullForm": "LIGHT PEACH"
-      },
-      {
-        "shortForm": "L_PNK",
-        "fullForm": "LIGHT PINK"
-      },
-      {
-        "shortForm": "L_PST",
-        "fullForm": "LIGHT PISTA"
-      },
-      {
-        "shortForm": "L_PUR",
-        "fullForm": "LIGHT PURPLE"
-      },
-      {
-        "shortForm": "L_RANI",
-        "fullForm": "LIGHT RANI"
-      },
-      {
-        "shortForm": "L_TEAL",
-        "fullForm": "LIGHT TEAL"
-      },
-      {
-        "shortForm": "L_YLW",
-        "fullForm": "LIGHT YELLOW"
-      },
-      {
-        "shortForm": "LMN_YLW",
-        "fullForm": "LEMON YELLOW"
-      },
-      {
-        "shortForm": "LT_GRN",
-        "fullForm": "LIGHT GREEN"
-      },
-      {
-        "shortForm": "LVNDR",
-        "fullForm": "LAVENDER"
-      },
-      {
-        "shortForm": "M GRY",
-        "fullForm": "MEDIUM GREY"
+        "shortForm": "L_SKN",
+        "fullForm": "LIGHT SKIN"
       },
       {
         "shortForm": "M_BEG",
         "fullForm": "MEDIUM BEIGE"
       },
       {
-        "shortForm": "M_BLU",
-        "fullForm": "MEDIUM BLUE"
+        "shortForm": "M_BIS",
+        "fullForm": "MEDIUM BISCUIT"
       },
       {
-        "shortForm": "M_GRY",
-        "fullForm": "MEDIUM GREY"
+        "shortForm": "M_SKN",
+        "fullForm": "MEDIUM SKIN"
       },
       {
-        "shortForm": "M_KHK",
-        "fullForm": "MEDIUM KHAKI"
+        "shortForm": "PUMICE_BEG",
+        "fullForm": "PUMICE BEG"
       },
       {
-        "shortForm": "M_MINT",
-        "fullForm": "MEDIUM MINT"
+        "shortForm": "NTRL",
+        "fullForm": "NATURAL"
       },
       {
-        "shortForm": "M_PCH",
-        "fullForm": "MEDIUM PEACH"
-      },
-      {
-        "shortForm": "M_PST",
-        "fullForm": "MEDIUM PISTA"
-      },
-      {
-        "shortForm": "M_TEAL",
-        "fullForm": "MEDIUM TEAL"
-      },
-      {
-        "shortForm": "MAUVE",
-        "fullForm": "MAUVE"
-      },
-      {
-        "shortForm": "MIDNIGHT_BL",
-        "fullForm": "MIDNIGHT BLUE"
-      },
-      {
-        "shortForm": "MOCHA",
-        "fullForm": "MOCHA"
-      },
-      {
-        "shortForm": "MOSS_GRN",
-        "fullForm": "MOSS GREEN"
-      },
-      {
-        "shortForm": "MOUVE",
-        "fullForm": "MOUVE"
-      },
-      {
-        "shortForm": "MRN",
-        "fullForm": "MAROON"
-      },
-      {
-        "shortForm": "MRN_RD",
-        "fullForm": "MAROON RED"
-      },
-      {
-        "shortForm": "MTL_BLK",
-        "fullForm": "METAL BLACK"
-      },
-      {
-        "shortForm": "MTL_GRY",
-        "fullForm": "METAL GREY"
-      },
-      {
-        "shortForm": "NEON_GRN",
-        "fullForm": "NEON GREEN"
-      },
-      {
-        "shortForm": "NV_BLU",
-        "fullForm": "NAVY BLUE"
-      },
-      {
-        "shortForm": "O_WHT",
-        "fullForm": "OFF WHITE"
-      },
-      {
-        "shortForm": "ONION",
-        "fullForm": "ONION"
-      },
-      {
-        "shortForm": "PLATINUM",
-        "fullForm": "PLATINUM"
-      },
-      {
-        "shortForm": "PSTL_BL",
-        "fullForm": "PASTLE LIGHT BLUE"
-      },
-      {
-        "shortForm": "RED",
-        "fullForm": "RED"
-      },
-      {
-        "shortForm": "RUST",
-        "fullForm": "RUST"
-      },
-      {
-        "shortForm": "RW BLK",
-        "fullForm": "RW BLK"
-      },
-      {
-        "shortForm": "RYL_BLU",
-        "fullForm": "ROYAL BLUE"
-      },
-      {
-        "shortForm": "SAGE_GRN",
-        "fullForm": "SAGE GREEN"
+        "shortForm": "D_SKN",
+        "fullForm": "DARK SKIN"
       },
       {
         "shortForm": "SAND",
         "fullForm": "SAND"
       },
       {
-        "shortForm": "SL_BRWN",
-        "fullForm": "SOFT LIGHT BROWN"
+        "shortForm": "PUTI_BEG",
+        "fullForm": "PUTI BEIGE"
       },
       {
-        "shortForm": "SEA_GRN",
-        "fullForm": "SEA GREEN"
+        "shortForm": "HNY_BEG",
+        "fullForm": "HONEY BEG"
       },
       {
-        "shortForm": "SGE_GRN",
-        "fullForm": "SAGE GREEN"
+        "shortForm": "STNS_BEG",
+        "fullForm": "STOINIS BEG"
       },
       {
-        "shortForm": "SILVER",
-        "fullForm": "SILVER"
+        "shortForm": "VANILLA",
+        "fullForm": "VANILLA"
       },
       {
-        "shortForm": "SK_BLU",
-        "fullForm": "SKY BLUE"
+        "shortForm": "D_CRM",
+        "fullForm": "DARK CREAM"
       },
       {
-        "shortForm": "SLATE_GRY",
-        "fullForm": "SLATE GREY"
+        "shortForm": "L_CRM",
+        "fullForm": "LIGHT CREAM"
       },
       {
-        "shortForm": "STL_GRY",
-        "fullForm": "STEEL GREY"
+        "shortForm": "M_CRM",
+        "fullForm": "MEDIUM CREAM"
       },
       {
-        "shortForm": "TEAL",
-        "fullForm": "TEAL"
+        "shortForm": "CRM",
+        "fullForm": "CREAM"
       },
       {
-        "shortForm": "WHT",
-        "fullForm": "WHITE"
+        "shortForm": "ECRU",
+        "fullForm": "ECRU"
       },
       {
-        "shortForm": "WINE",
-        "fullForm": "WINE"
+        "shortForm": "SKN",
+        "fullForm": "SKIN"
       },
       {
-        "shortForm": "YLW",
-        "fullForm": "YELLOW"
+        "shortForm": "NUDE",
+        "fullForm": "NUDE"
       },
       {
-        "shortForm": "Z BLK",
-        "fullForm": "Z BLK"
+        "shortForm": "NV_BL1",
+        "fullForm": "NAVY BLUE1"
       },
       {
-        "shortForm": "LEM",
-        "fullForm": "LEMON"
+        "shortForm": "BLK",
+        "fullForm": "BLACK"
       },
       {
-        "shortForm": "ORG",
-        "fullForm": "ORANGE"
+        "shortForm": "BLK_MEL",
+        "fullForm": "BLACK MELANGE"
       },
       {
-        "shortForm": "LT_PST",
-        "fullForm": "LIGHT PISTA"
+        "shortForm": "D_BLK",
+        "fullForm": "DARK BLACK"
       },
       {
-        "shortForm": "L_S_BL",
-        "fullForm": "LIGHT SKY BLUE"
+        "shortForm": "M_BLK",
+        "fullForm": "MEDIUM BLACK"
+      },
+      {
+        "shortForm": "CHRCOL_BLK",
+        "fullForm": "CHRCOL BLK"
+      },
+      {
+        "shortForm": "JET_BLK",
+        "fullForm": "JET BLACK"
+      },
+      {
+        "shortForm": "MATTE_BLK",
+        "fullForm": "MATTE_BLACK"
+      },
+      {
+        "shortForm": "BLACK_INJ",
+        "fullForm": "BLACK_INJ"
+      },
+      {
+        "shortForm": "SMOKE",
+        "fullForm": "SMOKE"
+      },
+      {
+        "shortForm": "CHRCOL",
+        "fullForm": "CHRCOL"
+      },
+      {
+        "shortForm": "AF_BL",
+        "fullForm": "AIR FORCE BLUE"
+      },
+      {
+        "shortForm": "AQUA",
+        "fullForm": "AQUA"
+      },
+      {
+        "shortForm": "BL",
+        "fullForm": "BLUE"
+      },
+      {
+        "shortForm": "BL_MEL",
+        "fullForm": "BLUE MELANGE"
+      },
+      {
+        "shortForm": "CBN_BL",
+        "fullForm": "CARBON BLUE"
+      },
+      {
+        "shortForm": "D_AF_BLU",
+        "fullForm": "D_AIR_FORCE_BLUE"
+      },
+      {
+        "shortForm": "D_BL",
+        "fullForm": "DARK BLUE"
+      },
+      {
+        "shortForm": "D_FRZ",
+        "fullForm": "DARK FIROZI BLUE"
+      },
+      {
+        "shortForm": "D_NV",
+        "fullForm": "DARK NAVY"
+      },
+      {
+        "shortForm": "D_S_BL",
+        "fullForm": "DARK SKY BLUE"
+      },
+      {
+        "shortForm": "D_TEAL",
+        "fullForm": "DARK TEAL"
+      },
+      {
+        "shortForm": "DNM_BL",
+        "fullForm": "DENIM BLUE"
+      },
+      {
+        "shortForm": "F_BL",
+        "fullForm": "FIROZI BLUE"
+      },
+      {
+        "shortForm": "F_BLU",
+        "fullForm": "FLUORESCENT BLUE"
+      },
+      {
+        "shortForm": "FL_BLUE",
+        "fullForm": "FL BLUE"
+      },
+      {
+        "shortForm": "FRZ",
+        "fullForm": "FIROZI"
+      },
+      {
+        "shortForm": "I_BL",
+        "fullForm": "ICE BLUE"
+      },
+      {
+        "shortForm": "INK_BL",
+        "fullForm": "INK BLUE"
       },
       {
         "shortForm": "L_AQUA",
         "fullForm": "LIGHT AQUA"
       },
       {
+        "shortForm": "L_BL",
+        "fullForm": "LIGHT BLUE"
+      },
+      {
+        "shortForm": "L_FRZ",
+        "fullForm": "LIGHT FIROZI BLUE"
+      },
+      {
+        "shortForm": "L_NV",
+        "fullForm": "LIGHT NAVY"
+      },
+      {
+        "shortForm": "L_S_BL",
+        "fullForm": "LIGHT SKY BLUE"
+      },
+      {
+        "shortForm": "L_TEAL",
+        "fullForm": "LIGHT TEAL"
+      },
+      {
         "shortForm": "M_AF_BLU",
-        "fullForm": "MEDIUM AIR FORCE BLUE"
+        "fullForm": "MED AIR FORCE BLUE"
+      },
+      {
+        "shortForm": "M_AQUA",
+        "fullForm": "MEDIUM AQUA"
+      },
+      {
+        "shortForm": "M_BL",
+        "fullForm": "MEDIUM BLUE"
+      },
+      {
+        "shortForm": "M_FRZ",
+        "fullForm": "MEDIUM FIROZI BLUE"
+      },
+      {
+        "shortForm": "M_RY_BL",
+        "fullForm": "M_RY_BL"
+      },
+      {
+        "shortForm": "M_S_BL",
+        "fullForm": "MEDIUM SKY BLUE"
+      },
+      {
+        "shortForm": "M_TEAL",
+        "fullForm": "MEDIUM TEAL"
+      },
+      {
+        "shortForm": "NV",
+        "fullForm": "NAVY"
+      },
+      {
+        "shortForm": "NV_BL",
+        "fullForm": "NAVY BLUE"
+      },
+      {
+        "shortForm": "NV_MEL",
+        "fullForm": "NAVY MELANGE"
+      },
+      {
+        "shortForm": "RD-BLK-RY_BL",
+        "fullForm": "RD-BLK-RY_BL"
+      },
+      {
+        "shortForm": "RY_BL",
+        "fullForm": "ROYAL BLUE"
+      },
+      {
+        "shortForm": "S_BL",
+        "fullForm": "SKY BLUE"
+      },
+      {
+        "shortForm": "TEAL",
+        "fullForm": "TEAL"
+      },
+      {
+        "shortForm": "TRQS_BL",
+        "fullForm": "TURQOISE BLUE"
+      },
+      {
+        "shortForm": "TDL_TEAL",
+        "fullForm": "TIDEL TEAL"
+      },
+      {
+        "shortForm": "ELMNT_BL",
+        "fullForm": "ELEMENTAL BLUE"
+      },
+      {
+        "shortForm": "MIDNGT_BL",
+        "fullForm": "MIDNIGHT BLUE"
+      },
+      {
+        "shortForm": "L_AF_BL",
+        "fullForm": "L AIR FORCE BLUE"
+      },
+      {
+        "shortForm": "D_NV_BL",
+        "fullForm": "DARK NAVY BLUE"
+      },
+      {
+        "shortForm": "L_NV_BL",
+        "fullForm": "LIGHT NAVY BLUE"
+      },
+      {
+        "shortForm": "M_NV_BL",
+        "fullForm": "MEDIUM NAVY BLUE"
+      },
+      {
+        "shortForm": "MDNGT_BL",
+        "fullForm": "MDNGT BLUE"
+      },
+      {
+        "shortForm": "HRBR_BL",
+        "fullForm": "HARBOUR BL"
+      },
+      {
+        "shortForm": "STL_BL",
+        "fullForm": "STEEL BLUE"
+      },
+      {
+        "shortForm": "ARCTC_BL",
+        "fullForm": "ARCTIC BL"
+      },
+      {
+        "shortForm": "PWDR_BL",
+        "fullForm": "POWDER BL"
+      },
+      {
+        "shortForm": "BBY_BL",
+        "fullForm": "BABY BLUE"
+      },
+      {
+        "shortForm": "DPS_BL",
+        "fullForm": "DEEPSEA BL"
+      },
+      {
+        "shortForm": "SEA_BL",
+        "fullForm": "SEA BLUE"
       }
     ]
   },

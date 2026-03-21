@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const d=require\\(''./master-attributes.json''\\); d.forEach\\(a=>console.log\\(a.key\\)\\);\")",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"const d=require\\(''./master-attributes.json''\\); const neck=d.find\\(a=>a.key===''NECK''\\); console.log\\(''NECK values:''\\); neck.allowedValues.forEach\\(v=>console.log\\(v.shortForm,''='',v.fullForm\\)\\);\")",
+      "Bash(xargs grep:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5000 :5173\")",
+      "Bash(taskkill /PID 9928 /F)",
+      "Bash(taskkill /PID 22044 /F)",
+      "Bash(cmd /c \"taskkill /PID 9928 /F & taskkill /PID 22044 /F\")",
+      "Bash(cmd /c \"taskkill /PID 9928 /F 2>&1 & taskkill /PID 22044 /F 2>&1\")",
+      "Bash(cmd /c \"taskkill /PID 9928 /F\")",
+      "Bash(cmd /c taskkill /PID 9928 /F)",
+      "Bash(powershell -Command \"Stop-Process -Id 9928 -Force -ErrorAction SilentlyContinue; Stop-Process -Id 22044 -Force -ErrorAction SilentlyContinue; Write-Host ''Done''\")",
+      "Bash(powershell -Command \"netstat -ano | Select-String '':5000|:5173'' | Select-String ''LISTENING''\")",
+      "Bash(npx prisma:*)",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_Id -eq 28392} | Select-Object Id, ProcessName, MainWindowTitle\")",
+      "Bash(powershell -Command \"netstat -ano | Select-String '':5000'' | Select-String ''LISTENING''\")",
+      "Bash(powershell -Command \"Stop-Process -Id 11648 -Force; Write-Host ''Backend killed''\")",
+      "Bash(powershell -Command \"netstat -ano | Select-String '':5000 '' | Select-String ''LISTENING''\")",
+      "Bash(powershell -Command \"Stop-Process -Id 30972 -Force; Write-Host ''Done''\")"
+    ]
+  }
+}
