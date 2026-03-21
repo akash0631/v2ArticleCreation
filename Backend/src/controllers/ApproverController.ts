@@ -10,20 +10,59 @@ import { prismaClient as prisma } from '../utils/prisma';
 export class ApproverController {
     private static readonly SEGMENT_RANGE_ERROR = 'MRP is outside the allowed segment ranges for this category.';
 
+    private static normalizeText(value?: string | null): string {
+        return String(value || '').trim().toUpperCase();
+    }
+
+    private static getDivisionVariants(value?: string | null): string[] {
+        const normalized = ApproverController.normalizeText(value);
+        if (!normalized) return [];
+
+        if (normalized === 'MEN' || normalized === 'MENS') return ['MEN', 'MENS'];
+        if (normalized === 'LADIES' || normalized === 'WOMEN' || normalized === 'WOMAN') return ['LADIES', 'WOMEN'];
+        if (normalized === 'KID' || normalized === 'KIDS') return ['KID', 'KIDS'];
+
+        return [normalized];
+    }
+
     private static getCurrentYearString(): string {
         return String(new Date().getFullYear());
     }
 
     private static applyApproverScope(where: any, user?: Express.Request['user']) {
         const role = String(user?.role || '');
+
+        const addDivisionScope = (divisionValue?: string | null) => {
+            const variants = ApproverController.getDivisionVariants(divisionValue);
+            if (variants.length === 0) return;
+
+            if (variants.length === 1) {
+                where.division = { equals: variants[0], mode: 'insensitive' };
+                return;
+            }
+
+            where.AND = where.AND || [];
+            where.AND.push({
+                OR: variants.map((variant) => ({
+                    division: { equals: variant, mode: 'insensitive' }
+                }))
+            });
+        };
+
+        const addSubDivisionScope = (subDivisionValue?: string | null) => {
+            const normalized = ApproverController.normalizeText(subDivisionValue);
+            if (!normalized) return;
+            where.subDivision = { equals: normalized, mode: 'insensitive' };
+        };
+
         if (role === 'APPROVER') {
-            if (user?.division) where.division = user.division;
-            if (user?.subDivision) where.subDivision = user.subDivision;
+            addDivisionScope(user?.division);
+            addSubDivisionScope(user?.subDivision);
             return;
         }
 
         if (role === 'CATEGORY_HEAD') {
-            if (user?.division) where.division = user.division;
+            addDivisionScope(user?.division);
             return;
         }
     }
@@ -483,10 +522,15 @@ export class ApproverController {
 
             const role = String(req.user?.role || '');
             if (role === 'APPROVER' || role === 'CATEGORY_HEAD') {
-                if (req.user?.division && existingItem.division !== req.user.division) {
+                const existingDivision = ApproverController.normalizeText(existingItem.division);
+                const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
+                const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
+                const userSubDivision = ApproverController.normalizeText(req.user?.subDivision);
+
+                if (userDivisionVariants.length > 0 && !userDivisionVariants.includes(existingDivision)) {
                     return res.status(403).json({ error: 'Access denied: Division mismatch' });
                 }
-                if (role === 'APPROVER' && req.user?.subDivision && existingItem.subDivision !== req.user.subDivision) {
+                if (role === 'APPROVER' && userSubDivision && existingSubDivision !== userSubDivision) {
                     return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
                 }
             }
