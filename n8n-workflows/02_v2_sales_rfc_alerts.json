@@ -1,0 +1,102 @@
+{
+  "name": "V2 Retail Sales & RFC Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 */4 * * *" }] }
+      },
+      "id": "sales-schedule",
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rfc-deploy",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      },
+      "id": "rfc-webhook",
+      "name": "RFC Deploy Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 500]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://my-dab-app.azurewebsites.net/api/sales",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "date", "value": "={{ $today.format('YYYY-MM-DD') }}" },
+            { "name": "aggregate", "value": "true" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-functions-key", "value": "={{ $env.DAB_API_KEY }}" }
+          ]
+        }
+      },
+      "id": "fetch-sales",
+      "name": "Fetch Sales Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const sales = $input.first().json;\nconst todaySales = sales.totalSales || 0;\nconst avgSales = sales.sevenDayAvg || 0;\n\nif (avgSales === 0) return [];\n\nconst deviation = ((todaySales - avgSales) / avgSales) * 100;\nconst absDeviation = Math.abs(deviation);\n\nif (absDeviation < 20) return [];\n\nconst direction = deviation > 0 ? '📈 SPIKE' : '📉 DROP';\nconst today = new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'short'});\nconst time = new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});\n\nconst msg = `*V2 Retail Sales Alert — ${today} ${time}*\n\n${direction}: ${deviation > 0 ? '+' : ''}${deviation.toFixed(1)}% vs 7-day avg\n\nToday: ₹${todaySales.toLocaleString('en-IN')}\n7-day avg: ₹${avgSales.toLocaleString('en-IN')}\nDiff: ₹${Math.abs(todaySales - avgSales).toLocaleString('en-IN')}`;\n\nreturn [{ json: { message: msg, deviation: deviation.toFixed(1) } }];"
+      },
+      "id": "check-anomaly",
+      "name": "Anomaly Check",
+      "type": "n8n-nodes-base.code",
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $input.first().json;\nconst status = event.workflow_run?.conclusion || event.action || 'triggered';\nconst branch = event.workflow_run?.head_branch || 'master';\nconst commitMsg = (event.workflow_run?.head_commit?.message || '').slice(0, 80);\nconst icon = status === 'success' ? '✅' : status === 'failure' ? '❌' : '⏳';\n\nconst msg = `*RFC API Deploy ${icon}*\n\nStatus: ${status}\nBranch: ${branch}\nCommit: ${commitMsg}\nTime: ${new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'})}`;\n\nreturn [{ json: { message: msg } }];"
+      },
+      "id": "format-rfc",
+      "name": "Format RFC Alert",
+      "type": "n8n-nodes-base.code",
+      "position": [480, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openclaw-agent.happyocean-047968bd.centralindia.azurecontainerapps.io/webhook/send",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={ \"to\": \"whatsapp\", \"message\": \"{{ $json.message }}\" }"
+      },
+      "id": "send-sales-alert",
+      "name": "Send Sales Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [960, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openclaw-agent.happyocean-047968bd.centralindia.azurecontainerapps.io/webhook/send",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={ \"to\": \"whatsapp\", \"message\": \"{{ $json.message }}\" }"
+      },
+      "id": "send-rfc-alert",
+      "name": "Send RFC Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [720, 500]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": { "main": [[{ "node": "Fetch Sales Data" }]] },
+    "RFC Deploy Webhook": { "main": [[{ "node": "Format RFC Alert" }]] },
+    "Fetch Sales Data": { "main": [[{ "node": "Anomaly Check" }]] },
+    "Anomaly Check": { "main": [[{ "node": "Send Sales Alert" }]] },
+    "Format RFC Alert": { "main": [[{ "node": "Send RFC Alert" }]] }
+  },
+  "active": true,
+  "settings": { "timezone": "Asia/Kolkata" }
+}
