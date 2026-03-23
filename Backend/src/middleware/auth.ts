@@ -6,9 +6,50 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '../generated/prisma';
-import { prismaClient as prisma } from '../utils/prisma';
+import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const AUTH_USER_CACHE_TTL_MS = 60 * 1000;
+
+type CachedAuthUser = {
+  id: number;
+  email: string;
+  name: string;
+  role: UserRole;
+  division: string | null;
+  subDivision: string | null;
+  isActive: boolean;
+};
+
+const authUserCache = new Map<number, { user: CachedAuthUser; expiresAt: number }>();
+
+function getCachedAuthUser(userId: number): CachedAuthUser | null {
+  const cached = authUserCache.get(userId);
+  if (!cached) return null;
+
+  if (cached.expiresAt < Date.now()) {
+    authUserCache.delete(userId);
+    return null;
+  }
+
+  return cached.user;
+}
+
+function setCachedAuthUser(user: CachedAuthUser): void {
+  authUserCache.set(user.id, {
+    user,
+    expiresAt: Date.now() + AUTH_USER_CACHE_TTL_MS
+  });
+}
+
+function isPoolExhaustionError(error: any): boolean {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('maxclientsinsessionmode') ||
+    message.includes('max clients reached') ||
+    message.includes('too many clients')
+  );
+}
 
 // Extend Express Request to include user
 declare global {
@@ -71,19 +112,30 @@ export const authenticate = async (
       return;
     }
 
-    // Fetch user from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        division: true,
-        subDivision: true,
-        isActive: true,
-      },
-    });
+    const userId = Number(decoded.id);
+    let user = Number.isFinite(userId) ? getCachedAuthUser(userId) : null;
+
+    // Fetch user from database only when cache miss
+    if (!user) {
+      user = await withPrismaRetry(() =>
+        prisma.user.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            division: true,
+            subDivision: true,
+            isActive: true,
+          },
+        })
+      ) as CachedAuthUser | null;
+
+      if (user) {
+        setCachedAuthUser(user);
+      }
+    }
 
     // Check if user exists
     if (!user) {
@@ -118,6 +170,16 @@ export const authenticate = async (
     next();
   } catch (error: any) {
     console.error('Authentication error:', error);
+
+    if (isPoolExhaustionError(error)) {
+      res.status(503).json({
+        success: false,
+        error: 'Database connection pool is busy. Please retry in a few seconds.',
+        code: 'DB_POOL_EXHAUSTED'
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       error: 'Authentication service error. Please try again.',

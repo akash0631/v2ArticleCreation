@@ -20,6 +20,7 @@
     "db:reset": "prisma migrate reset",
     "db:test": "ts-node scripts/test-db-queries.ts",
     "db:backfill:image-urls": "ts-node scripts/backfill-image-urls.ts",
+    "db:backfill:image-uploads": "ts-node scripts/backfill-missing-image-uploads.ts",
     "db:backfill:mrp": "ts-node scripts/backfill-mrp-from-rate.ts",
     "sap:unique-values": "ts-node scripts/extract-sap-unique-values.ts",
     "sap:sync": "ts-node scripts/sync-sap-attribute-values.ts",

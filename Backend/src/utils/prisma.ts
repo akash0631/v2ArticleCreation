@@ -7,8 +7,41 @@
 
 import { PrismaClient } from '../generated/prisma';
 
-// Singleton instance
-let prisma: PrismaClient | null = null;
+// Global singleton (survives hot-reload in development)
+type GlobalWithPrisma = typeof globalThis & {
+  __prismaClient?: PrismaClient;
+};
+
+const globalForPrisma = globalThis as GlobalWithPrisma;
+
+function buildRuntimeDatabaseUrl(): string | undefined {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) return undefined;
+
+  try {
+    const parsed = new URL(rawUrl);
+
+    // When using Supabase shared pooler, force safer Prisma pooling settings.
+    if (parsed.hostname.includes('pooler.supabase.com')) {
+      if (!parsed.searchParams.has('pgbouncer')) {
+        parsed.searchParams.set('pgbouncer', 'true');
+      }
+      if (!parsed.searchParams.has('connection_limit')) {
+        parsed.searchParams.set('connection_limit', '1');
+      }
+      if (!parsed.searchParams.has('pool_timeout')) {
+        parsed.searchParams.set('pool_timeout', '20');
+      }
+      if (!parsed.searchParams.has('connect_timeout')) {
+        parsed.searchParams.set('connect_timeout', '20');
+      }
+    }
+
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
 
 const TRANSIENT_PRISMA_CODES = new Set(['P1001', 'P1002', 'P1017']);
 
@@ -33,13 +66,13 @@ function wait(ms: number): Promise<void> {
 }
 
 export async function resetPrismaClient(): Promise<void> {
-  if (prisma) {
+  if (globalForPrisma.__prismaClient) {
     try {
-      await prisma.$disconnect();
+      await globalForPrisma.__prismaClient.$disconnect();
     } catch {
       // Ignore disconnect errors during reset
     }
-    prisma = null;
+    globalForPrisma.__prismaClient = undefined;
   }
 }
 
@@ -73,31 +106,23 @@ export async function withPrismaRetry<T>(
 }
 
 export function getPrismaClient(): PrismaClient {
-  if (!prisma) {
-    prisma = new PrismaClient({
+  if (!globalForPrisma.__prismaClient) {
+    globalForPrisma.__prismaClient = new PrismaClient({
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
       datasources: {
         db: {
-          url: process.env.DATABASE_URL
-        }
-      },
-      // Configure connection pool for Supabase
-      // @ts-ignore - These are valid Prisma options
-      __internal: {
-        engine: {
-          connection_limit: 10,
-          pool_timeout: 20
+          url: buildRuntimeDatabaseUrl()
         }
       }
     });
 
     // Handle graceful shutdown
     process.on('beforeExit', async () => {
-      await prisma?.$disconnect();
+      await globalForPrisma.__prismaClient?.$disconnect();
     });
   }
 
-  return prisma;
+  return globalForPrisma.__prismaClient;
 }
 
 // Export singleton instance

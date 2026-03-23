@@ -818,8 +818,57 @@ export class EnhancedExtractionController {
         console.log(`🏷️ AI extracted metadata from tag/board:`, result.extractedMetadata);
       }
 
+      // Upload base64 image to Cloudflare R2 (required for consistent storage)
+      let imagePath = '';
+      try {
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        let extension = 'jpg';
+        const base64Prefix = image.match(/^data:image\/(\w+);base64,/);
+        if (base64Prefix) {
+          extension = base64Prefix[1];
+        }
+
+        const originalName = fileName || `upload_${Date.now()}.${extension}`;
+
+        console.log(`☁️ Uploading category extraction image to R2: ${originalName}`);
+        const uploadResult = await storageService.uploadFile(
+          imageBuffer,
+          originalName,
+          `image/${extension}`,
+          'fashion-images'
+        );
+
+        imagePath = uploadResult.url;
+        console.log(`✅ Uploaded to R2: ${imagePath}`);
+        console.log(`   UUID: ${uploadResult.uuid}`);
+        console.log(`   Path: ${uploadResult.key}`);
+      } catch (uploadError: any) {
+        console.error('❌ R2 Upload Failed for category extraction image:', uploadError);
+        console.error('   Error details:', uploadError.message);
+
+        res.status(500).json({
+          success: false,
+          error: 'Failed to upload image to cloud storage',
+          details: uploadError.message,
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      if (!imagePath) {
+        console.error('❌ No image URL after category extraction upload');
+        res.status(500).json({
+          success: false,
+          error: 'Image upload succeeded but no URL was returned',
+          timestamp: Date.now()
+        });
+        return;
+      }
+
       await this.persistExtractionJob({
-        image: 'base64_upload',
+        image: imagePath,
         schema,
         categoryName: category.name,
         userId: req.user?.id,
@@ -848,7 +897,8 @@ export class EnhancedExtractionController {
             fabricDivision: category.fabricDivision
           },
           metadata: finalMetadata,
-          schemaStats: stats
+          schemaStats: stats,
+          imageUrl: imagePath
         },
         timestamp: Date.now()
       });

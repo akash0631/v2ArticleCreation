@@ -1,28 +1,6 @@
 import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { prismaClient as prisma } from '../utils/prisma';
-
-/**
- * Sanitize a value that should be numeric.
- * Handles: "562/-" → 562, "562/" → 562, "₹562" → 562, "WIP" → null, "N/A" → null
- */
-function parseNumericValue(value: string | number | null | undefined): number | null {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'number') return isNaN(value) ? null : value;
-
-    const cleaned = String(value)
-        .replace(/[₹$€£¥]/g, '')   // strip currency symbols
-        .replace(/\s+/g, '')        // strip whitespace
-        .replace(/\/-$/, '')        // strip trailing /-
-        .replace(/\/$/, '')         // strip trailing /
-        .replace(/-$/, '')          // strip trailing -
-        .trim();
-
-    const match = cleaned.match(/^-?\d+(\.\d+)?/);
-    if (!match) return null;
-
-    const num = parseFloat(match[0]);
-    return isNaN(num) ? null : num;
-}
+import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
 
 export class FlatteningService {
     /**
@@ -95,6 +73,15 @@ export class FlatteningService {
         // Fall back to UUID if designNumber is not set
         articleNumber = job.designNumber || imageName;
 
+        const parsedRate = parseNumericValue(
+            resultsMap.get('rate')
+            ?? resultsMap.get('price')
+            ?? job.costPrice
+        );
+        const explicitMrp = parseNumericValue(resultsMap.get('mrp'));
+        const derivedMrp = calculateMrpFromRate(parsedRate);
+        const finalMrp = derivedMrp ?? explicitMrp;
+
         return {
             jobId: job.id,
 
@@ -122,7 +109,8 @@ export class FlatteningService {
             vendorName: resultsMap.get('vendor_name'),
             designNumber: resultsMap.get('design_number'),
             pptNumber: resultsMap.get('ppt_number'),
-            rate: parseNumericValue(resultsMap.get('rate')),
+            rate: parsedRate,
+            mrp: finalMrp,
             size: resultsMap.get('size'),
             yarn1: resultsMap.get('yarn_01'),
             yarn2: resultsMap.get('yarn_02'),
