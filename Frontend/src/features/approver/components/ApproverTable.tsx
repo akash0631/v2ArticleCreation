@@ -35,6 +35,7 @@ export interface ApproverItem {
     approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
     sapSyncStatus: 'NOT_SYNCED' | 'PENDING' | 'SYNCED' | 'FAILED';
     sapSyncMessage: string | null;
+    sapArticleId: string | null;
     createdAt: string;
     updatedAt: string;
     userName: string | null;
@@ -267,7 +268,11 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             fixed: 'left' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <Text strong>{row.articleNumber || row.designNumber || 'No Article #'}</Text>
+                    {row.sapArticleId ? (
+                        <Text strong style={{ color: '#389e0d' }}>{row.sapArticleId}</Text>
+                    ) : (
+                        <Text strong>{row.imageName || row.designNumber || 'No Article #'}</Text>
+                    )}
                     {row.approvalStatus !== 'APPROVED' && (
                         <div onClick={() => onEdit(row)} style={{ cursor: 'pointer', color: '#1890ff' }}>
                             <small>Edit Division/Category</small>

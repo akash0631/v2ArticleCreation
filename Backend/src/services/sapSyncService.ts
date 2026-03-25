@@ -32,7 +32,6 @@ const SAP_SYNC_URL =
 const SAP_SYNC_ENABLED =
   (process.env.SAP_SYNC_ENABLED || 'true').toLowerCase() === 'true';
 
-const SAP_SYNC_TIMEOUT_MS = Number(process.env.SAP_SYNC_TIMEOUT_MS || 60000);
 const SAP_RETRY_VENDOR_ONLY_ON_UNKNOWN_ELEMENT =
   (process.env.SAP_RETRY_VENDOR_ONLY_ON_UNKNOWN_ELEMENT || 'false').toLowerCase() === 'true';
 
@@ -371,24 +370,16 @@ const parseSapResponse = (statusCode: number, responseText: string): SapCallOutc
 };
 
 const callSap = async (body: string): Promise<SapCallOutcome> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SAP_SYNC_TIMEOUT_MS);
+  const response = await fetch(SAP_SYNC_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body
+  });
 
-  try {
-    const response = await fetch(SAP_SYNC_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body,
-      signal: controller.signal
-    });
-
-    const responseText = await response.text();
-    return parseSapResponse(response.status, responseText);
-  } finally {
-    clearTimeout(timeout);
-  }
+  const responseText = await response.text();
+  return parseSapResponse(response.status, responseText);
 };
 
 const buildSapFormBody = (item: SapSyncItemInput): string => {
@@ -479,11 +470,9 @@ export const syncApprovedItemsToSap = async (
       }
     } catch (error) {
       const message =
-        error instanceof Error && error.name === 'AbortError'
-          ? `SAP request timeout after ${SAP_SYNC_TIMEOUT_MS}ms`
-          : error instanceof Error
-            ? error.message
-            : 'Unknown SAP sync error';
+        error instanceof Error
+          ? error.message
+          : 'Unknown SAP sync error';
       results.push({
         id: item.id,
         success: false,
