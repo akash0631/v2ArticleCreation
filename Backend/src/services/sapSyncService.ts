@@ -108,31 +108,69 @@ const getCandidateValue = (source: Record<string, unknown>, keys: string[]): str
   return null;
 };
 
+const findCandidateValueDeep = (
+  node: unknown,
+  keys: string[],
+  seen: WeakSet<object> = new WeakSet<object>()
+): string | null => {
+  if (!node) return null;
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const nested = findCandidateValueDeep(item, keys, seen);
+      if (nested) return nested;
+    }
+    return null;
+  }
+
+  if (typeof node !== 'object') return null;
+
+  const record = node as Record<string, unknown>;
+  if (seen.has(record)) return null;
+  seen.add(record);
+
+  // Direct match on field names.
+  const direct = getCandidateValue(record, keys);
+  if (direct) return direct;
+
+  // Key-value style rows (common in SAP wrappers), e.g. { NAME: 'Article number', VALUE: '12345' }
+  const label = toSapValue(record.NAME ?? record.FIELD ?? record.KEY ?? record.PARAMETER ?? record.PARAM);
+  const value = toSapValue(record.VALUE ?? record.VAL ?? record.FIELDVALUE ?? record.DATA);
+  if (label && value) {
+    const normalizedLabel = label.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (keys.includes(normalizedLabel)) return value;
+  }
+
+  for (const child of Object.values(record)) {
+    const nested = findCandidateValueDeep(child, keys, seen);
+    if (nested) return nested;
+  }
+
+  return null;
+};
+
 const extractSapArticleNumber = (parsed: unknown, message: string): string | undefined => {
   const candidateKeys = [
     'ARTICLENUMBER',
     'SAPARTICLENUMBER',
     'SAPARTICLEID',
+    'SAP_ART',
+    'SAPART',
+    'SAP_ART_NO',
     'ARTICLEID',
+    'ARTICLE_NO',
+    'ARTNO',
+    'ARTNUM',
     'MATNR',
     'ARTICLE_NO',
     'ARTICLENO',
     'ARTICLE'
   ].map((k) => k.replace(/[^A-Z0-9]/g, ''));
 
-  if (parsed && typeof parsed === 'object') {
-    const found = getCandidateValue(parsed as Record<string, unknown>, candidateKeys);
-    if (found) return found;
+  const found = findCandidateValueDeep(parsed, candidateKeys);
+  if (found) return found;
 
-    for (const value of Object.values(parsed as Record<string, unknown>)) {
-      if (value && typeof value === 'object') {
-        const nested = getCandidateValue(value as Record<string, unknown>, candidateKeys);
-        if (nested) return nested;
-      }
-    }
-  }
-
-  const fromMessage = message.match(/(?:article\s*number|matnr|article\s*id)\s*[:=-]\s*([A-Z0-9\-_/]+)/i);
+  const fromMessage = message.match(/(?:article\s*(?:number|no\.?|id)|sap\s*art(?:icle)?|matnr)\s*(?:is|[:=-])\s*([A-Z0-9\-_/]+)/i);
   if (fromMessage?.[1]) return fromMessage[1];
 
   return undefined;
@@ -332,8 +370,9 @@ const parseSapResponse = (statusCode: number, responseText: string): SapCallOutc
 
     // Primary integration contract fields from SAP:
     // SAP_ART, MSG_TYP, MESSAGE
-    if (typeof parsed?.SAP_ART === 'string' && parsed.SAP_ART.trim()) {
-      sapArticleNumber = parsed.SAP_ART.trim();
+    if (parsed?.SAP_ART !== undefined && parsed?.SAP_ART !== null) {
+      const artVal = String(parsed.SAP_ART).trim();
+      if (artVal) sapArticleNumber = artVal;
     }
 
     if (typeof parsed?.MSG_TYP === 'string' && parsed.MSG_TYP.trim()) {

@@ -271,7 +271,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                     {row.sapArticleId ? (
                         <Text strong style={{ color: '#389e0d' }}>{row.sapArticleId}</Text>
                     ) : (
-                        <Text strong>{row.imageName || row.designNumber || 'No Article #'}</Text>
+                        <Text strong>{row.articleNumber || row.imageName || row.designNumber || 'No Article #'}</Text>
                     )}
                     {row.approvalStatus !== 'APPROVED' && (
                         <div onClick={() => onEdit(row)} style={{ cursor: 'pointer', color: '#1890ff' }}>
