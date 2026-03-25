@@ -253,8 +253,9 @@ export default function UsersManagement() {
 
       usersSheet.getCell('H1').value = 'Notes';
       usersSheet.getCell('H2').value = 'CREATOR/APPROVER: division + subDivision required';
-      usersSheet.getCell('H3').value = 'PO_COMMITTEE/CATEGORY_HEAD: division required, subDivision optional';
+      usersSheet.getCell('H3').value = 'CATEGORY_HEAD: division required, subDivision optional';
       usersSheet.getCell('H4').value = 'ADMIN: division/subDivision optional';
+      usersSheet.getCell('H5').value = 'PO_COMMITTEE: division/subDivision not required (free selection at extraction)';
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -330,7 +331,7 @@ export default function UsersManagement() {
           continue;
         }
 
-        if ((role === 'PO_COMMITTEE' || role === 'CATEGORY_HEAD') && !division) {
+        if (role === 'CATEGORY_HEAD' && !division) {
           failed += 1;
           errors.push(`Row ${line}: division required for ${role}`);
           continue;
@@ -351,7 +352,7 @@ export default function UsersManagement() {
             email,
             password,
             role,
-            division,
+            division: role === 'PO_COMMITTEE' ? undefined : division,
             subDivision: (role === 'CATEGORY_HEAD' || role === 'PO_COMMITTEE') ? undefined : subDivision,
           });
           success += 1;
@@ -575,7 +576,7 @@ export default function UsersManagement() {
             />
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'PO_COMMITTEE' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"

@@ -119,7 +119,7 @@ export default function Register() {
             </Select>
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'PO_COMMITTEE' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"

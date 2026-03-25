@@ -32,11 +32,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (role === 'PO_COMMITTEE' && !division) {
-      res.status(400).json({ success: false, error: 'Division is required for PO Committee' });
-      return;
-    }
-
     if (password.length < 6) {
       res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
       return;
@@ -62,7 +57,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         password: hashedPassword,
         name,
         role: role || 'USER', // Default role if not provided
-        division: division || null,
+        division: role === 'PO_COMMITTEE' ? null : (division || null),
         subDivision: (role === 'CATEGORY_HEAD' || role === 'PO_COMMITTEE') ? null : (subDivision || null),
         isActive: true,
       },

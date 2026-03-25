@@ -333,7 +333,7 @@ export class EnhancedExtractionController {
 
       const userRole = String(req.user?.role || '');
       const currentUser = req.user;
-      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+      if (userRole === 'CREATOR') {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
@@ -505,7 +505,7 @@ export class EnhancedExtractionController {
 
       const userRole = String(req.user?.role || '');
       const currentUser = req.user;
-      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+      if (userRole === 'CREATOR') {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
@@ -770,7 +770,7 @@ export class EnhancedExtractionController {
       // RBAC: Verify Creator Access
       const userRole = String(req.user?.role || '');
       const currentUser = req.user;
-      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+      if (userRole === 'CREATOR') {
         if (currentUser?.division && category.department.name.toLowerCase() !== currentUser.division.toLowerCase()) {
           res.status(403).json({
             success: false,

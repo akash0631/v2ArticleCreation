@@ -1013,8 +1013,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    if ((validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') && !validated.division) {
-      res.status(400).json({ success: false, error: 'Division is required for Category Head and PO Committee' });
+    if (validated.role === 'CATEGORY_HEAD' && !validated.division) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
       return;
     }
 
@@ -1038,7 +1038,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
           password: hashedPassword,
           name: validated.name,
           role: validated.role as any,
-          division: validated.division,
+          division: validated.role === 'PO_COMMITTEE' ? null : validated.division,
           subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : validated.subDivision,
           isActive: true,
         },
@@ -1064,7 +1064,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         password: hashedPassword,
         name: validated.name,
         role: validated.role as any,
-        division: validated.division,
+        division: validated.role === 'PO_COMMITTEE' ? null : validated.division,
         subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : validated.subDivision,
         isActive: true,
       },
@@ -1116,8 +1116,8 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    if ((finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE') && !finalDivision) {
-      res.status(400).json({ success: false, error: 'Division is required for Category Head and PO Committee' });
+    if (finalRole === 'CATEGORY_HEAD' && !finalDivision) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
       return;
     }
 
@@ -1125,7 +1125,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     const updateData: any = {
       name: validated.name,
       role: validated.role as any,
-      division: validated.division,
+      division: finalRole === 'PO_COMMITTEE' ? null : validated.division,
       subDivision: (finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE') ? null : validated.subDivision,
       email: validated.email ? validated.email.toLowerCase() : undefined,
     };
