@@ -27,7 +27,7 @@ export default function UsersManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('CREATOR');
-  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+  const [selectedDeptId, setSelectedDeptId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [form] = Form.useForm();
@@ -47,7 +47,7 @@ export default function UsersManagement() {
 
   const availableSubDepts = useMemo(() => {
     if (!selectedDeptId) return [];
-    const dept = departments.find(d => d.id === selectedDeptId);
+    const dept = departments.find(d => String(d.name || '').trim().toUpperCase() === selectedDeptId.toUpperCase());
     return dept?.subDepartments || [];
   }, [selectedDeptId, departments]);
 
@@ -137,9 +137,7 @@ export default function UsersManagement() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const divisionName = values.departmentId === -999
-        ? 'KIDS'
-        : departments.find(d => d.id === values.departmentId)?.name;
+      const divisionName = values.departmentId as string;
 
       const payload = {
         email: values.email,
@@ -170,16 +168,14 @@ export default function UsersManagement() {
     setSelectedUser(user);
     setSelectedRole(user.role);
 
-    // Find department ID from name
-    const dept = departments.find(d => d.name === user.division);
-    const deptId = dept?.id || (String(user.division || '').trim().toUpperCase() === 'KIDS' ? -999 : null);
-    setSelectedDeptId(deptId);
+    const divisionValue = String(user.division || '').trim().toUpperCase() || null;
+    setSelectedDeptId(divisionValue);
 
     form.setFieldsValue({
       name: user.name,
       email: user.email,
       role: user.role,
-      departmentId: deptId,
+      departmentId: divisionValue,
       subDivision: user.subDivision,
       password: '', // Clear password field
     });
@@ -191,8 +187,8 @@ export default function UsersManagement() {
     setSelectedRole(role);
   };
 
-  const handleDeptChange = (deptId: number) => {
-    setSelectedDeptId(deptId);
+  const handleDeptChange = (divName: string) => {
+    setSelectedDeptId(divName);
     form.setFieldValue('subDivision', undefined);
   };
 
@@ -216,7 +212,7 @@ export default function UsersManagement() {
       usersSheet.addRow(['Rita CategoryHead', 'rita.head@company.com', 'Temp@123', 'CATEGORY_HEAD', 'LADIES', '']);
 
       // Lists for dropdowns
-      const roleOptions = ['CREATOR', 'APPROVER', 'CATEGORY_HEAD', 'ADMIN'];
+      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'ADMIN'];
       const divisionOptions = divisionNames;
       const subDivisionOptions = Array.from(new Set(
         departments.flatMap((d) => (d.subDepartments || []).map((s) => s.code).filter(Boolean))
@@ -257,7 +253,7 @@ export default function UsersManagement() {
 
       usersSheet.getCell('H1').value = 'Notes';
       usersSheet.getCell('H2').value = 'CREATOR/APPROVER: division + subDivision required';
-      usersSheet.getCell('H3').value = 'CATEGORY_HEAD: division required, subDivision optional';
+      usersSheet.getCell('H3').value = 'PO_COMMITTEE/CATEGORY_HEAD: division required, subDivision optional';
       usersSheet.getCell('H4').value = 'ADMIN: division/subDivision optional';
 
       const buffer = await workbook.xlsx.writeBuffer();
@@ -296,7 +292,7 @@ export default function UsersManagement() {
 
       const toRole = (roleRaw: string): AdminUser['role'] | null => {
         const role = roleRaw.toUpperCase();
-        if (role === 'CREATOR' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'ADMIN') return role;
+        if (role === 'CREATOR' || role === 'PO_COMMITTEE' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'ADMIN') return role;
         return null;
       };
 
@@ -334,6 +330,12 @@ export default function UsersManagement() {
           continue;
         }
 
+        if ((role === 'PO_COMMITTEE' || role === 'CATEGORY_HEAD') && !division) {
+          failed += 1;
+          errors.push(`Row ${line}: division required for ${role}`);
+          continue;
+        }
+
         if ((role === 'CREATOR' || role === 'APPROVER') && division && subDivision) {
           const allowed = divisionToSubDivision.get(division.toUpperCase());
           if (allowed && allowed.size > 0 && !allowed.has(subDivision.toUpperCase())) {
@@ -343,12 +345,6 @@ export default function UsersManagement() {
           }
         }
 
-        if (role === 'CATEGORY_HEAD' && !division) {
-          failed += 1;
-          errors.push(`Row ${line}: division required for CATEGORY_HEAD`);
-          continue;
-        }
-
         try {
           await createUser({
             name,
@@ -356,7 +352,7 @@ export default function UsersManagement() {
             password,
             role,
             division,
-            subDivision: role === 'CATEGORY_HEAD' ? undefined : subDivision,
+            subDivision: (role === 'CATEGORY_HEAD' || role === 'PO_COMMITTEE') ? undefined : subDivision,
           });
           success += 1;
         } catch (error: any) {
@@ -571,6 +567,7 @@ export default function UsersManagement() {
               onChange={handleRoleChange}
               options={[
                 { value: 'CREATOR', label: 'CREATOR' },
+                { value: 'PO_COMMITTEE', label: 'PO_COMMITTEE' },
                 { value: 'APPROVER', label: 'APPROVER' },
                 { value: 'CATEGORY_HEAD', label: 'CATEGORY_HEAD' },
                 { value: 'ADMIN', label: 'ADMIN' },
@@ -578,7 +575,7 @@ export default function UsersManagement() {
             />
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'PO_COMMITTEE' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"
@@ -590,16 +587,13 @@ export default function UsersManagement() {
                   onChange={handleDeptChange}
                   suffixIcon={<ShopOutlined />}
                 >
-                  {departments.map(dept => (
-                    <Option key={dept.id} value={dept.id}>{dept.name}</Option>
+                  {divisionNames.map(name => (
+                    <Option key={name} value={name}>{name}</Option>
                   ))}
-                  {!departments.some((d) => String(d.name || '').trim().toUpperCase() === 'KIDS') && (
-                    <Option key="fallback-kids" value={-999}>KIDS</Option>
-                  )}
                 </Select>
               </Form.Item>
 
-              {selectedRole !== 'CATEGORY_HEAD' && (
+              {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER') && (
                 <Form.Item
                   name="subDivision"
                   label="Sub-Division"

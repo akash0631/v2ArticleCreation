@@ -112,13 +112,14 @@ export default function Register() {
               suffixIcon={<TeamOutlined />}
             >
               <Option value="CREATOR">Creator</Option>
+              <Option value="PO_COMMITTEE">PO Committee</Option>
               <Option value="APPROVER">Approver</Option>
               <Option value="CATEGORY_HEAD">Category Head</Option>
               <Option value="ADMIN">Admin</Option>
             </Select>
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'PO_COMMITTEE' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"
@@ -136,7 +137,7 @@ export default function Register() {
                 </Select>
               </Form.Item>
 
-              {selectedRole !== 'CATEGORY_HEAD' && (
+              {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER') && (
                 <Form.Item
                   name="subDivision"
                   rules={[{ required: true, message: 'Please select a Sub-Division!' }]}

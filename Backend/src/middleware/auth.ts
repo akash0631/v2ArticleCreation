@@ -241,9 +241,9 @@ export const requireUser = (
     return;
   }
 
-  // CREATOR, APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
+  // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'CREATOR' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
+  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       error: 'User access required. Invalid role.',

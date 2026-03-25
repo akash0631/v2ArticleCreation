@@ -331,12 +331,14 @@ export class EnhancedExtractionController {
       let enforcedDepartment = department;
       let enforcedSubDepartment = subDepartment;
 
-      if (req.user?.role === 'CREATOR') {
-        if (req.user.division) {
-          enforcedDepartment = req.user.division;
+      const userRole = String(req.user?.role || '');
+      const currentUser = req.user;
+      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+        if (currentUser?.division) {
+          enforcedDepartment = currentUser.division;
         }
-        if (req.user.subDivision) {
-          enforcedSubDepartment = req.user.subDivision;
+        if (currentUser?.subDivision) {
+          enforcedSubDepartment = currentUser.subDivision;
         }
       }
 
@@ -501,12 +503,14 @@ export class EnhancedExtractionController {
       let enforcedDepartment = department;
       let enforcedSubDepartment = subDepartment;
 
-      if (req.user?.role === 'CREATOR') {
-        if (req.user.division) {
-          enforcedDepartment = req.user.division;
+      const userRole = String(req.user?.role || '');
+      const currentUser = req.user;
+      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+        if (currentUser?.division) {
+          enforcedDepartment = currentUser.division;
         }
-        if (req.user.subDivision) {
-          enforcedSubDepartment = req.user.subDivision;
+        if (currentUser?.subDivision) {
+          enforcedSubDepartment = currentUser.subDivision;
         }
       }
 
@@ -764,19 +768,21 @@ export class EnhancedExtractionController {
       const { category, schema, stats } = await this.schemaService.getCategorySchema(categoryCode);
 
       // RBAC: Verify Creator Access
-      if (req.user?.role === 'CREATOR') {
-        if (req.user.division && category.department.name.toLowerCase() !== req.user.division.toLowerCase()) {
+      const userRole = String(req.user?.role || '');
+      const currentUser = req.user;
+      if (userRole === 'CREATOR' || userRole === 'PO_COMMITTEE') {
+        if (currentUser?.division && category.department.name.toLowerCase() !== currentUser.division.toLowerCase()) {
           res.status(403).json({
             success: false,
-            error: `Access denied. You can only access categories in ${req.user.division}.`,
+            error: `Access denied. You can only access categories in ${currentUser.division}.`,
             timestamp: Date.now()
           });
           return;
         }
-        if (req.user.subDivision && category.subDepartment.code.toLowerCase() !== req.user.subDivision.toLowerCase()) {
+        if (currentUser?.subDivision && category.subDepartment.code.toLowerCase() !== currentUser.subDivision.toLowerCase()) {
           res.status(403).json({
             success: false,
-            error: `Access denied. You can only access categories in ${req.user.subDivision}.`,
+            error: `Access denied. You can only access categories in ${currentUser.subDivision}.`,
             timestamp: Date.now()
           });
           return;

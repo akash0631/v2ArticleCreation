@@ -16,7 +16,7 @@ export class FlatExtractionController {
             const where: any = {};
 
             // RBAC Filtering Logic
-            if (role === 'CREATOR') {
+            if (role === 'CREATOR' || role === 'PO_COMMITTEE') {
                 // Creators only see their own extractions
                 where.userId = userId;
             } else if (role === 'APPROVER') {

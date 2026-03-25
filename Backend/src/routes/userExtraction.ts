@@ -165,7 +165,7 @@ router.get('/history', async (req, res) => {
     // RBAC Filtering Logic for Extraction Jobs
     const role = String(user.role || '');
 
-    if (role === 'CREATOR') {
+    if (role === 'CREATOR' || role === 'PO_COMMITTEE') {
       where.userId = user.id;
     } else if (role === 'APPROVER') {
       // Approvers filter by category hierarchy
@@ -263,7 +263,7 @@ router.get('/stats', async (req, res) => {
     // RBAC Filtering Logic (same as /history)
     const role = String(user.role || '');
 
-    if (role === 'CREATOR') {
+    if (role === 'CREATOR' || role === 'PO_COMMITTEE') {
       where.userId = user.id;
     } else if (role === 'APPROVER') {
       where.category = {

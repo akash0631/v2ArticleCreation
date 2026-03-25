@@ -59,7 +59,7 @@ const AdminCreateUserSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(6).max(128),
   name: z.string().min(1).max(100),
-  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'APPROVER', 'CATEGORY_HEAD']).optional().default('USER'),
+  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD']).optional().default('USER'),
   division: z.string().optional().nullable(),
   subDivision: z.string().optional().nullable(),
 });
@@ -1013,8 +1013,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    if (validated.role === 'CATEGORY_HEAD' && !validated.division) {
-      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
+    if ((validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') && !validated.division) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head and PO Committee' });
       return;
     }
 
@@ -1037,9 +1037,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         data: {
           password: hashedPassword,
           name: validated.name,
-          role: validated.role,
+          role: validated.role as any,
           division: validated.division,
-          subDivision: validated.role === 'CATEGORY_HEAD' ? null : validated.subDivision,
+          subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : validated.subDivision,
           isActive: true,
         },
         select: {
@@ -1063,9 +1063,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         email: validated.email.toLowerCase(),
         password: hashedPassword,
         name: validated.name,
-        role: validated.role,
+        role: validated.role as any,
         division: validated.division,
-        subDivision: validated.role === 'CATEGORY_HEAD' ? null : validated.subDivision,
+        subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : validated.subDivision,
         isActive: true,
       },
       select: {
@@ -1116,17 +1116,17 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    if (finalRole === 'CATEGORY_HEAD' && !finalDivision) {
-      res.status(400).json({ success: false, error: 'Division is required for Category Head' });
+    if ((finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE') && !finalDivision) {
+      res.status(400).json({ success: false, error: 'Division is required for Category Head and PO Committee' });
       return;
     }
 
     // Prepare update data
     const updateData: any = {
       name: validated.name,
-      role: validated.role,
+      role: validated.role as any,
       division: validated.division,
-      subDivision: finalRole === 'CATEGORY_HEAD' ? null : validated.subDivision,
+      subDivision: (finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE') ? null : validated.subDivision,
       email: validated.email ? validated.email.toLowerCase() : undefined,
     };
 

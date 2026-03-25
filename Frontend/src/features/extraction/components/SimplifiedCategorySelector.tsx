@@ -33,8 +33,29 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
   onCategorySelect,
   selectedCategory
 }) => {
+  const currentUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  const normalizeDepartment = (value?: string): string | undefined => {
+    const raw = String(value || '').trim().toUpperCase();
+    if (!raw) return undefined;
+    if (raw === 'MEN' || raw === 'MENS') return 'Mens';
+    if (raw === 'LADIES' || raw === 'WOMEN') return 'Ladies';
+    if (raw === 'KIDS' || raw === 'KID') return 'Kids';
+    return undefined;
+  };
+
+  const lockedDepartment = currentUser?.role === 'PO_COMMITTEE'
+    ? normalizeDepartment(currentUser?.division)
+    : undefined;
+
   const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>(
-    selectedCategory?.department
+    selectedCategory?.department || lockedDepartment
   );
   const [selectedMajorCategory, setSelectedMajorCategory] = useState<string | undefined>(
     selectedCategory?.majorCategory
@@ -55,6 +76,14 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
     }
   }, [selectedDepartment, selectedMajorCategory, onCategorySelect]);
 
+  useEffect(() => {
+    if (lockedDepartment && selectedDepartment !== lockedDepartment) {
+      setSelectedDepartment(lockedDepartment);
+      setSelectedMajorCategory(undefined);
+      onCategorySelect(null);
+    }
+  }, [lockedDepartment, selectedDepartment, onCategorySelect]);
+
   const handleDepartmentChange = (value: string) => {
     setSelectedDepartment(value);
     setSelectedMajorCategory(undefined); // Reset major category when department changes
@@ -66,7 +95,7 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
   };
 
   const handleReset = () => {
-    setSelectedDepartment(undefined);
+    setSelectedDepartment(lockedDepartment || undefined);
     setSelectedMajorCategory(undefined);
     onCategorySelect(null);
   };
@@ -87,6 +116,7 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
               <Tag color="blue" className="selection-badge">
                 Sub-Division Selected
               </Tag>
+              {lockedDepartment && <Tag color="purple">PO Committee Scope</Tag>}
             </div>
           </div>
           {!localStorage.getItem('user') || JSON.parse(localStorage.getItem('user') || '{}').role !== 'CREATOR' || !JSON.parse(localStorage.getItem('user') || '{}').division ? (
@@ -128,7 +158,8 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
             onChange={handleDepartmentChange}
             style={{ width: '100%' }}
             size="large"
-            allowClear
+            allowClear={!lockedDepartment}
+            disabled={!!lockedDepartment}
           >
             {departments.map(dept => (
               <Option key={dept} value={dept}>
