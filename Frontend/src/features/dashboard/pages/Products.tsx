@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, Space, Table, Tag, Typography, Empty, message, Modal, Image, Descriptions } from 'antd';
+import { Button, Card, Input, Space, Table, Tag, Typography, Empty, message, Modal, Image, Descriptions, Form } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { APP_CONFIG } from '../../../constants/app/config';
 import type { SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
@@ -17,6 +17,7 @@ const { Title, Text } = Typography;
 
 type ProductRow = {
   key: string;
+  jobId: string;
   userId?: string | null;
   name: string;
   productType: string;
@@ -24,7 +25,9 @@ type ProductRow = {
   status: 'COMPLETED' | 'FAILED' | 'PROCESSING' | 'PENDING';
   rawStatus?: string | null;
   createdAt: string;
+  createdAtTs?: number;
   updatedAt: string;
+  updatedAtTs?: number;
   userName?: string | null;
   userEmail?: string | null;
   imageUrl?: string | null;
@@ -36,6 +39,59 @@ type ProductRow = {
   }>;
   flatData?: any; // Store original flat table data
 };
+
+type EditableAttributeDefinition = {
+  key: string;
+  label: string;
+  field: string;
+};
+
+const EDITABLE_ATTRIBUTE_DEFINITIONS: EditableAttributeDefinition[] = [
+  { key: 'major_category', label: 'Major Category', field: 'majorCategory' },
+  { key: 'vendor_name', label: 'Vendor Name', field: 'vendorName' },
+  { key: 'design_number', label: 'Design Number', field: 'designNumber' },
+  { key: 'ppt_number', label: 'PPT Number', field: 'pptNumber' },
+  { key: 'rate', label: 'Rate', field: 'rate' },
+  { key: 'size', label: 'Size', field: 'size' },
+  { key: 'yarn_01', label: 'Yarn 1', field: 'yarn1' },
+  { key: 'yarn_02', label: 'Yarn 2', field: 'yarn2' },
+  { key: 'fabric_main_mvgr', label: 'Fabric Main MVGR', field: 'fabricMainMvgr' },
+  { key: 'weave', label: 'Weave', field: 'weave' },
+  { key: 'composition', label: 'Composition', field: 'composition' },
+  { key: 'finish', label: 'Finish', field: 'finish' },
+  { key: 'gsm', label: 'GSM', field: 'gsm' },
+  { key: 'shade', label: 'Shade', field: 'shade' },
+  { key: 'weight', label: 'G-Weight', field: 'weight' },
+  { key: 'lycra_non_lycra', label: 'Lycra', field: 'lycra' },
+  { key: 'neck', label: 'Neck', field: 'neck' },
+  { key: 'neck_details', label: 'Neck Details', field: 'neckDetails' },
+  { key: 'collar', label: 'Collar', field: 'collar' },
+  { key: 'placket', label: 'Placket', field: 'placket' },
+  { key: 'sleeve', label: 'Sleeve', field: 'sleeve' },
+  { key: 'bottom_fold', label: 'Bottom Fold', field: 'bottomFold' },
+  { key: 'front_open_style', label: 'Front Open Style', field: 'frontOpenStyle' },
+  { key: 'pocket_type', label: 'Pocket Type', field: 'pocketType' },
+  { key: 'fit', label: 'Fit', field: 'fit' },
+  { key: 'pattern', label: 'Pattern', field: 'pattern' },
+  { key: 'length', label: 'Length', field: 'length' },
+  { key: 'colour', label: 'Colour', field: 'colour' },
+  { key: 'drawcord', label: 'Drawcord', field: 'drawcord' },
+  { key: 'button', label: 'Button', field: 'button' },
+  { key: 'zipper', label: 'Zipper', field: 'zipper' },
+  { key: 'zip_colour', label: 'Zip Colour', field: 'zipColour' },
+  { key: 'print_type', label: 'Print Type', field: 'printType' },
+  { key: 'print_style', label: 'Print Style', field: 'printStyle' },
+  { key: 'print_placement', label: 'Print Placement', field: 'printPlacement' },
+  { key: 'patches', label: 'Patches', field: 'patches' },
+  { key: 'patches_type', label: 'Patches Type', field: 'patchesType' },
+  { key: 'embroidery', label: 'Embroidery', field: 'embroidery' },
+  { key: 'embroidery_type', label: 'Embroidery Type', field: 'embroideryType' },
+  { key: 'wash', label: 'Wash', field: 'wash' },
+  { key: 'father_belt', label: 'Father Belt', field: 'fatherBelt' },
+  { key: 'child_belt', label: 'Child Belt', field: 'childBelt' },
+  { key: 'reference_article_number', label: 'Reference Article Number', field: 'referenceArticleNumber' },
+  { key: 'reference_article_description', label: 'Reference Article Description', field: 'referenceArticleDescription' },
+];
 
 export default function Products() {
   const user = localStorage.getItem('user');
@@ -57,6 +113,10 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
   const [detailsRow, setDetailsRow] = useState<ProductRow | null>(null);
+  const [editingRow, setEditingRow] = useState<ProductRow | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [editInitialValues, setEditInitialValues] = useState<Record<string, string>>({});
+  const [savingEdits, setSavingEdits] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<ProductRow[]>([]);
   const [masterAttributes, setMasterAttributes] = useState<SchemaItem[]>([]);
@@ -107,50 +167,12 @@ export default function Products() {
     const attributeMapping: Array<{ key: string; label: string; value: any }> = [
       // Use article_number (original filename) instead of imageName (UUID)
       { key: 'article_number', label: 'Article Number', value: flatData.articleNumber || flatData.imageName },
-      { key: 'major_category', label: 'Major Category', value: flatData.majorCategory },
-      { key: 'vendor_name', label: 'Vendor Name', value: flatData.vendorName },
-      { key: 'design_number', label: 'Design Number', value: flatData.designNumber },
-      { key: 'ppt_number', label: 'PPT Number', value: flatData.pptNumber },
-      { key: 'rate', label: 'Rate', value: flatData.rate },
-      { key: 'size', label: 'Size', value: flatData.size },
-      { key: 'yarn_01', label: 'Yarn 1', value: flatData.yarn1 },
-      { key: 'yarn_02', label: 'Yarn 2', value: flatData.yarn2 },
-      { key: 'fabric_main_mvgr', label: 'Fabric Main MVGR', value: flatData.fabricMainMvgr },
-      { key: 'weave', label: 'Weave', value: flatData.weave },
-      { key: 'composition', label: 'Composition', value: flatData.composition },
-      { key: 'finish', label: 'Finish', value: flatData.finish },
-      { key: 'gsm', label: 'GSM', value: flatData.gsm },
-      { key: 'shade', label: 'Shade', value: flatData.shade },
-      { key: 'lycra_non_lycra', label: 'Lycra', value: flatData.lycra },
-      { key: 'neck', label: 'Neck', value: flatData.neck },
-      { key: 'neck_details', label: 'Neck Details', value: flatData.neckDetails },
-      { key: 'collar', label: 'Collar', value: flatData.collar },
-      { key: 'placket', label: 'Placket', value: flatData.placket },
-      { key: 'sleeve', label: 'Sleeve', value: flatData.sleeve },
-      { key: 'bottom_fold', label: 'Bottom Fold', value: flatData.bottomFold },
-      { key: 'front_open_style', label: 'Front Open Style', value: flatData.frontOpenStyle },
-      { key: 'pocket_type', label: 'Pocket Type', value: flatData.pocketType },
-      { key: 'fit', label: 'Fit', value: flatData.fit },
-      { key: 'pattern', label: 'Pattern', value: flatData.pattern },
-      { key: 'length', label: 'Length', value: flatData.length },
-      { key: 'colour', label: 'Colour', value: flatData.colour },
-      { key: 'drawcord', label: 'Drawcord', value: flatData.drawcord },
-      { key: 'button', label: 'Button', value: flatData.button },
-      { key: 'zipper', label: 'Zipper', value: flatData.zipper },
-      { key: 'zip_colour', label: 'Zip Colour', value: flatData.zipColour },
-      { key: 'print_type', label: 'Print Type', value: flatData.printType },
-      { key: 'print_style', label: 'Print Style', value: flatData.printStyle },
-      { key: 'print_placement', label: 'Print Placement', value: flatData.printPlacement },
-      { key: 'patches', label: 'Patches', value: flatData.patches },
-      { key: 'patches_type', label: 'Patches Type', value: flatData.patchesType },
-      { key: 'embroidery', label: 'Embroidery', value: flatData.embroidery },
-      { key: 'embroidery_type', label: 'Embroidery Type', value: flatData.embroideryType },
-      { key: 'wash', label: 'Wash', value: flatData.wash },
-      { key: 'father_belt', label: 'Father Belt', value: flatData.fatherBelt },
-      { key: 'child_belt', label: 'Child Belt', value: flatData.childBelt },
+      ...EDITABLE_ATTRIBUTE_DEFINITIONS.map((item) => ({
+        key: item.key,
+        label: item.label,
+        value: flatData[item.field]
+      })),
       { key: 'division', label: 'Division', value: flatData.division },
-      { key: 'reference_article_number', label: 'Reference Article Number', value: flatData.referenceArticleNumber },
-      { key: 'reference_article_description', label: 'Reference Article Description', value: flatData.referenceArticleDescription },
     ];
 
     return attributeMapping
@@ -219,6 +241,109 @@ export default function Products() {
   const handleViewDetails = useCallback((row: ProductRow) => {
     setDetailsRow(row);
   }, []);
+
+  const handleOpenEdit = useCallback((row: ProductRow) => {
+    const values: Record<string, string> = {};
+    EDITABLE_ATTRIBUTE_DEFINITIONS.forEach((item) => {
+      const raw = row.flatData?.[item.field];
+      values[item.key] = raw === null || raw === undefined ? '' : String(raw);
+    });
+    setEditingRow(row);
+    setEditValues(values);
+    setEditInitialValues(values);
+  }, []);
+
+  const handleSaveEdits = useCallback(async () => {
+    if (!editingRow) return;
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      message.error('Unauthorized');
+      return;
+    }
+
+    const changed = EDITABLE_ATTRIBUTE_DEFINITIONS
+      .map((item) => ({
+        ...item,
+        newValue: (editValues[item.key] ?? '').trim(),
+        oldValue: (editInitialValues[item.key] ?? '').trim()
+      }))
+      .filter((item) => item.newValue !== item.oldValue);
+
+    if (changed.length === 0) {
+      message.info('No changes to save');
+      return;
+    }
+
+    setSavingEdits(true);
+    try {
+      for (const item of changed) {
+        const response = await fetch(`${APP_CONFIG.api.baseURL}/user/extraction/history/flat/job/${encodeURIComponent(editingRow.jobId)}/attribute`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            attributeKey: item.key,
+            value: item.newValue
+          })
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error || `Failed to save ${item.label}`);
+        }
+      }
+
+      setRows((prev) => prev.map((row) => {
+        if (row.jobId !== editingRow.jobId) return row;
+
+        const nextFlatData = { ...(row.flatData || {}) };
+        EDITABLE_ATTRIBUTE_DEFINITIONS.forEach((item) => {
+          if (Object.prototype.hasOwnProperty.call(editValues, item.key)) {
+            nextFlatData[item.field] = (editValues[item.key] ?? '').trim() || null;
+          }
+        });
+
+        const nextRow: ProductRow = {
+          ...row,
+          name: nextFlatData.imageName || nextFlatData.designNumber || nextFlatData.jobId,
+          productType: nextFlatData.majorCategory || '—',
+          vendor: nextFlatData.vendorName || '—',
+          flatData: nextFlatData
+        };
+        nextRow.results = buildDetailsRows(nextRow);
+        return nextRow;
+      }));
+
+      if (detailsRow?.jobId === editingRow.jobId) {
+        const nextFlatData = { ...(detailsRow.flatData || {}) };
+        EDITABLE_ATTRIBUTE_DEFINITIONS.forEach((item) => {
+          if (Object.prototype.hasOwnProperty.call(editValues, item.key)) {
+            nextFlatData[item.field] = (editValues[item.key] ?? '').trim() || null;
+          }
+        });
+
+        const nextDetails: ProductRow = {
+          ...detailsRow,
+          name: nextFlatData.imageName || nextFlatData.designNumber || nextFlatData.jobId,
+          productType: nextFlatData.majorCategory || '—',
+          vendor: nextFlatData.vendorName || '—',
+          flatData: nextFlatData
+        };
+        nextDetails.results = buildDetailsRows(nextDetails);
+        setDetailsRow(nextDetails);
+      }
+
+      message.success('Attributes updated successfully');
+      setEditingRow(null);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Failed to save changes');
+    } finally {
+      setSavingEdits(false);
+    }
+  }, [buildDetailsRows, detailsRow, editInitialValues, editValues, editingRow]);
 
   const handleExport = useCallback(async (row: ProductRow) => {
     if (!row.results || row.results.length === 0 || row.status !== 'COMPLETED') {
@@ -337,6 +462,11 @@ export default function Products() {
             <Button size="small" onClick={() => handleViewDetails(row)}>
               Details
             </Button>
+            {row.flatData?.approvalStatus !== 'APPROVED' ? (
+              <Button size="small" onClick={() => handleOpenEdit(row)}>
+                Edit
+              </Button>
+            ) : null}
             <Button size="small" onClick={() => handleExport(row)} disabled={!row.results?.length || row.status !== 'COMPLETED'}>
               Download
             </Button>
@@ -345,7 +475,7 @@ export default function Products() {
       }
     ];
     return baseColumns;
-  }, [handleExport, handleView, handleViewDetails, isAdmin]);
+  }, [handleExport, handleOpenEdit, handleView, handleViewDetails, isAdmin, isCreator]);
 
   useEffect(() => {
     const fetchRows = async () => {
@@ -382,17 +512,23 @@ export default function Products() {
           : flatJobs;
 
         // Map flat table data directly (no need to search through results!)
-        const mapped: ProductRow[] = userScopedJobs.map((flat: any) => {
+        const mapped: ProductRow[] = userScopedJobs.map((flat: any, index: number) => {
+          const createdAtDate = flat.createdAt ? new Date(flat.createdAt) : null;
+          const updatedAtDate = flat.updatedAt ? new Date(flat.updatedAt) : null;
+
           const row = {
-            key: flat.jobId,
+            key: String(flat.id ?? flat.jobId ?? `${flat.imageName || 'row'}-${index}`),
+            jobId: String(flat.jobId || flat.id || ''),
             userId: flat.userId ? String(flat.userId) : null,
             name: flat.imageName || flat.designNumber || flat.jobId,
             productType: flat.majorCategory || '—',
             vendor: flat.vendorName || '—',
             status: normalizeStatus(flat.extractionStatus),
             rawStatus: flat.extractionStatus,
-            createdAt: flat.createdAt ? new Date(flat.createdAt).toLocaleDateString() : '—',
-            updatedAt: flat.updatedAt ? new Date(flat.updatedAt).toLocaleDateString() : '—',
+            createdAt: createdAtDate ? createdAtDate.toLocaleString() : '—',
+            createdAtTs: createdAtDate ? createdAtDate.getTime() : 0,
+            updatedAt: updatedAtDate ? updatedAtDate.toLocaleString() : '—',
+            updatedAtTs: updatedAtDate ? updatedAtDate.getTime() : 0,
             userName: flat.userName,
             userEmail: flat.userEmail || null,
             imageUrl: getImageUrl(flat.imageUrl) || null,
@@ -405,6 +541,14 @@ export default function Products() {
           row.results = buildDetailsRows(row);
 
           return row;
+        }).sort((a, b) => {
+          const byCreated = (b.createdAtTs || 0) - (a.createdAtTs || 0);
+          if (byCreated !== 0) return byCreated;
+
+          const byUpdated = (b.updatedAtTs || 0) - (a.updatedAtTs || 0);
+          if (byUpdated !== 0) return byUpdated;
+
+          return b.key.localeCompare(a.key);
         });
 
         setRows(mapped);
@@ -482,6 +626,7 @@ export default function Products() {
           <Table
             columns={columns}
             dataSource={filteredRows}
+            rowKey={(row) => row.key}
             pagination={{ pageSize: 8 }}
             className="products-table"
             loading={loading}
@@ -569,6 +714,31 @@ export default function Products() {
             </div>
           </Space>
         ) : null}
+      </Modal>
+
+      <Modal
+        title={editingRow ? `Edit Attributes - ${editingRow.name}` : 'Edit Attributes'}
+        open={!!editingRow}
+        onCancel={() => !savingEdits && setEditingRow(null)}
+        onOk={handleSaveEdits}
+        okText={savingEdits ? 'Saving...' : 'Save'}
+        okButtonProps={{ loading: savingEdits }}
+        width={920}
+      >
+        <Form layout="vertical">
+          <div style={{ maxHeight: 520, overflowY: 'auto', paddingRight: 8 }}>
+            {EDITABLE_ATTRIBUTE_DEFINITIONS.map((item) => (
+              <Form.Item key={item.key} label={item.label} style={{ marginBottom: 12 }}>
+                <Input
+                  value={editValues[item.key] ?? ''}
+                  onChange={(e) => setEditValues((prev) => ({ ...prev, [item.key]: e.target.value }))}
+                  disabled={savingEdits}
+                  placeholder={`Enter ${item.label}`}
+                />
+              </Form.Item>
+            ))}
+          </div>
+        </Form>
       </Modal>
     </div>
   );
