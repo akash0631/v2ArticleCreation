@@ -5,52 +5,13 @@ import { ApproverTable } from '../components/ApproverTable';
 import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
-// @ts-ignore
-import mcCodeData from '../../../data/mccode.json';
+import { getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-type McCodeRow = {
-    'MC CD'?: number | string;
-    MC_DESC?: string;
-    'mc code'?: number | string;
-    'mc des'?: string;
-    'hsn code'?: number | string;
-};
-
-type McCodePayload = McCodeRow[] | { Sheet1?: McCodeRow[] };
-
-const normalizeCategory = (value?: string | null): string =>
-    (value || '')
-        .trim()
-        .toUpperCase()
-        .replace(/\s+/g, '_')
-        .replace(/_*-_*/g, '-')
-        .replace(/[^A-Z0-9_\-]/g, '');
-
-const payload = mcCodeData as McCodePayload;
-
-const sourceRows: McCodeRow[] = Array.isArray(payload)
-    ? payload
-    : (payload.Sheet1 || []);
-
-const mcCodeLookup = new Map<string, string>(
-    sourceRows
-        .map((row) => {
-            const category = row.MC_DESC ?? row['mc des'];
-            const code = row['MC CD'] ?? row['mc code'];
-            return { category, code };
-        })
-        .filter((row) => !!row.category && row.code !== undefined && row.code !== null)
-        .map((row) => [normalizeCategory(row.category), String(row.code)])
-);
-
-const inferMcCode = (majorCategory?: string | null): string | null => {
-    const key = normalizeCategory(majorCategory);
-    if (!key) return null;
-    return mcCodeLookup.get(key) || null;
-};
+const inferMcCode = (majorCategory?: string | null): string | null =>
+    getMcCodeByMajorCategory(majorCategory);
 
 const parseNumericValue = (value: unknown): number | null => {
     if (value === null || value === undefined || value === '') return null;
@@ -266,6 +227,7 @@ export default function ApproverDashboard() {
             gsm: item.gsm,
             finish: item.finish,
             shade: item.shade,
+            weight: item.weight,
             lycra: item.lycra,
             yarn1: item.yarn1,
             yarn2: item.yarn2,
@@ -470,6 +432,7 @@ export default function ApproverDashboard() {
             <Col span={8}><Form.Item name="gsm" label="GSM"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="finish" label="Finish"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="shade" label="Shade"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="weight" label="G-Weight"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="lycra" label="Lycra"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="yarn1" label="Yarn 1"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="yarn2" label="Yarn 2"><Input /></Form.Item></Col>

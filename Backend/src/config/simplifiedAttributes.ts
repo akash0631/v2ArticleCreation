@@ -29,6 +29,7 @@ export const SIMPLIFIED_ATTRIBUTES: SimplifiedAttribute[] = [
   { key: 'finish', label: 'Finish', type: 'text', confidenceThreshold: 65 },
   { key: 'gsm', label: 'GSM', type: 'text', confidenceThreshold: 65 },
   { key: 'shade', label: 'Shade', type: 'text', confidenceThreshold: 65 },
+  { key: 'weight', label: 'G-Weight', type: 'text', confidenceThreshold: 65 },
   { key: 'lycra_non_lycra', label: 'Lycra/Non Lycra', type: 'text', confidenceThreshold: 65 },
   { key: 'neck', label: 'Neck', type: 'text', confidenceThreshold: 65 },
   { key: 'neck_details', label: 'Neck Details', type: 'text', confidenceThreshold: 65 },
@@ -95,7 +96,7 @@ const UPPER_ONLY_ATTRIBUTES = ['neck', 'neck_details', 'collar', 'placket', 'sle
 const LOWER_ONLY_ATTRIBUTES = ['drawcord', 'father_belt', 'child_belt'];
 const BOTTOM_ALLOWED_ATTRIBUTES = [
   'division', 'major_category', 'reference_article_number', 'reference_article_description', 'vendor_name', 'design_number', 'ppt_number', 'rate', 'size',
-  'yarn_01', 'yarn_02', 'fabric_main_mvgr', 'weave', 'composition', 'finish', 'gsm', 'shade', 'lycra_non_lycra',
+  'yarn_01', 'yarn_02', 'fabric_main_mvgr', 'weave', 'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra_non_lycra',
   'pocket_type', 'fit', 'pattern', 'length', 'bottom_fold', 'drawcord', 'button', 'zipper',
   'zip_colour', 'print_type', 'print_style', 'print_placement', 'patches', 'patches_type',
   'embroidery', 'embroidery_type', 'wash', 'colour', 'father_belt', 'child_belt'

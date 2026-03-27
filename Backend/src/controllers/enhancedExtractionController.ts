@@ -24,7 +24,7 @@ export class EnhancedExtractionController {
     folderName?: string;
     department?: string;
     subDepartment?: string;
-  }) {
+  }): Promise<{ jobId: string; flatId: string | null } | null> {
     try {
       const normalizeToken = (value?: string) =>
         String(value || '')
@@ -155,7 +155,7 @@ export class EnhancedExtractionController {
 
       const fallbackCategory = category;
 
-      if (!fallbackCategory) return;
+      if (!fallbackCategory) return null;
 
       const attributes = await prisma.masterAttribute.findMany({
         select: { id: true, key: true, label: true }
@@ -279,12 +279,23 @@ export class EnhancedExtractionController {
       }
 
       // Flatten to flat table for fast querying
+      let flatId: string | null = null;
       try {
         const { flatteningService } = await import('../services/flatteningService');
         await flatteningService.flattenExtractionResults(job.id);
+        const flatRow = await prisma.extractionResultFlat.findUnique({
+          where: { jobId: job.id },
+          select: { id: true }
+        });
+        flatId = flatRow?.id ?? null;
       } catch (flatError) {
         console.warn('Failed to flatten extraction results:', flatError);
       }
+
+      return {
+        jobId: job.id,
+        flatId
+      };
     } catch (error: any) {
       console.error('❌ Critical Error in persistExtractionJob:', error);
       console.error('   Error stack:', error.stack);
@@ -295,6 +306,7 @@ export class EnhancedExtractionController {
         department: params.department,
         subDepartment: params.subDepartment
       });
+      return null;
     }
   }
 
@@ -442,7 +454,7 @@ export class EnhancedExtractionController {
       const originalFilenameWithoutExt = (req.file.originalname.split(/[\\/]/).pop() || req.file.originalname)
         .replace(/\.[^/.]+$/, '');
 
-      await this.persistExtractionJob({
+      const persistence = await this.persistExtractionJob({
         image: imagePath,
         schema: parsedSchema,
         categoryName,
@@ -456,7 +468,10 @@ export class EnhancedExtractionController {
 
       res.json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          persistence
+        },
         metadata: {
           enhancedMode: true,
           vlmPipeline: 'multi-model',
@@ -611,7 +626,7 @@ export class EnhancedExtractionController {
         ? fileName.split(/[\\/]/).pop() || fileName
         : undefined)?.replace(/\.[^/.]+$/, '');
 
-      await this.persistExtractionJob({
+      const persistence = await this.persistExtractionJob({
         image: imagePath, // Now stores R2 URL instead of filename
         schema,
         categoryName,
@@ -625,7 +640,10 @@ export class EnhancedExtractionController {
 
       res.json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          persistence
+        },
         metadata: {
           enhancedMode: true,
           vlmPipeline: 'multi-model',
@@ -873,7 +891,7 @@ export class EnhancedExtractionController {
         return;
       }
 
-      await this.persistExtractionJob({
+      const persistence = await this.persistExtractionJob({
         image: imagePath,
         schema,
         categoryName: category.name,
@@ -903,6 +921,7 @@ export class EnhancedExtractionController {
             fabricDivision: category.fabricDivision
           },
           metadata: finalMetadata,
+          persistence,
           schemaStats: stats,
           imageUrl: imagePath
         },

@@ -15,6 +15,9 @@ export class StorageService {
     private s3Client: S3Client;
     private bucket: string;
     private publicUrlBase: string | undefined;
+    private approvedS3Client: S3Client;
+    private approvedBucket: string;
+    private approvedPublicUrlBase: string | undefined;
 
     constructor() {
         const accountId = process.env.R2_ACCOUNT_ID;
@@ -22,6 +25,12 @@ export class StorageService {
         const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
         this.bucket = process.env.R2_BUCKET_NAME || '';
         this.publicUrlBase = process.env.R2_PUBLIC_URL_BASE; // Custom domain or worker URL
+
+        const approvedAccountId = process.env.APPROVED_R2_ACCOUNT_ID || accountId;
+        const approvedAccessKeyId = process.env.APPROVED_R2_ACCESS_KEY_ID || accessKeyId;
+        const approvedSecretAccessKey = process.env.APPROVED_R2_SECRET_ACCESS_KEY || secretAccessKey;
+        this.approvedBucket = process.env.APPROVED_R2_BUCKET_NAME || this.bucket;
+        this.approvedPublicUrlBase = process.env.APPROVED_R2_PUBLIC_URL_BASE || this.publicUrlBase;
 
         if (!accountId || !accessKeyId || !secretAccessKey || !this.bucket) {
             console.warn('⚠️ Cloudflare R2 credentials missing. Storage service may fail.');
@@ -35,6 +44,51 @@ export class StorageService {
                 secretAccessKey: secretAccessKey || ''
             }
         });
+
+        this.approvedS3Client = new S3Client({
+            region: 'auto',
+            endpoint: `https://${approvedAccountId}.r2.cloudflarestorage.com`,
+            credentials: {
+                accessKeyId: approvedAccessKeyId || '',
+                secretAccessKey: approvedSecretAccessKey || ''
+            }
+        });
+    }
+
+    private sanitizeArticleNumber(articleNumber: string): string {
+        const cleaned = String(articleNumber || '').trim().replace(/[^a-zA-Z0-9._-]/g, '_');
+        return cleaned || `article_${Date.now()}`;
+    }
+
+    private normalizeExtension(ext?: string | null): string {
+        const normalized = String(ext || '').replace('.', '').toLowerCase().trim();
+        if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif', 'tif', 'tiff'].includes(normalized)) {
+            return normalized === 'tif' ? 'tiff' : normalized;
+        }
+        return 'jpg';
+    }
+
+    private extensionFromMimeType(mimeType?: string | null): string | null {
+        const normalized = String(mimeType || '').toLowerCase().trim();
+        const map: Record<string, string> = {
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/gif': 'gif',
+            'image/bmp': 'bmp',
+            'image/avif': 'avif',
+            'image/tiff': 'tiff'
+        };
+        return map[normalized] || null;
+    }
+
+    private extensionFromPath(filePathOrUrl?: string | null): string | null {
+        const text = String(filePathOrUrl || '').trim();
+        if (!text) return null;
+        const clean = text.split('?')[0].split('#')[0];
+        const ext = clean.includes('.') ? clean.split('.').pop() || '' : '';
+        return ext ? this.normalizeExtension(ext) : null;
     }
 
     /**
@@ -134,6 +188,72 @@ export class StorageService {
             console.error('   Bucket:', this.bucket);
             console.error('   Error details:', error.message);
             throw new Error(`Failed to generate signed URL: ${error.message}`);
+        }
+    }
+
+    async uploadApprovedImageFromSourceUrl(sourceImageUrl: string, articleNumber: string): Promise<UploadResult> {
+        if (!sourceImageUrl) {
+            throw new Error('Source image URL is required');
+        }
+        if (!articleNumber) {
+            throw new Error('Article number is required for approved image upload');
+        }
+
+        const response = await fetch(sourceImageUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch source image: HTTP ${response.status}`);
+        }
+
+        const mimeType = response.headers.get('content-type') || 'image/jpeg';
+        const extension = this.normalizeExtension(
+            this.extensionFromMimeType(mimeType)
+            || this.extensionFromPath(sourceImageUrl)
+            || 'jpg'
+        );
+
+        const safeArticleNumber = this.sanitizeArticleNumber(articleNumber);
+        const key = `${safeArticleNumber}.${extension}`; // root-level path, no folder
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
+
+        try {
+            const upload = new Upload({
+                client: this.approvedS3Client,
+                params: {
+                    Bucket: this.approvedBucket,
+                    Key: key,
+                    Body: fileBuffer,
+                    ContentType: mimeType,
+                    Metadata: {
+                        'article-number': safeArticleNumber,
+                        'source-url': sourceImageUrl,
+                        'uploaded-after-approval': 'true'
+                    }
+                }
+            });
+
+            await upload.done();
+
+            let url: string;
+            if (this.approvedPublicUrlBase) {
+                const baseUrl = this.approvedPublicUrlBase.replace(/\/$/, '');
+                url = `${baseUrl}/${key}`;
+            } else {
+                const command = new GetObjectCommand({
+                    Bucket: this.approvedBucket,
+                    Key: key
+                });
+                url = await getSignedUrl(this.approvedS3Client, command, { expiresIn: 604800 });
+            }
+
+            return {
+                url,
+                path: key,
+                key,
+                uuid: safeArticleNumber
+            };
+        } catch (error) {
+            console.error('❌ Approved image upload failed:', error);
+            throw new Error('Failed to upload approved image to storage');
         }
     }
 }

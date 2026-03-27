@@ -16,6 +16,7 @@ import { VLMService } from '../services/vlm/vlmService';
 import { ImageProcessor } from '../utils/imageProcessor';
 import { SIMPLIFIED_ATTRIBUTES, getSimplifiedSchema, filterByConfidence, applyGarmentTypeRules } from '../config/simplifiedAttributes';
 import { SimplifiedPromptService } from '../services/simplifiedPromptService';
+import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import type { FashionExtractionRequest } from '../types/vlm';
 
 export class SimplifiedExtractionController {
@@ -46,6 +47,16 @@ export class SimplifiedExtractionController {
         majorCategory,
         categoryName
       } = req.body;
+
+      const normalizedMajorCategory = String(majorCategory || '').trim();
+      if (!normalizedMajorCategory || !getMcCodeByMajorCategory(normalizedMajorCategory)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid majorCategory. Please use mc code list (mc des) values only.',
+          timestamp: Date.now()
+        });
+        return;
+      }
 
       // Convert image to base64
       const base64Image = await ImageProcessor.processImageToBase64(req.file);
@@ -120,6 +131,16 @@ export class SimplifiedExtractionController {
         res.status(400).json({
           success: false,
           error: 'Base64 image is required',
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      const normalizedMajorCategory = String(majorCategory || '').trim();
+      if (!normalizedMajorCategory || !getMcCodeByMajorCategory(normalizedMajorCategory)) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid majorCategory. Please use mc code list (mc des) values only.',
           timestamp: Date.now()
         });
         return;

@@ -5,6 +5,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { message } from "antd";
 import { addNotification } from "../../services/notifications/notificationStore";
 import { BackendApiService } from "../../../services/api/backendApi";
+import { APP_CONFIG } from '../../../constants/app/config';
 import { discoveryManager } from "../../services/ai/discovery/discoveryManager";
 import { ImageCompressionService } from "../../services/processing/ImageCompressionService";
 import type {
@@ -200,6 +201,8 @@ export const useImageExtraction = () => {
           });
         }
 
+        const persistence = (result as any)?.persistence as { jobId?: string; flatId?: string | null } | undefined;
+
         const totalTime = performance.now() - start;
 
         // APPLY SMART ATTRIBUTE PROCESSING
@@ -217,6 +220,8 @@ export const useImageExtraction = () => {
         const updated: ExtractedRowEnhanced = {
           ...row,
           status: "Done",
+          persistedJobId: persistence?.jobId,
+          persistedFlatId: persistence?.flatId ?? null,
           attributes: processedAttributesSync,
           discoveries: result.discoveries ?? [],
           apiTokensUsed: result.tokensUsed,
@@ -374,10 +379,15 @@ export const useImageExtraction = () => {
   // Update attribute in specific row immutably
   const updateRowAttribute = useCallback(
     (rowId: string, attributeKey: string, value: string | number | null) => {
+      let previousAttribute: any = null;
+      let persistedJobId: string | undefined;
+
       updateRows((prev) =>
         prev.map((row) => {
           if (row.id === rowId) {
             const existingAttribute = row.attributes[attributeKey];
+            previousAttribute = existingAttribute ?? null;
+            persistedJobId = row.persistedJobId;
             const updatedAttribute = {
               rawValue: value !== null ? String(value) : null,
               schemaValue: value,
@@ -399,8 +409,49 @@ export const useImageExtraction = () => {
           return row;
         })
       );
+
+      // Persist user edits once extraction row has been saved to backend.
+      if (!persistedJobId) {
+        return;
+      }
+
+      const token = localStorage.getItem('authToken');
+      fetch(`${APP_CONFIG.api.baseURL}/user/extraction/history/flat/job/${encodeURIComponent(persistedJobId)}/attribute`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          attributeKey,
+          value
+        })
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorPayload = await response.json().catch(() => null);
+            throw new Error(errorPayload?.error || 'Failed to save changes');
+          }
+        })
+        .catch((error) => {
+          message.error(error instanceof Error ? error.message : 'Failed to save changes');
+          // Revert UI if backend save fails
+          updateRows((prev) =>
+            prev.map((row) => {
+              if (row.id !== rowId) return row;
+              return {
+                ...row,
+                attributes: {
+                  ...row.attributes,
+                  [attributeKey]: previousAttribute
+                },
+                updatedAt: new Date()
+              };
+            })
+          );
+        });
     },
-    []
+    [updateRows]
   );
 
   // Extract statistics from current rows

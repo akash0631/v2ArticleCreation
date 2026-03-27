@@ -4,10 +4,19 @@ import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMap
 import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
+import { storageService } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { prismaClient as prisma } from '../utils/prisma';
 
 export class ApproverController {
+    private static extractNumericWeight(value: unknown): string | null {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        if (!text) return null;
+        const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+        return match ? match[1] : null;
+    }
+
     private static readonly SEGMENT_RANGE_ERROR = 'MRP is outside the allowed segment ranges for this category.';
 
     private static normalizeText(value?: string | null): string {
@@ -446,7 +455,7 @@ export class ApproverController {
             const allowedFields = [
                 'articleNumber', 'division', 'subDivision', 'majorCategory', 'vendorName', 'designNumber',
                 'pptNumber', 'rate', 'size', 'yarn1', 'yarn2', 'fabricMainMvgr', 'weave',
-                'composition', 'finish', 'gsm', 'shade', 'lycra', 'neck', 'neckDetails',
+                'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra', 'neck', 'neckDetails',
                 'collar', 'placket', 'sleeve', 'bottomFold', 'frontOpenStyle', 'pocketType',
                 'fit', 'pattern', 'length', 'colour', 'drawcord', 'button', 'zipper',
                 'zipColour', 'printType', 'printStyle', 'printPlacement', 'patches',
@@ -470,6 +479,8 @@ export class ApproverController {
                         } else {
                             value = parseNumericValue(value);
                         }
+                    } else if (field === 'weight') {
+                        value = ApproverController.extractNumericWeight(value);
                     } else if (value === '') {
                         // Convert empty strings to null for optional text fields
                         // Actually extractionResultFlat fields are mostly nullable strings, so '' might be okay or null preference.
@@ -478,6 +489,19 @@ export class ApproverController {
                     }
 
                     data[field] = value;
+                }
+            }
+
+            // Enforce mc code list major categories only (mc des)
+            if (data.majorCategory !== undefined && data.majorCategory !== null) {
+                const majorCategoryText = String(data.majorCategory).trim();
+                if (majorCategoryText) {
+                    const mapped = getMcCodeByMajorCategory(majorCategoryText);
+                    if (!mapped) {
+                        return res.status(400).json({
+                            error: `Invalid majorCategory '${majorCategoryText}'. Please use values from mc code list (mc des).`
+                        });
+                    }
                 }
             }
 
@@ -510,6 +534,7 @@ export class ApproverController {
                     finish: true,
                     gsm: true,
                     shade: true,
+                    weight: true,
                     lycra: true,
                     neck: true,
                     neckDetails: true,
@@ -687,8 +712,42 @@ export class ApproverController {
             });
 
             const syncResults = await syncApprovedItemsToSap(approvedItems);
+            const approvedItemById = new Map(approvedItems.map((item) => [item.id, item]));
 
-            const syncUpdates = syncResults.map((syncResult) => {
+            const finalizedSyncResults = await Promise.all(syncResults.map(async (syncResult) => {
+                if (!syncResult.success || !syncResult.sapArticleNumber) {
+                    return syncResult as any;
+                }
+
+                const approvedItem = approvedItemById.get(syncResult.id);
+                if (!approvedItem?.imageUrl) {
+                    return {
+                        ...syncResult,
+                        success: false,
+                        message: `${syncResult.message} | Approved image upload failed: source image URL missing`
+                    } as any;
+                }
+
+                try {
+                    const approvedImageUpload = await storageService.uploadApprovedImageFromSourceUrl(
+                        String(approvedItem.imageUrl),
+                        String(syncResult.sapArticleNumber)
+                    );
+
+                    return {
+                        ...syncResult,
+                        approvedImageUrl: approvedImageUpload.url
+                    } as any;
+                } catch (error: any) {
+                    return {
+                        ...syncResult,
+                        success: false,
+                        message: `${syncResult.message} | Approved image upload failed: ${error?.message || 'unknown error'}`
+                    } as any;
+                }
+            }));
+
+            const syncUpdates = finalizedSyncResults.map((syncResult: any) => {
                 const data: any = {
                     sapSyncStatus: syncResult.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
                     sapSyncMessage: syncResult.message
@@ -697,6 +756,10 @@ export class ApproverController {
                 if (syncResult.sapArticleNumber) {
                     data.sapArticleId = syncResult.sapArticleNumber;
                     data.articleNumber = syncResult.sapArticleNumber;
+                }
+
+                if (syncResult.approvedImageUrl) {
+                    data.imageUrl = syncResult.approvedImageUrl;
                 }
 
                 return prisma.extractionResultFlat.update({
@@ -709,10 +772,10 @@ export class ApproverController {
                 await prisma.$transaction(syncUpdates);
             }
 
-            const syncedCount = syncResults.filter((r) => r.success).length;
-            const failedCount = syncResults.length - syncedCount;
+            const syncedCount = finalizedSyncResults.filter((r: any) => r.success).length;
+            const failedCount = finalizedSyncResults.length - syncedCount;
 
-            const failedIds = syncResults
+            const failedIds = finalizedSyncResults
                 .filter((r) => !r.success)
                 .map((r) => r.id);
 
@@ -731,7 +794,7 @@ export class ApproverController {
                 message: 'Items approved successfully',
                 count: result.count,
                 sapSync: {
-                    totalAttempted: syncResults.length,
+                    totalAttempted: finalizedSyncResults.length,
                     synced: syncedCount,
                     failed: failedCount
                 }

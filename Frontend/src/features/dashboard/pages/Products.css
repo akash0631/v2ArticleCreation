@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
 }
 
 .products-hero {

@@ -4,7 +4,7 @@ import { EditOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd/es/form';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
-import { MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMap';
+import { MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
 import './ApproverTable.css';
 
 const { Text } = Typography;
@@ -72,6 +72,7 @@ export interface ApproverItem {
     weave: string | null;
     finish: string | null;
     shade: string | null;
+    weight: string | null;
     lycra: string | null;
     neckDetails: string | null;
     collar: string | null;
@@ -394,6 +395,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
         { title: 'Yarn 2', dataIndex: 'yarn2', key: 'yarn2', width: 120, editable: true },
         { title: 'Finish', dataIndex: 'finish', key: 'finish', width: 120, editable: true },
         { title: 'Shade', dataIndex: 'shade', key: 'shade', width: 120, editable: true },
+        { title: 'G-Weight', dataIndex: 'weight', key: 'weight', width: 120, editable: true },
         { title: 'Lycra', dataIndex: 'lycra', key: 'lycra', width: 100, editable: true },
         { title: 'Wash', dataIndex: 'wash', key: 'wash', width: 120, editable: true },
 

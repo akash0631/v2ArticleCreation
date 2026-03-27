@@ -142,6 +142,9 @@ router.get('/departments', adminController.getAllDepartments);
 // Get extraction history from flat table (FAST - for product page)
 router.get('/extraction/history/flat', flatExtractionController.getAllFlat);
 
+// Save single attribute edit for an extracted row (by jobId)
+router.put('/extraction/history/flat/job/:jobId/attribute', flatExtractionController.updateFlatAttributeByJobId);
+
 // Get all sub-departments
 router.get('/sub-departments', adminController.getAllSubDepartments);
 

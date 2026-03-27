@@ -129,7 +129,7 @@ ${Object.entries(ocrHint)
         .map(([k, v]) => `• ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
         .join('\n')}
 Rules for OCR_HINTS:
-• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, yarn_01, yarn_02, fabric_main_mvgr, colour
+• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, g_weight/weight, yarn_01, yarn_02, fabric_main_mvgr, colour
 • If OCR_HINTS are unclear or conflict with your own OCR read, return null for that field (do not guess)
 ` : '';
 
@@ -445,7 +445,10 @@ STEP 3: TAG/LABEL READING (Critical for metadata)
 │   • Preserve punctuation, dots, slashes, hyphens, and spacing exactly (e.g., "M.JEANS", "30-36", "L/XL")
 │   • Do not hallucinate missing characters; if any character is unclear, leave the entire field null
 │   • If multiple boards are present, use the closest/clearest board only
-├─ Extract (OCR ONLY): Division, Vendor name, Design number, PPT number, Rate/Price, Size, Major category, GSM
+├─ Extract (OCR ONLY): Division, Vendor name, Design number, PPT number, Rate/Price, Size, Major category, GSM, G-Weight
+│   • G-Weight may appear as "Weight", "G-Weight", or "Numeric/G"
+│   • For G-Weight return NUMERIC ONLY (digits/decimal only, no unit/suffix/prefix)
+│   • Example: "Numeric/G: 180G" → weight = "180"
 ├─ If the board has "FAB" or "FABRIC" line, parse into yarn_01, yarn_02, fabric_main_mvgr:
 │   • If the FAB line ends with a bracketed token (e.g., "(...)") then IGNORE the bracket content
 │     and output ONLY yarn_01 (from the first token). Set yarn_02 = null and fabric_main_mvgr = null.
@@ -475,7 +478,7 @@ COLOR OCR (SPECIAL RULE):
 • First, locate a CLR/COLOR/COLOUR field on the board; extract its value exactly and map to database
 • If CLR/COLOR/COLOUR exists but does NOT match any database value, scan the rest of the board text for a standalone colour token that matches the database
 • If no board colour matches the database, fall back to garment colour ONLY if it matches a database value; otherwise return null
-• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, yarn_01, yarn_02, fabric_main_mvgr
+• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, weight, yarn_01, yarn_02, fabric_main_mvgr
 • Size must be returned exactly as written (e.g., "S-XXL", "30-36"), no normalization
 
 LYCRA / NON-LYCRA (STRICT):
@@ -783,6 +786,7 @@ Return JSON only (no markdown):
     "size": "string or null",
     "major_category": "string or null",
     "gsm": "string or null",
+    "g_weight": "numeric string only or null",
     "fab_line": "string or null",
     "colour": "string or null"
   }
@@ -791,6 +795,7 @@ Return JSON only (no markdown):
 IMPORTANT:
 • For size, return exactly what is written (e.g., "S-XXL", "30-36", "L/XL")
 • For major_category, return exact text/punctuation (e.g., "M.JEANS")
+• For g_weight/weight/Numeric/G, return only the numeric value (no unit like G, GSM, gm)
 • If a FAB/FABRIC line exists, copy the full line into fab_line (do NOT parse)
 • If CLR/COLOR/COLOUR is present, copy the value into colour
 • If no board/tag visible, return all fields as null
@@ -941,7 +946,49 @@ IMPORTANT:
         ppt_number: ['pptnumber', 'ppt_number', 'ppt number', 'ppt_no', 'ppt no', 'ppt'],
         rate: ['rate', 'price', 'mrp', 'cost'],
         size: ['size', 'sizes', 'size_range', 'size range', 'size-range', 'siz'],
-        major_category: ['majorcategory', 'major_category', 'major category', 'category']
+        major_category: ['majorcategory', 'major_category', 'major category', 'category'],
+        weight: ['weight', 'g_weight', 'g-weight', 'gweight', 'numeric/g', 'numeric / g', 'num/g']
+      };
+
+      const extractNumericWeight = (input: unknown): string | null => {
+        if (input === null || input === undefined) return null;
+        const value = String(input).trim();
+        if (!value) return null;
+        const normalized = value.replace(/,/g, '');
+        const match = normalized.match(/(\d+(?:\.\d+)?)/);
+        return match ? match[1] : null;
+      };
+
+      const resolveNumericGWeightFromOcr = (): string | null => {
+        const directCandidates = [
+          mergedMetadata?.g_weight,
+          mergedMetadata?.['g-weight'],
+          mergedMetadata?.gweight,
+          mergedMetadata?.weight,
+          metadataLower['g_weight'],
+          metadataLower['g-weight'],
+          metadataLower['gweight'],
+          metadataLower['weight'],
+          metadataLower['numeric/g'],
+          metadataLower['numeric / g']
+        ];
+
+        for (const candidate of directCandidates) {
+          const parsed = extractNumericWeight(candidate);
+          if (parsed) return parsed;
+        }
+
+        const rawLines = Array.isArray(mergedMetadata?.rawLines)
+          ? (mergedMetadata?.rawLines as unknown[]).map(v => String(v))
+          : [];
+
+        const taggedLine = rawLines.find(line => /g-?weight|weight|numeric\s*\/\s*g/i.test(line));
+        if (taggedLine) {
+          const parsed = extractNumericWeight(taggedLine);
+          if (parsed) return parsed;
+        }
+
+        return null;
       };
 
       const resolveMetadataValue = (schemaKey: string) => {
@@ -994,6 +1041,19 @@ IMPORTANT:
 
       for (const schemaItem of schema) {
         const key = schemaItem.key;
+
+        if (['weight', 'g_weight', 'gweight', 'g-weight'].includes(String(key).toLowerCase())) {
+          const numericWeight = resolveNumericGWeightFromOcr();
+          attributes[key] = numericWeight ? {
+            rawValue: numericWeight,
+            schemaValue: numericWeight,
+            visualConfidence: 95,
+            isNewDiscovery: false,
+            mappingConfidence: 95,
+            reasoning: 'G-Weight extracted from white board/tag OCR (numeric-only)'
+          } : null;
+          continue;
+        }
 
         if (key === 'colour') {
           const visualRaw = attributeSource?.[key]?.rawValue ?? attributeSource?.[key]?.schemaValue ?? null;

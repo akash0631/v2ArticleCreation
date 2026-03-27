@@ -1,0 +1,41 @@
+// @ts-ignore
+import mcCodeListData from './mc-code-list-major-category.json';
+
+type McCodeListRow = {
+  mc_code?: number | string;
+  'mc code'?: number | string;
+  'mc des'?: string;
+  MC_DESC?: string;
+};
+
+const normalizeCategory = (value?: string | null): string =>
+  (value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+    .replace(/_*-_*/g, '-')
+    .replace(/[^A-Z0-9_\-]/g, '');
+
+const rows = (mcCodeListData as McCodeListRow[])
+  .map((row) => ({
+    name: String(row['mc des'] ?? row.MC_DESC ?? '').trim(),
+    code: String(row.mc_code ?? row['mc code'] ?? '').trim()
+  }))
+  .filter((row) => row.name && row.code);
+
+const uniqueNames = Array.from(new Set(rows.map((row) => row.name)));
+
+export const MAJOR_CATEGORY_ALLOWED_VALUES = uniqueNames.map((name) => ({
+  shortForm: name,
+  fullForm: name
+}));
+
+const mcCodeLookup = new Map<string, string>(
+  rows.map((row) => [normalizeCategory(row.name), row.code])
+);
+
+export const getMcCodeByMajorCategory = (majorCategory?: string | null): string | null => {
+  const key = normalizeCategory(majorCategory);
+  if (!key) return null;
+  return mcCodeLookup.get(key) || null;
+};

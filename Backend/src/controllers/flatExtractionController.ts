@@ -1,7 +1,85 @@
 import { Request, Response, NextFunction } from 'express';
 import { prismaClient as prisma } from '../utils/prisma';
+import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
+import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
 
 export class FlatExtractionController {
+    private attributeKeyToFieldMap: Record<string, string> = {
+        major_category: 'majorCategory',
+        majorcategory: 'majorCategory',
+        vendor_name: 'vendorName',
+        design_number: 'designNumber',
+        ppt_number: 'pptNumber',
+        rate: 'rate',
+        size: 'size',
+        yarn_01: 'yarn1',
+        yarn1: 'yarn1',
+        yarn_02: 'yarn2',
+        yarn2: 'yarn2',
+        fabric_main_mvgr: 'fabricMainMvgr',
+        weave: 'weave',
+        composition: 'composition',
+        finish: 'finish',
+        gram_per_square_meter: 'gsm',
+        gsm: 'gsm',
+        shade: 'shade',
+        weight: 'weight',
+        g_weight: 'weight',
+        gweight: 'weight',
+        'g-weight': 'weight',
+        lycra_non_lycra: 'lycra',
+        'lycra_non\nlycra': 'lycra',
+        lycra: 'lycra',
+        neck: 'neck',
+        neck_detail: 'neckDetails',
+        neck_details: 'neckDetails',
+        collar: 'collar',
+        placket: 'placket',
+        sleeve: 'sleeve',
+        bottom_fold: 'bottomFold',
+        front_open_style: 'frontOpenStyle',
+        pocket_type: 'pocketType',
+        fit: 'fit',
+        pattern: 'pattern',
+        length: 'length',
+        colour: 'colour',
+        color: 'colour',
+        drawcord: 'drawcord',
+        button: 'button',
+        zipper: 'zipper',
+        zip_colour: 'zipColour',
+        print_type: 'printType',
+        print_style: 'printStyle',
+        print_placement: 'printPlacement',
+        patches: 'patches',
+        patch_type: 'patchesType',
+        patches_type: 'patchesType',
+        embroidery: 'embroidery',
+        embroidery_type: 'embroideryType',
+        wash: 'wash',
+        father_belt: 'fatherBelt',
+        child_belt: 'childBelt',
+        child_belt_detail: 'childBelt',
+        reference_article_number: 'referenceArticleNumber',
+        reference_article_description: 'referenceArticleDescription'
+    };
+
+    private normalizeAttributeKey(key: string): string {
+        return String(key || '').trim().toLowerCase();
+    }
+
+    private extractNumericWeight(input: unknown): string | null {
+        if (input === null || input === undefined) return null;
+        const text = String(input).trim();
+        if (!text) return null;
+        const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+        return match ? match[1] : null;
+    }
+
+    private isCreatorLike(role: string): boolean {
+        return role === 'CREATOR' || role === 'PO_COMMITTEE';
+    }
+
     /**
      * Get all extraction jobs from flat table (fast query)
      */
@@ -13,11 +91,19 @@ export class FlatExtractionController {
             const division = user?.division;
             const subDivision = user?.subDivision;
 
+            if (!userId) {
+                res.status(401).json({
+                    success: false,
+                    error: 'Unauthorized'
+                });
+                return;
+            }
+
             const where: any = {};
 
-            // RBAC Filtering Logic
+            // RBAC Filtering Logic (creator self-only, others as per scope)
             if (role === 'CREATOR' || role === 'PO_COMMITTEE') {
-                // Creators only see their own extractions
+                // Creators and PO Committee only see their own extractions
                 where.userId = userId;
             } else if (role === 'APPROVER') {
                 // Approvers see extractions within their assigned scope
@@ -86,6 +172,144 @@ export class FlatExtractionController {
             res.status(500).json({
                 success: false,
                 error: 'Failed to fetch extraction result'
+            });
+        }
+    };
+
+    /**
+     * Update one editable attribute in flat table row by jobId
+     */
+    updateFlatAttributeByJobId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const user = (req as any).user;
+            const userId = user?.id;
+            const role = String(user?.role || '');
+            const division = user?.division;
+            const subDivision = user?.subDivision;
+            const { jobId } = req.params;
+            const { attributeKey, value } = req.body || {};
+
+            if (!userId) {
+                res.status(401).json({ success: false, error: 'Unauthorized' });
+                return;
+            }
+
+            if (!jobId) {
+                res.status(400).json({ success: false, error: 'jobId is required' });
+                return;
+            }
+
+            if (!attributeKey || typeof attributeKey !== 'string') {
+                res.status(400).json({ success: false, error: 'attributeKey is required' });
+                return;
+            }
+
+            const normalizedKey = this.normalizeAttributeKey(attributeKey);
+            const fieldName = this.attributeKeyToFieldMap[normalizedKey];
+
+            if (!fieldName) {
+                res.status(400).json({ success: false, error: `Unsupported attributeKey: ${attributeKey}` });
+                return;
+            }
+
+            const existing = await prisma.extractionResultFlat.findUnique({
+                where: { jobId },
+                select: {
+                    id: true,
+                    userId: true,
+                    division: true,
+                    subDivision: true,
+                    approvalStatus: true,
+                    majorCategory: true,
+                    rate: true,
+                    mrp: true
+                }
+            });
+
+            if (!existing) {
+                res.status(404).json({ success: false, error: 'Extraction row not found' });
+                return;
+            }
+
+            if (existing.approvalStatus === 'APPROVED') {
+                res.status(403).json({ success: false, error: 'Cannot update an approved item.' });
+                return;
+            }
+
+            if (this.isCreatorLike(role)) {
+                if (!existing.userId || Number(existing.userId) !== Number(userId)) {
+                    res.status(403).json({ success: false, error: 'Access denied: Not your extraction.' });
+                    return;
+                }
+            } else if (role === 'APPROVER') {
+                if (division && existing.division && String(existing.division).toLowerCase() !== String(division).toLowerCase()) {
+                    res.status(403).json({ success: false, error: 'Access denied: Division mismatch.' });
+                    return;
+                }
+                if (subDivision && existing.subDivision && String(existing.subDivision).toLowerCase() !== String(subDivision).toLowerCase()) {
+                    res.status(403).json({ success: false, error: 'Access denied: Sub-Division mismatch.' });
+                    return;
+                }
+            } else if (role === 'CATEGORY_HEAD') {
+                if (division && existing.division && String(existing.division).toLowerCase() !== String(division).toLowerCase()) {
+                    res.status(403).json({ success: false, error: 'Access denied: Division mismatch.' });
+                    return;
+                }
+            }
+
+            const toNullableString = (input: unknown): string | null => {
+                if (input === null || input === undefined) return null;
+                const text = String(input).trim();
+                return text === '' ? null : text;
+            };
+
+            const data: Record<string, unknown> = {};
+
+            if (fieldName === 'rate') {
+                const parsedRate = parseNumericValue(value);
+                data.rate = parsedRate;
+                data.mrp = calculateMrpFromRate(parsedRate);
+            } else if (fieldName === 'majorCategory') {
+                const majorCategoryText = toNullableString(value);
+
+                if (majorCategoryText) {
+                    const mappedMcCode = getMcCodeByMajorCategory(majorCategoryText);
+                    if (!mappedMcCode) {
+                        res.status(400).json({
+                            success: false,
+                            error: `Invalid majorCategory '${majorCategoryText}'. Please use values from mc code list (mc des).`
+                        });
+                        return;
+                    }
+
+                    data.majorCategory = majorCategoryText;
+                    data.mcCode = mappedMcCode;
+                    data.hsnTaxCode = getHsnCodeByMcCode(mappedMcCode) || null;
+                } else {
+                    data.majorCategory = null;
+                    data.mcCode = null;
+                    data.hsnTaxCode = null;
+                }
+            } else {
+                data[fieldName] = fieldName === 'weight'
+                    ? this.extractNumericWeight(value)
+                    : toNullableString(value);
+            }
+
+            const updated = await prisma.extractionResultFlat.update({
+                where: { id: existing.id },
+                data
+            });
+
+            res.json({
+                success: true,
+                data: updated
+            });
+        } catch (error) {
+            console.error('Error updating extraction flat attribute:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to save extraction changes'
             });
         }
     };

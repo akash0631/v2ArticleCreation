@@ -3,6 +3,14 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
 
 export class FlatteningService {
+    private extractNumericWeight(value: unknown): string | null {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        if (!text) return null;
+        const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+        return match ? match[1] : null;
+    }
+
     /**
      * Flatten extraction job results into the flat table for fast querying
      */
@@ -82,6 +90,16 @@ export class FlatteningService {
         const derivedMrp = calculateMrpFromRate(parsedRate);
         const finalMrp = derivedMrp ?? explicitMrp;
 
+        const rawMajorCategory = resultsMap.get('major_category') || job.category?.code;
+        const mappedMcCode = getMcCodeByMajorCategory(rawMajorCategory);
+        const majorCategory = mappedMcCode ? rawMajorCategory : null;
+        const normalizedWeight = this.extractNumericWeight(
+            resultsMap.get('weight')
+            || resultsMap.get('g_weight')
+            || resultsMap.get('g-weight')
+            || resultsMap.get('gweight')
+        );
+
         return {
             jobId: job.id,
 
@@ -104,8 +122,8 @@ export class FlatteningService {
             extractionDate: job.completedAt || job.createdAt,
 
             // All 41 Attributes
-            majorCategory: resultsMap.get('major_category') || job.category?.code, // T-Shirt, Jeans, etc.
-            mcCode: getMcCodeByMajorCategory(resultsMap.get('major_category') || job.category?.code),
+            majorCategory, // mc code list-valid major category (mc des) only
+            mcCode: mappedMcCode,
             vendorName: resultsMap.get('vendor_name'),
             designNumber: resultsMap.get('design_number'),
             pptNumber: resultsMap.get('ppt_number'),
@@ -120,6 +138,7 @@ export class FlatteningService {
             finish: resultsMap.get('finish'),
             gsm: resultsMap.get('gram_per_square_meter'),
             shade: resultsMap.get('shade'),
+            weight: normalizedWeight,
             lycra: resultsMap.get('lycra_non_lycra') || resultsMap.get('lycra_non\nlycra'),
             neck: resultsMap.get('neck'),
             neckDetails: resultsMap.get('neck_detail'),

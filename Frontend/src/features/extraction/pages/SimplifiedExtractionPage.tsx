@@ -27,7 +27,7 @@ import { AttributeTable } from "../components/AttributeTable";
 import ExportManager from "../components/ExportManager";
 import { useImageExtraction } from "../../../shared/hooks/extraction/useImageExtraction";
 import type { SchemaItem } from "../../../shared/types/extraction/ExtractionTypes";
-import { MAJOR_CATEGORY_ALLOWED_VALUES } from "../../../data/majorCategoryMap";
+import { MAJOR_CATEGORY_ALLOWED_VALUES } from "../../../data/majorCategoryMcCodeMap";
 
 import "./ExtractionPage.css";
 import "../../../styles/App.css";
@@ -76,6 +76,7 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'finish', label: 'Finish', type: 'select' },
   { key: 'gsm', label: 'GSM', type: 'select' },
   { key: 'shade', label: 'Shade', type: 'select' },
+  { key: 'weight', label: 'G-Weight', type: 'text' },
   { key: 'lycra_non_lycra', label: 'Lycra/Non Lycra', type: 'select' },
   { key: 'neck', label: 'Neck', type: 'select' },
   { key: 'neck_details', label: 'Neck Details', type: 'select' },
@@ -260,6 +261,15 @@ const SimplifiedExtractionPage = () => {
 
         const schemaWithAllowed = BASE_SIMPLIFIED_SCHEMA.map((item) => {
           const keyLower = item.key.toLowerCase();
+
+          // Enforce mc code list (mc des) for major category (do not override from backend)
+          if (keyLower === 'major_category') {
+            return {
+              ...item,
+              allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES
+            };
+          }
+
           const aliasKey = KEY_ALIASES[keyLower] || keyLower;
           const fetchedAllowed = allowedMap.get(keyLower) || allowedMap.get(aliasKey);
           return {

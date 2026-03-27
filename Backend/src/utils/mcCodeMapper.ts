@@ -1,11 +1,12 @@
-import mcCodeData from '../data/mccode.json';
+import majorCategoryCodeData from '../data/mc-code-list-major-category.json';
 import hsnCodeData from '../data/hsncode.json';
 
 type McCodeRow = {
-  'MC CD'?: number | string;
-  MC_DESC?: string;
+  mc_code?: number | string;
   'mc code'?: number | string;
   'mc des'?: string;
+  'MC CD'?: number | string;
+  MC_DESC?: string;
   'hsn code'?: number | string;
 };
 
@@ -19,7 +20,7 @@ const normalizeCategory = (value?: string | null): string =>
     .replace(/_*-_*/g, '-')
     .replace(/[^A-Z0-9_\-]/g, '');
 
-const payload = mcCodeData as McCodePayload;
+const payload = majorCategoryCodeData as McCodePayload;
 
 const rows: McCodeRow[] = Array.isArray(payload)
   ? payload
@@ -28,8 +29,8 @@ const rows: McCodeRow[] = Array.isArray(payload)
 const mcCodeLookup = new Map<string, string>(
   rows
     .map((row) => {
-      const category = row.MC_DESC ?? row['mc des'];
-      const code = row['MC CD'] ?? row['mc code'];
+      const category = row['mc des'] ?? row.MC_DESC;
+      const code = row.mc_code ?? row['mc code'] ?? row['MC CD'];
       return {
         category,
         code

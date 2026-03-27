@@ -17,6 +17,7 @@ const { Title, Text } = Typography;
 
 type ProductRow = {
   key: string;
+  userId?: string | null;
   name: string;
   productType: string;
   vendor: string;
@@ -38,8 +39,18 @@ type ProductRow = {
 
 export default function Products() {
   const user = localStorage.getItem('user');
-  const userData = user ? JSON.parse(user) : null;
+  const userData = useMemo(() => {
+    if (!user) return null;
+    try {
+      return JSON.parse(user);
+    } catch {
+      return null;
+    }
+  }, [user]);
   const isAdmin = userData?.role === 'ADMIN';
+  const isCreator = userData?.role === 'CREATOR';
+  const currentUserId = userData?.id ? String(userData.id) : null;
+  const currentUserEmail = userData?.email ? String(userData.email).toLowerCase() : null;
 
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -352,10 +363,29 @@ export default function Products() {
         const result = await response.json();
         const flatJobs = result?.data?.jobs || [];
 
+        // Creator-only frontend safety filter. Other roles follow backend RBAC scope.
+        const userScopedJobs = isCreator
+          ? flatJobs.filter((flat: any) => {
+              const flatUserId = flat?.userId ? String(flat.userId) : null;
+              const flatUserEmail = flat?.userEmail ? String(flat.userEmail).toLowerCase() : null;
+
+              if (currentUserId && flatUserId) {
+                return flatUserId === currentUserId;
+              }
+
+              if (currentUserEmail && flatUserEmail) {
+                return flatUserEmail === currentUserEmail;
+              }
+
+              return false;
+            })
+          : flatJobs;
+
         // Map flat table data directly (no need to search through results!)
-        const mapped: ProductRow[] = flatJobs.map((flat: any) => {
+        const mapped: ProductRow[] = userScopedJobs.map((flat: any) => {
           const row = {
             key: flat.jobId,
+            userId: flat.userId ? String(flat.userId) : null,
             name: flat.imageName || flat.designNumber || flat.jobId,
             productType: flat.majorCategory || '—',
             vendor: flat.vendorName || '—',
@@ -364,7 +394,7 @@ export default function Products() {
             createdAt: flat.createdAt ? new Date(flat.createdAt).toLocaleDateString() : '—',
             updatedAt: flat.updatedAt ? new Date(flat.updatedAt).toLocaleDateString() : '—',
             userName: flat.userName,
-            userEmail: null, // Not needed anymore
+            userEmail: flat.userEmail || null,
             imageUrl: getImageUrl(flat.imageUrl) || null,
             results: [] as any[], // Will populate below
             // Store flat data for potential future use
@@ -387,7 +417,7 @@ export default function Products() {
     };
 
     fetchRows();
-  }, [isAdmin, normalizeStatus, buildDetailsRows]);
+  }, [currentUserEmail, currentUserId, isAdmin, isCreator, normalizeStatus, buildDetailsRows]);
 
   useEffect(() => {
     const fetchMasterAttributes = async () => {

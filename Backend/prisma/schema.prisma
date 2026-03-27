@@ -244,6 +244,7 @@ model ExtractionResultFlat {
   finish                      String?       @db.VarChar(100)
   gsm                         String?       @db.VarChar(50)
   shade                       String?       @db.VarChar(100)
+  weight                      String?       @db.VarChar(100)
   lycra                       String?       @db.VarChar(50)
   neck                        String?       @db.VarChar(100)
   neckDetails                 String?       @map("neck_details") @db.VarChar(200)
