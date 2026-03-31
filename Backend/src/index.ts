@@ -62,10 +62,7 @@ const limiter = rateLimit({
 //   legacyHeaders: false
 // });
 
-// Apply general rate limiting to all API routes
-app.use('/api/', limiter);
-
-// CORS configuration
+// CORS configuration (must be before rate limiter so preflight 429s still include CORS headers)
 const allowedOrigins = [
   ...(process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
@@ -102,6 +99,9 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 3600
 }));
+
+// Apply general rate limiting to all API routes (after CORS so rate-limit responses include CORS headers)
+app.use('/api/', limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));

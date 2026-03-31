@@ -32,7 +32,8 @@ export interface ExtractedRow extends BaseEntity {
 export interface ExtractedRowEnhanced extends ExtractedRow {
   discoveryMode: unknown;
   persistedJobId?: string;
-    persistedFlatId?: string | null;
+  persistedFlatId?: string | null;
+  reviewCompleted?: boolean;
   processingProgress?: number;
   queuePosition?: number;
   retryCount?: number;

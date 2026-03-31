@@ -30,14 +30,34 @@ interface AttributeCellProps {
   disabled?: boolean;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+const persistNewValueToBackend = async (attributeKey: string, value: string) => {
+  try {
+    const token = localStorage.getItem('authToken');
+    await fetch(`${API_BASE_URL}/user/attributes/by-key/${encodeURIComponent(attributeKey)}/values`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ shortForm: value, fullForm: value })
+    });
+  } catch {
+    // Non-critical — value is still saved locally even if backend call fails
+  }
+};
+
 export const AttributeCell: React.FC<AttributeCellProps> = ({
   attribute,
   schemaItem,
   onChange,
+  onAddToSchema,
   disabled = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState<string | number | null>(null);
+  const [selectSearch, setSelectSearch] = useState('');
 
   // 🔍 DEBUG: Log data for specific attributes
   useEffect(() => {
@@ -62,24 +82,32 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
   }, [disabled, attribute?.schemaValue, attribute?.rawValue]);
 
   const handleSaveEdit = useCallback(() => {
+    // If user typed something in the Select search box but didn't explicitly pick an option, use it
+    const effectiveValue = (schemaItem.type === 'select' && selectSearch.trim())
+      ? selectSearch.trim()
+      : editValue;
+    if (effectiveValue !== editValue) {
+      setEditValue(effectiveValue);
+    }
+
     // 📝 Track if user corrected AI prediction
     const aiPredictedValue = attribute?.schemaValue;
-    const isCorrection = aiPredictedValue && editValue !== aiPredictedValue;
+    const isCorrection = aiPredictedValue && effectiveValue !== aiPredictedValue;
     
     if (isCorrection) {
       // 🎓 Send correction feedback (user corrected AI from X to Y)
       console.log('📚 [AI Learning] User correction:', {
         attribute: schemaItem.key,
         aiPredicted: aiPredictedValue,
-        userCorrected: editValue,
+        userCorrected: effectiveValue,
         timestamp: new Date().toISOString()
       });
-      
+
       // 🔄 Submit correction to backend (async, non-blocking)
       submitCorrection({
         attributeKey: schemaItem.key,
         aiPredicted: String(aiPredictedValue),
-        userCorrected: String(editValue),
+        userCorrected: String(effectiveValue),
         timestamp: new Date().toISOString()
       }).then(() => {
         console.log('✅ Correction logged to database');
@@ -87,10 +115,30 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
         console.warn('⚠️ Failed to log correction (non-critical):', err);
       });
     }
-    
-    onChange(editValue, isCorrection ? String(aiPredictedValue) : undefined);
+
+    onChange(effectiveValue, isCorrection ? String(aiPredictedValue) : undefined);
     setIsEditing(false);
-  }, [editValue, onChange, attribute?.schemaValue, schemaItem.key]);
+    setSelectSearch('');
+
+    // If the value is not in the allowed list, persist it to backend for future reference
+    if (
+      effectiveValue !== null &&
+      effectiveValue !== undefined &&
+      effectiveValue !== '' &&
+      schemaItem.type === 'select' &&
+      schemaItem.allowedValues &&
+      schemaItem.allowedValues.length > 0
+    ) {
+      const strVal = String(effectiveValue).trim().toLowerCase();
+      const exists = schemaItem.allowedValues.some(
+        v => (v.shortForm || '').toLowerCase() === strVal || (v.fullForm || '').toLowerCase() === strVal
+      );
+      if (!exists) {
+        onAddToSchema?.(String(effectiveValue).trim());
+        persistNewValueToBackend(schemaItem.key, String(effectiveValue).trim());
+      }
+    }
+  }, [editValue, onChange, onAddToSchema, attribute?.schemaValue, schemaItem]);
 
   const handleCancelEdit = useCallback(() => {
     setEditValue(attribute?.schemaValue ?? attribute?.rawValue ?? null);
@@ -146,23 +194,32 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
     ) : (
       <Select
         value={editValue as string}
-        onChange={setEditValue}
+        onChange={(val) => { setEditValue(val); setSelectSearch(''); }}
+        onSearch={setSelectSearch}
         style={{ width: '100%', minWidth: 120 }}
         size="small"
         showSearch
         allowClear
-        placeholder="Select value"
+        placeholder="Select or type value"
         filterOption={(input, option) =>
+          option?.value === '__custom__' ||
           (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
         }
-        notFoundContent="No matching values in database"
-        disabled={!schemaItem.allowedValues || schemaItem.allowedValues.length === 0}
         popupRender={menu => (
           <div>
             {menu}
-            <div style={{ padding: 8, borderTop: '1px solid #f0f0f0', fontSize: 11, color: '#999' }}>
-              ℹ️ Only values from master database shown
-            </div>
+            {selectSearch.trim() && (
+              <div
+                style={{ padding: '6px 12px', borderTop: '1px solid #f0f0f0', cursor: 'pointer', color: '#1677ff', fontSize: 12 }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setEditValue(selectSearch.trim());
+                  setSelectSearch('');
+                }}
+              >
+                + Add "{selectSearch.trim()}" as new value
+              </div>
+            )}
           </div>
         )}
       >

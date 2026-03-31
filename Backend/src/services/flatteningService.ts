@@ -107,7 +107,7 @@ export class FlatteningService {
             imageName, // UUID-based filename for internal use
             imageUrl: job.imageUrl,
             articleNumber, // Original uploaded filename
-            extractionStatus: job.status,
+            extractionStatus: job.status === 'COMPLETED' ? 'REVIEW_PENDING' : job.status,
             aiModel: job.aiModel,
             avgConfidence: job.avgConfidence,
             processingTimeMs: job.processingTimeMs,
@@ -136,12 +136,12 @@ export class FlatteningService {
             weave: resultsMap.get('weave'),
             composition: resultsMap.get('composition'),
             finish: resultsMap.get('finish'),
-            gsm: resultsMap.get('gram_per_square_meter'),
+            gsm: resultsMap.get('gsm') || resultsMap.get('gram_per_square_meter'),
             shade: resultsMap.get('shade'),
             weight: normalizedWeight,
             lycra: resultsMap.get('lycra_non_lycra') || resultsMap.get('lycra_non\nlycra'),
             neck: resultsMap.get('neck'),
-            neckDetails: resultsMap.get('neck_detail'),
+            neckDetails: resultsMap.get('neck_details') || resultsMap.get('neck_detail'),
             collar: resultsMap.get('collar'),
             placket: resultsMap.get('placket'),
             sleeve: resultsMap.get('sleeve'),
@@ -151,7 +151,7 @@ export class FlatteningService {
             fit: resultsMap.get('fit'),
             pattern: resultsMap.get('pattern'),
             length: resultsMap.get('length'),
-            colour: resultsMap.get('color'),
+            colour: resultsMap.get('colour') || resultsMap.get('color'),
             drawcord: resultsMap.get('drawcord'),
             button: resultsMap.get('button'),
             zipper: resultsMap.get('zipper'),
@@ -160,19 +160,19 @@ export class FlatteningService {
             printStyle: resultsMap.get('print_style'),
             printPlacement: resultsMap.get('print_placement'),
             patches: resultsMap.get('patches'),
-            patchesType: resultsMap.get('patch_type'),
+            patchesType: resultsMap.get('patches_type') || resultsMap.get('patch_type'),
             embroidery: resultsMap.get('embroidery'),
             embroideryType: resultsMap.get('embroidery_type'),
             wash: resultsMap.get('wash'),
             fatherBelt: resultsMap.get('father_belt'),
-            childBelt: resultsMap.get('child_belt_detail'),
+            childBelt: resultsMap.get('child_belt') || resultsMap.get('child_belt_detail'),
             vendorCode: resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode || null,
 
             // Hierarchy Mapping
             division: job.category?.subDepartment?.department?.name || resultsMap.get('division') || null,
-            subDivision: job.category?.subDepartment?.code || null, // ML, MU etc.
-            referenceArticleNumber: null,
-            referenceArticleDescription: null,
+            subDivision: job.category?.subDepartment?.code || null,
+            referenceArticleNumber: resultsMap.get('reference_article_number') || null,
+            referenceArticleDescription: resultsMap.get('reference_article_description') || null,
         };
     }
 

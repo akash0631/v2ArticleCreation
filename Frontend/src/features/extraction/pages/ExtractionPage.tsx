@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 // Force HMR update
 import {
   Layout, Typography, Card, Spin, Alert, Button, Space, Modal, Progress,
-  Steps, Statistic, Row, Col, Image
+  Steps, Statistic, Row, Col, Image, Tag, message
 } from "antd";
 import {
   ClearOutlined, DownloadOutlined, DashboardOutlined,
@@ -95,11 +95,35 @@ const ExtractionPage = () => {
     removeRow,
     clearAll,
     updateRowAttribute,
+    markRowReviewCompleted,
+    markRowsReviewCompleted,
     discoverySettings,
     setDiscoverySettings,
     globalDiscoveries,
     promoteDiscoveryToSchema
   } = useImageExtraction();
+
+  const reviewedCount = useMemo(() => extractedRows.filter((row) => row.reviewCompleted).length, [extractedRows]);
+  const eligibleForReviewCount = useMemo(
+    () => extractedRows.filter((row) => row.status === 'Done' && !!row.persistedJobId).length,
+    [extractedRows]
+  );
+
+  const handleMarkSelectedDone = useCallback(async () => {
+    const targetIds = selectedRowKeys.map(String);
+    const result = await markRowsReviewCompleted(targetIds, true);
+    if (result.successCount > 0) message.success(`Marked ${result.successCount} selected article(s) as done.`);
+    if (result.failureCount > 0) message.error(`${result.failureCount} selected article(s) failed to mark.`);
+    if (result.skippedCount > 0) message.info(`${result.skippedCount} selected row(s) were skipped (not ready/already done).`);
+  }, [selectedRowKeys, markRowsReviewCompleted]);
+
+  const handleMarkAllDone = useCallback(async () => {
+    const targetIds = extractedRows.map((row) => row.id);
+    const result = await markRowsReviewCompleted(targetIds, true);
+    if (result.successCount > 0) message.success(`Marked ${result.successCount} article(s) as done.`);
+    if (result.failureCount > 0) message.error(`${result.failureCount} article(s) failed to mark.`);
+    if (result.skippedCount > 0) message.info(`${result.skippedCount} row(s) were skipped (not ready/already done).`);
+  }, [extractedRows, markRowsReviewCompleted]);
 
   // Enhanced category selection handler that moves to next step
   const handleCategorySelectWithStep = useCallback((category: CategoryConfig | null) => {
@@ -573,6 +597,19 @@ const ExtractionPage = () => {
                       </Button>
                     </Space>
                     <Space>
+                      <Tag color="green">Checked: {reviewedCount}/{eligibleForReviewCount}</Tag>
+                      <Button
+                        onClick={handleMarkSelectedDone}
+                        disabled={selectedRowKeys.length === 0}
+                      >
+                        Mark Selected Done
+                      </Button>
+                      <Button
+                        onClick={handleMarkAllDone}
+                        disabled={eligibleForReviewCount === 0 || reviewedCount >= eligibleForReviewCount}
+                      >
+                        Mark All Done
+                      </Button>
                       <BulkActions
                         selectedRowKeys={selectedRowKeys}
                         selectedRowCount={selectedRowKeys.length}
@@ -639,6 +676,7 @@ const ExtractionPage = () => {
                         );
                       }
                     }}
+                    onMarkReviewComplete={markRowReviewCompleted}
                     isExtracting={isExtracting}
                   />
 

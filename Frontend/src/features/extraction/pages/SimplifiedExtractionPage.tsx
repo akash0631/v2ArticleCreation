@@ -11,9 +11,9 @@
  * This runs alongside the original ExtractionPage for rollback capability.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
-  Layout, Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
+  Layout, Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image, Tag, message
 } from "antd";
 import {
   ClearOutlined, DownloadOutlined,
@@ -57,6 +57,7 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
       { shortForm: 'LADIES', fullForm: 'LADIES' }
     ]
   },
+  { key: 'sub_division', label: 'Sub-Division', type: 'text' },
   { key: 'major_category', label: 'Major Category', type: 'select', allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES },
   { key: 'reference_article_number', label: 'Reference Article Number', type: 'text' },
   { key: 'reference_article_description', label: 'Reference Article Description', type: 'text' },
@@ -100,7 +101,19 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'wash', label: 'Wash', type: 'select' },
   { key: 'colour', label: 'Colour', type: 'select' },
   { key: 'father_belt', label: 'Father Belt', type: 'select' },
-  { key: 'child_belt', label: 'Child Belt', type: 'select' }
+  { key: 'child_belt', label: 'Child Belt', type: 'select' },
+
+  // Business fields
+  { key: 'vendor_code', label: 'Vendor Code', type: 'text' },
+  { key: 'mrp', label: 'MRP', type: 'text' },
+  { key: 'mc_code', label: 'MC Code', type: 'text' },
+  { key: 'segment', label: 'Segment', type: 'text' },
+  { key: 'season', label: 'Season', type: 'text' },
+  { key: 'hsn_tax_code', label: 'HSN Tax Code', type: 'text' },
+  { key: 'article_description', label: 'Article Description', type: 'text' },
+  { key: 'fashion_grid', label: 'Fashion Grid', type: 'text' },
+  { key: 'year', label: 'Year', type: 'text' },
+  { key: 'article_type', label: 'Article Type', type: 'text' }
 ];
 
 const parseSubDivisions = (rawSubDivision: unknown): string[] => {
@@ -142,6 +155,7 @@ const SimplifiedExtractionPage = () => {
   const [selectedImage, setSelectedImage] = useState<{ url: string; name?: string } | null>(null);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [manualNavigation, setManualNavigation] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const creatorScope = getLocalUserScope();
 
   const {
@@ -153,8 +167,32 @@ const SimplifiedExtractionPage = () => {
     extractAllPending,
     clearAll,
     updateRowAttribute,
+    markRowReviewCompleted,
+    markRowsReviewCompleted,
     removeRow
   } = useImageExtraction();
+
+  const reviewedCount = useMemo(() => extractedRows.filter((row) => row.reviewCompleted).length, [extractedRows]);
+  const eligibleForReviewCount = useMemo(
+    () => extractedRows.filter((row) => row.status === 'Done' && !!row.persistedJobId).length,
+    [extractedRows]
+  );
+
+  const handleMarkSelectedDone = useCallback(async () => {
+    const targetIds = selectedRowKeys.map(String);
+    const result = await markRowsReviewCompleted(targetIds, true);
+    if (result.successCount > 0) message.success(`Marked ${result.successCount} selected article(s) as done.`);
+    if (result.failureCount > 0) message.error(`${result.failureCount} selected article(s) failed to mark.`);
+    if (result.skippedCount > 0) message.info(`${result.skippedCount} selected row(s) were skipped (not ready/already done).`);
+  }, [selectedRowKeys, markRowsReviewCompleted]);
+
+  const handleMarkAllDone = useCallback(async () => {
+    const targetIds = extractedRows.map((row) => row.id);
+    const result = await markRowsReviewCompleted(targetIds, true);
+    if (result.successCount > 0) message.success(`Marked ${result.successCount} article(s) as done.`);
+    if (result.failureCount > 0) message.error(`${result.failureCount} article(s) failed to mark.`);
+    if (result.skippedCount > 0) message.info(`${result.skippedCount} row(s) were skipped (not ready/already done).`);
+  }, [extractedRows, markRowsReviewCompleted]);
 
   useEffect(() => {
     const saved = localStorage.getItem('simplifiedExtractionState');
@@ -296,6 +334,21 @@ const SimplifiedExtractionPage = () => {
   useEffect(() => {
     setSimplifiedSchema(baseSchema);
   }, [baseSchema]);
+
+  // When a user adds a custom value not in the master list, update the local schema immediately
+  const handleAddToSchema = useCallback((attributeKey: string, value: string) => {
+    setSimplifiedSchema(prev => prev.map(item => {
+      if (item.key !== attributeKey) return item;
+      const alreadyExists = item.allowedValues?.some(
+        v => (v.shortForm || '').toLowerCase() === value.toLowerCase()
+      );
+      if (alreadyExists) return item;
+      return {
+        ...item,
+        allowedValues: [...(item.allowedValues || []), { shortForm: value, fullForm: value }]
+      };
+    }));
+  }, []);
 
   // Handle image upload - move to extraction step
   const handleImagesUpload = useCallback(async (fileList: File[]) => {
@@ -618,15 +671,35 @@ const SimplifiedExtractionPage = () => {
                     </Text>
                   </div>
 
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Tag color="green">Checked: {reviewedCount}/{eligibleForReviewCount}</Tag>
+                    <Space>
+                      <Button
+                        onClick={handleMarkSelectedDone}
+                        disabled={selectedRowKeys.length === 0}
+                      >
+                        Mark Selected Done
+                      </Button>
+                      <Button
+                        onClick={handleMarkAllDone}
+                        disabled={eligibleForReviewCount === 0 || reviewedCount >= eligibleForReviewCount}
+                      >
+                        Mark All Done
+                      </Button>
+                    </Space>
+                  </div>
+
                   <AttributeTable
                     extractedRows={extractedRows}
                     schema={simplifiedSchema}
-                    selectedRowKeys={[]}
-                    onSelectionChange={() => { }}
+                    selectedRowKeys={selectedRowKeys}
+                    onSelectionChange={setSelectedRowKeys}
                     onAttributeChange={updateRowAttribute}
                     onDeleteRow={removeRow}
                     onImageClick={handleImageClick}
                     onReExtract={() => { }}
+                    onMarkReviewComplete={markRowReviewCompleted}
+                    onAddToSchema={handleAddToSchema}
                     isExtracting={isExtracting}
                   />
                 </Card>

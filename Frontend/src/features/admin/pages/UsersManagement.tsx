@@ -32,6 +32,28 @@ const parseSubDivisionList = (value: unknown): string[] => {
   return [];
 };
 
+const normalizeDivisionKey = (value: unknown): string => {
+  const raw = String(value ?? '').trim().toUpperCase();
+  if (!raw) return '';
+
+  if (raw === 'MEN' || raw === 'MENS') return 'MEN';
+  if (raw === 'KID' || raw === 'KIDS') return 'KIDS';
+  if (raw === 'LADY' || raw === 'LADIES') return 'LADIES';
+
+  return raw;
+};
+
+const resolveDivisionForSelect = (division: unknown, options: string[]): string | null => {
+  const normalizedTarget = normalizeDivisionKey(division);
+  if (!normalizedTarget) return null;
+
+  const exact = options.find((opt) => String(opt).trim().toUpperCase() === String(division ?? '').trim().toUpperCase());
+  if (exact) return exact;
+
+  const normalizedMatch = options.find((opt) => normalizeDivisionKey(opt) === normalizedTarget);
+  return normalizedMatch ?? String(division).trim().toUpperCase();
+};
+
 export default function UsersManagement() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,9 +79,22 @@ export default function UsersManagement() {
 
   const availableSubDepts = useMemo(() => {
     if (!selectedDeptId) return [];
-    const dept = departments.find(d => String(d.name || '').trim().toUpperCase() === selectedDeptId.toUpperCase());
-    return dept?.subDepartments || [];
-  }, [selectedDeptId, departments]);
+    const selectedKey = normalizeDivisionKey(selectedDeptId);
+    const dept = departments.find((d) => {
+      const byName = normalizeDivisionKey(d.name);
+      const byCode = normalizeDivisionKey(d.code);
+      return byName === selectedKey || byCode === selectedKey;
+    });
+    const fromDept: { id: number; code: string; name: string }[] = dept?.subDepartments || [];
+
+    // Always include the currently-assigned sub-divisions so they remain selectable
+    const existingCodes = parseSubDivisionList(form.getFieldValue('subDivision'));
+    const extra = existingCodes
+      .filter(code => !fromDept.some(s => s.code === code))
+      .map((code, index) => ({ id: -1000 - index, code, name: code }));
+
+    return [...fromDept, ...extra];
+  }, [selectedDeptId, departments, form]);
 
   // Filter users based on search term
   const filteredUsers = useMemo(() => {
@@ -178,7 +213,7 @@ export default function UsersManagement() {
     setSelectedUser(user);
     setSelectedRole(user.role);
 
-    const divisionValue = String(user.division || '').trim().toUpperCase() || null;
+    const divisionValue = resolveDivisionForSelect(user.division, divisionNames);
     setSelectedDeptId(divisionValue);
 
     form.setFieldsValue({
@@ -620,7 +655,7 @@ export default function UsersManagement() {
                     maxTagCount="responsive"
                   >
                     {availableSubDepts.map(sub => (
-                      <Option key={sub.id} value={sub.code}>{sub.name} ({sub.code})</Option>
+                      <Option key={sub.code} value={sub.code}>{sub.name} ({sub.code})</Option>
                     ))}
                   </Select>
                 </Form.Item>

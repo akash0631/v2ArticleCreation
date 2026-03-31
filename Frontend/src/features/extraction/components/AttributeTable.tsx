@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Table, Image, Tag, Button, Tooltip, Space, Dropdown } from 'antd';
+import { Table, Image, Tag, Button, Tooltip, Space, Dropdown, Checkbox } from 'antd';
 import { ReloadOutlined, EyeOutlined, MoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ExtractedRow, SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
@@ -17,6 +17,7 @@ interface AttributeTableProps {
   onImageClick: (imageUrl: string, imageName?: string) => void; // When user clicks image to view
   onReExtract: (rowId: string, forceRefresh?: boolean) => void; // When user wants to re-run AI extraction (forceRefresh=true to bypass cache)
   onAddToSchema?: (attributeKey: string, value: string) => void; // When user adds new value to schema
+  onMarkReviewComplete?: (rowId: string, checked: boolean) => void;
   isExtracting?: boolean; // Whether AI is currently working
   disableEditing?: boolean; // Disable editing even after extraction
 }
@@ -31,12 +32,26 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
   onImageClick,
   onReExtract,
   onAddToSchema,
+  onMarkReviewComplete,
   disableEditing = false
 }) => {
   // 🏗️ BUILD TABLE COLUMNS DYNAMICALLY
   const columns: ColumnsType<ExtractedRow> = useMemo(() => {
     // 1️⃣ FIXED COLUMNS (always show these)
     const baseColumns: ColumnsType<ExtractedRow> = [
+      // 🔢 PICTURE NUMBER COLUMN (original filename, for creator reference only)
+      {
+        title: 'Picture No.',
+        key: 'pictureNumber',
+        width: 130,
+        fixed: 'left',
+        render: (_, record) => (
+          <div style={{ fontSize: 11, wordBreak: 'break-all', color: '#595959' }}>
+            {record.originalFileName}
+          </div>
+        ),
+      },
+
       // 📸 IMAGE COLUMN
       {
         title: 'Image',
@@ -190,11 +205,34 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
           </Space>
         ),
       },
+      {
+        title: 'Checked',
+        key: 'reviewComplete',
+        width: 110,
+        fixed: 'right',
+        render: (_, record) => {
+          const canMarkDone =
+            record.status === 'Done' &&
+            !!(record as any).persistedJobId &&
+            !(record as any).reviewCompleted &&
+            !disableEditing;
+
+          return (
+            <Checkbox
+              checked={!!(record as any).reviewCompleted}
+              disabled={!canMarkDone}
+              onChange={(event) => onMarkReviewComplete?.(record.id, event.target.checked)}
+            >
+              Done
+            </Checkbox>
+          );
+        }
+      }
     ];
 
     // 🔗 COMBINE ALL COLUMNS: Fixed Left + Dynamic Attributes + Fixed Right
     return [...baseColumns, ...attributeColumns, ...actionsColumn];
-  }, [schema, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract]);
+  }, [schema, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract, onMarkReviewComplete, disableEditing]);
 
   // ✅ ROW SELECTION CONFIGURATION (checkboxes)
   const rowSelection = {
@@ -235,11 +273,17 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       
       // 🎨 ROW STYLING based on status
       rowClassName={(record) => {
+        if ((record as any).reviewCompleted) return 'table-row-reviewed';
         if (record.status === 'Error') return 'table-row-error';
         if (record.status === 'Done') return 'table-row-success';
         if (record.status === 'Extracting') return 'table-row-processing';
         return '';
       }}
+      onRow={(record) => ({
+        style: (record as any).reviewCompleted
+          ? { backgroundColor: '#f6ffed' }
+          : undefined,
+      })}
       
       // 📊 SUMMARY ROW at bottom showing stats
       summary={(pageData) => {
@@ -248,6 +292,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
           done: pageData.filter(row => row.status === 'Done').length,
           error: pageData.filter(row => row.status === 'Error').length,
           pending: pageData.filter(row => row.status === 'Pending').length,
+          reviewed: pageData.filter(row => !!(row as any).reviewCompleted).length,
         };
         
         return (
@@ -267,6 +312,9 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
               </Table.Summary.Cell>
               <Table.Summary.Cell index={4}>
                 <Tag>Total: {stats.total}</Tag>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5}>
+                <Tag color="green">Checked: {stats.reviewed}</Tag>
               </Table.Summary.Cell>
             </Table.Summary.Row>
           </Table.Summary>

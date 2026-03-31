@@ -113,7 +113,9 @@ export class FlatExtractionController {
                 return;
             }
 
-            const where: any = {};
+            const where: any = {
+                extractionStatus: 'COMPLETED'
+            };
 
             // RBAC Filtering Logic (creator self-only, others as per scope)
             if (role === 'CREATOR' || role === 'PO_COMMITTEE') {
@@ -333,6 +335,101 @@ export class FlatExtractionController {
             res.status(500).json({
                 success: false,
                 error: 'Failed to save extraction changes'
+            });
+        }
+    };
+
+    /**
+     * Mark a flat extraction row as creator-reviewed.
+     * Only reviewed rows (extractionStatus=COMPLETED) are visible in Products/Approver dashboards.
+     */
+    markFlatReviewCompleteByJobId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const user = (req as any).user;
+            const userId = user?.id;
+            const role = this.normalizeRole(user?.role);
+            const division = user?.division;
+            const subDivision = user?.subDivision;
+            const { jobId } = req.params;
+            const { checked } = req.body || {};
+
+            if (!userId) {
+                res.status(401).json({ success: false, error: 'Unauthorized' });
+                return;
+            }
+
+            if (!jobId) {
+                res.status(400).json({ success: false, error: 'jobId is required' });
+                return;
+            }
+
+            if (typeof checked !== 'boolean') {
+                res.status(400).json({ success: false, error: 'checked must be a boolean' });
+                return;
+            }
+
+            const existing = await prisma.extractionResultFlat.findUnique({
+                where: { jobId },
+                select: {
+                    id: true,
+                    userId: true,
+                    division: true,
+                    subDivision: true,
+                    approvalStatus: true
+                }
+            });
+
+            if (!existing) {
+                res.status(404).json({ success: false, error: 'Extraction row not found' });
+                return;
+            }
+
+            if (existing.approvalStatus === 'APPROVED') {
+                res.status(403).json({ success: false, error: 'Cannot mark an approved item.' });
+                return;
+            }
+
+            if (this.isCreatorLike(role)) {
+                if (!existing.userId || Number(existing.userId) !== Number(userId)) {
+                    res.status(403).json({ success: false, error: 'Access denied: Not your extraction.' });
+                    return;
+                }
+            } else if (role === 'APPROVER') {
+                if (division && existing.division && String(existing.division).toLowerCase() !== String(division).toLowerCase()) {
+                    res.status(403).json({ success: false, error: 'Access denied: Division mismatch.' });
+                    return;
+                }
+                const subDivisionList = this.parseSubDivisions(subDivision).map((item) => item.toLowerCase());
+                if (subDivisionList.length > 0 && existing.subDivision) {
+                    const existingSubDivision = String(existing.subDivision).toLowerCase();
+                    if (!subDivisionList.includes(existingSubDivision)) {
+                        res.status(403).json({ success: false, error: 'Access denied: Sub-Division mismatch.' });
+                        return;
+                    }
+                }
+            } else if (role === 'CATEGORY_HEAD') {
+                if (division && existing.division && String(existing.division).toLowerCase() !== String(division).toLowerCase()) {
+                    res.status(403).json({ success: false, error: 'Access denied: Division mismatch.' });
+                    return;
+                }
+            }
+
+            const updated = await prisma.extractionResultFlat.update({
+                where: { id: existing.id },
+                data: {
+                    extractionStatus: checked ? 'COMPLETED' : 'REVIEW_PENDING'
+                }
+            });
+
+            res.json({
+                success: true,
+                data: updated
+            });
+        } catch (error) {
+            console.error('Error marking extraction review completion:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to update review completion'
             });
         }
     };

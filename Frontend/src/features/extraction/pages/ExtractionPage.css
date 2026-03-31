@@ -84,6 +84,19 @@
   margin-bottom: 24px;
 }
 
+/* Reviewed/Checked rows - stronger visibility */
+.ant-table-tbody > tr.table-row-reviewed > td {
+  background: #dff2cc !important;
+}
+
+.ant-table-tbody > tr.table-row-reviewed:hover > td {
+  background: #d4ecbd !important;
+}
+
+.ant-table-tbody > tr.table-row-reviewed > td:first-child {
+  border-left: 3px solid #52c41a;
+}
+
 .progress-info {
   margin-top: 12px;
   text-align: center;

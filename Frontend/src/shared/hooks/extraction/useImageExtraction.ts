@@ -222,6 +222,7 @@ export const useImageExtraction = () => {
           status: "Done",
           persistedJobId: persistence?.jobId,
           persistedFlatId: persistence?.flatId ?? null,
+          reviewCompleted: false,
           attributes: processedAttributesSync,
           discoveries: result.discoveries ?? [],
           apiTokensUsed: result.tokensUsed,
@@ -454,6 +455,155 @@ export const useImageExtraction = () => {
     [updateRows]
   );
 
+  const markRowReviewCompleted = useCallback(
+    (rowId: string, checked: boolean) => {
+      const targetRow = extractedRows.find((row) => row.id === rowId);
+      const eligible = !!targetRow && targetRow.status === 'Done' && !!targetRow.persistedJobId;
+
+      if (checked && !eligible) {
+        message.warning('This article can be marked done only after extraction is completed.');
+        return;
+      }
+
+      let previousReviewed: boolean | undefined;
+      let persistedJobId: string | undefined;
+
+      updateRows((prev) =>
+        prev.map((row) => {
+          if (row.id !== rowId) return row;
+          previousReviewed = row.reviewCompleted;
+          persistedJobId = row.persistedJobId;
+          return {
+            ...row,
+            reviewCompleted: checked,
+            updatedAt: new Date(),
+          };
+        })
+      );
+
+      if (!persistedJobId) {
+        message.error('Cannot mark as done before extraction is saved.');
+        updateRows((prev) =>
+          prev.map((row) =>
+            row.id === rowId
+              ? { ...row, reviewCompleted: previousReviewed }
+              : row
+          )
+        );
+        return;
+      }
+
+      const token = localStorage.getItem('authToken');
+      fetch(`${APP_CONFIG.api.baseURL}/user/extraction/history/flat/job/${encodeURIComponent(persistedJobId)}/review-complete`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ checked })
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorPayload = await response.json().catch(() => null);
+            throw new Error(errorPayload?.error || 'Failed to mark as done');
+          }
+          message.success('Marked as checked. Item moved to Products and Approver queue.');
+        })
+        .catch((error) => {
+          message.error(error instanceof Error ? error.message : 'Failed to mark as done');
+          updateRows((prev) =>
+            prev.map((row) =>
+              row.id === rowId
+                ? { ...row, reviewCompleted: previousReviewed }
+                : row
+            )
+          );
+        });
+    },
+    [extractedRows, updateRows]
+  );
+
+  const markRowsReviewCompleted = useCallback(
+    async (rowIds: string[], checked: boolean) => {
+      if (!Array.isArray(rowIds) || rowIds.length === 0) {
+        return { successCount: 0, failureCount: 0, skippedCount: 0 };
+      }
+
+      const token = localStorage.getItem('authToken');
+
+      const targetRows = extractedRows.filter((row) => rowIds.includes(row.id));
+      const eligibleRows = targetRows.filter((row) =>
+        row.status === 'Done' &&
+        !!row.persistedJobId &&
+        (checked ? !row.reviewCompleted : true)
+      );
+      const skippedCount = targetRows.length - eligibleRows.length;
+
+      const previousReviewMap = new Map<string, boolean | undefined>();
+      eligibleRows.forEach((row) => previousReviewMap.set(row.id, row.reviewCompleted));
+
+      const eligibleIds = new Set(eligibleRows.map((row) => row.id));
+
+      if (checked && eligibleRows.length === 0) {
+        message.warning('No eligible rows to mark done. Complete extraction first.');
+        return { successCount: 0, failureCount: 0, skippedCount: targetRows.length };
+      }
+
+      updateRows((prev) =>
+        prev.map((row) =>
+          eligibleIds.has(row.id)
+            ? {
+              ...row,
+              reviewCompleted: checked,
+              updatedAt: new Date()
+            }
+            : row
+        )
+      );
+
+      let successCount = 0;
+      let failureCount = 0;
+
+      await Promise.all(
+        eligibleRows.map(async (row) => {
+          try {
+            const response = await fetch(`${APP_CONFIG.api.baseURL}/user/extraction/history/flat/job/${encodeURIComponent(String(row.persistedJobId))}/review-complete`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify({ checked })
+            });
+
+            if (!response.ok) {
+              const errorPayload = await response.json().catch(() => null);
+              throw new Error(errorPayload?.error || 'Failed to mark as done');
+            }
+
+            successCount += 1;
+          } catch {
+            failureCount += 1;
+            updateRows((prev) =>
+              prev.map((item) =>
+                item.id === row.id
+                  ? {
+                    ...item,
+                    reviewCompleted: previousReviewMap.get(row.id),
+                    updatedAt: new Date()
+                  }
+                  : item
+              )
+            );
+          }
+        })
+      );
+
+      return { successCount, failureCount, skippedCount };
+    },
+    [extractedRows, updateRows]
+  );
+
   // Extract statistics from current rows
   const stats = useMemo(() => {
     const done = extractedRows.filter((r) => r.status === "Done").length;
@@ -495,6 +645,8 @@ export const useImageExtraction = () => {
     removeRow,
     clearAll,
     updateRowAttribute,
+    markRowReviewCompleted,
+    markRowsReviewCompleted,
     stats,
     performanceMetrics,
     extractionErrors,

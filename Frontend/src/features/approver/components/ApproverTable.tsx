@@ -123,6 +123,24 @@ interface EditableCellProps {
     options?: { label: string; value: string }[];
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+const persistNewValueToBackend = async (attributeKey: string, value: string) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        await fetch(`${API_BASE_URL}/user/attributes/by-key/${encodeURIComponent(attributeKey)}/values`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ shortForm: value, fullForm: value })
+        });
+    } catch {
+        // Non-critical
+    }
+};
+
 const EditableCell: React.FC<EditableCellProps> = ({
     title,
     editable,
@@ -135,6 +153,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
     ...restProps
 }) => {
     const [editing, setEditing] = useState(false);
+    const [selectSearch, setSelectSearch] = useState('');
     const inputRef = useRef<any>(null);
     const form = useContext(EditableContext)!;
 
@@ -146,13 +165,31 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
     const toggleEdit = () => {
         setEditing(!editing);
+        setSelectSearch('');
         form.setFieldsValue({ [dataIndex]: record[dataIndex] });
     };
 
     const save = async () => {
         try {
+            // If user typed something in the select search box without picking an option, use it
+            if (inputType === 'select' && selectSearch.trim()) {
+                form.setFieldsValue({ [dataIndex]: selectSearch.trim() });
+            }
+
             const values = await form.validateFields();
             toggleEdit();
+
+            // If the value is a custom one not in the options list, persist it to backend
+            if (inputType === 'select' && options.length > 0) {
+                const savedVal = values[dataIndex];
+                if (savedVal && typeof savedVal === 'string') {
+                    const exists = options.some(o => o.value.toLowerCase() === savedVal.toLowerCase());
+                    if (!exists) {
+                        persistNewValueToBackend(String(dataIndex), savedVal.trim());
+                    }
+                }
+            }
+
             handleSave({ ...record, ...values });
         } catch (errInfo) {
             console.log('Save failed:', errInfo);
@@ -182,9 +219,31 @@ const EditableCell: React.FC<EditableCellProps> = ({
                     <Select
                         ref={inputRef}
                         onBlur={save}
-                        onChange={save}
+                        onChange={(val) => { form.setFieldsValue({ [dataIndex]: val }); setSelectSearch(''); save(); }}
+                        onSearch={setSelectSearch}
                         style={{ width: '100%', minWidth: 100 }}
                         showSearch
+                        filterOption={(input, option) =>
+                            String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                        }
+                        popupRender={menu => (
+                            <div>
+                                {menu}
+                                {selectSearch.trim() && (
+                                    <div
+                                        style={{ padding: '6px 12px', borderTop: '1px solid #f0f0f0', cursor: 'pointer', color: '#1677ff', fontSize: 12 }}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            form.setFieldsValue({ [dataIndex]: selectSearch.trim() });
+                                            setSelectSearch('');
+                                            save();
+                                        }}
+                                    >
+                                        + Add "{selectSearch.trim()}" as new value
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     >
                         {options.map(opt => (
                             <Option key={opt.value} value={opt.value}>{opt.label}</Option>
