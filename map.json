@@ -92,6 +92,12 @@
   "API Name": "M_GSM"
  },
  {
+  "Sr no.": 19.5,
+  "Attributes": "weight",
+  "SAP NAME": "NET_WEIGHT",
+  "API Name": "NET_WEIGHT"
+ },
+ {
   "Sr no.": 20,
   "Attributes": "shade",
   "SAP NAME": "M_SHADE",
