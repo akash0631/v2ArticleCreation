@@ -26,6 +26,7 @@ import { auditLog, flushAuditLogsOnShutdown } from './middleware/auditLogger';
 // Services
 import { checkApiConfiguration } from './services/baseApi';
 import { cacheService } from './services/cacheService';
+import { mvgrMappingService } from './services/mvgrMappingService';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -200,56 +201,59 @@ app.use(notFound);
 // Error handling middleware
 app.use(errorHandler);
 
-// Check API configuration on startup
-const configCheck = checkApiConfiguration();
-if (!configCheck.configured) {
-  console.warn('⚠️  API Configuration Warning:');
-  console.warn(`   ${configCheck.message}`);
-  console.warn('   Suggestions:');
-  configCheck.suggestions.forEach(suggestion => {
-    console.warn(`   - ${suggestion}`);
-  });
-} else {
-  console.log('✅ API configuration looks good!');
-}
+// Async initialization and server start
+(async () => {
+  try {
+    // Initialize MVGR Mapping Service
+    await mvgrMappingService.initialize();
+    const mvgrStats = mvgrMappingService.getStats();
+    console.log(`✅ MVGR Mapping Service initialized:
+   - Macro MVGR: ${mvgrStats.macroMvgrCount} mappings
+   - Main MVGR: ${mvgrStats.mainMvgrCount} mappings
+   - Weave2: ${mvgrStats.weave2Count} mappings`);
 
-// Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 API available at: /api`);
-  console.log(`🏥 Health check: /api/health`);
-  console.log(`🔐 Security: Authentication & authorization enabled`);
-  console.log(`📊 Audit logging: ${process.env.ENABLE_AUDIT_LOGGING !== 'false' ? 'Enabled' : 'Disabled'}`);
+    // Check API configuration on startup
+    const configCheck = checkApiConfiguration();
+    if (!configCheck.configured) {
+      console.warn('⚠️  API Configuration Warning:');
+      console.warn(`   ${configCheck.message}`);
+      console.warn('   Suggestions:');
+      configCheck.suggestions.forEach(suggestion => {
+        console.warn(`   - ${suggestion}`);
+      });
+    } else {
+      console.log('✅ API configuration looks good!');
+    }
 
-  if (!isProduction) {
-    console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+    // Start server
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`   User:    POST /api/user/extract/*, GET /api/user/categories/*`);
+      console.log(`   Admin:   /api/admin/* (requires ADMIN role)`);
+      console.log(`\n⚠️  Note: Legacy routes /api/extract/*, /api/vlm/* require authentication`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('🔄 SIGTERM received, shutting down gracefully...');
+      await flushAuditLogsOnShutdown();
+      server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('\n🔄 SIGINT received, shutting down gracefully...');
+      await flushAuditLogsOnShutdown();
+      server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error('❌ Error during server initialization:', error);
+    process.exit(1);
   }
-
-  console.log(`\n📖 API Documentation:`);
-  console.log(`   Public:  POST /api/auth/login, POST /api/auth/verify`);
-  console.log(`   User:    POST /api/user/extract/*, GET /api/user/categories/*`);
-  console.log(`   Admin:   /api/admin/* (requires ADMIN role)`);
-  console.log(`\n⚠️  Note: Legacy routes /api/extract/*, /api/vlm/* require authentication`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🔄 SIGTERM received, shutting down gracefully...');
-  await flushAuditLogsOnShutdown();
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', async () => {
-  console.log('\n🔄 SIGINT received, shutting down gracefully...');
-  await flushAuditLogsOnShutdown();
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
+})();
 
 export default app;

@@ -224,13 +224,15 @@ export default function ApproverDashboard() {
             fabricMainMvgr: item.fabricMainMvgr,
             composition: item.composition,
             weave: item.weave,
+            macroMvgr: item.macroMvgr,
+            mainMvgr: item.mainMvgr,
+            mFab2: item.mFab2,
             gsm: item.gsm,
             finish: item.finish,
             shade: item.shade,
             weight: item.weight,
             lycra: item.lycra,
             yarn1: item.yarn1,
-            yarn2: item.yarn2,
 
             // Design / Styling
             colour: item.colour,
@@ -429,13 +431,39 @@ export default function ApproverDashboard() {
             <Col span={8}><Form.Item name="fabricMainMvgr" label="Fabric Main"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="composition" label="Composition"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="weave" label="Weave"><Input /></Form.Item></Col>
+            <Col span={8}>
+                <Form.Item name="macroMvgr" label="Macro MVGR">
+                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
+                        {attributes.find(a => a.key === 'MACRO_MVGR')?.allowedValues?.map(v => (
+                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            </Col>
+            <Col span={8}>
+                <Form.Item name="mainMvgr" label="Main MVGR">
+                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
+                        {attributes.find(a => a.key === 'MAIN_MVGR')?.allowedValues?.map(v => (
+                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            </Col>
+            <Col span={8}>
+                <Form.Item name="mFab2" label="M FAB 2">
+                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
+                        {attributes.find(a => a.key === 'M_FAB2')?.allowedValues?.map(v => (
+                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            </Col>
             <Col span={8}><Form.Item name="gsm" label="GSM"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="finish" label="Finish"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="shade" label="Shade"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="weight" label="G-Weight"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="lycra" label="Lycra"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="yarn1" label="Yarn 1"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="yarn2" label="Yarn 2"><Input /></Form.Item></Col>
 
             <Col span={24}><Typography.Title level={5}>Styling & Design</Typography.Title></Col>
             <Col span={8}><Form.Item name="colour" label="Color"><Input /></Form.Item></Col>

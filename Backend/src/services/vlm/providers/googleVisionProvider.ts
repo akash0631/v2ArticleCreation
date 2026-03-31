@@ -409,6 +409,37 @@ STEP 2: ZONE-BY-ZONE DETAILED INSPECTION
 │   • Texture visible? (smooth/textured/brushed/raw)
 │   • Denim rule: Do NOT use TWILL weave for denim/jeans (twill is for shirts/trousers only)
 │
+├─ MACRO MVGR (macro_mvgr) — VISUAL ONLY:
+│   • This is the BROAD fabric design/surface category visible on the garment
+│   • Ask: "What is the overall macro-level design or surface treatment of this fabric?"
+│   • Examples: Is it plain? Printed (AOP/chest print)? Structured (jacquard/stripe/check)?
+│   • ONLY return a value from the macro_mvgr allowed values list
+│   • This is a VISUAL attribute — look at the garment surface, NOT the board/tag
+│   • If the fabric surface shows no clear design category → return null
+│   • Do NOT guess; if unsure → null
+│
+├─ MAIN MVGR (main_mvgr) — VISUAL ONLY:
+│   • This is the SPECIFIC/DETAILED fabric design sub-category (more detailed than macro_mvgr)
+│   • Ask: "What is the exact specific design detail within the macro category?"
+│   • Examples: If macro = AOP (all over print), what specific type? (AOP_TRPL / AOP_ABST / AOP_GMTL etc.)
+│   • If macro = OD (over dyed), what variant? (OD_PLN / OD_OMBRE / OD_T&D etc.)
+│   • ONLY return a value from the main_mvgr allowed values list
+│   • main_mvgr must be CONSISTENT with macro_mvgr (same design family)
+│   • If macro_mvgr is PLN (plain) → main_mvgr should also be PLN
+│   • Do NOT output a main_mvgr value that contradicts the macro_mvgr value
+│   • If no specific sub-category matches → return null
+│
+├─ M_FAB2 (m_fab2) — VISUAL ONLY:
+│   • This is the FABRIC CONSTRUCTION / KNIT STRUCTURE of the fabric itself
+│   • Ask: "How is this fabric constructed at the structural level?"
+│   • Examples: Is it a plain knit? Jacquard? Loop knit? Mesh? Flat-back?
+│   • Applies mainly to KNIT garments (t-shirts, sweatshirts, activewear, knitwear)
+│   • ONLY return a value from the m_fab2 allowed values list
+│   • This is different from weave (which is woven structure) — m_fab2 is about knit construction
+│   • If garment is WOVEN (shirts, trousers, denim) → m_fab2 is usually null
+│   • If knit structure is not clearly visible → return null
+│   • Do NOT guess; exact visual match or null
+│
 ├─ EMBELLISHMENTS:
 │   • Embroidery? Where and what design?
 │   • Patches? Type and location?
@@ -492,6 +523,38 @@ WASH RULE (CRITICAL):
 • If unsure, return null
 • If the garment is clearly denim and no wash effect is visible, use RINSE
 
+MACRO MVGR RULE (CRITICAL):
+• macro_mvgr = the broad visual design category of the fabric surface (e.g., PLN=plain, PRT=print, AOP=all-over-print, OD=over-dyed, STRT=structure, JAQ=jacquard)
+• VISUAL ONLY — read from the garment surface appearance, NOT from the board/tag
+• Use ONLY values from the macro_mvgr allowed values list — NO free text, NO generic terms
+• If the garment surface is clearly one solid colour with no print/texture/structure → PLN
+• If there is a print covering the whole garment → AOP
+• If there is a chest/placement print only → PRT_CHEST (if in allowed values)
+• If unsure or no match → null
+• Do NOT use values from main_mvgr or m_fab2 lists for this field
+
+MAIN MVGR RULE (CRITICAL):
+• main_mvgr = the specific/detailed sub-type of the macro design (e.g., AOP_TRPL, OD_OMBRE, STRT, JAQ)
+• VISUAL ONLY — examine the fabric surface in detail
+• main_mvgr MUST be consistent with macro_mvgr:
+  - If macro = PLN → main = PLN (or null)
+  - If macro = AOP → main must be an AOP_* variant
+  - If macro = OD → main must be an OD_* variant
+  - If macro = STRT → main = STRT
+  - If macro = JAQ → main = JAQ
+• NEVER output a main_mvgr that contradicts macro_mvgr
+• Use ONLY values from the main_mvgr allowed values list
+• If no exact sub-category match is visible → null
+
+M_FAB2 RULE (CRITICAL):
+• m_fab2 = the fabric knit construction/structure (e.g., STRT=structure knit, JAQ=jacquard knit, LP_KNIT=loop knit, MESH=mesh, 1X1=1x1 rib)
+• VISUAL ONLY — look at the fabric texture and knit structure closely
+• Applies ONLY to KNIT garments (t-shirts, polos, sweatshirts, hoodies, knitwear, activewear)
+• For WOVEN garments (formal shirts, trousers, denim) → m_fab2 = null
+• If the knit structure is not clearly visible or identifiable → null
+• Use ONLY values from the m_fab2 allowed values list — NO free text
+• Do NOT confuse fabric construction (m_fab2) with fabric design (macro_mvgr/main_mvgr)
+
 PATCH TYPE RULE (CRITICAL):
 • Perform a close-up inspection of the patch area (mentally zoom/crop the patch) before deciding patch type
 • Read any characters on the patch like OCR; prioritize detecting digits even if text is small or partially visible
@@ -539,6 +602,21 @@ EXAMPLES OF CORRECT MATCHING:
 
 ❌ WRONG: "rawValue": "five pocket" (not exact match)
 ✅ CORRECT: "rawValue": "PATCH POCKET" (exact match from POCKET_TYPE allowed values)
+
+❌ WRONG: macro_mvgr = "ALL OVER PRINT" (free text, not a code)
+✅ CORRECT: macro_mvgr = "AOP" (exact code from macro_mvgr allowed values)
+
+❌ WRONG: main_mvgr = "AOP_ABSTRACT" (spelling wrong)
+✅ CORRECT: main_mvgr = "AOP_ABST" (exact code from main_mvgr allowed values)
+
+❌ WRONG: main_mvgr = "STRT" when macro_mvgr = "AOP" (contradicts macro)
+✅ CORRECT: macro_mvgr = "STRT", main_mvgr = "STRT" (consistent pairing)
+
+❌ WRONG: m_fab2 = "plain knit" (free text, not a code)
+✅ CORRECT: m_fab2 = "JAQ" (jacquard knit, exact code from m_fab2 allowed values)
+
+❌ WRONG: m_fab2 filled for a woven denim jeans (woven garment → null)
+✅ CORRECT: m_fab2 = null (woven garments do not have knit structure)
 STEP 5: QUALITY VERIFICATION (Self-check)
 ├─ Did I extract SPECIFIC values (not labels)?
 ├─ Did I avoid echoing attribute names?

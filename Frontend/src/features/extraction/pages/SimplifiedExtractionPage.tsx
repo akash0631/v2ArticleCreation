@@ -11,9 +11,9 @@
  * This runs alongside the original ExtractionPage for rollback capability.
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
-  Layout, Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image, Tag, message
+  Layout, Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
 } from "antd";
 import {
   ClearOutlined, DownloadOutlined,
@@ -67,9 +67,11 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'rate', label: 'Rate/Price', type: 'text' },
   { key: 'size', label: 'Size', type: 'text' },
   { key: 'yarn_01', label: 'Yarn 1', type: 'select' },
-  { key: 'yarn_02', label: 'Yarn 2', type: 'select' },
   { key: 'fabric_main_mvgr', label: 'Fabric Main MVGR', type: 'select' },
   { key: 'weave', label: 'Weave', type: 'select' },
+  { key: 'macro_mvgr', label: 'Macro MVGR', type: 'select' },
+  { key: 'main_mvgr', label: 'Main MVGR', type: 'select' },
+  { key: 'm_fab2', label: 'M FAB 2', type: 'select' },
   { key: 'composition', label: 'Composition', type: 'select' },
   { key: 'finish', label: 'Finish', type: 'select' },
   { key: 'gsm', label: 'GSM', type: 'select' },
@@ -155,7 +157,6 @@ const SimplifiedExtractionPage = () => {
   const [selectedImage, setSelectedImage] = useState<{ url: string; name?: string } | null>(null);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [manualNavigation, setManualNavigation] = useState(false);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const creatorScope = getLocalUserScope();
 
   const {
@@ -167,32 +168,8 @@ const SimplifiedExtractionPage = () => {
     extractAllPending,
     clearAll,
     updateRowAttribute,
-    markRowReviewCompleted,
-    markRowsReviewCompleted,
     removeRow
   } = useImageExtraction();
-
-  const reviewedCount = useMemo(() => extractedRows.filter((row) => row.reviewCompleted).length, [extractedRows]);
-  const eligibleForReviewCount = useMemo(
-    () => extractedRows.filter((row) => row.status === 'Done' && !!row.persistedJobId).length,
-    [extractedRows]
-  );
-
-  const handleMarkSelectedDone = useCallback(async () => {
-    const targetIds = selectedRowKeys.map(String);
-    const result = await markRowsReviewCompleted(targetIds, true);
-    if (result.successCount > 0) message.success(`Marked ${result.successCount} selected article(s) as done.`);
-    if (result.failureCount > 0) message.error(`${result.failureCount} selected article(s) failed to mark.`);
-    if (result.skippedCount > 0) message.info(`${result.skippedCount} selected row(s) were skipped (not ready/already done).`);
-  }, [selectedRowKeys, markRowsReviewCompleted]);
-
-  const handleMarkAllDone = useCallback(async () => {
-    const targetIds = extractedRows.map((row) => row.id);
-    const result = await markRowsReviewCompleted(targetIds, true);
-    if (result.successCount > 0) message.success(`Marked ${result.successCount} article(s) as done.`);
-    if (result.failureCount > 0) message.error(`${result.failureCount} article(s) failed to mark.`);
-    if (result.skippedCount > 0) message.info(`${result.skippedCount} row(s) were skipped (not ready/already done).`);
-  }, [extractedRows, markRowsReviewCompleted]);
 
   useEffect(() => {
     const saved = localStorage.getItem('simplifiedExtractionState');
@@ -671,34 +648,15 @@ const SimplifiedExtractionPage = () => {
                     </Text>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <Tag color="green">Checked: {reviewedCount}/{eligibleForReviewCount}</Tag>
-                    <Space>
-                      <Button
-                        onClick={handleMarkSelectedDone}
-                        disabled={selectedRowKeys.length === 0}
-                      >
-                        Mark Selected Done
-                      </Button>
-                      <Button
-                        onClick={handleMarkAllDone}
-                        disabled={eligibleForReviewCount === 0 || reviewedCount >= eligibleForReviewCount}
-                      >
-                        Mark All Done
-                      </Button>
-                    </Space>
-                  </div>
-
                   <AttributeTable
                     extractedRows={extractedRows}
                     schema={simplifiedSchema}
-                    selectedRowKeys={selectedRowKeys}
-                    onSelectionChange={setSelectedRowKeys}
+                    selectedRowKeys={[]}
+                    onSelectionChange={() => { }}
                     onAttributeChange={updateRowAttribute}
                     onDeleteRow={removeRow}
                     onImageClick={handleImageClick}
                     onReExtract={() => { }}
-                    onMarkReviewComplete={markRowReviewCompleted}
                     onAddToSchema={handleAddToSchema}
                     isExtracting={isExtracting}
                   />

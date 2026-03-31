@@ -38,6 +38,13 @@ export interface ExtractedRowEnhanced extends ExtractedRow {
   queuePosition?: number;
   retryCount?: number;
   discoveries?: DiscoveredAttribute[];
+  // New MVGR and Weave fields
+  macroMvgr?: string;
+  macroMvgrFullForm?: string;
+  mainMvgr?: string;
+  mainMvgrFullForm?: string;
+  mFab2?: string;
+  mFab2FullForm?: string;
 }
 
 export type SchemaItem = AttributeDefinition;

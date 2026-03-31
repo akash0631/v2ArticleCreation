@@ -68,8 +68,10 @@ export interface ApproverItem {
     year: string | null;
     articleType: string | null;
     yarn1: string | null;
-    yarn2: string | null;
     weave: string | null;
+    macroMvgr: string | null;
+    mainMvgr: string | null;
+    mFab2: string | null;
     finish: string | null;
     shade: string | null;
     weight: string | null;
@@ -448,10 +450,12 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
         { title: 'Composition', dataIndex: 'composition', key: 'composition', width: 150, editable: true },
         { title: 'GSM', dataIndex: 'gsm', key: 'gsm', width: 80, editable: true },
         { title: 'Weave', dataIndex: 'weave', key: 'weave', width: 100, editable: true },
+        { title: 'Macro MVGR', dataIndex: 'macroMvgr', key: 'macroMvgr', width: 130, editable: true },
+        { title: 'Main MVGR', dataIndex: 'mainMvgr', key: 'mainMvgr', width: 130, editable: true },
+        { title: 'M FAB 2', dataIndex: 'mFab2', key: 'mFab2', width: 120, editable: true },
 
         // Extended Fabric Details
         { title: 'Yarn 1', dataIndex: 'yarn1', key: 'yarn1', width: 120, editable: true },
-        { title: 'Yarn 2', dataIndex: 'yarn2', key: 'yarn2', width: 120, editable: true },
         { title: 'Finish', dataIndex: 'finish', key: 'finish', width: 120, editable: true },
         { title: 'Shade', dataIndex: 'shade', key: 'shade', width: 120, editable: true },
         { title: 'G-Weight', dataIndex: 'weight', key: 'weight', width: 120, editable: true },
@@ -580,6 +584,9 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             if (colKey === 'POCKETTYPE' && key === 'POCKET_TYPE') return true;
             if (colKey === 'CHILD_BELT' && key === 'CHILD_BELT_DETAIL') return true;
             if (colKey === 'CHILDBELT' && key === 'CHILD_BELT_DETAIL') return true; // Handle camelCase variations just in case
+            if (colKey === 'MACROMVGR' && key === 'MACRO_MVGR') return true;
+            if (colKey === 'MAINMVGR' && key === 'MAIN_MVGR') return true;
+            if (colKey === 'MFAB2' && key === 'M_FAB2') return true;
 
             return false;
         });
@@ -624,7 +631,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
 
                 // Dropdown Logic
                 let inputType = hasOptions ? 'select' : 'text';
-                let options = hasOptions ? attribute.allowedValues.map(v => ({ label: v.fullForm, value: v.shortForm })) : [];
+                let options = hasOptions ? attribute.allowedValues.map(v => ({ label: v.shortForm, value: v.shortForm })) : [];
 
                 if (col.dataIndex === 'subDivision') {
                     inputType = 'select';

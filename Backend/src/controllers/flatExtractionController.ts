@@ -113,9 +113,7 @@ export class FlatExtractionController {
                 return;
             }
 
-            const where: any = {
-                extractionStatus: 'COMPLETED'
-            };
+            const where: any = {};
 
             // RBAC Filtering Logic (creator self-only, others as per scope)
             if (role === 'CREATOR' || role === 'PO_COMMITTEE') {

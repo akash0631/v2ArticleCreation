@@ -397,9 +397,6 @@ export class ApproverController {
 
             const where: any = {};
 
-            // Only rows reviewed/checked by extractor are eligible for approver workflow
-            where.extractionStatus = 'COMPLETED';
-
             // RBAC: Enforce scope by role
             const role = String(req.user?.role || '');
             if (role === 'ADMIN') {

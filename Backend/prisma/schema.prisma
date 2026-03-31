@@ -240,9 +240,16 @@ model ExtractionResultFlat {
   yarn2                       String?       @map("yarn_2") @db.VarChar(100)
   fabricMainMvgr              String?       @map("fabric_main_mvgr") @db.VarChar(100)
   weave                       String?       @db.VarChar(100)
+  weaveFullForm               String?       @map("weave_full_form") @db.VarChar(200)
   composition                 String?       @db.VarChar(200)
   finish                      String?       @db.VarChar(100)
   gsm                         String?       @db.VarChar(50)
+  macroMvgr                   String?       @map("macro_mvgr") @db.VarChar(100)
+  macroMvgrFullForm           String?       @map("macro_mvgr_full_form") @db.VarChar(200)
+  mainMvgr                    String?       @map("main_mvgr") @db.VarChar(100)
+  mainMvgrFullForm            String?       @map("main_mvgr_full_form") @db.VarChar(200)
+  mFab2                       String?       @map("m_fab2") @db.VarChar(100)
+  mFab2FullForm               String?       @map("m_fab2_full_form") @db.VarChar(200)
   shade                       String?       @db.VarChar(100)
   weight                      String?       @db.VarChar(100)
   lycra                       String?       @db.VarChar(50)
@@ -311,6 +318,19 @@ model ExtractionResultFlat {
   @@index([extractionDate])
   @@index([createdAt])
   @@map("extraction_results_flat")
+}
+
+/// MVGR Lookup: Reference table for Macro MVGR, Main MVGR, and M_FAB2 codes
+model MvgrLookup {
+  id        Int      @id @default(autoincrement())
+  type      String   @db.VarChar(20)   // 'MACRO_MVGR' | 'MAIN_MVGR' | 'M_FAB2'
+  code      String   @db.VarChar(100)
+  fullForm  String   @map("full_form") @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([type, code])
+  @@index([type, code])
+  @@map("mvgr_lookup")
 }
 
 /// User: Admin and regular users

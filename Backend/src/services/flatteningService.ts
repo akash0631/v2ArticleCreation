@@ -1,6 +1,7 @@
 import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { prismaClient as prisma } from '../utils/prisma';
 import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
+import { mvgrMappingService } from './mvgrMappingService';
 
 export class FlatteningService {
     private extractNumericWeight(value: unknown): string | null {
@@ -107,7 +108,7 @@ export class FlatteningService {
             imageName, // UUID-based filename for internal use
             imageUrl: job.imageUrl,
             articleNumber, // Original uploaded filename
-            extractionStatus: job.status === 'COMPLETED' ? 'REVIEW_PENDING' : job.status,
+            extractionStatus: job.status,
             aiModel: job.aiModel,
             avgConfidence: job.avgConfidence,
             processingTimeMs: job.processingTimeMs,
@@ -134,6 +135,13 @@ export class FlatteningService {
             yarn2: resultsMap.get('yarn_02'),
             fabricMainMvgr: resultsMap.get('fabric_main_mvgr'),
             weave: resultsMap.get('weave'),
+            weaveFullForm: null, // weave has no lookup table (free text)
+            macroMvgr: resultsMap.get('macro_mvgr'),
+            macroMvgrFullForm: mvgrMappingService.getMacroMvgrFullForm(resultsMap.get('macro_mvgr')),
+            mainMvgr: resultsMap.get('main_mvgr'),
+            mainMvgrFullForm: mvgrMappingService.getMainMvgrFullForm(resultsMap.get('main_mvgr')),
+            mFab2: resultsMap.get('m_fab2'),
+            mFab2FullForm: mvgrMappingService.getWeave2FullForm(resultsMap.get('m_fab2')),
             composition: resultsMap.get('composition'),
             finish: resultsMap.get('finish'),
             gsm: resultsMap.get('gsm') || resultsMap.get('gram_per_square_meter'),
