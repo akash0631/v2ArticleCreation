@@ -23,4 +23,7 @@ router.post('/approve', ApproverController.approveItems);
 // Reject selected items
 router.post('/reject', ApproverController.rejectItems);
 
+// Refresh image URL (fixes expired signed URLs)
+router.get('/image/:id', ApproverController.getImageUrl);
+
 export default router;

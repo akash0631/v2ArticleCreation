@@ -93,6 +93,23 @@ export class StorageService {
         return code.includes('signaturedoesnotmatch') || message.includes('signaturedoesnotmatch');
     }
 
+    private isAuthError(error: any): boolean {
+        const code = String(error?.Code || error?.code || '').toLowerCase();
+        const message = String(error?.message || '').toLowerCase();
+        const status = Number(error?.statusCode || error?.$metadata?.httpStatusCode || 0);
+        return (
+            status === 401 ||
+            status === 403 ||
+            code.includes('accessdenied') ||
+            code.includes('invalidaccesskeyid') ||
+            code.includes('signaturenotmatch') ||
+            code.includes('signaturedoesnotmatch') ||
+            message.includes('access denied') ||
+            message.includes('forbidden') ||
+            message.includes('invalid access key')
+        );
+    }
+
     private async putApprovedObject(
         client: S3Client,
         bucket: string,
@@ -282,12 +299,15 @@ export class StorageService {
                     mimeType,
                     safeArticleNumber
                 );
+                console.log(`✅ Approved image uploaded to ${this.approvedBucket}: ${key}`);
             } catch (primaryError: any) {
-                if (!this.isSignatureMismatchError(primaryError) || this.approvedS3Client === this.s3Client) {
+                // Retry with primary credentials on any auth/permission error
+                // (approved-bucket API key may not have write access)
+                if (!this.isAuthError(primaryError) || this.approvedS3Client === this.s3Client) {
                     throw primaryError;
                 }
 
-                console.warn('⚠️ Approved bucket signature mismatch with approved credentials. Retrying with primary R2 credentials.');
+                console.warn(`⚠️ Approved bucket upload failed with auth error (${primaryError?.Code || primaryError?.message}). Retrying with primary R2 credentials.`);
                 await this.putApprovedObject(
                     this.s3Client,
                     this.approvedBucket,
@@ -296,6 +316,7 @@ export class StorageService {
                     mimeType,
                     safeArticleNumber
                 );
+                console.log(`✅ Approved image uploaded to ${this.approvedBucket} (via primary credentials): ${key}`);
             }
 
             let url: string;

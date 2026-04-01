@@ -5,6 +5,7 @@ import type { FormInstance } from 'antd/es/form';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import { MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
+import { APP_CONFIG } from '../../../constants/app/config';
 import './ApproverTable.css';
 
 const { Text } = Typography;
@@ -290,6 +291,26 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
 }) => {
     const [remarksModalOpen, setRemarksModalOpen] = useState(false);
     const [activeRemarks, setActiveRemarks] = useState('');
+    const [refreshedUrls, setRefreshedUrls] = useState<Record<string, string>>({});
+    const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
+
+    const handleImageError = async (id: string) => {
+        if (failedIds.has(id)) return; // already tried, don't retry again
+        setFailedIds(prev => new Set(prev).add(id));
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/image/${id}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data?.url) {
+                setRefreshedUrls(prev => ({ ...prev, [id]: data.url }));
+            }
+        } catch {
+            // silently ignore — placeholder stays
+        }
+    };
 
     const components = {
         body: {
@@ -306,17 +327,19 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             fixed: 'left' as const,
             render: (_: unknown, row: ApproverItem) => (
                 <div style={{ width: 64, height: 64, borderRadius: 8, overflow: 'hidden', background: '#f5f5f5' }}>
-                    {row.imageUrl ? (
+                    {row.imageUrl && !failedIds.has(row.id) || refreshedUrls[row.id] ? (
                         <Image
-                            src={getImageUrl(row.imageUrl)}
+                            src={getImageUrl(refreshedUrls[row.id] || row.imageUrl!)}
                             alt={row.imageName || 'Product'}
                             width={64}
                             height={64}
                             style={{ objectFit: 'cover', cursor: 'pointer' }}
                             preview={{
-                                src: getImageUrl(row.imageUrl),
+                                src: getImageUrl(refreshedUrls[row.id] || row.imageUrl!),
                                 mask: <span style={{ fontSize: 10 }}>👁 View</span>,
                             }}
+                            onError={() => handleImageError(row.id)}
+                            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
                         />
                     ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

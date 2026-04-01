@@ -543,6 +543,7 @@ export class ApproverController {
                 'patchesType', 'embroidery', 'embroideryType', 'wash', 'fatherBelt', 'childBelt',
                 'referenceArticleNumber', 'referenceArticleDescription',
                 // New business fields
+                'macroMvgr', 'mainMvgr', 'mFab2',
                 'vendorCode', 'mrp', 'mcCode', 'segment', 'season',
                 'hsnTaxCode', 'articleDescription', 'fashionGrid', 'year', 'articleType'
             ];
@@ -839,11 +840,13 @@ export class ApproverController {
             // Phase 2: Upload approved image only after article creation is persisted.
             await Promise.all(finalizedSyncResults.map(async (syncResult: any) => {
                 if (!syncResult.success || !syncResult.sapArticleNumber) {
+                    console.log(`⏭ Skipping approved image upload for ${syncResult.id}: success=${syncResult.success}, articleNumber=${syncResult.sapArticleNumber || 'none'}`);
                     return null;
                 }
 
                 const approvedItem = approvedItemById.get(syncResult.id);
                 if (!approvedItem?.imageUrl) {
+                    console.warn(`⚠️ Approved image upload skipped for ${syncResult.id}: no source imageUrl in DB`);
                     await prisma.extractionResultFlat.update({
                         where: { id: syncResult.id },
                         data: {
@@ -854,6 +857,7 @@ export class ApproverController {
                 }
 
                 try {
+                    console.log(`📦 Copying approved image for article ${syncResult.sapArticleNumber} from source to article-master bucket...`);
                     const approvedImageUpload = await storageService.uploadApprovedImageFromSourceUrl(
                         String(approvedItem.imageUrl),
                         String(syncResult.sapArticleNumber)
@@ -865,8 +869,10 @@ export class ApproverController {
                             imageUrl: approvedImageUpload.url
                         }
                     });
+                    console.log(`✅ Approved image saved to article-master: ${approvedImageUpload.url}`);
                     return null;
                 } catch (error: any) {
+                    console.error(`❌ Approved image upload failed for ${syncResult.id}:`, error?.message);
                     await prisma.extractionResultFlat.update({
                         where: { id: syncResult.id },
                         data: {
@@ -944,6 +950,74 @@ export class ApproverController {
         } catch (error) {
             console.error('Error rejecting items:', error);
             return res.status(500).json({ error: 'Failed to reject items' });
+        }
+    }
+
+    // Refresh image URL for a flat record — fixes expired signed URLs
+    static async getImageUrl(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+
+            const record = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: { imageUrl: true }
+            });
+
+            if (!record?.imageUrl) {
+                return res.status(404).json({ error: 'No image found for this record' });
+            }
+
+            const storedUrl = record.imageUrl;
+
+            // If it's already a permanent public URL, return it as-is
+            const publicBase = (process.env.R2_PUBLIC_URL_BASE || '').replace(/\/$/, '');
+            const approvedBase = (process.env.APPROVED_R2_PUBLIC_URL_BASE || publicBase).replace(/\/$/, '');
+
+            if (
+                (publicBase && storedUrl.startsWith(publicBase)) ||
+                (approvedBase && storedUrl.startsWith(approvedBase))
+            ) {
+                return res.json({ url: storedUrl });
+            }
+
+            // Extract the object key from the stored URL (works for signed & public R2 URLs)
+            let key: string | null = null;
+            try {
+                const parsed = new URL(storedUrl);
+                // Signed URL path: /<bucket>/<key> or just /<key>
+                let pathname = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
+                const bucket = process.env.R2_BUCKET_NAME || '';
+                if (bucket && pathname.startsWith(bucket + '/')) {
+                    pathname = pathname.slice(bucket.length + 1);
+                }
+                key = pathname || null;
+            } catch {
+                key = null;
+            }
+
+            if (!key) {
+                // Can't reconstruct — return whatever is stored
+                return res.json({ url: storedUrl });
+            }
+
+            // Build a fresh public URL if base is configured, else generate a new signed URL
+            let freshUrl: string;
+            if (publicBase) {
+                freshUrl = `${publicBase}/${key}`;
+            } else {
+                freshUrl = await storageService.getSignedUrl(key, 604800);
+            }
+
+            // Persist the fresh URL so future loads are instant
+            await prisma.extractionResultFlat.update({
+                where: { id },
+                data: { imageUrl: freshUrl }
+            });
+
+            return res.json({ url: freshUrl });
+        } catch (error) {
+            console.error('Error refreshing image URL:', error);
+            return res.status(500).json({ error: 'Failed to refresh image URL' });
         }
     }
 }
