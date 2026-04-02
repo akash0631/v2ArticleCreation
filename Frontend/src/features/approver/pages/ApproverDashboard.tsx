@@ -74,6 +74,15 @@ export default function ApproverDashboard() {
     const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
     const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
 
+    // Derived: user's assigned divisions/sub-divisions (parsed from their profile)
+    const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
+    const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
+
+    // Show division filter if non-admin user has more than one division assigned
+    const showDivisionFilter = user?.role !== 'ADMIN' && userAssignedDivisions.length > 1;
+    // Show sub-division filter if non-admin user has more than one sub-division assigned
+    const showSubDivisionFilter = user?.role !== 'ADMIN' && userAssignedSubDivisions.length > 1;
+
     useEffect(() => {
         const userStr = localStorage.getItem('user');
         if (userStr) {
@@ -175,7 +184,7 @@ export default function ApproverDashboard() {
             result = result.filter(item => statusFilter.includes(item.approvalStatus || ''));
         }
 
-        // Division filter (ADMIN only — non-admins don't see this dropdown)
+        // Division filter (admin: all divisions; non-admin: only their assigned divisions when >1)
         if (divisionFilter !== 'ALL') {
             const divisionVariants = getDivisionVariants(divisionFilter);
             result = result.filter(item =>
@@ -183,7 +192,7 @@ export default function ApproverDashboard() {
             );
         }
 
-        // Sub-division filter (ADMIN only)
+        // Sub-division filter (admin: all sub-divisions; non-admin: only their assigned sub-divisions when >1)
         if (subDivisionFilter !== 'ALL') {
             result = result.filter(item =>
                 normalizeText(item.subDivision) === normalizeText(subDivisionFilter)
@@ -632,6 +641,43 @@ export default function ApproverDashboard() {
                                 <Option value="ALL">All Statuses</Option>
                             </Select>
                         </Col>
+
+                        {/* Non-admin: show division filter if user has multiple divisions */}
+                        {showDivisionFilter && (
+                            <Col xs={24} sm={8} md={4}>
+                                <Select
+                                    style={{ width: '100%' }}
+                                    placeholder="Division"
+                                    value={divisionFilter}
+                                    onChange={(val) => {
+                                        setDivisionFilter(val);
+                                        setSubDivisionFilter('ALL');
+                                    }}
+                                >
+                                    <Option value="ALL">All Divisions</Option>
+                                    {userAssignedDivisions.map(d => (
+                                        <Option key={d} value={d}>{formatDivisionLabel(d)}</Option>
+                                    ))}
+                                </Select>
+                            </Col>
+                        )}
+
+                        {/* Non-admin: show sub-division filter if user has multiple sub-divisions */}
+                        {showSubDivisionFilter && (
+                            <Col xs={24} sm={8} md={4}>
+                                <Select
+                                    style={{ width: '100%' }}
+                                    placeholder="Sub-Division"
+                                    value={subDivisionFilter}
+                                    onChange={setSubDivisionFilter}
+                                >
+                                    <Option value="ALL">All Sub-Divs</Option>
+                                    {userAssignedSubDivisions.map(sd => (
+                                        <Option key={sd} value={sd}>{sd}</Option>
+                                    ))}
+                                </Select>
+                            </Col>
+                        )}
 
                         {/* Admin Filters */}
                         {user?.role === 'ADMIN' && (

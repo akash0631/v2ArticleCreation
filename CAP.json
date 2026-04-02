@@ -1,0 +1,541 @@
+
+ {
+  "Weave": "INL",
+  "Weave full form": "INTERLOCK"
+ },
+ {
+  "Weave": "SJ",
+  "Weave full form": "SINGLE JERSY"
+ },
+ {
+  "Weave": "WFL",
+  "Weave full form": "WAFFEL"
+ },
+ {
+  "Weave": "RIB",
+  "Weave full form": "RIB"
+ },
+ {
+  "Weave": "FLC",
+  "Weave full form": "FLEECE"
+ },
+ {
+  "Weave": "LFR",
+  "Weave full form": "SEERSUCKER"
+ },
+ {
+  "Weave": "PIQ",
+  "Weave full form": "PIQUE"
+ },
+ {
+  "Weave": "PCRN",
+  "Weave full form": "POPCORN"
+ },
+ {
+  "Weave": "TWL",
+  "Weave full form": "TWILL"
+ },
+ {
+  "Weave": "STN",
+  "Weave full form": "SATIN"
+ },
+ {
+  "Weave": "CREPE",
+  "Weave full form": "CREPE"
+ },
+ {
+  "Weave": "OXF",
+  "Weave full form": "OXFORD"
+ },
+ {
+  "Weave": "DBY",
+  "Weave full form": "DOBBY"
+ },
+ {
+  "Weave": "JAQ",
+  "Weave full form": "JAQUARD"
+ },
+ {
+  "Weave": "LNO",
+  "Weave full form": "LENO"
+ },
+ {
+  "Weave": "FL_KNIT",
+  "Weave full form": "FLAT KNIT"
+ },
+ {
+  "Weave": "D_CLTH",
+  "Weave full form": "DOUBLE CLOTH"
+ },
+ {
+  "Weave": "FUR",
+  "Weave full form": "FUR"
+ },
+ {
+  "Weave": "P_FLC",
+  "Weave full form": "POLAR FLEECE"
+ },
+ {
+  "Weave": "VELR",
+  "Weave full form": "VELLORE"
+ },
+ {
+  "Weave": "VLV",
+  "Weave full form": "VELVET"
+ },
+ {
+  "Weave": "DTY",
+  "Weave full form": "DTY"
+ },
+ {
+  "Weave": "RYN",
+  "Weave full form": "RAYON"
+ },
+ {
+  "Weave": "MOD",
+  "Weave full form": "MODAL"
+ },
+ {
+  "Weave": "DUPN",
+  "Weave full form": "DUPION"
+ },
+ {
+  "Weave": "SIMR",
+  "Weave full form": "CASHMERE"
+ },
+ {
+  "Weave": "PASHMINA",
+  "Weave full form": "PASHMINA"
+ },
+ {
+  "Weave": "SWD",
+  "Weave full form": "SUEDE"
+ },
+ {
+  "Weave": "TNCL",
+  "Weave full form": "TENCIL"
+ },
+ {
+  "Weave": "ROMA",
+  "Weave full form": "ROMA"
+ },
+ {
+  "Weave": "OTMN",
+  "Weave full form": "AUTOMAN"
+ },
+ {
+  "Weave": "SCOBA",
+  "Weave full form": "SCOOBA"
+ },
+ {
+  "Weave": "CAM",
+  "Weave full form": "CAMBRIC"
+ },
+ {
+  "Weave": "VOIL",
+  "Weave full form": "VOIL"
+ },
+ {
+  "Weave": "POP",
+  "Weave full form": "POPLIN"
+ },
+ {
+  "Weave": "DBY_SLUB",
+  "Weave full form": "CHAMBRAY"
+ },
+ {
+  "Weave": "FLFL",
+  "Weave full form": "FILAFIL"
+ },
+ {
+  "Weave": "SLK_DNM",
+  "Weave full form": "SILK DENIM"
+ },
+ {
+  "Weave": "MONO",
+  "Weave full form": "MONO"
+ },
+ {
+  "Weave": "SHRN",
+  "Weave full form": "SHIRIN"
+ },
+ {
+  "Weave": "DFDL",
+  "Weave full form": "DAFFODIL"
+ },
+ {
+  "Weave": "HRY",
+  "Weave full form": "HAIRY"
+ },
+ {
+  "Weave": "BUTTER_LOVE",
+  "Weave full form": "BUTTERLOVE"
+ },
+ {
+  "Weave": "SHRPA",
+  "Weave full form": "SHERPA"
+ },
+ {
+  "Weave": "V_RIB",
+  "Weave full form": "VERIGATED RIB"
+ },
+ {
+  "Weave": "BOND",
+  "Weave full form": "BONDED"
+ },
+ {
+  "Weave": "GGT",
+  "Weave full form": "GEORGETTE"
+ },
+ {
+  "Weave": "CHF",
+  "Weave full form": "CHIFFON"
+ },
+ {
+  "Weave": "BBL",
+  "Weave full form": "BUBBLE SOFT"
+ },
+ {
+  "Weave": "SUPER_SOFT",
+  "Weave full form": "SUPER SOFT"
+ },
+ {
+  "Weave": "TPU",
+  "Weave full form": "THERMOPLASTIC POLYURETHANE FABRIC."
+ },
+ {
+  "Weave": "NEXA",
+  "Weave full form": "NEXA"
+ },
+ {
+  "Weave": "MUFFIN",
+  "Weave full form": "MUFFIN"
+ },
+ {
+  "Weave": "ZARA_DBY",
+  "Weave full form": "ZARA DOBBY"
+ },
+ {
+  "Weave": "DRF",
+  "Weave full form": "DRI-FIT"
+ },
+ {
+  "Weave": "COD",
+  "Weave full form": "CORDUROY"
+ },
+ {
+  "Weave": "VIS",
+  "Weave full form": "VISCOSE"
+ },
+ {
+  "Weave": "TRC",
+  "Weave full form": "TRICOT"
+ },
+ {
+  "Weave": "RBSTP",
+  "Weave full form": "RIBS STOP"
+ },
+ {
+  "Weave": "B_EYE",
+  "Weave full form": "BIRD'S  EYE"
+ },
+ {
+  "Weave": "FK_CTN",
+  "Weave full form": "FAKE COTTON"
+ },
+ {
+  "Weave": "PU",
+  "Weave full form": "POLYURETHANE."
+ },
+ {
+  "Weave": "H_D",
+  "Weave full form": "HIGH DENSITY"
+ },
+ {
+  "Weave": "BTR_NS",
+  "Weave full form": "BUTTER NS"
+ },
+ {
+  "Weave": "CHN_BND",
+  "Weave full form": "CHINA BONDING"
+ },
+ {
+  "Weave": "ANTP",
+  "Weave full form": "ANTIPILING"
+ },
+ {
+  "Weave": "BBY_SFT",
+  "Weave full form": "BABY SOFT"
+ },
+ {
+  "Weave": "VSLN",
+  "Weave full form": "VISLONE"
+ },
+ {
+  "Weave": "RNBW",
+  "Weave full form": "RAINBOW"
+ },
+ {
+  "Weave": "KRR",
+  "Weave full form": "KARERA"
+ },
+ {
+  "Weave": "ZRCH",
+  "Weave full form": "ZURICH"
+ },
+ {
+  "Weave": "JRKN",
+  "Weave full form": "JARKAN"
+ },
+ {
+  "Weave": "SILK_WOOL",
+  "Weave full form": "SILK WOOL"
+ },
+ {
+  "Weave": "MMRY",
+  "Weave full form": "MEMORY"
+ },
+ {
+  "Weave": "MKLN",
+  "Weave full form": "MOKLINO"
+ },
+ {
+  "Weave": "PU_SHINE",
+  "Weave full form": "PU_SHINE"
+ },
+ {
+  "Weave": "MICRO_LFR",
+  "Weave full form": "MICRO LAFER"
+ },
+ {
+  "Weave": "DBL_TWL",
+  "Weave full form": "DOUBLE TWILL"
+ },
+ {
+  "Weave": "MSLN",
+  "Weave full form": "MUSLIN"
+ },
+ {
+  "Weave": "NS",
+  "Weave full form": "NORMAL SOFT"
+ },
+ {
+  "Weave": "CNVS",
+  "Weave full form": "CANVAS"
+ },
+ {
+  "Weave": "DRF_SJ",
+  "Weave full form": "DRIFIT SINGLE JERSEY"
+ },
+ {
+  "Weave": "THML",
+  "Weave full form": "THERMAL"
+ },
+ {
+  "Weave": "CHKN",
+  "Weave full form": "CHICKEN"
+ },
+ {
+  "Weave": "LTHR",
+  "Weave full form": "LEATHER"
+ },
+ {
+  "Weave": "INJ_RIB",
+  "Weave full form": "INJECTED RIB"
+ },
+ {
+  "Weave": "ORGNZ",
+  "Weave full form": "ORGANZA"
+ },
+ {
+  "Weave": "KNIT",
+  "Weave full form": "KNIT"
+ },
+ {
+  "Weave": "NS_CRUS",
+  "Weave full form": "NS CRUSH"
+ },
+ {
+  "Weave": "JPR",
+  "Weave full form": "JAIPURI"
+ },
+ {
+  "Weave": "RYN_SHFL",
+  "Weave full form": "RAYON SCHFFLI"
+ },
+ {
+  "Weave": "DGNL",
+  "Weave full form": "DIAGONAL"
+ },
+ {
+  "Weave": "AHM_C",
+  "Weave full form": "AHMEDABADI COTTON"
+ },
+ {
+  "Weave": "C_SHFL",
+  "Weave full form": "COTTON SCHFFLI"
+ },
+ {
+  "Weave": "ALPN",
+  "Weave full form": "ALPINE"
+ },
+ {
+  "Weave": "SJ_RFD",
+  "Weave full form": "SINGLE JERSEY READY FOR DYING"
+ },
+ {
+  "Weave": "HRY_TCH",
+  "Weave full form": "HAIRY TOUCH"
+ },
+ {
+  "Weave": "DLT",
+  "Weave full form": "DELTA"
+ },
+ {
+  "Weave": "RYN_PRT",
+  "Weave full form": "RAYON PRINT"
+ },
+ {
+  "Weave": "RMN",
+  "Weave full form": "ROMAN"
+ },
+ {
+  "Weave": "LINN",
+  "Weave full form": "LINEN"
+ },
+ {
+  "Weave": "RYN_SLUB",
+  "Weave full form": "RYN_SLUB"
+ },
+ {
+  "Weave": "EVA",
+  "Weave full form": "EVA"
+ },
+ {
+  "Weave": "RFD_LPR",
+  "Weave full form": "RFD LOOPER"
+ },
+ {
+  "Weave": "SHINE_PU",
+  "Weave full form": "SHINE PU"
+ },
+ {
+  "Weave": "BBL_STRT",
+  "Weave full form": "BUBBLE STRUCTURE"
+ },
+ {
+  "Weave": "HSR",
+  "Weave full form": "HOSIERY"
+ },
+ {
+  "Weave": "CPR",
+  "Weave full form": "COPPER"
+ },
+ {
+  "Weave": "ROLEX_FLC",
+  "Weave full form": "ROLEX FLEECE"
+ },
+ {
+  "Weave": "RIB_DERBY",
+  "Weave full form": "RIB DERBY"
+ },
+ {
+  "Weave": "CHNN",
+  "Weave full form": "CHINON"
+ },
+ {
+  "Weave": "DGNL_LPR",
+  "Weave full form": "DIAGONAL LOOPER"
+ },
+ {
+  "Weave": "SAP_SRSKR",
+  "Weave full form": "SAP SEERSUCKER"
+ },
+ {
+  "Weave": "T-400",
+  "Weave full form": "T-400"
+ },
+ {
+  "Weave": "LPR",
+  "Weave full form": "LOOPER"
+ },
+ {
+  "Weave": "PLFL",
+  "Weave full form": "POLYFIL"
+ },
+ {
+  "Weave": "SYN",
+  "Weave full form": "SYNTHETIC"
+ },
+ {
+  "Weave": "RVSL",
+  "Weave full form": "REVERSIBLE"
+ },
+ {
+  "Weave": "SLUB",
+  "Weave full form": "SLUB"
+ },
+ {
+  "Weave": "TWD",
+  "Weave full form": "TWEED"
+ },
+ {
+  "Weave": "IND_D_CLTH",
+  "Weave full form": "INDIGO DOUBLE CLOTH"
+ },
+ {
+  "Weave": "IND_SLUB",
+  "Weave full form": "INDIGO SLUB"
+ },
+ {
+  "Weave": "IND_TWL",
+  "Weave full form": "INDIGO TWILL"
+ },
+ {
+  "Weave": "SRSKR",
+  "Weave full form": "SEERSUCKER"
+ },
+ {
+  "Weave": "TSR",
+  "Weave full form": "TUSSAR"
+ },
+ {
+  "Weave": "CHM",
+  "Weave full form": "CHAMBRAY"
+ },
+ {
+  "Weave": "TK",
+  "Weave full form": "TOKO"
+ },
+ {
+  "Weave": "TXT",
+  "Weave full form": "TEXTILE"
+ },
+ {
+  "Weave": "VTCN",
+  "Weave full form": "VAITICAN"
+ },
+ {
+  "Weave": "WLN_KNIT",
+  "Weave full form": "WOLLEN KNIT"
+ },
+ {
+  "Weave": "SHFL",
+  "Weave full form": "SCHFFLI"
+ },
+ {
+  "Weave": "CHN",
+  "Weave full form": "CHANDERI"
+ },
+ {
+  "Weave": "IMP",
+  "Weave full form": "IMPORTED"
+ },
+ {
+  "Weave": "RMN_SLK",
+  "Weave full form": "ROMAN SILK"
+ },
+ {
+  "Weave": "SLK",
+  "Weave full form": "SILK"
+ }
