@@ -78,7 +78,7 @@ const sapFieldMappings: SapFieldMapping[] = parseMapRows()
   .filter((row): row is SapFieldMapping => !!row);
 
 const getVendorValue = (item: SapSyncItemInput): string => {
-  const vendor = String(item.vendorCode || item.vendorName || '').trim();
+  const vendor = String(item.vendorCode || '').trim();
   return vendor;
 };
 
@@ -461,7 +461,7 @@ export const syncApprovedItemsToSap = async (
       results.push({
         id: item.id,
         success: false,
-        message: 'Vendor is missing (vendorCode/vendorName not available)'
+        message: 'Vendor code is missing'
       });
       continue;
     }
