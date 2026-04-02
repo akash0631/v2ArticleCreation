@@ -218,6 +218,18 @@ const EditableCell: React.FC<EditableCellProps> = ({
                         <Option value="LADIES">LADIES</Option>
                         <Option value="KIDS">KIDS</Option>
                     </Select>
+                ) : dataIndex === 'lycra' ? (
+                    <Select
+                        ref={inputRef}
+                        onBlur={save}
+                        onChange={save}
+                        style={{ width: '100%', minWidth: 110 }}
+                    >
+                        <Option value="2W_LYC">2 WAY LYCRA</Option>
+                        <Option value="4W_LYC">4 WAY LYCRA</Option>
+                        <Option value="LCR">LYCRA</Option>
+                        <Option value="N_LYC">NON LYCRA</Option>
+                    </Select>
                 ) : inputType === 'select' ? (
                     <Select
                         ref={inputRef}
@@ -599,17 +611,26 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             // Handle specific mappings
             if (colKey === 'COLOUR' && key === 'COLOR') return true;
             if (colKey === 'MAJORCATEGORY' && key === 'MAJOR_CATEGORY') return true;
-            if (colKey === 'FABRICMAINMVGR' && key === 'FABRIC') return true;
-            if (colKey === 'NECKDETAILS' && key === 'NECK_DETAILS') return true;
-            if (colKey === 'ZIPCOLOUR' && key === 'ZIP_COLOR') return true;
+            if (colKey === 'FABRICMAINMVGR' && key === 'FABRIC_MAIN_MVGR') return true;
+            if (colKey === 'NECKDETAILS' && key === 'NECK_DETAIL') return true;
+            if (colKey === 'ZIPCOLOUR' && key === 'ZIP_COLOUR') return true;
             if (colKey === 'BOTTOMFOLD' && key === 'BOTTOM_FOLD') return true;
             if (colKey === 'FRONTOPENSTYLE' && key === 'FRONT_OPEN_STYLE') return true;
             if (colKey === 'POCKETTYPE' && key === 'POCKET_TYPE') return true;
             if (colKey === 'CHILD_BELT' && key === 'CHILD_BELT_DETAIL') return true;
-            if (colKey === 'CHILDBELT' && key === 'CHILD_BELT_DETAIL') return true; // Handle camelCase variations just in case
+            if (colKey === 'CHILDBELT' && key === 'CHILD_BELT_DETAIL') return true;
             if (colKey === 'MACROMVGR' && key === 'MACRO_MVGR') return true;
             if (colKey === 'MAINMVGR' && key === 'MAIN_MVGR') return true;
             if (colKey === 'MFAB2' && key === 'M_FAB2') return true;
+            if (colKey === 'FATHERBELT' && key === 'FATHER_BELT') return true;
+            if (colKey === 'PRINTTYPE' && key === 'PRINT_TYPE') return true;
+            if (colKey === 'PRINTSTYLE' && key === 'PRINT_STYLE') return true;
+            if (colKey === 'PRINTPLACEMENT' && key === 'PRINT_PLACEMENT') return true;
+            if (colKey === 'PATCHESTYPE' && key === 'PATCH_TYPE') return true;
+            if (colKey === 'EMBROIDERYTYPE' && key === 'EMBROIDERY_TYPE') return true;
+            if (colKey === 'ARTICLETYPE' && key === 'ARTICLE_TYPE') return true;
+            if (colKey === 'YARN1' && key === 'YARN_01') return true;
+            if (colKey === 'YARN2' && key === 'YARN_02') return true;
 
             return false;
         });

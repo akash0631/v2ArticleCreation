@@ -455,13 +455,21 @@ export const syncApprovedItemsToSap = async (
 
   const results: SapSyncItemResult[] = [];
 
+  const MANDATORY_FIELDS: Array<{ key: string; label: string }> = [
+    { key: 'vendorCode', label: 'Vendor Code' },
+    { key: 'mcCode', label: 'MC Code' },
+    { key: 'designNumber', label: 'Design Number' },
+    { key: 'macroMvgr', label: 'Macro MVGR' },
+    { key: 'mainMvgr', label: 'Main MVGR' },
+  ];
+
   for (const item of items) {
-    const vendor = getVendorValue(item);
-    if (!vendor) {
+    const missingFields = MANDATORY_FIELDS.filter((f) => !toSapValue(item[f.key]));
+    if (missingFields.length > 0) {
       results.push({
         id: item.id,
         success: false,
-        message: 'Vendor code is missing'
+        message: `Missing mandatory fields: ${missingFields.map((f) => f.label).join(', ')}`
       });
       continue;
     }
