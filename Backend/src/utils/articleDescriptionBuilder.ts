@@ -1,18 +1,13 @@
 type ArticleDescriptionSource = {
   yarn1?: unknown;
-  yarn2?: unknown;
-  fabricMainMvgr?: unknown;
   weave?: unknown;
-  composition?: unknown;
-  finish?: unknown;
-  gsm?: unknown;
-  shade?: unknown;
+  mFab2?: unknown;
+  fabricMainMvgr?: unknown;
   lycra?: unknown;
   neck?: unknown;
-  neckDetails?: unknown;
+  sleeve?: unknown;
   collar?: unknown;
   placket?: unknown;
-  sleeve?: unknown;
   bottomFold?: unknown;
   frontOpenStyle?: unknown;
   pocketType?: unknown;
@@ -33,25 +28,24 @@ type ArticleDescriptionSource = {
   wash?: unknown;
   fatherBelt?: unknown;
   childBelt?: unknown;
+  composition?: unknown;
+  finish?: unknown;
+  gsm?: unknown;
+  shade?: unknown;
 };
 
 const ARTICLE_DESCRIPTION_MAX_LENGTH = 40;
 
 const ARTICLE_DESCRIPTION_FIELDS: Array<keyof ArticleDescriptionSource> = [
   'yarn1',
-  'yarn2',
-  'fabricMainMvgr',
   'weave',
-  'composition',
-  'finish',
-  'gsm',
-  'shade',
+  'mFab2',
+  'fabricMainMvgr',
   'lycra',
   'neck',
-  'neckDetails',
+  'sleeve',
   'collar',
   'placket',
-  'sleeve',
   'bottomFold',
   'frontOpenStyle',
   'pocketType',
@@ -71,7 +65,11 @@ const ARTICLE_DESCRIPTION_FIELDS: Array<keyof ArticleDescriptionSource> = [
   'embroideryType',
   'wash',
   'fatherBelt',
-  'childBelt'
+  'childBelt',
+  'composition',
+  'finish',
+  'gsm',
+  'shade'
 ];
 
 const toShortToken = (value: unknown): string | null => {
