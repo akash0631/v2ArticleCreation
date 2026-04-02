@@ -6,32 +6,45 @@ const DIVISIONS = {
     MEN: {
         description: 'Men\'s Fashion',
         subDivisions: [
-            { code: 'ML', name: 'MEN LOWER' },
             { code: 'MU', name: 'MEN UPPER' },
-            { code: 'MS-L', name: 'MEN SPORTS LOWER' },
             { code: 'MS-U', name: 'MEN SPORTS UPPER' },
-            { code: 'MS-IW', name: 'MEN INNERWEAR' }
+            { code: 'MS-L', name: 'MEN SPORTS LOWER' },
+            { code: 'MW', name: 'MEN WINTERWEAR' },
+            { code: 'MO', name: 'MEN OUTERWEAR' },
+            { code: 'MS-IW', name: 'MEN INNERWEAR' },
+            { code: 'ML', name: 'MEN LOWER' }
         ]
     },
     LADIES: {
         description: 'Ladies Fashion',
         subDivisions: [
-            { code: 'LK&L', name: 'LADIES KURTI AND LEGGINGS' },
-            { code: 'LL', name: 'LADIES LOWER' },
             { code: 'LU', name: 'LADIES UPPER' },
-            { code: 'LN&L', name: 'LADIES NIGHTY AND LINGERIE' }
+            { code: 'LL', name: 'LADIES LOWER' },
+            { code: 'LK&L', name: 'LADIES KURTI AND LEGGINGS' },
+            { code: 'LN&L', name: 'LADIES NIGHTY AND LINGERIE' },
+            { code: 'LW', name: 'LADIES WINTERWEAR' }
         ]
     },
     KIDS: {
         description: 'Kids Fashion',
         subDivisions: [
-            { code: 'KB-L', name: 'KID BOYS LOWER' },
-            { code: 'KG-L', name: 'KID GIRLS LOWER' },
             { code: 'KB-SETS', name: 'KID BOYS SETS' },
+            { code: 'KB-L', name: 'KID BOYS LOWER' },
             { code: 'KB-U', name: 'KID BOYS UPPER' },
+            { code: 'KBW-U', name: 'KID BOYS WINTER UPPER' },
+            { code: 'KBW-L', name: 'KID BOYS WINTER LOWER' },
+            { code: 'KBW-SETS', name: 'KID BOYS WINTER SETS' },
+            { code: 'KG-L', name: 'KID GIRLS LOWER' },
             { code: 'KG-U', name: 'KID GIRLS UPPER' },
+            { code: 'KGW-U', name: 'KID GIRLS WINTER UPPER' },
+            { code: 'KGW-L', name: 'KID GIRLS WINTER LOWER' },
             { code: 'IB', name: 'INFANT BOYS' },
-            { code: 'IG', name: 'INFANT GIRLS' }
+            { code: 'IG', name: 'INFANT GIRLS' },
+            { code: 'KI', name: 'KID INFANTS' },
+            { code: 'KIW', name: 'KID INFANTS WINTER' },
+            { code: 'KB', name: 'KID BOYS' },
+            { code: 'KBW', name: 'KID BOYS WINTER' },
+            { code: 'KG', name: 'KID GIRLS' }
         ]
     }
 };

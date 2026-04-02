@@ -4,22 +4,38 @@ const prisma = new PrismaClient();
 
 const SUB_DIVISIONS = [
     // Format: [Short Form, Full Form]
-    ['KB-L', 'KID BOYS LOWER'],
-    ['KG-L', 'KID GIRLS LOWER'],
-    ['KB-SETS', 'KID BOYS SETS'],
-    ['KB-U', 'KID BOYS UPPER'],
-    ['ML', 'MEN LOWER'],
+    // MENS
     ['MU', 'MEN UPPER'],
-    ['MS-L', 'MEN SPORTS LOWER'],
     ['MS-U', 'MEN SPORTS UPPER'],
-    ['KG-U', 'KID GIRLS UPPER'],
-    ['LK&L', 'LADIES KURTI AND LEGGINGS'],
-    ['LL', 'LADIES LOWER'],
+    ['MS-L', 'MEN SPORTS LOWER'],
+    ['MW', 'MEN WINTERWEAR'],
+    ['MO', 'MEN OUTERWEAR'],
+    ['MS-IW', 'MEN INNERWEAR'],
+    ['ML', 'MEN LOWER'],
+    // LADIES
     ['LU', 'LADIES UPPER'],
+    ['LL', 'LADIES LOWER'],
+    ['LK&L', 'LADIES KURTI AND LEGGINGS'],
+    ['LN&L', 'LADIES NIGHTY AND LINGERIE'],
+    ['LW', 'LADIES WINTERWEAR'],
+    // KIDS
+    ['KB-SETS', 'KID BOYS SETS'],
+    ['KB-L', 'KID BOYS LOWER'],
+    ['KB-U', 'KID BOYS UPPER'],
+    ['KBW-U', 'KID BOYS WINTER UPPER'],
+    ['KBW-L', 'KID BOYS WINTER LOWER'],
+    ['KBW-SETS', 'KID BOYS WINTER SETS'],
+    ['KG-L', 'KID GIRLS LOWER'],
+    ['KG-U', 'KID GIRLS UPPER'],
+    ['KGW-U', 'KID GIRLS WINTER UPPER'],
+    ['KGW-L', 'KID GIRLS WINTER LOWER'],
     ['IB', 'INFANT BOYS'],
     ['IG', 'INFANT GIRLS'],
-    ['LN&L', 'LADIES NIGHTY AND LINGERIE'],
-    ['MS-IW', 'MEN INNERWEAR']
+    ['KI', 'KID INFANTS'],
+    ['KIW', 'KID INFANTS WINTER'],
+    ['KB', 'KID BOYS'],
+    ['KBW', 'KID BOYS WINTER'],
+    ['KG', 'KID GIRLS']
 ];
 
 async function main() {

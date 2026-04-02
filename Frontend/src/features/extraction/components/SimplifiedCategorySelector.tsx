@@ -13,9 +13,9 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 export const SIMPLIFIED_HIERARCHY = {
-  'Kids': ['KB-L', 'KG-L', 'KB-SETS', 'KB-U', 'KG-U', 'IB', 'IG'],
-  'Ladies': ['LK&L', 'LL', 'LU', 'LN&L'],
-  'Mens': ['ML', 'MU', 'MS-L', 'MS-U', 'MS-IW']
+  'Mens': ['MU', 'MS-U', 'MS-L', 'MW', 'MO', 'MS-IW', 'ML'],
+  'Ladies': ['LU', 'LL', 'LK&L', 'LN&L', 'LW'],
+  'Kids': ['KB-SETS', 'KB-L', 'KB-U', 'KBW-U', 'KBW-L', 'KBW-SETS', 'KG-L', 'KG-U', 'KGW-U', 'KGW-L', 'IB', 'IG', 'KI', 'KIW', 'KB', 'KBW', 'KG']
 };
 
 export interface SimplifiedCategory {
