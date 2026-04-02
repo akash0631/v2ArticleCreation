@@ -948,6 +948,8 @@ export class ApproverController {
                 where: whereClause,
                 data: {
                     approvalStatus: 'REJECTED',
+                    sapSyncStatus: SapSyncStatus.NOT_SYNCED,
+                    sapSyncMessage: 'Rejected by approver',
                     approvedBy: userId ? Number(userId) : null,
                     approvedAt: new Date()
                 }

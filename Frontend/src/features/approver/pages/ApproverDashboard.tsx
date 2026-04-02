@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs } from 'antd';
-import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ApproverTable } from '../components/ApproverTable';
 import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -250,25 +250,33 @@ export default function ApproverDashboard() {
     const handleReject = async () => {
         if (selectedRowKeys.length === 0) return;
 
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/reject`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ ids: selectedRowKeys })
-            });
+        Modal.confirm({
+            title: 'Confirm Rejection',
+            content: `Are you sure you want to reject ${selectedRowKeys.length} items?`,
+            okText: 'Reject',
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                try {
+                    const token = localStorage.getItem('authToken');
+                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/reject`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ ids: selectedRowKeys })
+                    });
 
-            if (!response.ok) throw new Error('Rejection failed');
+                    if (!response.ok) throw new Error('Rejection failed');
 
-            message.success('Items rejected');
-            setSelectedRowKeys([]);
-            fetchItems();
-        } catch (error) {
-            message.error('Failed to reject items');
-        }
+                    message.success('Items rejected');
+                    setSelectedRowKeys([]);
+                    fetchItems();
+                } catch (error) {
+                    message.error('Failed to reject items');
+                }
+            }
+        });
     };
 
     const handleEdit = (item: ApproverItem) => {
@@ -668,6 +676,14 @@ export default function ApproverDashboard() {
 
                         <Col xs={24} sm={24} md={5} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                             <Button icon={<ReloadOutlined />} onClick={fetchItems}>Refresh</Button>
+                            <Button
+                                danger
+                                icon={<CloseCircleOutlined />}
+                                onClick={handleReject}
+                                disabled={selectedRowKeys.length === 0}
+                            >
+                                Reject ({selectedRowKeys.length})
+                            </Button>
                             <Button
                                 type="primary"
                                 icon={<CheckCircleOutlined />}

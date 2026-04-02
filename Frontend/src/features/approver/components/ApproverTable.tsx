@@ -413,13 +413,12 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             key: 'status',
             width: 120,
             render: (_: unknown, row: ApproverItem) => {
-                const isFailed = row.sapSyncStatus === 'FAILED';
                 const isDone = row.approvalStatus === 'APPROVED' && row.sapSyncStatus === 'SYNCED';
 
-                const displayStatus = isFailed
-                    ? 'FAILED'
-                    : row.approvalStatus === 'REJECTED'
-                        ? 'REJECTED'
+                const displayStatus = row.approvalStatus === 'REJECTED'
+                    ? 'REJECTED'
+                    : row.sapSyncStatus === 'FAILED'
+                        ? 'FAILED'
                         : isDone
                             ? 'DONE'
                             : 'PENDING';
@@ -657,6 +656,18 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                     };
                 }
 
+                // Disable editing for Rejected items and show them in red
+                if (record.approvalStatus === 'REJECTED') {
+                    return {
+                        record,
+                        editable: false,
+                        dataIndex: col.dataIndex,
+                        title: col.title,
+                        handleSave: () => { },
+                        style: { background: '#fff1f0', cursor: 'not-allowed' } // Light red background to indicate rejected/locked
+                    };
+                }
+
                 // RBAC: Restrict editing for Approvers
                 const field = String(col.dataIndex);
                 let canEditField = col.editable;
@@ -745,7 +756,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                     selectedRowKeys,
                     onChange: onSelectionChange,
                     getCheckboxProps: (record) => ({
-                        disabled: record.approvalStatus === 'APPROVED',
+                        disabled: record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED',
                     }),
                 }}
             />
