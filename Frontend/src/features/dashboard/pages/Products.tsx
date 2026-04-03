@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Input, Select, Space, Table, Tag, Typography, Empty, message, Modal, Image, Descriptions, Form } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -47,6 +47,18 @@ type EditableAttributeDefinition = {
   key: string;
   label: string;
   field: string;
+};
+
+type HierarchySubDivision = {
+  id: number;
+  code: string;
+  name: string;
+  departmentId?: number;
+  department?: {
+    id?: number;
+    code?: string;
+    name?: string;
+  } | null;
 };
 
 const EDITABLE_ATTRIBUTE_DEFINITIONS: EditableAttributeDefinition[] = [
@@ -139,6 +151,24 @@ export default function Products() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<ProductRow[]>([]);
   const [masterAttributes, setMasterAttributes] = useState<SchemaItem[]>([]);
+  const [allSubDivisions, setAllSubDivisions] = useState<HierarchySubDivision[]>([]);
+  const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
+  const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
+
+  // Scroll-y: measure from table wrapper top to viewport bottom, subtract fixed chrome
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const [scrollY, setScrollY] = useState(500);
+  const recalcScrollY = useCallback(() => {
+    const el = tableWrapperRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    setScrollY(Math.max(200, window.innerHeight - top - 35 - 40 - 16 - 8));
+  }, []);
+  useEffect(() => {
+    recalcScrollY();
+    window.addEventListener('resize', recalcScrollY);
+    return () => window.removeEventListener('resize', recalcScrollY);
+  }, [recalcScrollY]);
 
   const normalizeStatus = useCallback((status?: string | null): ProductRow['status'] => {
     const normalized = String(status || '').toLowerCase();
@@ -626,6 +656,8 @@ export default function Products() {
 
         setRows(mapped);
         localStorage.setItem('extractionsLastUpdated', `${Date.now()}`);
+        // Re-measure after data renders so table wrapper has its final position
+        setTimeout(recalcScrollY, 50);
       } catch (error) {
         message.error('Unable to load extraction history');
       } finally {
@@ -634,7 +666,7 @@ export default function Products() {
     };
 
     fetchRows();
-  }, [currentUserEmail, currentUserId, isAdmin, isCreatorLike, getDisplayStatus, buildDetailsRows]);
+  }, [currentUserEmail, currentUserId, isAdmin, isCreatorLike, getDisplayStatus, buildDetailsRows, recalcScrollY]);
 
   useEffect(() => {
     const fetchMasterAttributes = async () => {
@@ -659,26 +691,114 @@ export default function Products() {
     fetchMasterAttributes();
   }, []);
 
-  const filteredRows = rows.filter(row => {
+  // Normalize division: treat MEN and MENS as MENS
+  const normalizeDivision = (v: string) => v === 'MEN' ? 'MENS' : v;
+
+  useEffect(() => {
+    const fetchSubDivisions = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${APP_CONFIG.api.baseURL}/user/sub-departments`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
+
+        if (!response.ok) return;
+
+        const result = await response.json().catch(() => null);
+        const data = result?.data;
+        if (!Array.isArray(data)) return;
+
+        setAllSubDivisions(data);
+      } catch {
+        // ignore and fall back to extracted values already present in rows
+      }
+    };
+
+    fetchSubDivisions();
+  }, []);
+
+  // Unique division/subdivision values present in the data (for filter dropdowns)
+  const divisionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    rows.forEach(r => { const v = r.flatData?.division; if (v) seen.add(normalizeDivision(String(v).toUpperCase())); });
+    return Array.from(seen).sort();
+  }, [rows]);
+
+  const subDivisionOptions = useMemo(() => {
+    const seen = new Set<string>();
+    allSubDivisions.forEach((subDivision) => {
+      const parentDivision = normalizeDivision(String(
+        subDivision.department?.code ||
+        subDivision.department?.name ||
+        ''
+      ).toUpperCase());
+
+      if (divisionFilter !== 'ALL' && parentDivision !== divisionFilter) return;
+
+      const value = String(subDivision.code || '').toUpperCase().trim();
+      if (value) seen.add(value);
+    });
+
+    if (seen.size === 0) {
+      rows.forEach(r => {
+        if (divisionFilter !== 'ALL' && normalizeDivision(String(r.flatData?.division || '').toUpperCase()) !== divisionFilter) return;
+        const v = r.flatData?.subDivision;
+        if (v) seen.add(String(v).toUpperCase());
+      });
+    }
+
+    return Array.from(seen).sort();
+  }, [allSubDivisions, rows, divisionFilter]);
+
+  // Show division/sub-division filter for admin or users with data spanning multiple divisions
+  const showDivisionFilter = isAdmin || divisionOptions.length > 1;
+  const showSubDivisionFilter = subDivisionOptions.length > 1;
+
+  useEffect(() => {
+    if (subDivisionFilter !== 'ALL' && !subDivisionOptions.includes(subDivisionFilter)) {
+      setSubDivisionFilter('ALL');
+    }
+  }, [subDivisionFilter, subDivisionOptions]);
+
+  const filteredRows = useMemo(() => rows.filter(row => {
+    if (divisionFilter !== 'ALL' && normalizeDivision(String(row.flatData?.division || '').toUpperCase()) !== divisionFilter) return false;
+    if (subDivisionFilter !== 'ALL' && String(row.flatData?.subDivision || '').toUpperCase() !== subDivisionFilter) return false;
     const haystack = `${row.name} ${row.productType} ${row.vendor} ${row.userName || ''} ${row.userEmail || ''}`
       .toLowerCase();
     return haystack.includes(search.toLowerCase());
-  });
+  }), [rows, divisionFilter, subDivisionFilter, search]);
 
   return (
     <div className="products-page">
       <div className="products-hero">
-        <div>
-          <Title level={2} className="products-title">History</Title>
-          <Text type="secondary">
-            Your extraction history with direct extracted data and export options.
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <Title level={4} className="products-title" style={{ margin: 0 }}>History</Title>
+          <Text type="secondary" style={{ fontSize: 12 }}>Extraction history with export options.</Text>
         </div>
-        <Space size="middle">
-          <Button
-            onClick={handleBulkExport}
-            disabled={selectedRows.length === 0}
-          >
+        <Space size="small" wrap>
+          {showDivisionFilter && (
+            <Select
+              style={{ minWidth: 130 }}
+              value={divisionFilter}
+              onChange={(v) => { setDivisionFilter(v); setSubDivisionFilter('ALL'); }}
+              size="small"
+            >
+              <Select.Option value="ALL">All Divisions</Select.Option>
+              {divisionOptions.map(d => <Select.Option key={d} value={d}>{d}</Select.Option>)}
+            </Select>
+          )}
+          {showSubDivisionFilter && (
+            <Select
+              style={{ minWidth: 130 }}
+              value={subDivisionFilter}
+              onChange={setSubDivisionFilter}
+              size="small"
+            >
+              <Select.Option value="ALL">All Sub-Divs</Select.Option>
+              {subDivisionOptions.map(s => <Select.Option key={s} value={s}>{s}</Select.Option>)}
+            </Select>
+          )}
+          <Button size="small" onClick={handleBulkExport} disabled={selectedRows.length === 0}>
             Bulk Download
           </Button>
           <Input
@@ -686,31 +806,43 @@ export default function Products() {
             placeholder="Search history"
             className="products-search"
             allowClear
+            size="small"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </Space>
       </div>
 
-      <Card className="products-table-card">
+      <Card className="products-table-card" styles={{ body: { padding: '6px 8px' } }}>
         {filteredRows.length === 0 ? (
           <Empty description="No extraction history yet" />
         ) : (
-          <Table
-            columns={columns}
-            dataSource={filteredRows}
-            rowKey={(row) => row.key}
-            pagination={{ pageSize: 8 }}
-            className="products-table"
-            loading={loading}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys, selected) => {
-                setSelectedRowKeys(keys as string[]);
-                setSelectedRows(selected as ProductRow[]);
-              }
-            }}
-          />
+          <div ref={tableWrapperRef}>
+            <Table
+              columns={columns}
+              dataSource={filteredRows}
+              rowKey={(row) => row.key}
+              size="small"
+              pagination={{
+                pageSize: 50,
+                showSizeChanger: true,
+                pageSizeOptions: ['50', '100', '200'],
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                position: ['bottomRight'],
+              }}
+              className="products-table"
+              loading={loading}
+              scroll={{ x: 'max-content', y: scrollY }}
+              sticky
+              rowSelection={{
+                selectedRowKeys,
+                onChange: (keys, selected) => {
+                  setSelectedRowKeys(keys as string[]);
+                  setSelectedRows(selected as ProductRow[]);
+                }
+              }}
+            />
+          </div>
         )}
       </Card>
 

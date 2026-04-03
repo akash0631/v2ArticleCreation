@@ -168,8 +168,7 @@ export class FlatExtractionController {
                 orderBy: [
                     { createdAt: 'desc' },
                     { id: 'desc' }
-                ],
-                take: 200, // Increased limit slightly for better overview
+                ]
             });
 
             res.json({
