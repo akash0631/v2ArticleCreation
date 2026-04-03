@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Table, Image, Tag, Button, Tooltip, Space, Dropdown } from 'antd';
 import { ReloadOutlined, EyeOutlined, MoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -33,6 +33,9 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
   onAddToSchema,
   disableEditing = false
 }) => {
+  // focusedCellKey format: `${rowId}::${schemaKey}`
+  const [focusedCellKey, setFocusedCellKey] = useState<string | null>(null);
+
   // 🏗️ BUILD TABLE COLUMNS DYNAMICALLY
   const columns: ColumnsType<ExtractedRow> = useMemo(() => {
     // 1️⃣ FIXED COLUMNS (always show these)
@@ -109,7 +112,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
 
     // 2️⃣ DYNAMIC ATTRIBUTE COLUMNS (changes based on category)
     // For each attribute in the schema, create a column
-    const attributeColumns: ColumnsType<ExtractedRow> = schema.map(schemaItem => ({
+    const attributeColumns: ColumnsType<ExtractedRow> = schema.map((schemaItem, schemaIndex) => ({
       title: (
         <div>
           {/* Column header shows attribute name */}
@@ -119,9 +122,8 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
         </div>
       ),
       key: schemaItem.key,
-      width: 150, // 📏 Reduced width for more columns visible
+      width: 150,
       render: (_, record) => {
-        // 🔍 DEBUG: Log for specific attributes
         if (schemaItem.key === 'fab_yarn-01' || schemaItem.key === 'fab_yarn-02' || schemaItem.key === 'fab_weave-02') {
           console.log(`[AttributeTable] Rendering ${schemaItem.key}:`, {
             schemaItemKey: schemaItem.key,
@@ -130,15 +132,21 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
             hasAttribute: !!record.attributes[schemaItem.key]
           });
         }
-        
+
+        const cellKey = `${record.id}::${schemaItem.key}`;
+        const nextSchemaItem = schema[schemaIndex + 1];
+        const nextCellKey = nextSchemaItem ? `${record.id}::${nextSchemaItem.key}` : null;
+
         return (
-          // This is where AttributeCell component shows the actual value
           <AttributeCell
-            attribute={record.attributes[schemaItem.key]} // Current value
-            schemaItem={schemaItem} // Schema definition
-            onChange={(value) => onAttributeChange(record.id, schemaItem.key, value)} // Save changes
-            onAddToSchema={(value) => onAddToSchema?.(schemaItem.key, value)} // Add new values
-            disabled={record.status === 'Extracting' || disableEditing} // Disable if AI is working or locked
+            attribute={record.attributes[schemaItem.key]}
+            schemaItem={schemaItem}
+            onChange={(value) => onAttributeChange(record.id, schemaItem.key, value)}
+            onAddToSchema={(value) => onAddToSchema?.(schemaItem.key, value)}
+            disabled={record.status === 'Extracting' || disableEditing}
+            autoFocus={focusedCellKey === cellKey}
+            onAutoFocused={() => setFocusedCellKey(null)}
+            onSaveAndNext={nextCellKey ? () => setFocusedCellKey(nextCellKey) : undefined}
           />
         );
       }
@@ -207,7 +215,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
 
     // 🔗 COMBINE ALL COLUMNS: Fixed Left + Dynamic Attributes + Fixed Right
     return [...baseColumns, ...attributeColumns, ...actionsColumn];
-  }, [schema, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract]);
+  }, [schema, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract, focusedCellKey]);
 
   // ✅ ROW SELECTION CONFIGURATION (checkboxes)
   const rowSelection = {

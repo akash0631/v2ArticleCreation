@@ -396,6 +396,7 @@ export const useImageExtraction = () => {
               mappingConfidence: 100,
               isNewDiscovery: existingAttribute?.isNewDiscovery ?? false,
               reasoning: existingAttribute?.reasoning || "User edited",
+              isUserEdited: true,
             };
 
             return {
@@ -413,6 +414,7 @@ export const useImageExtraction = () => {
 
       // Persist user edits once extraction row has been saved to backend.
       if (!persistedJobId) {
+        message.warning('This field was updated locally but could not be saved — extraction has not been persisted yet. Please re-extract or refresh.');
         return;
       }
 

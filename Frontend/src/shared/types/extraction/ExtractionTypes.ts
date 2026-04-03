@@ -10,6 +10,7 @@ export interface AttributeDetail {
   visualConfidence: number;
   mappingConfidence: number;
   reasoning?: string;
+  isUserEdited?: boolean;
 }
 
 export interface AttributeData {

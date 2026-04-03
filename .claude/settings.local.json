@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -n \"disabled.*approvalStatus\\\\|approvalStatus.*APPROVED\\\\|approvalStatus === ''APPROVED''\" /c/Users/Administrator/Desktop/Ai-fashion/Frontend/src/features/approver/components/ApproverTable.tsx)"
+      "Bash(grep -n \"disabled.*approvalStatus\\\\|approvalStatus.*APPROVED\\\\|approvalStatus === ''APPROVED''\" /c/Users/Administrator/Desktop/Ai-fashion/Frontend/src/features/approver/components/ApproverTable.tsx)",
+      "Bash(grep -n \"vendor_code\\\\|vendorCode\\\\|saveExtraction\\\\|persistenceExtraction\" /c/Users/Administrator/Desktop/Ai-fashion/Backend/src/controllers/*.ts)"
     ]
   }
 }

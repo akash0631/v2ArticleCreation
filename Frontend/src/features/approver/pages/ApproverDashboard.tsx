@@ -795,7 +795,9 @@ export default function ApproverDashboard() {
                             setItems(newData);
 
                             updatePayload = Object.fromEntries(
-                                Object.entries(row).filter(([key, value]) => (item as any)[key] !== value)
+                                Object.entries(row)
+                                    .filter(([key, value]) => (item as any)[key] !== value)
+                                    .map(([key, value]) => [key, value === undefined ? null : value])
                             );
                         }
 
