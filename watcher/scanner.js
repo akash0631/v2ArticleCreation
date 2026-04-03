@@ -47,12 +47,22 @@ function collectImages(dir, results = []) {
  * Get today's date folder name in DD.MM.YYYY format (matches folder naming convention).
  * e.g. April 3 2026 → "03.04.2026"
  */
+const MONTH_NAMES = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
 function getTodayFolderName() {
   const now = new Date();
   const dd   = String(now.getDate()).padStart(2, '0');
   const mm   = String(now.getMonth() + 1).padStart(2, '0');
   const yyyy = now.getFullYear();
   return `${dd}.${mm}.${yyyy}`;
+}
+
+function getCurrentYear() {
+  return String(new Date().getFullYear());
+}
+
+function getCurrentMonthName() {
+  return MONTH_NAMES[new Date().getMonth()]; // e.g. "APR"
 }
 
 async function runScan() {
@@ -74,12 +84,20 @@ async function runScan() {
   let totalDup = 0;
   let totalFail = 0;
 
-  // Enumerate year folders
-  const yearDirs = listSubDirs(WATCH_ROOT);
-  for (const yearDir of yearDirs) {
-    // Enumerate month folders
-    const monthDirs = listSubDirs(yearDir);
-    for (const monthDir of monthDirs) {
+  const currentYear = getCurrentYear();
+  const currentMonth = getCurrentMonthName();
+  log.info(`Year filter: ${currentYear} | Month filter: ${currentMonth}`);
+
+  // Only enter current year folder
+  const yearDir = path.join(WATCH_ROOT, currentYear);
+  if (!fs.existsSync(yearDir)) {
+    log.warn(`Year folder not found: ${yearDir}`);
+    return;
+  }
+
+  // Only enter current month folder
+  const monthDirs = listSubDirs(yearDir).filter(d => path.basename(d).toUpperCase() === currentMonth);
+  for (const monthDir of monthDirs) {
       // Only enter VALID_DIVISIONS folders, ignore the rest
       let divDirs;
       try {
@@ -168,7 +186,6 @@ async function runScan() {
         }
       }
     }
-  }
 
   log.info('=== Scan complete ===');
   log.info(`  Found:     ${totalFound}`);
