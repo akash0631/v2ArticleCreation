@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs } from 'antd';
+import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ApproverTable } from '../components/ApproverTable';
 import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
@@ -7,9 +7,11 @@ import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import { getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import type { Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const inferMcCode = (majorCategory?: string | null): string | null =>
     getMcCodeByMajorCategory(majorCategory);
@@ -73,6 +75,7 @@ export default function ApproverDashboard() {
     const [searchText, setSearchText] = useState('');
     const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
     const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
+    const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
 
     // Derived: user's assigned divisions/sub-divisions (parsed from their profile)
     const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
@@ -201,6 +204,20 @@ export default function ApproverDashboard() {
             );
         }
 
+        // Created date filter (inclusive of the full end day)
+        if (dateRangeFilter?.[0] || dateRangeFilter?.[1]) {
+            const startDate = dateRangeFilter?.[0]?.startOf('day').valueOf() ?? null;
+            const endDate = dateRangeFilter?.[1]?.endOf('day').valueOf() ?? null;
+
+            result = result.filter(item => {
+                const createdAt = new Date(item.createdAt).getTime();
+                if (Number.isNaN(createdAt)) return false;
+                if (startDate !== null && createdAt < startDate) return false;
+                if (endDate !== null && createdAt > endDate) return false;
+                return true;
+            });
+        }
+
         // Search filter
         if (searchText) {
             const q = searchText.toLowerCase();
@@ -213,7 +230,7 @@ export default function ApproverDashboard() {
         }
 
         return result;
-    }, [items, user, statusFilter, divisionFilter, subDivisionFilter, searchText]);
+    }, [items, user, statusFilter, divisionFilter, subDivisionFilter, dateRangeFilter, searchText]);
 
     useEffect(() => {
         fetchAttributes();
@@ -627,8 +644,8 @@ export default function ApproverDashboard() {
                 </div>
 
                 <Card size="small" style={{ marginBottom: 0 }}>
-                    <Row gutter={[16, 16]} align="middle">
-                        <Col xs={24} sm={8} md={6}>
+                    <Row gutter={[12, 12]} align="middle">
+                        <Col xs={24} sm={8} md={5}>
                             <Input.Search
                                 placeholder="Search Article, Vendor, Design #"
                                 onSearch={val => setSearchText(val)}
@@ -636,7 +653,7 @@ export default function ApproverDashboard() {
                                 allowClear
                             />
                         </Col>
-                        <Col xs={24} sm={8} md={5}>
+                        <Col xs={24} sm={8} md={4}>
                             <Select
                                 mode="multiple"
                                 style={{ width: '100%' }}
@@ -655,7 +672,7 @@ export default function ApproverDashboard() {
 
                         {/* Non-admin: show division filter if user has multiple divisions */}
                         {showDivisionFilter && (
-                            <Col xs={24} sm={8} md={4}>
+                            <Col xs={24} sm={8} md={3}>
                                 <Select
                                     style={{ width: '100%' }}
                                     placeholder="Division"
@@ -675,7 +692,7 @@ export default function ApproverDashboard() {
 
                         {/* Non-admin: show sub-division filter if user has multiple sub-divisions */}
                         {showSubDivisionFilter && (
-                            <Col xs={24} sm={8} md={4}>
+                            <Col xs={24} sm={8} md={3}>
                                 <Select
                                     style={{ width: '100%' }}
                                     placeholder="Sub-Division"
@@ -693,7 +710,7 @@ export default function ApproverDashboard() {
                         {/* Admin Filters */}
                         {user?.role === 'ADMIN' && (
                             <>
-                                <Col xs={24} sm={8} md={4}>
+                                <Col xs={24} sm={8} md={3}>
                                     <Select
                                         style={{ width: '100%' }}
                                         placeholder="Division"
@@ -709,7 +726,7 @@ export default function ApproverDashboard() {
                                         <Option value="KIDS">KIDS</Option>
                                     </Select>
                                 </Col>
-                                <Col xs={24} sm={8} md={4}>
+                                <Col xs={24} sm={8} md={3}>
                                     <Select
                                         style={{ width: '100%' }}
                                         placeholder="Sub-Division"
@@ -732,7 +749,17 @@ export default function ApproverDashboard() {
                             </>
                         )}
 
-                        <Col xs={24} sm={24} md={5} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <Col xs={24} sm={16} md={5}>
+                            <RangePicker
+                                style={{ width: '100%' }}
+                                value={dateRangeFilter}
+                                onChange={(dates) => setDateRangeFilter(dates)}
+                                allowEmpty={[true, true]}
+                                format="DD-MM-YYYY"
+                            />
+                        </Col>
+
+                        <Col xs={24} sm={24} md={4} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, whiteSpace: 'nowrap' }}>
                             <Button icon={<ReloadOutlined />} onClick={fetchItems}>Refresh</Button>
                             <Button
                                 danger
