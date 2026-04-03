@@ -1,8 +1,10 @@
 const path = require('path');
 const { VALID_DIVISIONS, IMAGE_EXTENSIONS, WATCH_ROOT } = require('./config');
 
-// Normalize folder names to the division values used in the Excel/DB
-// e.g. folder "WOMENS" → DB division "LADIES"
+// Normalize folder names to consistent division values:
+// WOMENS / WOMEN / LADIES → all stored as LADIES (same department)
+// MENS / MEN → MENS
+// KIDS / KID → KIDS
 const DIVISION_NORMALIZE = {
   WOMENS: 'LADIES',
   WOMEN:  'LADIES',

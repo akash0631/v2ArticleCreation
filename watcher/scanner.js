@@ -43,16 +43,31 @@ function collectImages(dir, results = []) {
  *    - Submit to backend API
  *    - Mark as processed
  */
+/**
+ * Get today's date folder name in DD.MM.YYYY format (matches folder naming convention).
+ * e.g. April 3 2026 → "03.04.2026"
+ */
+function getTodayFolderName() {
+  const now = new Date();
+  const dd   = String(now.getDate()).padStart(2, '0');
+  const mm   = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
 async function runScan() {
+  const todayFolder = getTodayFolderName();
+
   log.info('=== Scan started ===');
   log.info(`Root: ${WATCH_ROOT}`);
+  log.info(`Date filter: only processing folder "${todayFolder}"`);
 
   if (!fs.existsSync(WATCH_ROOT)) {
     log.error(`Watch root not accessible: ${WATCH_ROOT}`);
     return;
   }
 
-  // Walk only YEAR → MONTH → <DIVISION> subdirectories
+  // Walk only YEAR → MONTH → <DIVISION> → <TODAY's DATE> subdirectories
   let totalFound = 0;
   let totalNew = 0;
   let totalOk = 0;
@@ -77,7 +92,24 @@ async function runScan() {
       }
 
       for (const divDir of divDirs) {
-        const images = collectImages(divDir);
+        // Only enter the date folder that matches TODAY — skip all other dates
+        let dateDirs;
+        try {
+          dateDirs = fs.readdirSync(divDir, { withFileTypes: true })
+            .filter(e => e.isDirectory() && e.name === todayFolder)
+            .map(e => path.join(divDir, e.name));
+        } catch (e) {
+          log.warn(`Cannot read division dir: ${divDir} — ${e.message}`);
+          continue;
+        }
+
+        if (dateDirs.length === 0) {
+          log.info(`  No folder "${todayFolder}" found under ${divDir} — skipping`);
+          continue;
+        }
+
+        // Collect all images inside today's date folder only
+        const images = collectImages(dateDirs[0]);
         totalFound += images.length;
 
         for (const imgPath of images) {

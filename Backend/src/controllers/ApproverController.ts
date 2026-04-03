@@ -483,6 +483,14 @@ export class ApproverController {
                 ];
             }
 
+            // Ensure computed/defaulted business fields are populated before the dashboard reads them.
+            await ApproverController.backfillMissingMcCodes(where);
+            await ApproverController.backfillMissingHsnCodes(where);
+            await ApproverController.backfillMissingSegments(where);
+            await ApproverController.backfillMissingYears(where);
+            await ApproverController.backfillMissingSeasonCodes(where);
+            await ApproverController.refreshArticleDescriptions(where);
+
             const skip = (Number(page) - 1) * Number(limit);
 
             const items = await prisma.extractionResultFlat.findMany({

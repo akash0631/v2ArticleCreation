@@ -22,6 +22,7 @@
     "db:backfill:image-urls": "ts-node scripts/backfill-image-urls.ts",
     "db:backfill:image-uploads": "ts-node scripts/backfill-missing-image-uploads.ts",
     "db:backfill:mrp": "ts-node scripts/backfill-mrp-from-rate.ts",
+    "db:refresh:mfab2": "ts-node scripts/refresh-mfab2-from-json.ts",
     "db:subdivisions:upsert-final": "ts-node scripts/upsert-final-subdivisions.ts",
     "sap:unique-values": "ts-node scripts/extract-sap-unique-values.ts",
     "sap:sync": "ts-node scripts/sync-sap-attribute-values.ts",

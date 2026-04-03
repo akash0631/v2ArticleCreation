@@ -424,28 +424,25 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                 );
             }
         },
-        // Core Attributes
+        // Core + fabric sequence
+        { title: 'Macro MVGR', dataIndex: 'macroMvgr', key: 'macroMvgr', width: 130, editable: true },
+        { title: 'Main MVGR', dataIndex: 'mainMvgr', key: 'mainMvgr', width: 130, editable: true },
+        { title: 'Yarn 1', dataIndex: 'yarn1', key: 'yarn1', width: 120, editable: true },
+        { title: 'Fabric Main', dataIndex: 'fabricMainMvgr', key: 'fabricMainMvgr', width: 150, editable: true },
+        { title: 'Weave', dataIndex: 'weave', key: 'weave', width: 100, editable: true },
+        { title: 'M FAB 2', dataIndex: 'mFab2', key: 'mFab2', width: 120, editable: true },
+        { title: 'Composition', dataIndex: 'composition', key: 'composition', width: 150, editable: true },
+        { title: 'Finish', dataIndex: 'finish', key: 'finish', width: 120, editable: true },
+        { title: 'GSM', dataIndex: 'gsm', key: 'gsm', width: 80, editable: true },
+        { title: 'G-Weight', dataIndex: 'weight', key: 'weight', width: 120, editable: true },
+        { title: 'Lycra', dataIndex: 'lycra', key: 'lycra', width: 100, editable: true },
+        { title: 'Shade', dataIndex: 'shade', key: 'shade', width: 120, editable: true },
         { title: 'Rate', dataIndex: 'rate', key: 'rate', width: 100, editable: true },
+        { title: 'MRP', dataIndex: 'mrp', key: 'mrp', width: 100, editable: true },
         { title: 'Size', dataIndex: 'size', key: 'size', width: 120, editable: true },
         { title: 'Color', dataIndex: 'colour', key: 'colour', width: 120, editable: true },
         { title: 'Pattern', dataIndex: 'pattern', key: 'pattern', width: 120, editable: true },
         { title: 'Fit', dataIndex: 'fit', key: 'fit', width: 120, editable: true },
-
-        // Fabric Details
-        { title: 'Fabric Main', dataIndex: 'fabricMainMvgr', key: 'fabricMainMvgr', width: 150, editable: true },
-        { title: 'Composition', dataIndex: 'composition', key: 'composition', width: 150, editable: true },
-        { title: 'GSM', dataIndex: 'gsm', key: 'gsm', width: 80, editable: true },
-        { title: 'Weave', dataIndex: 'weave', key: 'weave', width: 100, editable: true },
-        { title: 'Macro MVGR', dataIndex: 'macroMvgr', key: 'macroMvgr', width: 130, editable: true },
-        { title: 'Main MVGR', dataIndex: 'mainMvgr', key: 'mainMvgr', width: 130, editable: true },
-        { title: 'M FAB 2', dataIndex: 'mFab2', key: 'mFab2', width: 120, editable: true },
-
-        // Extended Fabric Details
-        { title: 'Yarn 1', dataIndex: 'yarn1', key: 'yarn1', width: 120, editable: true },
-        { title: 'Finish', dataIndex: 'finish', key: 'finish', width: 120, editable: true },
-        { title: 'Shade', dataIndex: 'shade', key: 'shade', width: 120, editable: true },
-        { title: 'G-Weight', dataIndex: 'weight', key: 'weight', width: 120, editable: true },
-        { title: 'Lycra', dataIndex: 'lycra', key: 'lycra', width: 100, editable: true },
         { title: 'Wash', dataIndex: 'wash', key: 'wash', width: 120, editable: true },
 
         // Design Details
@@ -482,7 +479,6 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
 
         // Business & SAP Fields
         { title: 'Vendor Code', dataIndex: 'vendorCode', key: 'vendorCode', width: 130, editable: true },
-        { title: 'MRP', dataIndex: 'mrp', key: 'mrp', width: 100, editable: true },
         {
             title: 'MC Code',
             dataIndex: 'mcCode',

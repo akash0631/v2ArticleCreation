@@ -317,10 +317,15 @@ export class FlatExtractionController {
 
             const data: Record<string, unknown> = {};
 
-            if (fieldName === 'rate') {
+            if (fieldName === 'mrp') {
+                data.mrp = parseNumericValue(value);
+            } else if (fieldName === 'rate') {
                 const parsedRate = parseNumericValue(value);
                 data.rate = parsedRate;
-                data.mrp = calculateMrpFromRate(parsedRate);
+                // Only auto-calculate MRP from rate if MRP is not already set
+                if (existing.mrp === null || existing.mrp === undefined) {
+                    data.mrp = calculateMrpFromRate(parsedRate);
+                }
             } else if (fieldName === 'majorCategory') {
                 const majorCategoryText = toNullableString(value);
 

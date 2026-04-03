@@ -9,6 +9,9 @@ import path from 'path';
 import type { SchemaItem, ExtractionRequest, EnhancedExtractionResult } from '../types/extraction';
 import type { FashionExtractionRequest } from '../types/vlm';
 import { storageService } from '../services/storageService';
+import { getHsnCodeByMcCode } from '../utils/mcCodeMapper';
+import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
+import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
 
 export class EnhancedExtractionController {
   private vlmService = new VLMService();
@@ -310,9 +313,12 @@ export class EnhancedExtractionController {
       }
 
       // If watcher fields are provided, override the flat row with them
+      // AND immediately compute all derived fields (season, year, HSN, segment, articleDescription)
+      // so they don't have to wait for the approver dashboard to trigger backfills
       const { watcherFields } = params;
       if (watcherFields && flatId) {
         try {
+          // ── Step 1: Folder-path overrides (always authoritative for watcher) ──
           const overrides: Record<string, any> = {};
           if (watcherFields.division)       overrides.division      = watcherFields.division;
           if (watcherFields.vendorName)     overrides.vendorName    = watcherFields.vendorName;
@@ -323,12 +329,69 @@ export class EnhancedExtractionController {
           if (watcherFields.source)         overrides.source        = watcherFields.source;
           if (watcherFields.imageUncPath)   overrides.imageUncPath  = watcherFields.imageUncPath;
 
-          if (Object.keys(overrides).length > 0) {
-            await prisma.extractionResultFlat.update({
-              where: { id: flatId },
-              data: overrides,
-            });
-            console.log(`✅ Watcher fields applied to flat row ${flatId}`);
+          // ── Step 2: Derived fields (same logic as approver dashboard backfills) ──
+          // Year — always current year
+          const now = new Date();
+          overrides.year = String(now.getFullYear());
+
+          // Season — derived from current month
+          const month = now.getMonth() + 1;
+          const yearShort = overrides.year.slice(-2);
+          if (month >= 1 && month <= 3)       overrides.season = `SP${yearShort}`;
+          else if (month >= 4 && month <= 6)  overrides.season = `S${yearShort}`;
+          else if (month >= 7 && month <= 9)  overrides.season = `A${yearShort}`;
+          else                                overrides.season = `W${yearShort}`;
+
+          // HSN Tax Code — derived from mc_code
+          const mcCodeForHsn = watcherFields.mcCode;
+          if (mcCodeForHsn) {
+            const hsn = getHsnCodeByMcCode(mcCodeForHsn);
+            if (hsn) overrides.hsnTaxCode = hsn;
+          }
+
+          // ── Step 3: Apply overrides first, then compute segment + article description ──
+          await prisma.extractionResultFlat.update({
+            where: { id: flatId },
+            data: overrides,
+          });
+          console.log(`✅ Watcher fields + derived fields applied to flat row ${flatId}`);
+
+          // ── Step 4: Segment + Article Description (need the updated row values) ──
+          const updatedRow = await prisma.extractionResultFlat.findUnique({
+            where: { id: flatId },
+            select: {
+              majorCategory: true, mrp: true,
+              yarn1: true, yarn2: true, fabricMainMvgr: true, weave: true,
+              mFab2: true, composition: true, finish: true, gsm: true,
+              shade: true, lycra: true, neck: true, neckDetails: true,
+              collar: true, placket: true, sleeve: true, bottomFold: true,
+              frontOpenStyle: true, pocketType: true, fit: true, pattern: true,
+              length: true, drawcord: true, button: true, zipper: true,
+              zipColour: true, printType: true, printStyle: true,
+              printPlacement: true, patches: true, patchesType: true,
+              embroidery: true, embroideryType: true, wash: true,
+              fatherBelt: true, childBelt: true,
+            }
+          });
+
+          if (updatedRow) {
+            const derivedStep2: Record<string, any> = {};
+
+            // Segment
+            const seg = getSegmentByCategoryAndMrp(updatedRow.majorCategory, updatedRow.mrp);
+            if (seg) derivedStep2.segment = seg;
+
+            // Article Description (built from extracted attributes)
+            const artDesc = buildArticleDescription(updatedRow as any);
+            if (artDesc) derivedStep2.articleDescription = artDesc;
+
+            if (Object.keys(derivedStep2).length > 0) {
+              await prisma.extractionResultFlat.update({
+                where: { id: flatId },
+                data: derivedStep2,
+              });
+              console.log(`✅ Segment + article description computed for flat row ${flatId}`);
+            }
           }
         } catch (overrideError) {
           console.warn('⚠️ Failed to apply watcher field overrides:', overrideError);
@@ -443,8 +506,8 @@ export class EnhancedExtractionController {
         return;
       }
 
-      // If schema is empty (e.g. watcher sending schema=[]), build schema from all
-      // AI-extractable master attributes — category-attribute links are not required
+      // If schema is empty (e.g. watcher sending schema=[]), build schema matching
+      // the frontend: use category-specific attributes if configured, otherwise all active master attributes
       let resolvedCategoryCode: string | undefined;
       if (parsedSchema.length === 0 && source === 'WATCHER') {
         try {
@@ -462,23 +525,50 @@ export class EnhancedExtractionController {
             if (matchedCat) resolvedCategoryCode = matchedCat.code;
           }
 
-          // Build schema from all AI-extractable master attributes
-          const masterAttrs = await prisma.masterAttribute.findMany({
-            where: { aiExtractable: true, isActive: true },
-            orderBy: { key: 'asc' },
-            include: {
-              allowedValues: { where: { isActive: true }, orderBy: { displayOrder: 'asc' } }
+          // Try category-specific schema first (same as frontend uses)
+          if (resolvedCategoryCode) {
+            const catAttrs = await prisma.categoryAttribute.findMany({
+              where: {
+                category: { code: resolvedCategoryCode },
+                isEnabled: true
+              },
+              orderBy: { displayOrder: 'asc' },
+              include: {
+                attribute: {
+                  include: {
+                    allowedValues: { where: { isActive: true }, orderBy: { displayOrder: 'asc' } }
+                  }
+                }
+              }
+            });
+            if (catAttrs.length > 0) {
+              parsedSchema = catAttrs.map(ca => ({
+                key: ca.attribute.key,
+                label: ca.attribute.label || ca.attribute.key,
+                type: ca.attribute.type.toLowerCase() as any,
+                allowedValues: ca.attribute.allowedValues.map(av => av.shortForm),
+              }));
+              console.log(`📋 Watcher: loaded ${parsedSchema.length} category-specific attributes for ${resolvedCategoryCode}`);
             }
-          });
+          }
 
-          parsedSchema = masterAttrs.map(attr => ({
-            key: attr.key,
-            label: attr.label || attr.key,
-            type: attr.type.toLowerCase() as any,
-            allowedValues: attr.allowedValues.map(av => av.shortForm),
-          }));
-
-          console.log(`📋 Watcher: built schema from ${parsedSchema.length} AI-extractable master attributes`);
+          // Fall back to all active master attributes if no category config exists
+          if (parsedSchema.length === 0) {
+            const masterAttrs = await prisma.masterAttribute.findMany({
+              where: { isActive: true },
+              orderBy: { displayOrder: 'asc' },
+              include: {
+                allowedValues: { where: { isActive: true }, orderBy: { displayOrder: 'asc' } }
+              }
+            });
+            parsedSchema = masterAttrs.map(attr => ({
+              key: attr.key,
+              label: attr.label || attr.key,
+              type: attr.type.toLowerCase() as any,
+              allowedValues: attr.allowedValues.map(av => av.shortForm),
+            }));
+            console.log(`📋 Watcher: loaded ${parsedSchema.length} master attributes (no category config found)`);
+          }
         } catch (schemaErr: any) {
           console.warn(`⚠️ Watcher schema build failed: ${schemaErr.message}`);
         }

@@ -29,6 +29,36 @@
     "mc_code": "114020301",
     "division": "MENS"
   },
+  "MW_BLAZER": {
+    "sub_division": "MW",
+    "mc_code": "115010102",
+    "division": "MENS"
+  },
+  "M_MODI_JKT": {
+    "sub_division": "MO",
+    "mc_code": "115020101",
+    "division": "MENS"
+  },
+  "M_BOXER": {
+    "sub_division": "MS-IW",
+    "mc_code": "116010201",
+    "division": "MENS"
+  },
+  "MW_CAP": {
+    "sub_division": "MW",
+    "mc_code": "117010101",
+    "division": "MENS"
+  },
+  "MW_GLOVES": {
+    "sub_division": "MW",
+    "mc_code": "117020101",
+    "division": "MENS"
+  },
+  "MW_WNDCHTR_JKT_FS": {
+    "sub_division": "MW",
+    "mc_code": "117030202",
+    "division": "MENS"
+  },
   "MW_MUFFLER": {
     "sub_division": "MW",
     "mc_code": "117050101",
@@ -61,7 +91,7 @@
   },
   "L_CO-ORD_SET": {
     "sub_division": "LU",
-    "mc_code": "121140103",
+    "mc_code": "121140101",
     "division": "LADIES"
   },
   "L_T_PYJAMA": {
@@ -71,7 +101,12 @@
   },
   "L_LNG_SKIRT": {
     "sub_division": "LL",
-    "mc_code": "122190102",
+    "mc_code": "122030201",
+    "division": "LADIES"
+  },
+  "L_PLAZO": {
+    "sub_division": "LL",
+    "mc_code": "122040301",
     "division": "LADIES"
   },
   "L_HAREMS": {
@@ -107,6 +142,11 @@
   "L_LEGGING": {
     "sub_division": "LK&L",
     "mc_code": "123010101",
+    "division": "LADIES"
+  },
+  "L_KURTI_ST": {
+    "sub_division": "LK&L",
+    "mc_code": "123020101",
     "division": "LADIES"
   },
   "L_KURTI_HS": {
@@ -159,6 +199,11 @@
     "mc_code": "124080101",
     "division": "LADIES"
   },
+  "LW_LEGGING": {
+    "sub_division": "LW",
+    "mc_code": "126130101",
+    "division": "LADIES"
+  },
   "LW_GLOVES": {
     "sub_division": "LW",
     "mc_code": "126170101",
@@ -174,6 +219,11 @@
     "mc_code": "126190101",
     "division": "LADIES"
   },
+  "JB_B_SUIT_SL": {
+    "sub_division": "KB-SETS",
+    "mc_code": "131010101",
+    "division": "KIDS"
+  },
   "JB_H_B_SUIT_FS": {
     "sub_division": "KB-SETS",
     "mc_code": "131020201",
@@ -182,6 +232,11 @@
   "JB_T_B_SUIT_FS": {
     "sub_division": "KB-SETS",
     "mc_code": "131020301",
+    "division": "KIDS"
+  },
+  "JB_B_SUIT_ST_HS": {
+    "sub_division": "KB-SETS",
+    "mc_code": "131030101",
     "division": "KIDS"
   },
   "JB_H_B_SUIT_HS": {
@@ -229,6 +284,11 @@
     "mc_code": "131100303",
     "division": "KIDS"
   },
+  "JB_KURTA_ST": {
+    "sub_division": "KB-SETS",
+    "mc_code": "131110101",
+    "division": "KIDS"
+  },
   "JB_SHIRT_FS": {
     "sub_division": "KB-U",
     "mc_code": "131140101",
@@ -236,7 +296,7 @@
   },
   "JB_SHIRT_HS": {
     "sub_division": "KB-U",
-    "mc_code": "131150201",
+    "mc_code": "131150101",
     "division": "KIDS"
   },
   "JB_SUIT": {
@@ -284,6 +344,11 @@
     "mc_code": "131230101",
     "division": "KIDS"
   },
+  "JB_T_SHIRT_PN_HS": {
+    "sub_division": "KB-U",
+    "mc_code": "131230201",
+    "division": "KIDS"
+  },
   "JB_TEES_SL": {
     "sub_division": "KB-U",
     "mc_code": "131240101",
@@ -306,7 +371,7 @@
   },
   "YB_SHIRT_HS": {
     "sub_division": "KB-U",
-    "mc_code": "131380201",
+    "mc_code": "131380101",
     "division": "KIDS"
   },
   "YB_TEES_FS": {
@@ -544,6 +609,11 @@
     "mc_code": "133730101",
     "division": "KIDS"
   },
+  "JGW_JKT_FS": {
+    "sub_division": "KGW-U",
+    "mc_code": "134030101",
+    "division": "KIDS"
+  },
   "JGW_LEGGING": {
     "sub_division": "KGW-L",
     "mc_code": "134050101",
@@ -579,6 +649,11 @@
     "mc_code": "134140101",
     "division": "KIDS"
   },
+  "YGW_JKT_FS": {
+    "sub_division": "KGW-U",
+    "mc_code": "134170101",
+    "division": "KIDS"
+  },
   "YGW_LEGGING": {
     "sub_division": "KGW-L",
     "mc_code": "134190101",
@@ -592,6 +667,11 @@
   "YGW_TOP": {
     "sub_division": "KGW-U",
     "mc_code": "134250101",
+    "division": "KIDS"
+  },
+  "YGW_SKEEVY": {
+    "sub_division": "KGW-U",
+    "mc_code": "134250201",
     "division": "KIDS"
   },
   "IB_BERMUDA": {
@@ -654,6 +734,11 @@
     "mc_code": "135300101",
     "division": "KIDS"
   },
+  "IG_TOP_HS": {
+    "sub_division": "IG",
+    "mc_code": "135310101",
+    "division": "KIDS"
+  },
   "KI_BOOTY": {
     "sub_division": "IG",
     "mc_code": "135330102",
@@ -664,9 +749,24 @@
     "mc_code": "135330105",
     "division": "KIDS"
   },
+  "KI_B_SUIT_SL": {
+    "sub_division": "IB",
+    "mc_code": "135340101",
+    "division": "KIDS"
+  },
+  "KI_B_SUIT_ST_HS": {
+    "sub_division": "IB",
+    "mc_code": "135350101",
+    "division": "KIDS"
+  },
   "KI_BLOOMER": {
     "sub_division": "IG",
     "mc_code": "135360101",
+    "division": "KIDS"
+  },
+  "IB_B_SUIT_FS": {
+    "sub_division": "KB-SETS",
+    "mc_code": "135410101",
     "division": "KIDS"
   },
   "KI_SKRT_TOP_ST": {
@@ -714,15 +814,50 @@
     "mc_code": "136160101",
     "division": "KIDS"
   },
+  "L_JEANS": {
+    "sub_division": "LL",
+    "mc_code": "122060401",
+    "division": "LADIES"
+  },
+  "MW_JKT_SL": {
+    "sub_division": "MW",
+    "mc_code": "117040202",
+    "division": "MENS"
+  },
+  "MW_PYJAMA": {
+    "sub_division": "MW",
+    "mc_code": "117060102",
+    "division": "MENS"
+  },
   "MW_SWTR_FS": {
     "sub_division": "MW",
-    "mc_code": "117070302",
+    "mc_code": "117070301",
+    "division": "MENS"
+  },
+  "MW_TEES_FS": {
+    "sub_division": "MW",
+    "mc_code": "117090301",
+    "division": "MENS"
+  },
+  "MW_THRM_LOWER": {
+    "sub_division": "MW",
+    "mc_code": "117110201",
     "division": "MENS"
   },
   "MW_THRM_UPPER": {
     "sub_division": "MW",
     "mc_code": "117110301",
     "division": "MENS"
+  },
+  "MW_TRACK_SUIT": {
+    "sub_division": "MW",
+    "mc_code": "117120401",
+    "division": "MENS"
+  },
+  "LW_TOP": {
+    "sub_division": "LW",
+    "mc_code": "126020401",
+    "division": "LADIES"
   },
   "LW_SKEEVY": {
     "sub_division": "LW",
@@ -739,15 +874,45 @@
     "mc_code": "126080102",
     "division": "LADIES"
   },
+  "JGW_BLAZER": {
+    "sub_division": "KGW-U",
+    "mc_code": "134010102",
+    "division": "KIDS"
+  },
+  "JGW_FLC_TOP": {
+    "sub_division": "KGW-U",
+    "mc_code": "134020102",
+    "division": "KIDS"
+  },
+  "YGW_BLAZER": {
+    "sub_division": "KGW-U",
+    "mc_code": "134150102",
+    "division": "KIDS"
+  },
+  "YGW_FLC_TOP": {
+    "sub_division": "KGW-U",
+    "mc_code": "134160102",
+    "division": "KIDS"
+  },
+  "IBW_B_SUIT": {
+    "sub_division": "KBW-SETS",
+    "mc_code": "136030102",
+    "division": "KIDS"
+  },
   "IBW_THRM_W": {
     "sub_division": "KBW-U",
-    "mc_code": "136150103",
+    "mc_code": "136150102",
     "division": "KIDS"
   },
   "MW_SHACKET": {
     "sub_division": "MW",
     "mc_code": "111090101",
     "division": "MENS"
+  },
+  "L_CARGO": {
+    "sub_division": "LL",
+    "mc_code": "122170101",
+    "division": "LADIES"
   },
   "LW_THRM_UPPER": {
     "sub_division": "LW",
@@ -757,6 +922,11 @@
   "LW_THRM_LOWER": {
     "sub_division": "LW",
     "mc_code": "126230101",
+    "division": "LADIES"
+  },
+  "LW_KURTI_ST": {
+    "sub_division": "LW",
+    "mc_code": "126240101",
     "division": "LADIES"
   },
   "M_W_JAMAICAN": {
@@ -804,9 +974,39 @@
     "mc_code": "111070103",
     "division": "MENS"
   },
+  "M_W_TRSR": {
+    "sub_division": "ML",
+    "mc_code": "112010601",
+    "division": "MENS"
+  },
+  "M_JEANS": {
+    "sub_division": "ML",
+    "mc_code": "112020701",
+    "division": "MENS"
+  },
+  "M_F_TRSR": {
+    "sub_division": "ML",
+    "mc_code": "112030103",
+    "division": "MENS"
+  },
+  "M_CARGO": {
+    "sub_division": "ML",
+    "mc_code": "112050201",
+    "division": "MENS"
+  },
+  "M_TEES_HS": {
+    "sub_division": "MS-U",
+    "mc_code": "113030110",
+    "division": "MENS"
+  },
   "M_TEES_PN_HS": {
     "sub_division": "MS-U",
     "mc_code": "113050110",
+    "division": "MENS"
+  },
+  "M_TEES_SL": {
+    "sub_division": "MS-U",
+    "mc_code": "113080104",
     "division": "MENS"
   },
   "M_K_PYJAMA": {
@@ -824,9 +1024,19 @@
     "mc_code": "114060801",
     "division": "MENS"
   },
+  "M_SUIT": {
+    "sub_division": "MO",
+    "mc_code": "115040501",
+    "division": "MENS"
+  },
   "M_BRIEF": {
     "sub_division": "MS-IW",
     "mc_code": "116020401",
+    "division": "MENS"
+  },
+  "M_SANDO": {
+    "sub_division": "MS-U",
+    "mc_code": "116030104",
     "division": "MENS"
   },
   "M_VEST": {
@@ -837,6 +1047,11 @@
   "L_H_HOT_PANT": {
     "sub_division": "LL",
     "mc_code": "122070103",
+    "division": "LADIES"
+  },
+  "LW_BLAZER": {
+    "sub_division": "LW",
+    "mc_code": "126200102",
     "division": "LADIES"
   },
   "L_H_TOP_HS": {
@@ -852,6 +1067,11 @@
   "L_H_TOP_FS": {
     "sub_division": "LU",
     "mc_code": "121100101",
+    "division": "LADIES"
+  },
+  "L_T_HOT_PANT": {
+    "sub_division": "LL",
+    "mc_code": "122150101",
     "division": "LADIES"
   },
   "L_DUPATTA": {
@@ -892,11 +1112,6 @@
   "LW_JKT_SL": {
     "sub_division": "LW",
     "mc_code": "126150101",
-    "division": "LADIES"
-  },
-  "LW_BLAZER": {
-    "sub_division": "LW",
-    "mc_code": "126200101",
     "division": "LADIES"
   },
   "YB_TRSR": {
@@ -959,9 +1174,9 @@
     "mc_code": "133340102",
     "division": "KIDS"
   },
-  "KI_B_SUIT_ST_HS": {
-    "sub_division": "IB",
-    "mc_code": "135350103",
+  "IB_H_B_SUIT_FS": {
+    "sub_division": "KI",
+    "mc_code": "135510101",
     "division": "KIDS"
   },
   "IB_H_B_SUIT_HS": {
@@ -974,9 +1189,24 @@
     "mc_code": "135540101",
     "division": "KIDS"
   },
+  "IB_ROMPER_SUIT": {
+    "sub_division": "IB",
+    "mc_code": "135650101",
+    "division": "KIDS"
+  },
+  "IB_T_B_SUIT_FS": {
+    "sub_division": "KI",
+    "mc_code": "135550101",
+    "division": "KIDS"
+  },
   "IB_T_DNGR_SUIT": {
     "sub_division": "IB",
     "mc_code": "135570101",
+    "division": "KIDS"
+  },
+  "IBW_FLC_B_SUIT": {
+    "sub_division": "KIW",
+    "mc_code": "136170101",
     "division": "KIDS"
   },
   "IBW_PLFL_B_SUIT": {
@@ -984,9 +1214,49 @@
     "mc_code": "136180101",
     "division": "KIDS"
   },
+  "IBW_SHRN_B_SUIT": {
+    "sub_division": "KIW",
+    "mc_code": "136190101",
+    "division": "KIDS"
+  },
+  "IBW_WLN_B_SUIT": {
+    "sub_division": "KIW",
+    "mc_code": "136200101",
+    "division": "KIDS"
+  },
+  "JB_CRG": {
+    "sub_division": "KB-L",
+    "mc_code": "131670101",
+    "division": "KIDS"
+  },
   "JB_K_SHIRT_HS": {
     "sub_division": "KB-U",
     "mc_code": "131690101",
+    "division": "KIDS"
+  },
+  "JB_TEES_HD_FS": {
+    "sub_division": "KB-U",
+    "mc_code": "131710101",
+    "division": "KIDS"
+  },
+  "JB_TEES_HOLI": {
+    "sub_division": "KB-U",
+    "mc_code": "131810101",
+    "division": "KIDS"
+  },
+  "JBW_B_SUIT": {
+    "sub_division": "KBW-SETS",
+    "mc_code": "132300101",
+    "division": "KIDS"
+  },
+  "JBW_SHACKET": {
+    "sub_division": "KBW-U",
+    "mc_code": "132310101",
+    "division": "KIDS"
+  },
+  "JBW_T_SHIRT_HD_FS": {
+    "sub_division": "KBW-U",
+    "mc_code": "132190101",
     "division": "KIDS"
   },
   "JBW_THRM_L": {
@@ -1004,6 +1274,11 @@
     "mc_code": "132200101",
     "division": "KIDS"
   },
+  "JG_CARGO": {
+    "sub_division": "KG-L",
+    "mc_code": "133830201",
+    "division": "KIDS"
+  },
   "JG_H_HOT_PANT_ST": {
     "sub_division": "KG-U",
     "mc_code": "133870101",
@@ -1014,6 +1289,11 @@
     "mc_code": "133880101",
     "division": "KIDS"
   },
+  "JG_H_ST": {
+    "sub_division": "KG-U",
+    "mc_code": "133930101",
+    "division": "KIDS"
+  },
   "JG_T_HOT_PANT_ST": {
     "sub_division": "KG-U",
     "mc_code": "133890101",
@@ -1022,6 +1302,11 @@
   "JG_T_SKRT_TOP_ST": {
     "sub_division": "KG-U",
     "mc_code": "133900101",
+    "division": "KIDS"
+  },
+  "JG_T_ST": {
+    "sub_division": "KG-U",
+    "mc_code": "133940101",
     "division": "KIDS"
   },
   "JGW_THRM_L": {
@@ -1069,9 +1354,34 @@
     "mc_code": "136050101",
     "division": "KIDS"
   },
+  "KIW_JKT_SL": {
+    "sub_division": "KGW-U",
+    "mc_code": "136090102",
+    "division": "KIDS"
+  },
+  "L_D_JKT": {
+    "sub_division": "LU",
+    "mc_code": "121240101",
+    "division": "LADIES"
+  },
   "L_H_CROP_TOP_FS": {
     "sub_division": "LU",
     "mc_code": "121200101",
+    "division": "LADIES"
+  },
+  "L_H_TOP_HOLI": {
+    "sub_division": "LU",
+    "mc_code": "121280101",
+    "division": "LADIES"
+  },
+  "L_RAINCOAT": {
+    "sub_division": "LU",
+    "mc_code": "121290101",
+    "division": "LADIES"
+  },
+  "L_T_TOP_SL": {
+    "sub_division": "LU",
+    "mc_code": "121250101",
     "division": "LADIES"
   },
   "LW_BLAZER_WLN": {
@@ -1084,9 +1394,49 @@
     "mc_code": "126280101",
     "division": "LADIES"
   },
+  "LW_HW_JKT_FS": {
+    "sub_division": "LW",
+    "mc_code": "126290101",
+    "division": "LADIES"
+  },
+  "LW_LTW_JKT_FS": {
+    "sub_division": "LW",
+    "mc_code": "126300101",
+    "division": "LADIES"
+  },
+  "LW_SHACKET": {
+    "sub_division": "LW",
+    "mc_code": "126320101",
+    "division": "LADIES"
+  },
+  "M_BLAZER": {
+    "sub_division": "MO",
+    "mc_code": "115080101",
+    "division": "MENS"
+  },
   "M_HOLI": {
     "sub_division": "MO",
     "mc_code": "115060101",
+    "division": "MENS"
+  },
+  "M_HOLI_KURTA_HS": {
+    "sub_division": "MU",
+    "mc_code": "111130101",
+    "division": "MENS"
+  },
+  "M_HOLI_SHIRT_HS": {
+    "sub_division": "MU",
+    "mc_code": "111120101",
+    "division": "MENS"
+  },
+  "M_HOLI_TEES_HS": {
+    "sub_division": "MS-U",
+    "mc_code": "113130101",
+    "division": "MENS"
+  },
+  "M_K_TRSR": {
+    "sub_division": "ML",
+    "mc_code": "112060101",
     "division": "MENS"
   },
   "M_PRW_SHIRT_FS": {
@@ -1099,9 +1449,24 @@
     "mc_code": "117170101",
     "division": "MENS"
   },
-  "MW_TXT_JKT_FS": {
+  "MW_HRY_SWTR_FS": {
     "sub_division": "MW",
-    "mc_code": "117140101",
+    "mc_code": "117180102",
+    "division": "MENS"
+  },
+  "MW_POLY_JKT_FS": {
+    "sub_division": "MW",
+    "mc_code": "117190101",
+    "division": "MENS"
+  },
+  "MW_PU_JKT_FS": {
+    "sub_division": "MW",
+    "mc_code": "117200101",
+    "division": "MENS"
+  },
+  "MW_TEES_HUD_FS": {
+    "sub_division": "MW",
+    "mc_code": "117210101",
     "division": "MENS"
   },
   "MW_TEES_SL": {
@@ -1109,9 +1474,39 @@
     "mc_code": "117100101",
     "division": "MENS"
   },
+  "MW_TXT_JKT_FS": {
+    "sub_division": "MW",
+    "mc_code": "117140101",
+    "division": "MENS"
+  },
+  "YB_CRG": {
+    "sub_division": "KB-L",
+    "mc_code": "131680101",
+    "division": "KIDS"
+  },
   "YB_K_SHIRT_HS": {
     "sub_division": "KB-U",
     "mc_code": "131700101",
+    "division": "KIDS"
+  },
+  "YB_TEES_HD_FS": {
+    "sub_division": "KB-U",
+    "mc_code": "131720101",
+    "division": "KIDS"
+  },
+  "YB_TEES_HOLI": {
+    "sub_division": "KB-U",
+    "mc_code": "131820101",
+    "division": "KIDS"
+  },
+  "YBW_SHACKET": {
+    "sub_division": "KBW-U",
+    "mc_code": "132320101",
+    "division": "KIDS"
+  },
+  "YBW_T_SHIRT_HD_FS": {
+    "sub_division": "KBW-U",
+    "mc_code": "132210101",
     "division": "KIDS"
   },
   "YBW_THRM_L": {
@@ -1129,6 +1524,11 @@
     "mc_code": "132220101",
     "division": "KIDS"
   },
+  "YG_CARGO": {
+    "sub_division": "KG-L",
+    "mc_code": "133840201",
+    "division": "KIDS"
+  },
   "YGW_THRM_L": {
     "sub_division": "KGW-L",
     "mc_code": "134300101",
@@ -1138,385 +1538,5 @@
     "sub_division": "KGW-U",
     "mc_code": "134310101",
     "division": "KIDS"
-  },
-  "JB_T_SHIRT_PN_HS": {
-    "sub_division": "KB-U",
-    "mc_code": "131560102",
-    "division": "KIDS"
-  },
-  "LW_LEGGING": {
-    "sub_division": "LW",
-    "mc_code": "126130102",
-    "division": "LADIES"
-  },
-  "MW_WNDCHTR_JKT_FS": {
-    "sub_division": "MW",
-    "mc_code": "117160201",
-    "division": "MENS"
-  },
-  "YGW_SKEEVY": {
-    "sub_division": "KGW-U",
-    "mc_code": "134250202",
-    "division": "KIDS"
-  },
-  "IB_B_SUIT_FS": {
-    "sub_division": "KB-SETS",
-    "mc_code": "135410103",
-    "division": "KIDS"
-  },
-  "IG_TOP_HS": {
-    "sub_division": "IG",
-    "mc_code": "135310103",
-    "division": "KIDS"
-  },
-  "JB_B_SUIT_ST_HS": {
-    "sub_division": "KB-SETS",
-    "mc_code": "131790101",
-    "division": "KIDS"
-  },
-  "JB_CRG": {
-    "sub_division": "KB-L",
-    "mc_code": "131670301",
-    "division": "KIDS"
-  },
-  "JB_KURTA_ST": {
-    "sub_division": "KB-SETS",
-    "mc_code": "131110104",
-    "division": "KIDS"
-  },
-  "JB_TEES_HD_FS": {
-    "sub_division": "KB-U",
-    "mc_code": "131710102",
-    "division": "KIDS"
-  },
-  "JG_CARGO": {
-    "sub_division": "KG-L",
-    "mc_code": "133830101",
-    "division": "KIDS"
-  },
-  "JGW_BLAZER": {
-    "sub_division": "KGW-U",
-    "mc_code": "134010101",
-    "division": "KIDS"
-  },
-  "JGW_JKT_FS": {
-    "sub_division": "KGW-U",
-    "mc_code": "134030301",
-    "division": "KIDS"
-  },
-  "L_CARGO": {
-    "sub_division": "LL",
-    "mc_code": "122170103",
-    "division": "LADIES"
-  },
-  "LW_KURTI_ST": {
-    "sub_division": "LW",
-    "mc_code": "126240103",
-    "division": "LADIES"
-  },
-  "M_BOXER": {
-    "sub_division": "MS-IW",
-    "mc_code": "116010101",
-    "division": "MENS"
-  },
-  "M_MODI_JKT": {
-    "sub_division": "MO",
-    "mc_code": "115020103",
-    "division": "MENS"
-  },
-  "MW_GLOVES": {
-    "sub_division": "MW",
-    "mc_code": "117020103",
-    "division": "MENS"
-  },
-  "MW_HRY_SWTR_FS": {
-    "sub_division": "MW",
-    "mc_code": "117180101",
-    "division": "MENS"
-  },
-  "MW_THRM_LOWER": {
-    "sub_division": "MW",
-    "mc_code": "117110202",
-    "division": "MENS"
-  },
-  "YB_CRG": {
-    "sub_division": "KB-L",
-    "mc_code": "131680301",
-    "division": "KIDS"
-  },
-  "YB_TEES_HD_FS": {
-    "sub_division": "KB-U",
-    "mc_code": "131720102",
-    "division": "KIDS"
-  },
-  "YG_CARGO": {
-    "sub_division": "KG-L",
-    "mc_code": "133840101",
-    "division": "KIDS"
-  },
-  "YGW_BLAZER": {
-    "sub_division": "KGW-U",
-    "mc_code": "134150101",
-    "division": "KIDS"
-  },
-  "YGW_JKT_FS": {
-    "sub_division": "KGW-U",
-    "mc_code": "134170301",
-    "division": "KIDS"
-  },
-  "JB_B_SUIT_SL": {
-    "sub_division": "KB-SETS",
-    "mc_code": "131800101",
-    "division": "KIDS"
-  },
-  "KIW_JKT_SL": {
-    "sub_division": "KGW-U",
-    "mc_code": "136090101",
-    "division": "KIDS"
-  },
-  "M_CARGO": {
-    "sub_division": "ML",
-    "mc_code": "112050301",
-    "division": "MENS"
-  },
-  "M_F_TRSR": {
-    "sub_division": "ML",
-    "mc_code": "112030104",
-    "division": "MENS"
-  },
-  "M_K_TRSR": {
-    "sub_division": "ML",
-    "mc_code": "112080101",
-    "division": "MENS"
-  },
-  "MW_CAP": {
-    "sub_division": "MW",
-    "mc_code": "117010104",
-    "division": "MENS"
-  },
-  "MW_PU_JKT_FS": {
-    "sub_division": "MW",
-    "mc_code": "117200104",
-    "division": "MENS"
-  },
-  "MW_TEES_HUD_FS": {
-    "sub_division": "MW",
-    "mc_code": "117210104",
-    "division": "MENS"
-  },
-  "KI_B_SUIT_SL": {
-    "sub_division": "IB",
-    "mc_code": "135640101",
-    "division": "KIDS"
-  },
-  "L_PLAZO": {
-    "sub_division": "LL",
-    "mc_code": "122040303",
-    "division": "LADIES"
-  },
-  "IBW_B_SUIT": {
-    "sub_division": "KBW-SETS",
-    "mc_code": "136030101",
-    "division": "KIDS"
-  },
-  "JBW_T_SHIRT_HD_FS": {
-    "sub_division": "KBW-U",
-    "mc_code": "132190106",
-    "division": "KIDS"
-  },
-  "L_T_HOT_PANT": {
-    "sub_division": "LL",
-    "mc_code": "122150102",
-    "division": "LADIES"
-  },
-  "LW_HW_JKT_FS": {
-    "sub_division": "LW",
-    "mc_code": "126290106",
-    "division": "LADIES"
-  },
-  "LW_LTW_JKT_FS": {
-    "sub_division": "LW",
-    "mc_code": "126300106",
-    "division": "LADIES"
-  },
-  "M_SANDO": {
-    "sub_division": "MS-U",
-    "mc_code": "116030201",
-    "division": "MENS"
-  },
-  "M_TEES_SL": {
-    "sub_division": "MS-U",
-    "mc_code": "113080106",
-    "division": "MENS"
-  },
-  "MW_BLAZER": {
-    "sub_division": "MW",
-    "mc_code": "115010106",
-    "division": "MENS"
-  },
-  "MW_POLY_JKT_FS": {
-    "sub_division": "MW",
-    "mc_code": "117190106",
-    "division": "MENS"
-  },
-  "MW_JKT_SL": {
-    "sub_division": "MW",
-    "mc_code": "117040205",
-    "division": "MENS"
-  },
-  "MW_TRACK_SUIT": {
-    "sub_division": "MW",
-    "mc_code": "117120403",
-    "division": "MENS"
-  },
-  "YBW_T_SHIRT_HD_FS": {
-    "sub_division": "KBW-U",
-    "mc_code": "132210106",
-    "division": "KIDS"
-  },
-  "JGW_FLC_TOP": {
-    "sub_division": "KGW-U",
-    "mc_code": "134020101",
-    "division": "KIDS"
-  },
-  "L_KURTI_ST": {
-    "sub_division": "LK&L",
-    "mc_code": "123020607",
-    "division": "LADIES"
-  },
-  "MW_PYJAMA": {
-    "sub_division": "MW",
-    "mc_code": "117060106",
-    "division": "MENS"
-  },
-  "YGW_FLC_TOP": {
-    "sub_division": "KGW-U",
-    "mc_code": "134160101",
-    "division": "KIDS"
-  },
-  "M_SUIT": {
-    "sub_division": "MO",
-    "mc_code": "115040504",
-    "division": "MENS"
-  },
-  "LW_TOP": {
-    "sub_division": "LW",
-    "mc_code": "126020405",
-    "division": "LADIES"
-  },
-  "M_TEES_HS": {
-    "sub_division": "MS-U",
-    "mc_code": "113030112",
-    "division": "MENS"
-  },
-  "M_W_TRSR": {
-    "sub_division": "ML",
-    "mc_code": "112010404",
-    "division": "MENS"
-  },
-  "MW_TEES_FS": {
-    "sub_division": "MW",
-    "mc_code": "117090311",
-    "division": "MENS"
-  },
-  "M_JEANS": {
-    "sub_division": "ML",
-    "mc_code": "112020705",
-    "division": "MENS"
-  },
-  "L_JEANS": {
-    "sub_division": "LL",
-    "mc_code": "122060404",
-    "division": "LADIES"
-  },
-  "JG_H_ST": {
-    "sub_division": "KG-U",
-    "mc_code": "133930101",
-    "division": "KIDS"
-  },
-  "JG_T_ST": {
-    "sub_division": "KG-U",
-    "mc_code": "133940101",
-    "division": "KIDS"
-  },
-  "JBW_B_SUIT": {
-    "sub_division": "KBW-SETS",
-    "mc_code": "132300101",
-    "division": "KIDS"
-  },
-  "L_D_JKT": {
-    "sub_division": "LU",
-    "mc_code": "121240101",
-    "division": "LADIES"
-  },
-  "LW_SHACKET": {
-    "sub_division": "LW",
-    "mc_code": "126320101",
-    "division": "LADIES"
-  },
-  "JBW_SHACKET": {
-    "sub_division": "KBW-U",
-    "mc_code": "132310101",
-    "division": "KIDS"
-  },
-  "YBW_SHACKET": {
-    "sub_division": "KBW-U",
-    "mc_code": "132320101",
-    "division": "KIDS"
-  },
-  "JB_TEES_HOLI": {
-    "sub_division": "KB-U",
-    "mc_code": "131810101",
-    "division": "KIDS"
-  },
-  "YB_TEES_HOLI": {
-    "sub_division": "KB-U",
-    "mc_code": "131820101",
-    "division": "KIDS"
-  },
-  "L_T_TOP_SL": {
-    "sub_division": "LU",
-    "mc_code": "121250101",
-    "division": "LADIES"
-  },
-  "L_T_M_FRK_SL": {
-    "sub_division": "LU",
-    "mc_code": "121260101",
-    "division": "LADIES"
-  },
-  "IB_ROMPER_SUIT": {
-    "sub_division": "IB",
-    "mc_code": "135650101",
-    "division": "KIDS"
-  },
-  "L_H_TOP_HOLI": {
-    "sub_division": "LU",
-    "mc_code": "121280101",
-    "division": "LADIES"
-  },
-  "M_BLAZER": {
-    "sub_division": "MO",
-    "mc_code": "115080101",
-    "division": "MENS"
-  },
-  "M_HOLI_SHIRT_HS": {
-    "sub_division": "MU",
-    "mc_code": "111120101",
-    "division": "MENS"
-  },
-  "M_HOLI_KURTA_HS": {
-    "sub_division": "MU",
-    "mc_code": "111130101",
-    "division": "MENS"
-  },
-  "M_HOLI_TEES_HS": {
-    "sub_division": "MS-U",
-    "mc_code": "113130101",
-    "division": "MENS"
-  },
-  "L_RAINCOAT": {
-    "sub_division": "LU",
-    "mc_code": "121290101",
-    "division": "LADIES"
   }
 }

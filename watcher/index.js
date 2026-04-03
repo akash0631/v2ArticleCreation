@@ -11,7 +11,7 @@ const testMode = process.argv.includes('--test');
 
 async function main() {
   log.info('AI Fashion Watcher Service starting...');
-  log.info(`Schedules: 12:00 PM, 3:00 PM, 6:00 PM (daily)`);
+  log.info(`Schedules: 12:00 PM, 8:00 PM (daily)`);
 
   // Load list of already-processed images
   loadProcessed();
@@ -23,9 +23,9 @@ async function main() {
     return;
   }
 
-  // Schedule scans at 12pm, 3pm, 6pm
+  // Schedule scans at 12pm, 8pm
   CRON_SCHEDULES.forEach((schedule, i) => {
-    const labels = ['12:00 PM', '3:00 PM', '6:00 PM'];
+    const labels = ['12:00 PM', '8:00 PM'];
     cron.schedule(schedule, async () => {
       log.info(`Scheduled scan triggered: ${labels[i]}`);
       try {

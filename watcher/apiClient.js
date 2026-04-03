@@ -30,8 +30,14 @@ async function submitImage(filePath, meta, catData) {
   form.append('source', 'WATCHER');
   form.append('image_unc_path', filePath);
 
-  // Watcher metadata extracted from folder path
-  form.append('watcher_division',          catData?.division      || meta.division);
+  // Watcher metadata extracted from folder path and Excel mapping:
+  //   division       → always from folder path (MENS / WOMENS / LADIES / KIDS)
+  //   vendor_name    → from folder path
+  //   vendor_code    → from folder path
+  //   major_category → raw folder name (e.g. M_TEES_HS)
+  //   sub_division   → Excel mapping only (major_category → sub_division)
+  //   mc_code        → Excel mapping only (major_category → mc_code)
+  form.append('watcher_division',          meta.division);
   form.append('watcher_vendor_name',       meta.vendorName);
   form.append('watcher_vendor_code',       meta.vendorCode);
   form.append('watcher_major_category',    meta.majorCategoryFolder);

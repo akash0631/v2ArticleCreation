@@ -5,7 +5,8 @@ module.exports = {
   WATCH_ROOT: process.env.WATCH_ROOT || '\\\\File\\0-v2\\04-DEPARTMENT\\02-PO COMMITEE\\13-PRESENTATION\\02-P-PHOTOS',
 
   // Folder names under MONTH that are valid — all others are ignored
-  VALID_DIVISIONS: ['MENS', 'WOMENS', 'LADIES', 'KIDS'],
+  // MEN/WOMEN/KID are typo variants, also accepted
+  VALID_DIVISIONS: ['MENS', 'WOMENS', 'LADIES', 'KIDS', 'MEN', 'WOMEN', 'KID'],
 
   // Image file extensions to process
   IMAGE_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -27,7 +28,6 @@ module.exports = {
   // Format: second minute hour day month weekday
   CRON_SCHEDULES: [
     '0 0 12 * * *',   // 12:00 PM
-    '0 0 15 * * *',   // 3:00 PM
-    '0 0 18 * * *',   // 6:00 PM
+    '0 0 20 * * *',   // 8:00 PM
   ],
 };

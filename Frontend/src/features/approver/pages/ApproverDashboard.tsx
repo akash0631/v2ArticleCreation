@@ -379,9 +379,11 @@ export default function ApproverDashboard() {
                 values.mcCode = inferMcCode(values.majorCategory) || values.mcCode;
             }
 
-            // Always derive MRP from Rate/Cost:
-            // MRP = ceil((rate + 33%) / 25) * 25
-            if (values.rate !== undefined) {
+            // Auto-derive MRP from rate only if MRP was not manually set
+            const originalMrp = editingItem?.mrp != null ? String(editingItem.mrp) : '';
+            const currentMrp = values.mrp != null ? String(values.mrp) : '';
+            const mrpUnchanged = currentMrp === originalMrp || currentMrp === '';
+            if (values.rate !== undefined && mrpUnchanged) {
                 values.mrp = calculateMrpFromRate(values.rate);
             }
 
@@ -505,6 +507,11 @@ export default function ApproverDashboard() {
                 </Form.Item>
             </Col>
             <Col span={12}>
+                <Form.Item name="mrp" label="MRP">
+                    <Input placeholder="e.g. 599" />
+                </Form.Item>
+            </Col>
+            <Col span={12}>
                 <Form.Item name="size" label="Size">
                     <Input />
                 </Form.Item>
@@ -515,9 +522,6 @@ export default function ApproverDashboard() {
     const attributesTab = (
         <Row gutter={16} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
             <Col span={24}><Typography.Title level={5}>Fabric Details</Typography.Title></Col>
-            <Col span={8}><Form.Item name="fabricMainMvgr" label="Fabric Main"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="composition" label="Composition"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="weave" label="Weave"><Input /></Form.Item></Col>
             <Col span={8}>
                 <Form.Item name="macroMvgr" label="Macro MVGR">
                     <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
@@ -536,6 +540,9 @@ export default function ApproverDashboard() {
                     </Select>
                 </Form.Item>
             </Col>
+            <Col span={8}><Form.Item name="yarn1" label="Yarn 1"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="fabricMainMvgr" label="Fabric Main MVGR"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="weave" label="Weave"><Input /></Form.Item></Col>
             <Col span={8}>
                 <Form.Item name="mFab2" label="M FAB 2">
                     <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
@@ -545,17 +552,18 @@ export default function ApproverDashboard() {
                     </Select>
                 </Form.Item>
             </Col>
-            <Col span={8}><Form.Item name="gsm" label="GSM"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="composition" label="Composition"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="finish" label="Finish"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="shade" label="Shade"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="gsm" label="GSM"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="weight" label="G-Weight"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="lycra" label="Lycra"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="yarn1" label="Yarn 1"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="shade" label="Shade"><Input /></Form.Item></Col>
 
             <Col span={24}><Typography.Title level={5}>Styling & Design</Typography.Title></Col>
             <Col span={8}><Form.Item name="colour" label="Color"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="pattern" label="Pattern"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="fit" label="Fit"><Input /></Form.Item></Col>
+            <Col span={8}><Form.Item name="wash" label="Wash"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="neck" label="Neck"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="neckDetails" label="Neck Details"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="collar" label="Collar"><Input /></Form.Item></Col>
@@ -582,7 +590,6 @@ export default function ApproverDashboard() {
             <Col span={8}><Form.Item name="patchesType" label="Patch Type"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="embroidery" label="Embroidery"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="embroideryType" label="Embroidery Type"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="wash" label="Wash"><Input /></Form.Item></Col>
         </Row>
     );
 
@@ -590,7 +597,6 @@ export default function ApproverDashboard() {
         <Row gutter={16}>
             <Col span={24}><Typography.Title level={5}>Business & SAP Fields</Typography.Title></Col>
             <Col span={8}><Form.Item name="vendorCode" label="Vendor Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="mrp" label="MRP"><Input placeholder="e.g. 599" /></Form.Item></Col>
             <Col span={8}><Form.Item name="mcCode" label="MC Code"><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="segment" label="Segment"><Input placeholder="e.g. PREMIUM, VALUE" /></Form.Item></Col>
             <Col span={8}><Form.Item name="season" label="Season"><Input placeholder="e.g. SS25, AW24" /></Form.Item></Col>
