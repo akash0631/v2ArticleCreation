@@ -356,7 +356,7 @@ export default function Dashboard() {
           </Select>
         </div>
 
-        <div ref={analyticsTableRef}>
+        <div ref={analyticsTableRef} className="dashboard-analytics-table-shell">
           <Table
             columns={analyticsColumns}
             dataSource={filteredAnalyticsRows}
@@ -368,7 +368,7 @@ export default function Dashboard() {
               pageSizeOptions: ['25', '50', '100'],
               position: ['bottomRight']
             }}
-            scroll={{ x: 720, y: analyticsScrollY }}
+            scroll={{ x: 'max-content', y: analyticsScrollY }}
             sticky
             locale={{ emptyText: 'No analytics data available yet' }}
             className="dashboard-analytics-table"
