@@ -322,7 +322,9 @@ export class EnhancedExtractionController {
           const overrides: Record<string, any> = {};
           if (watcherFields.division)       overrides.division      = watcherFields.division;
           if (watcherFields.vendorName)     overrides.vendorName    = watcherFields.vendorName;
+          // Folder vendor code takes priority; fall back to OCR-extracted code if folder had none
           if (watcherFields.vendorCode)     overrides.vendorCode    = watcherFields.vendorCode;
+          else if (ocrVendorCode)           overrides.vendorCode    = ocrVendorCode;
           if (watcherFields.majorCategory)  overrides.majorCategory = watcherFields.majorCategory;
           if (watcherFields.subDivision)    overrides.subDivision   = watcherFields.subDivision;
           if (watcherFields.mcCode)         overrides.mcCode        = watcherFields.mcCode;

@@ -42,6 +42,7 @@ export interface ApproverItem {
     createdAt: string;
     updatedAt: string;
     userName: string | null;
+    source?: string | null;
     // Attributes
     rate: number | string | null;
     size: string | null;
@@ -248,6 +249,16 @@ const getDensity = () => {
     const ratio = window.devicePixelRatio || 1;
     if (ratio < 1) return { tableSize: 'middle' as const, imgSize: 56, padding: '4px 6px' };
     return { tableSize: 'small' as const, imgSize: 44, padding: '2px 5px' };
+};
+
+const getExtractedByLabel = (row: ApproverItem): string => {
+    const source = String(row.source || '').trim().toUpperCase();
+    if (source === 'WATCHER') return 'Auto';
+
+    const userName = String(row.userName || '').trim();
+    if (userName) return userName;
+
+    return 'Auto';
 };
 
 export const ApproverTable: React.FC<ApproverTableProps> = ({
@@ -552,14 +563,19 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
         {
             title: 'Extracted By',
             key: 'user',
-            width: 150,
+            width: 130,
             render: (_: unknown, row: ApproverItem) => (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text style={{ fontSize: 13 }}>{row.userName || 'Unknown'}</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                        {new Date(row.createdAt).toLocaleDateString()}
-                    </Text>
-                </div>
+                <Text style={{ fontSize: 13 }}>{getExtractedByLabel(row)}</Text>
+            )
+        },
+        {
+            title: 'Date',
+            key: 'createdAt',
+            width: 110,
+            render: (_: unknown, row: ApproverItem) => (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                    {new Date(row.createdAt).toLocaleDateString()}
+                </Text>
             )
         },
         {

@@ -106,14 +106,15 @@ export class ClaudeVLMProvider implements VLMProvider {
 ${schemaDefinition}
 
 EXTRACTION PROCESS:
-1. READ TAG/BOARD (if visible): Extract metadata (Vendor Name, Design Number, Rate, PPT Number, GSM)
+1. READ TAG/BOARD (if visible): Extract metadata (Vendor Name, Vendor Code, Design Number, Rate, PPT Number, GSM)
+   - Vendor Code is typically a numeric ID written on the board/tag, often appearing directly after or below the vendor name (e.g. a 6-digit number like "201394")
 2. ANALYZE GARMENT: Extract every attribute listed above
 3. HANDLE MISSING VALUES: If truly not visible/determinable, use null
 4. PROVIDE CONFIDENCE: Rate each extraction 0-100%
 
 NULL VALUE HANDLING:
 • "no_packet", "no_placket", "no plackets" → Use null
-• "not visible", "cannot determine" → Use null  
+• "not visible", "cannot determine" → Use null
 • Empty or N/A → Use null
 • Only extract what you can actually see or infer confidently
 
@@ -121,6 +122,7 @@ CRITICAL: Return valid JSON only:
 {
   "metadata": {
     "vendorName": "from tag" or null,
+    "vendorCode": "numeric/alphanumeric code from tag near vendor name" or null,
     "designNumber": "from tag" or null,
     "rate": "from tag" or null,
     "pptNumber": "from tag" or null,

@@ -501,7 +501,10 @@ export const exportToExcel = async (
   });
 
   const link = document.createElement('a');
-  const fileName = `fashion-extraction-${categoryName?.replace(/\s+/g, '-') || 'results'}-${new Date().toISOString().split('T')[0]}.xlsx`;
+  const baseName = categoryName === 'Article Creation'
+    ? 'Article Creation'
+    : `fashion-extraction-${categoryName?.replace(/\s+/g, '-') || 'results'}`;
+  const fileName = `${baseName}-${new Date().toISOString().split('T')[0]}.xlsx`;
   link.href = URL.createObjectURL(blob);
   link.download = fileName;
   document.body.appendChild(link);

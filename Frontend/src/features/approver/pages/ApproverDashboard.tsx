@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { ApproverTable } from '../components/ApproverTable';
 import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -8,6 +8,7 @@ import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCate
 import { getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import type { Dayjs } from 'dayjs';
+import { exportToExcel } from '../../../shared/utils/export/extractionExport';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -62,6 +63,71 @@ const getSubDivisionVariants = (value?: string | null): string[] =>
             .map((item) => normalizeText(item))
             .filter(Boolean)
     ));
+
+const SIMPLE_APPROVER_EXPORT_HEADERS = [
+    'Article Number',
+    'Division',
+    'Sub Division',
+    'Major Category',
+    'Status',
+    'Vendor Name',
+    'Vendor Code',
+    'Design Number',
+    'PPT Number',
+    'Rate',
+    'MRP',
+    'Size',
+    'Colour',
+    'Pattern',
+    'Fit',
+    'Wash',
+    'Macro MVGR',
+    'Main MVGR',
+    'Yarn 1',
+    'Fabric Main MVGR',
+    'Weave',
+    'M FAB 2',
+    'Composition',
+    'Finish',
+    'GSM',
+    'Weight',
+    'Lycra',
+    'Shade',
+    'Neck',
+    'Neck Details',
+    'Sleeve',
+    'Length',
+    'Collar',
+    'Placket',
+    'Bottom Fold',
+    'Front Open Style',
+    'Pocket Type',
+    'Drawcord',
+    'Button',
+    'Zipper',
+    'Zip Colour',
+    'Father Belt',
+    'Child Belt',
+    'Print Type',
+    'Print Style',
+    'Print Placement',
+    'Patches',
+    'Patches Type',
+    'Embroidery',
+    'Embroidery Type',
+    'Reference Article Number',
+    'Reference Article Description',
+    'MC Code',
+    'Segment',
+    'Season',
+    'HSN Tax Code',
+    'Article Description',
+    'Fashion Grid',
+    'Year',
+    'Article Type',
+    'Extracted By',
+    'Created Date'
+] as const;
 
 export default function ApproverDashboard() {
     const [items, setItems] = useState<ApproverItem[]>([]);
@@ -236,6 +302,96 @@ export default function ApproverDashboard() {
         fetchAttributes();
         fetchItems();
     }, []); // Intentionally run once on mount — filters are applied client-side
+
+    const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
+        return rows.map((row) => {
+            const createdAt = row.createdAt ? new Date(row.createdAt) : null;
+            const formattedDate = createdAt && !Number.isNaN(createdAt.getTime())
+                ? createdAt.toLocaleDateString('en-GB')
+                : '';
+
+            return {
+                'Article Number': row.articleNumber || row.imageName || '',
+                'Division': row.division || '',
+                'Sub Division': row.subDivision || '',
+                'Major Category': row.majorCategory || '',
+                'Status': row.approvalStatus || '',
+                'Vendor Name': row.vendorName || '',
+                'Vendor Code': row.vendorCode || '',
+                'Design Number': row.designNumber || '',
+                'PPT Number': row.pptNumber || '',
+                'Rate': row.rate == null ? undefined : Number(row.rate),
+                'MRP': row.mrp == null ? undefined : Number(row.mrp),
+                'Size': row.size || '',
+                'Colour': row.colour || '',
+                'Pattern': row.pattern || '',
+                'Fit': row.fit || '',
+                'Wash': row.wash || '',
+                'Macro MVGR': row.macroMvgr || '',
+                'Main MVGR': row.mainMvgr || '',
+                'Yarn 1': row.yarn1 || '',
+                'Fabric Main MVGR': row.fabricMainMvgr || '',
+                'Weave': row.weave || '',
+                'M FAB 2': row.mFab2 || '',
+                'Composition': row.composition || '',
+                'Finish': row.finish || '',
+                'GSM': row.gsm || '',
+                'Weight': row.weight || '',
+                'Lycra': row.lycra || '',
+                'Shade': row.shade || '',
+                'Neck': row.neck || '',
+                'Neck Details': row.neckDetails || '',
+                'Sleeve': row.sleeve || '',
+                'Length': row.length || '',
+                'Collar': row.collar || '',
+                'Placket': row.placket || '',
+                'Bottom Fold': row.bottomFold || '',
+                'Front Open Style': row.frontOpenStyle || '',
+                'Pocket Type': row.pocketType || '',
+                'Drawcord': row.drawcord || '',
+                'Button': row.button || '',
+                'Zipper': row.zipper || '',
+                'Zip Colour': row.zipColour || '',
+                'Father Belt': row.fatherBelt || '',
+                'Child Belt': row.childBelt || '',
+                'Print Type': row.printType || '',
+                'Print Style': row.printStyle || '',
+                'Print Placement': row.printPlacement || '',
+                'Patches': row.patches || '',
+                'Patches Type': row.patchesType || '',
+                'Embroidery': row.embroidery || '',
+                'Embroidery Type': row.embroideryType || '',
+                'Reference Article Number': row.referenceArticleNumber || '',
+                'Reference Article Description': row.referenceArticleDescription || '',
+                'MC Code': row.mcCode || '',
+                'Segment': row.segment || '',
+                'Season': row.season || '',
+                'HSN Tax Code': row.hsnTaxCode || '',
+                'Article Description': row.articleDescription || '',
+                'Fashion Grid': row.fashionGrid || '',
+                'Year': row.year || '',
+                'Article Type': row.articleType || '',
+                'Extracted By': row.userName || '',
+                'Created Date': formattedDate
+            } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+        });
+    }, []);
+
+    const handleExportSelected = useCallback(async () => {
+        if (selectedRowKeys.length === 0) {
+            message.warning('Select at least one article to export');
+            return;
+        }
+
+        const selectedItems = filteredItems.filter((item) => selectedRowKeys.includes(item.id));
+        if (selectedItems.length === 0) {
+            message.warning('No selected articles available to export');
+            return;
+        }
+
+        const exportData = buildApproverExportData(selectedItems);
+        await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], 'Article Creation');
+    }, [buildApproverExportData, filteredItems, selectedRowKeys]);
 
     const handleApprove = async () => {
         if (selectedRowKeys.length === 0) return;
@@ -749,7 +905,7 @@ export default function ApproverDashboard() {
                             </>
                         )}
 
-                        <Col xs={24} sm={16} md={5}>
+                        <Col xs={24} sm={16} md={4}>
                             <RangePicker
                                 style={{ width: '100%' }}
                                 value={dateRangeFilter}
@@ -759,8 +915,11 @@ export default function ApproverDashboard() {
                             />
                         </Col>
 
-                        <Col xs={24} sm={24} md={4} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, whiteSpace: 'nowrap' }}>
+                        <Col xs={24} sm={24} md={5} style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, whiteSpace: 'nowrap' }}>
                             <Button icon={<ReloadOutlined />} onClick={fetchItems}>Refresh</Button>
+                            <Button icon={<DownloadOutlined />} onClick={handleExportSelected} disabled={selectedRowKeys.length === 0}>
+                                Excel ({selectedRowKeys.length})
+                            </Button>
                             <Button
                                 danger
                                 icon={<CloseCircleOutlined />}
