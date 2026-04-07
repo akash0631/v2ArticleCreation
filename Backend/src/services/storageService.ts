@@ -242,7 +242,7 @@ export class StorageService {
      * @param key - Object key in R2
      * @param expiresIn - Expiration time in seconds (default: 1 hour)
      */
-    async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
+    async getSignedUrl(key: string, expiresIn = 86400): Promise<string> {
         try {
             const command = new GetObjectCommand({
                 Bucket: this.bucket,
@@ -275,6 +275,31 @@ export class StorageService {
         return url.slice(base.length + 1);
     }
 
+    /**
+     * Extracts the R2 object key from any URL — public domain or signed R2/S3 URL.
+     */
+    private extractKeyFromAnyUrl(url: string): string | null {
+        const publicKey = this.extractKeyFromPublicUrl(url);
+        if (publicKey) return publicKey;
+        try {
+            const parsed = new URL(url);
+            let pathname = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
+            if (this.bucket && pathname.startsWith(this.bucket + '/')) {
+                pathname = pathname.slice(this.bucket.length + 1);
+            }
+            return pathname || null;
+        } catch {
+            return null;
+        }
+    }
+
+    private async buildApprovedUrl(destKey: string): Promise<string> {
+        if (this.approvedPublicUrlBase && !this.isR2ApiStyleBaseUrl(this.approvedPublicUrlBase)) {
+            return this.buildPublicUrl(this.approvedPublicUrlBase, this.approvedBucket, destKey);
+        }
+        return getSignedUrl(this.approvedS3Client, new GetObjectCommand({ Bucket: this.approvedBucket, Key: destKey }), { expiresIn: 604800 });
+    }
+
     async uploadApprovedImageFromSourceUrl(sourceImageUrl: string, articleNumber: string): Promise<UploadResult> {
         if (!sourceImageUrl) {
             throw new Error('Source image URL is required');
@@ -286,8 +311,8 @@ export class StorageService {
         const safeArticleNumber = this.sanitizeArticleNumber(articleNumber);
 
         // Preferred path: direct S3-to-S3 copy — no HTTP download, no network fetch needed.
-        // This is reliable even when the public URL is temporarily unreachable.
-        const sourceKey = this.extractKeyFromPublicUrl(sourceImageUrl);
+        // Works for both public CDN URLs and signed R2 URLs.
+        const sourceKey = this.extractKeyFromAnyUrl(sourceImageUrl);
         if (sourceKey) {
             const extension = this.extensionFromPath(sourceKey) || 'jpg';
             const destKey = `${safeArticleNumber}.${extension}`;
@@ -299,21 +324,28 @@ export class StorageService {
                     Key: destKey
                 }));
                 console.log(`✅ Direct S3 copy succeeded: ${destKey}`);
-
-                let url: string;
-                if (this.approvedPublicUrlBase && !this.isR2ApiStyleBaseUrl(this.approvedPublicUrlBase)) {
-                    url = this.buildPublicUrl(this.approvedPublicUrlBase, this.approvedBucket, destKey);
-                } else {
-                    const command = new GetObjectCommand({ Bucket: this.approvedBucket, Key: destKey });
-                    url = await getSignedUrl(this.approvedS3Client, command, { expiresIn: 604800 });
-                }
-                return { url, path: destKey, key: destKey, uuid: safeArticleNumber };
+                return { url: await this.buildApprovedUrl(destKey), path: destKey, key: destKey, uuid: safeArticleNumber };
             } catch (copyError: any) {
-                console.warn(`⚠️ Direct S3 copy failed (${copyError?.message}), falling back to HTTP fetch...`);
+                console.warn(`⚠️ Direct S3 copy failed (${copyError?.message}), trying S3 GetObject fallback...`);
+            }
+
+            // Second fallback: GetObject from source bucket → PutObject to approved bucket.
+            // Avoids any outbound HTTP fetch — stays entirely within the S3 API.
+            try {
+                const getResult = await this.s3Client.send(new GetObjectCommand({ Bucket: this.bucket, Key: sourceKey }));
+                const mimeType = getResult.ContentType || 'image/jpeg';
+                const chunks: Uint8Array[] = [];
+                for await (const chunk of getResult.Body as AsyncIterable<Uint8Array>) chunks.push(chunk);
+                const fileBuffer = Buffer.concat(chunks);
+                await this.putApprovedObject(this.approvedS3Client, this.approvedBucket, destKey, fileBuffer, mimeType, safeArticleNumber);
+                console.log(`✅ S3 GetObject fallback succeeded: ${destKey}`);
+                return { url: await this.buildApprovedUrl(destKey), path: destKey, key: destKey, uuid: safeArticleNumber };
+            } catch (getError: any) {
+                console.warn(`⚠️ S3 GetObject fallback failed (${getError?.message}), falling back to HTTP fetch...`);
             }
         }
 
-        // Fallback: download via HTTP then re-upload
+        // Last resort: download via HTTP then re-upload
         let response: Response;
         try {
             response = await fetch(sourceImageUrl);
@@ -362,18 +394,7 @@ export class StorageService {
                 console.log(`✅ Approved image uploaded to ${this.approvedBucket} (via primary credentials): ${key}`);
             }
 
-            let url: string;
-            if (this.approvedPublicUrlBase && !this.isR2ApiStyleBaseUrl(this.approvedPublicUrlBase)) {
-                url = this.buildPublicUrl(this.approvedPublicUrlBase, this.approvedBucket, key);
-            } else {
-                const command = new GetObjectCommand({
-                    Bucket: this.approvedBucket,
-                    Key: key
-                });
-                url = await getSignedUrl(this.approvedS3Client, command, { expiresIn: 604800 });
-            }
-
-            return { url, path: key, key, uuid: safeArticleNumber };
+            return { url: await this.buildApprovedUrl(key), path: key, key, uuid: safeArticleNumber };
         } catch (error) {
             console.error('❌ Approved image upload failed:', error);
             throw new Error('Failed to upload approved image to storage');
