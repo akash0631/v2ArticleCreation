@@ -2,6 +2,7 @@ import { VLMProvider, FashionExtractionRequest, OpenAIVLMConfig, VLMResult } fro
 import { EnhancedExtractionResult, AttributeData } from '../../../types/extraction';
 import { BaseApiService } from '../../baseApi';
 import { promptBuilder } from '../prompts';
+import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from '../prompts/fabricWeaveGuidance';
 
 export class OpenAIVLMProvider extends BaseApiService implements VLMProvider {
   public readonly name = 'OpenAI GPT-4 Vision';
@@ -124,6 +125,8 @@ ${schemaDefinition}
 
 ${modeInstructions}
 
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
+
 MANDATORY EXTRACTION GUIDELINES:
 
 FOR EVERY ATTRIBUTE:
@@ -206,6 +209,8 @@ JSON RESPONSE FORMAT:
     
     // Combine into specialized prompt
     return `${promptContext.systemPrompt}
+
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
 
 CATEGORY: ${categoryName} (${department}/${garmentType})
 

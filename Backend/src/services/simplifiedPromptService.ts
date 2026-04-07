@@ -6,6 +6,7 @@
  */
 
 import { SIMPLIFIED_ATTRIBUTES } from '../config/simplifiedAttributes';
+import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from './vlm/prompts/fabricWeaveGuidance';
 
 export class SimplifiedPromptService {
   /**
@@ -53,6 +54,8 @@ PRINT CATEGORIES:
 - ALL OVER PRINT - BANDHANI: Tie-dye style dotted patterns (traditional Indian)
 - ALL OVER PRINT AHMEDABAD: Regional print style from Ahmedabad (often block print-inspired)
 - ALL OVER PRINT JAIPURI: Traditional Jaipur-style prints (floral, block prints, ethnic motifs)
+
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
 
 CRITICAL RULES:
 1. Extract ONLY these specific attributes - do not hallucinate or make up attributes

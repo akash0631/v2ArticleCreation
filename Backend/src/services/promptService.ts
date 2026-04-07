@@ -1,4 +1,5 @@
 import type { SchemaItem, AllowedValue } from '../types/extraction';
+import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from './vlm/prompts/fabricWeaveGuidance';
 
 export class PromptService {
   // NEW: Token-optimized schema-driven prompt generation
@@ -68,6 +69,8 @@ PRINT CATEGORIES:
 - ALL OVER PRINT - BANDHANI: Tie-dye style dotted patterns (traditional Indian)
 - ALL OVER PRINT AHMEDABAD: Regional print style from Ahmedabad (often block print-inspired)
 - ALL OVER PRINT JAIPURI: Traditional Jaipur-style prints (floral, block prints, ethnic motifs)
+
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
 
 REQUIRED ATTRIBUTES:
 ${attributeDescriptions}
@@ -167,6 +170,96 @@ PRINT CATEGORIES:
 - ALL OVER PRINT - BANDHANI: Tie-dye style dotted patterns (traditional Indian)
 - ALL OVER PRINT AHMEDABAD: Regional print style from Ahmedabad (often block print-inspired)
 - ALL OVER PRINT JAIPURI: Traditional Jaipur-style prints (floral, block prints, ethnic motifs)
+
+WEAVE CLASSIFICATION GUIDANCE:
+- INTERLOCK: smooth surface on both sides, no visible ribs, slightly thick and uniform knit
+- SINGLE JERSEY: one smooth side and one looped back, light fabric, slight stretch
+- WAFFLE: deep square or honeycomb grid texture, raised pattern clearly visible
+- RIB: vertical raised parallel lines, highly stretchable, ribs clearly defined
+- FLEECE: fuzzy, fluffy surface with no visible pattern, matte look
+- SEERSUCKER: alternating flat and puckered stripes, wrinkled texture in bands
+- PIQUE: small raised geometric texture, slightly rough surface, uniform pattern
+- POPCORN: small raised bubble-like dots across surface, uneven texture
+- TWILL: diagonal lines running across fabric, clear slanted pattern
+- SATIN: very smooth surface with high shine, no visible weave, reflective
+- CREPE: uneven crinkled surface, slightly rough texture, no clear pattern
+- OXFORD: visible basket weave pattern, slightly textured but structured
+- DOBBY: small geometric patterns woven into fabric, subtle raised designs
+- JAQUARD: complex woven patterns visible, detailed and textured surface
+- LENO: open mesh-like weave with small gaps, lightweight and airy
+- FLAT KNIT: completely smooth surface, no ribs or visible texture
+- DOUBLE CLOTH: two fabric layers fused, thicker structure, no visible separation
+- FUR: long, dense hair-like fibers covering surface, very textured
+- POLAR FLEECE: thick fluffy surface, dense fibers, no visible pattern
+- VELOUR: soft short pile surface, slightly shiny, smooth texture
+- VELVET: dense short pile with rich shine, smooth and reflective surface
+- DTY: slightly textured synthetic surface with stretch, no clear pattern
+- RAYON: smooth, soft-looking surface, slight sheen, no visible weave
+- MODAL: very smooth and even surface, soft appearance, slight sheen
+- DUPION: slightly uneven surface with slub lines, crisp and shiny
+- CASHMERE: very fine, smooth surface with slight fuzz, no pattern
+- PASHMINA: soft, fine texture with slight hairiness, uniform look
+- SUEDE: matte surface with fine nap, soft and slightly rough look
+- TENCIL: very smooth, clean surface, slight sheen, uniform texture
+- ROMA: thick knit with smooth surface, structured and stable
+- AUTOMAN: fine horizontal ribs, closely spaced, structured texture
+- SCOOBA: thick, smooth, spongy fabric, no visible weave
+- CAMBRIC: very fine, smooth, lightweight surface, tightly woven
+- VOIL: thin, slightly transparent fabric, smooth with light texture
+- POPLIN: smooth surface with very fine horizontal ribs, crisp look
+- CHAMBRAY: plain weave with slight color variation, denim-like appearance
+- FILAFIL: fine alternating yarn pattern, subtle stripe effect
+- SILK DENIM: smooth denim-like fabric with slight shine and softness
+- MONO: completely uniform surface, single tone, no pattern
+- SHIRIN: smooth, lightweight surface, no strong visible texture
+- DAFFODIL: soft surface with light texture, slightly decorative look
+- HAIRY: visible loose fibers on surface, fuzzy appearance
+- BUTTERLOVE: extremely smooth, even surface, no visible texture
+- SHERPA: thick curly fleece texture, wool-like raised surface
+- VERIGATED RIB: rib pattern with color variation, visible striped ribs
+- BONDED: two layers joined, smooth outer surface, structured
+- GEORGETTE: slightly rough, grainy surface, semi-transparent
+- CHIFFON: very thin, sheer fabric, almost transparent, no texture
+- BUBBLE SOFT: raised rounded bubble texture, soft and uneven
+- SUPER SOFT: smooth and uniform surface, no visible texture
+- THERMOPLASTIC POLYURETHANE FABRIC: smooth coated surface, slightly shiny, waterproof look
+- NEXA: smooth technical fabric, clean surface, no visible weave
+- MUFFIN: soft, slightly puffy texture, gentle raised surface
+- ZARA DOBBY: dobby weave with small visible fashion patterns
+- DRI-FIT: smooth synthetic surface, slight sheen, no visible texture
+- CORDUROY: thick vertical ridges, evenly spaced raised cords
+- VISCOSE: smooth and slightly shiny surface, uniform appearance
+- TRICOT: smooth front with fine lines, slightly textured back
+- RIBS STOP (RIPSTOP): grid pattern with reinforced lines forming squares
+- BIRD'S EYE: tiny repeated dot or diamond pattern across surface
+- FAKE COTTON: smooth matte surface resembling cotton, uniform
+- POLYURETHANE: coated surface, smooth, slightly shiny, leather-like
+- HIGH DENSITY: tightly packed surface, no visible gaps, compact look
+- BUTTER NS: ultra smooth, flat surface, no visible texture
+- CHINA BONDING: layered fabric with smooth outer finish
+- ANTIPILING: clean surface with no fuzz or fiber balls
+- BABY SOFT: very smooth and even surface, no texture
+- VISLONE: synthetic structured surface, smooth and firm
+- RAINBOW: multicolor pattern with visible color transitions
+- KARERA: traditional pattern with repeating motifs, slightly textured
+- ZURICH: smooth premium-looking surface, uniform finish
+- JARKAN: decorative surface with visible embellishment or shine
+- SILK WOOL: slightly textured with soft sheen, blended fiber look
+- MEMORY: smooth surface that holds shape, slightly stiff look
+- MOKLINO: soft textured surface, slightly raised feel
+- PU_SHINE: glossy coated surface, reflective and smooth
+- MICRO LAFER: very fine microfiber surface, smooth and dense
+- DOUBLE TWILL: strong diagonal pattern, thicker and more defined
+- MUSLIN: loose weave with slight gaps, soft and lightweight
+- NORMAL SOFT: smooth basic surface, no strong texture
+- CANVAS: thick plain weave, rough visible texture
+- DRIFIT SINGLE JERSEY: smooth knit with slight stretch and synthetic shine
+- THERMAL: grid-like knit texture, slightly raised pattern
+- CHICKEN (CHIKAN): embroidered patterns with small holes and threads visible
+- LEATHER: smooth or grainy surface, slightly shiny, natural texture
+- INJECTED RIB: rib texture with firm structure, defined lines
+- ORGANZA: sheer, stiff fabric, slightly shiny and transparent
+- KNIT: looped yarn structure, stretchable, visible knit pattern
 
 REQUIRED SCHEMA ATTRIBUTES (extract these first):
 ${schemaAttributes}
@@ -319,6 +412,10 @@ Focus on commercially valuable attributes that fashion professionals would find 
     return contexts[contextKey] || this.getCategoryContext(categoryName || '');
   }
 
+  private getWeaveClassificationGuidance(): string {
+    return FULL_WEAVE_CLASSIFICATION_GUIDANCE;
+  }
+
   private compressSchemaForTokens(schema: SchemaItem[], budget: 'minimal' | 'standard' | 'extended'): SchemaItem[] {
     if (budget === 'minimal') {
       // Keep only essential attributes, compress descriptions
@@ -366,6 +463,8 @@ Focus on commercially valuable attributes that fashion professionals would find 
 
     return `
 You are a fashion AI specialist. ${categoryContext}
+
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
 
 EXTRACT THESE ATTRIBUTES:
 ${attributeDescriptions}

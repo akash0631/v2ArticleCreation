@@ -1,6 +1,7 @@
 import { VLMProvider, FashionExtractionRequest } from '../../../types/vlm';
 import { EnhancedExtractionResult, AttributeData } from '../../../types/extraction';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from '../prompts/fabricWeaveGuidance';
 
 export interface GoogleVisionConfig {
   model: 'gemini-2.5-pro' | 'gemini-2.5-flash' | 'gemini-2.0-flash' | 'gemini-pro-vision' | 'gemini-3-pro-image-preview';
@@ -467,6 +468,18 @@ STEP 2: ZONE-BY-ZONE DETAILED INSPECTION
 │   • This is different from weave (which is woven structure) — m_fab2 is about knit construction
 │   • If garment is WOVEN (shirts, trousers, denim) → m_fab2 is usually null
 │   • If knit structure is not clearly visible → return null
+│   • Do NOT guess; exact visual match or null
+│
+├─ WEAVE — VISUAL ONLY:
+│   • This is the FABRIC WEAVE/TEXTURE/SURFACE TREATMENT of the fabric
+│   • Ask: "What is the visible surface texture and weave pattern of this fabric?"
+│   • Use these detailed definitions for accurate classification:
+│   
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
+│   
+│   • ONLY return a value from the weave allowed values list
+│   • Use ONLY the exact definitions above for classification
+│   • If no weave type clearly matches the visible surface → return null
 │   • Do NOT guess; exact visual match or null
 │
 ├─ EMBELLISHMENTS:

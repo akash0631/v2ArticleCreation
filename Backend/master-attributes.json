@@ -351,355 +351,355 @@
     "allowedValues": [
       {
         "shortForm": "INL",
-        "fullForm": "INTERLOCK"
+        "fullForm": "INTERLOCK – smooth surface on both sides, no visible ribs, slightly thick and uniform knit"
       },
       {
         "shortForm": "SJ",
-        "fullForm": "SINGLE JERSY"
+        "fullForm": "SINGLE JERSEY – one smooth side and one looped back, light fabric, slight stretch"
       },
       {
         "shortForm": "WFL",
-        "fullForm": "WAFFEL"
+        "fullForm": "WAFFLE – deep square or honeycomb grid texture, raised pattern clearly visible"
       },
       {
         "shortForm": "RIB",
-        "fullForm": "RIB"
+        "fullForm": "RIB – vertical raised parallel lines, highly stretchable, ribs clearly defined"
       },
       {
         "shortForm": "FLC",
-        "fullForm": "FLEECE"
+        "fullForm": "FLEECE – fuzzy, fluffy surface with no visible pattern, matte look"
       },
       {
         "shortForm": "LFR",
-        "fullForm": "SEERSUCKER"
+        "fullForm": "SEERSUCKER – alternating flat and puckered stripes, wrinkled texture in bands"
       },
       {
         "shortForm": "PIQ",
-        "fullForm": "PIQUE"
+        "fullForm": "PIQUE – small raised geometric texture, slightly rough surface, uniform pattern"
       },
       {
         "shortForm": "PCRN",
-        "fullForm": "POPCORN"
+        "fullForm": "POPCORN – small raised bubble-like dots across surface, uneven texture"
       },
       {
         "shortForm": "TWL",
-        "fullForm": "TWILL"
+        "fullForm": "TWILL – diagonal lines running across fabric, clear slanted pattern"
       },
       {
         "shortForm": "STN",
-        "fullForm": "SATIN"
+        "fullForm": "SATIN – very smooth surface with high shine, no visible weave, reflective"
       },
       {
         "shortForm": "CREPE",
-        "fullForm": "CREPE"
+        "fullForm": "CREPE – uneven crinkled surface, slightly rough texture, no clear pattern"
       },
       {
         "shortForm": "OXF",
-        "fullForm": "OXFORD"
+        "fullForm": "OXFORD – visible basket weave pattern, slightly textured but structured"
       },
       {
         "shortForm": "DBY",
-        "fullForm": "DOBBY"
+        "fullForm": "DOBBY – small geometric patterns woven into fabric, subtle raised designs"
       },
       {
         "shortForm": "JAQ",
-        "fullForm": "JAQUARD"
+        "fullForm": "JAQUARD – complex woven patterns visible, detailed and textured surface"
       },
       {
         "shortForm": "LNO",
-        "fullForm": "LENO"
+        "fullForm": "LENO – open mesh-like weave with small gaps, lightweight and airy"
       },
       {
         "shortForm": "FL_KNIT",
-        "fullForm": "FLAT KNIT"
+        "fullForm": "FLAT KNIT – completely smooth surface, no ribs or visible texture"
       },
       {
         "shortForm": "D_CLTH",
-        "fullForm": "DOUBLE CLOTH"
+        "fullForm": "DOUBLE CLOTH – two fabric layers fused, thicker structure, no visible separation"
       },
       {
         "shortForm": "FUR",
-        "fullForm": "FUR"
+        "fullForm": "FUR – long, dense hair-like fibers covering surface, very textured"
       },
       {
         "shortForm": "P_FLC",
-        "fullForm": "POLAR FLEECE"
+        "fullForm": "POLAR FLEECE – thick fluffy surface, dense fibers, no visible pattern"
       },
       {
         "shortForm": "VELR",
-        "fullForm": "VELLORE"
+        "fullForm": "VELOUR – soft short pile surface, slightly shiny, smooth texture"
       },
       {
         "shortForm": "VLV",
-        "fullForm": "VELVET"
+        "fullForm": "VELVET – dense short pile with rich shine, smooth and reflective surface"
       },
       {
         "shortForm": "DTY",
-        "fullForm": "DTY"
+        "fullForm": "DTY – slightly textured synthetic surface with stretch, no clear pattern"
       },
       {
         "shortForm": "RYN",
-        "fullForm": "RAYON"
+        "fullForm": "RAYON – smooth, soft-looking surface, slight sheen, no visible weave"
       },
       {
         "shortForm": "MOD",
-        "fullForm": "MODAL"
+        "fullForm": "MODAL – very smooth and even surface, soft appearance, slight sheen"
       },
       {
         "shortForm": "DUPN",
-        "fullForm": "DUPION"
+        "fullForm": "DUPION – slightly uneven surface with slub lines, crisp and shiny"
       },
       {
         "shortForm": "SIMR",
-        "fullForm": "CASHMERE"
+        "fullForm": "CASHMERE – very fine, smooth surface with slight fuzz, no pattern"
       },
       {
         "shortForm": "PASHMINA",
-        "fullForm": "PASHMINA"
+        "fullForm": "PASHMINA – soft, fine texture with slight hairiness, uniform look"
       },
       {
         "shortForm": "SWD",
-        "fullForm": "SUEDE"
+        "fullForm": "SUEDE – matte surface with fine nap, soft and slightly rough look"
       },
       {
         "shortForm": "TNCL",
-        "fullForm": "TENCIL"
+        "fullForm": "TENCIL – very smooth, clean surface, slight sheen, uniform texture"
       },
       {
         "shortForm": "ROMA",
-        "fullForm": "ROMA"
+        "fullForm": "ROMA – thick knit with smooth surface, structured and stable"
       },
       {
         "shortForm": "OTMN",
-        "fullForm": "AUTOMAN"
+        "fullForm": "AUTOMAN – fine horizontal ribs, closely spaced, structured texture"
       },
       {
         "shortForm": "SCOBA",
-        "fullForm": "SCOOBA"
+        "fullForm": "SCOOBA – thick, smooth, spongy fabric, no visible weave"
       },
       {
         "shortForm": "CAM",
-        "fullForm": "CAMBRIC"
+        "fullForm": "CAMBRIC – very fine, smooth, lightweight surface, tightly woven"
       },
       {
         "shortForm": "VOIL",
-        "fullForm": "VOIL"
+        "fullForm": "VOIL – thin, slightly transparent fabric, smooth with light texture"
       },
       {
         "shortForm": "POP",
-        "fullForm": "POPLIN"
+        "fullForm": "POPLIN – smooth surface with very fine horizontal ribs, crisp look"
       },
       {
         "shortForm": "DBY_SLUB",
-        "fullForm": "CHAMBRAY"
+        "fullForm": "CHAMBRAY – plain weave with slight color variation, denim-like appearance"
       },
       {
         "shortForm": "FLFL",
-        "fullForm": "FILAFIL"
+        "fullForm": "FILAFIL – fine alternating yarn pattern, subtle stripe effect"
       },
       {
         "shortForm": "SLK_DNM",
-        "fullForm": "SILK DENIM"
+        "fullForm": "SILK DENIM – smooth denim-like fabric with slight shine and softness"
       },
       {
         "shortForm": "MONO",
-        "fullForm": "MONO"
+        "fullForm": "MONO – completely uniform surface, single tone, no pattern"
       },
       {
         "shortForm": "SHRN",
-        "fullForm": "SHIRIN"
+        "fullForm": "SHIRIN – smooth, lightweight surface, no strong visible texture"
       },
       {
         "shortForm": "DFDL",
-        "fullForm": "DAFFODIL"
+        "fullForm": "DAFFODIL – soft surface with light texture, slightly decorative look"
       },
       {
         "shortForm": "HRY",
-        "fullForm": "HAIRY"
+        "fullForm": "HAIRY – visible loose fibers on surface, fuzzy appearance"
       },
       {
         "shortForm": "BUTTER_LOVE",
-        "fullForm": "BUTTERLOVE"
+        "fullForm": "BUTTERLOVE – extremely smooth, even surface, no visible texture"
       },
       {
         "shortForm": "SHRPA",
-        "fullForm": "SHERPA"
+        "fullForm": "SHERPA – thick curly fleece texture, wool-like raised surface"
       },
       {
         "shortForm": "V_RIB",
-        "fullForm": "VERIGATED RIB"
+        "fullForm": "VERIGATED RIB – rib pattern with color variation, visible striped ribs"
       },
       {
         "shortForm": "BOND",
-        "fullForm": "BONDED"
+        "fullForm": "BONDED – two layers joined, smooth outer surface, structured"
       },
       {
         "shortForm": "GGT",
-        "fullForm": "GEORGETTE"
+        "fullForm": "GEORGETTE – slightly rough, grainy surface, semi-transparent"
       },
       {
         "shortForm": "CHF",
-        "fullForm": "CHIFFON"
+        "fullForm": "CHIFFON – very thin, sheer fabric, almost transparent, no texture"
       },
       {
         "shortForm": "BBL",
-        "fullForm": "BUBBLE SOFT"
+        "fullForm": "BUBBLE SOFT – raised rounded bubble texture, soft and uneven"
       },
       {
         "shortForm": "SUPER_SOFT",
-        "fullForm": "SUPER SOFT"
+        "fullForm": "SUPER SOFT – smooth and uniform surface, no visible texture"
       },
       {
         "shortForm": "TPU",
-        "fullForm": "THERMOPLASTIC POLYURETHANE FABRIC."
+        "fullForm": "THERMOPLASTIC POLYURETHANE FABRIC – smooth coated surface, slightly shiny, waterproof look"
       },
       {
         "shortForm": "NEXA",
-        "fullForm": "NEXA"
+        "fullForm": "NEXA – smooth technical fabric, clean surface, no visible weave"
       },
       {
         "shortForm": "MUFFIN",
-        "fullForm": "MUFFIN"
+        "fullForm": "MUFFIN – soft, slightly puffy texture, gentle raised surface"
       },
       {
         "shortForm": "ZARA_DBY",
-        "fullForm": "ZARA DOBBY"
+        "fullForm": "ZARA DOBBY – dobby weave with small visible fashion patterns"
       },
       {
         "shortForm": "DRF",
-        "fullForm": "DRI-FIT"
+        "fullForm": "DRI-FIT – smooth synthetic surface, slight sheen, no visible texture"
       },
       {
         "shortForm": "COD",
-        "fullForm": "CORDUROY"
+        "fullForm": "CORDUROY – thick vertical ridges, evenly spaced raised cords"
       },
       {
         "shortForm": "VIS",
-        "fullForm": "VISCOSE"
+        "fullForm": "VISCOSE – smooth and slightly shiny surface, uniform appearance"
       },
       {
         "shortForm": "TRC",
-        "fullForm": "TRICOT"
+        "fullForm": "TRICOT – smooth front with fine lines, slightly textured back"
       },
       {
         "shortForm": "RBSTP",
-        "fullForm": "RIBS STOP"
+        "fullForm": "RIBS STOP (RIPSTOP) – grid pattern with reinforced lines forming squares"
       },
       {
         "shortForm": "B_EYE",
-        "fullForm": "BIRD'S  EYE"
+        "fullForm": "BIRD'S EYE – tiny repeated dot or diamond pattern across surface"
       },
       {
         "shortForm": "FK_CTN",
-        "fullForm": "FAKE COTTON"
+        "fullForm": "FAKE COTTON – smooth matte surface resembling cotton, uniform"
       },
       {
         "shortForm": "PU",
-        "fullForm": "POLYURETHANE."
+        "fullForm": "POLYURETHANE – coated surface, smooth, slightly shiny, leather-like"
       },
       {
         "shortForm": "H_D",
-        "fullForm": "HIGH DENSITY"
+        "fullForm": "HIGH DENSITY – tightly packed surface, no visible gaps, compact look"
       },
       {
         "shortForm": "BTR_NS",
-        "fullForm": "BUTTER NS"
+        "fullForm": "BUTTER NS – ultra smooth, flat surface, no visible texture"
       },
       {
         "shortForm": "CHN_BND",
-        "fullForm": "CHINA BONDING"
+        "fullForm": "CHINA BONDING – layered fabric with smooth outer finish"
       },
       {
         "shortForm": "ANTP",
-        "fullForm": "ANTIPILING"
+        "fullForm": "ANTIPILING – clean surface with no fuzz or fiber balls"
       },
       {
         "shortForm": "BBY_SFT",
-        "fullForm": "BABY SOFT"
+        "fullForm": "BABY SOFT – very smooth and even surface, no texture"
       },
       {
         "shortForm": "VSLN",
-        "fullForm": "VISLONE"
+        "fullForm": "VISLONE – synthetic structured surface, smooth and firm"
       },
       {
         "shortForm": "RNBW",
-        "fullForm": "RAINBOW"
+        "fullForm": "RAINBOW – multicolor pattern with visible color transitions"
       },
       {
         "shortForm": "KRR",
-        "fullForm": "KARERA"
+        "fullForm": "KARERA – traditional pattern with repeating motifs, slightly textured"
       },
       {
         "shortForm": "ZRCH",
-        "fullForm": "ZURICH"
+        "fullForm": "ZURICH – smooth premium-looking surface, uniform finish"
       },
       {
         "shortForm": "JRKN",
-        "fullForm": "JARKAN"
+        "fullForm": "JARKAN – decorative surface with visible embellishment or shine"
       },
       {
         "shortForm": "SILK_WOOL",
-        "fullForm": "SILK WOOL"
+        "fullForm": "SILK WOOL – slightly textured with soft sheen, blended fiber look"
       },
       {
         "shortForm": "MMRY",
-        "fullForm": "MEMORY"
+        "fullForm": "MEMORY – smooth surface that holds shape, slightly stiff look"
       },
       {
         "shortForm": "MKLN",
-        "fullForm": "MOKLINO"
+        "fullForm": "MOKLINO – soft textured surface, slightly raised feel"
       },
       {
         "shortForm": "PU_SHINE",
-        "fullForm": "PU_SHINE"
+        "fullForm": "PU_SHINE – glossy coated surface, reflective and smooth"
       },
       {
         "shortForm": "MICRO_LFR",
-        "fullForm": "MICRO LAFER"
+        "fullForm": "MICRO LAFER – very fine microfiber surface, smooth and dense"
       },
       {
         "shortForm": "DBL_TWL",
-        "fullForm": "DOUBLE TWILL"
+        "fullForm": "DOUBLE TWILL – strong diagonal pattern, thicker and more defined"
       },
       {
         "shortForm": "MSLN",
-        "fullForm": "MUSLIN"
+        "fullForm": "MUSLIN – loose weave with slight gaps, soft and lightweight"
       },
       {
         "shortForm": "NS",
-        "fullForm": "NORMAL SOFT"
+        "fullForm": "NORMAL SOFT – smooth basic surface, no strong texture"
       },
       {
         "shortForm": "CNVS",
-        "fullForm": "CANVAS"
+        "fullForm": "CANVAS – thick plain weave, rough visible texture"
       },
       {
         "shortForm": "DRF_SJ",
-        "fullForm": "DRIFIT SINGLE JERSEY"
+        "fullForm": "DRIFIT SINGLE JERSEY – smooth knit with slight stretch and synthetic shine"
       },
       {
         "shortForm": "THML",
-        "fullForm": "THERMAL"
+        "fullForm": "THERMAL – grid-like knit texture, slightly raised pattern"
       },
       {
         "shortForm": "CHKN",
-        "fullForm": "CHICKEN"
+        "fullForm": "CHICKEN (CHIKAN) – embroidered patterns with small holes and threads visible"
       },
       {
         "shortForm": "LTHR",
-        "fullForm": "LEATHER"
+        "fullForm": "LEATHER – smooth or grainy surface, slightly shiny, natural texture"
       },
       {
         "shortForm": "INJ_RIB",
-        "fullForm": "INJECTED RIB"
+        "fullForm": "INJECTED RIB – rib texture with firm structure, defined lines"
       },
       {
         "shortForm": "ORGNZ",
-        "fullForm": "ORGANZA"
+        "fullForm": "ORGANZA – sheer, stiff fabric, slightly shiny and transparent"
       },
       {
         "shortForm": "KNIT",
-        "fullForm": "KNIT"
+        "fullForm": "KNIT – looped yarn structure, stretchable, visible knit pattern"
       }
     ]
   },

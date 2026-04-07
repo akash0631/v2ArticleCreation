@@ -1,6 +1,7 @@
 import { VLMProvider, FashionExtractionRequest, VLMResult } from '../../../types/vlm';
 import { EnhancedExtractionResult, AttributeData } from '../../../types/extraction';
 import Anthropic from '@anthropic-ai/sdk';
+import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from '../prompts/fabricWeaveGuidance';
 
 export interface ClaudeVLMConfig {
   model: 'claude-3-5-sonnet-20241022' | 'claude-3-opus-20240229' | 'claude-3-sonnet-20240229' | 'claude-3-haiku-20240307';
@@ -101,6 +102,8 @@ export class ClaudeVLMProvider implements VLMProvider {
     }).join('\n');
 
     return `You are an expert fashion AI analyst. Analyze this clothing image with precision.${categoryContext}
+
+${FULL_WEAVE_CLASSIFICATION_GUIDANCE}
 
 📋 EXTRACT ALL ${schema.length} ATTRIBUTES:
 ${schemaDefinition}
