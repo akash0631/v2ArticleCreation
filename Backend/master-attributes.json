@@ -251,95 +251,95 @@
     "allowedValues": [
       {
         "shortForm": "SLD",
-        "fullForm": "SOLID"
+        "fullForm": "SOLID – Single uniform color with no patterns or designs."
       },
       {
         "shortForm": "Y/D_CHK",
-        "fullForm": "YARN-DYED CHECKS"
+        "fullForm": "YARN-DYED CHECKS – Checks created by weaving pre-dyed yarns (pattern is part of fabric, not printed)."
       },
       {
         "shortForm": "ENG_STP",
-        "fullForm": "ENGINEERING STRIPE"
+        "fullForm": "ENGINEERING STRIPE – Stripes placed in a planned/structured way (not evenly repeated)."
       },
       {
         "shortForm": "H_STP",
-        "fullForm": "HORIZONTAL STRIPE"
+        "fullForm": "HORIZONTAL STRIPE – Stripes running left to right across the fabric."
       },
       {
         "shortForm": "V_STP",
-        "fullForm": "VERTICAL STRIPE"
+        "fullForm": "VERTICAL STRIPE – Stripes running top to bottom along the fabric."
       },
       {
         "shortForm": "CHK_PRT",
-        "fullForm": "CHECK PRINT"
+        "fullForm": "CHECK PRINT – Printed check pattern (not woven like yarn-dyed checks)."
       },
       {
         "shortForm": "ANML_PRT",
-        "fullForm": "ANIMAL PRINT"
+        "fullForm": "ANIMAL PRINT – Patterns inspired by animal skins (leopard, zebra, etc.)."
       },
       {
         "shortForm": "AOP_ABST",
-        "fullForm": "ALL OVER PRINT - ABSTRACT"
+        "fullForm": "ALL OVER PRINT - ABSTRACT – Non-realistic, artistic shapes and forms."
       },
       {
         "shortForm": "AOP_BOOTY",
-        "fullForm": "ALL OVER PRINT - BOOTY"
+        "fullForm": "ALL OVER PRINT - BOOTY (BUTI) – Small traditional Indian motifs repeated evenly."
       },
       {
         "shortForm": "AOP_CLOUD",
-        "fullForm": "ALL OVER PRINT - CLOUD"
+        "fullForm": "ALL OVER PRINT - CLOUD – Soft, cloud-like shapes or sky-inspired patterns."
       },
       {
         "shortForm": "AOP_FLRL",
-        "fullForm": "ALL OVER PRINT - FLORAL"
+        "fullForm": "ALL OVER PRINT - FLORAL – Repeating flower-based designs."
       },
       {
         "shortForm": "AOP_GMTL",
-        "fullForm": "ALL OVER PRINT - GEOMETRIC"
+        "fullForm": "ALL OVER PRINT - GEOMETRIC – Shapes like squares, triangles, circles in repetition."
       },
       {
         "shortForm": "AOP_TRPL",
-        "fullForm": "ALL OVER PRINT - TROPICAL"
+        "fullForm": "ALL OVER PRINT - TROPICAL – Palm leaves, exotic plants, beach-inspired prints."
       },
       {
         "shortForm": "AOP_ANML",
-        "fullForm": "ALL OVER PRINT - ANIMAL"
+        "fullForm": "ALL OVER PRINT - ANIMAL – Repeating animal or animal-skin patterns."
       },
       {
         "shortForm": "AOP_CRTN",
-        "fullForm": "ALL OVER PRINT - CARTOON"
+        "fullForm": "ALL OVER PRINT - CARTOON – Animated or character-based prints."
       },
       {
         "shortForm": "AOP_CMFG",
-        "fullForm": "ALL OVER PRINT - CAMOUFLAGE"
+        "fullForm": "ALL OVER PRINT - CAMOUFLAGE – Military-style irregular patch patterns."
       },
       {
         "shortForm": "AOP_NUM",
-        "fullForm": "ALL OVER PRINT - NUMERIC"
+        "fullForm": "ALL OVER PRINT - NUMERIC – Repeating numbers or digits."
       },
       {
         "shortForm": "AOP_ALPHA",
-        "fullForm": "ALL OVER PRINT - APLHABATICAL"
+        "fullForm": "ALL OVER PRINT - ALPHABETICAL – Letters or text-based repeating patterns."
       },
       {
         "shortForm": "AOP_SCRF",
-        "fullForm": "ALL OVER PRINT - SCARF"
+        "fullForm": "ALL OVER PRINT - SCARF – Designs inspired by scarf layouts (often bordered + ornate)."
       },
       {
         "shortForm": "AOP_PSLY",
-        "fullForm": "ALL OVER PRINT - PAISLEY"
+        "fullForm": "ALL OVER PRINT - PAISLEY – Curved teardrop-shaped traditional motif."
       },
       {
         "shortForm": "AOP_BANDHANI",
-        "fullForm": "ALL OVER PRINT - BANDHANI"
+        "fullForm": "ALL OVER PRINT - BANDHANI – Tie-dye style dotted patterns (traditional Indian)."
       },
       {
         "shortForm": "AOP_AMD",
-        "fullForm": "ALL OVER PRINT AHMEDABAD"
+        "fullForm": "ALL OVER PRINT AHMEDABAD – Regional print style from Ahmedabad (often block print-inspired)."
       },
       {
         "shortForm": "AOP_JPR",
-        "fullForm": "ALL OVER PRINT JAIPURI"
+        "fullForm": "ALL OVER PRINT JAIPURI – Traditional Jaipur-style prints (floral, block prints, ethnic motifs)."
       }
     ]
   },

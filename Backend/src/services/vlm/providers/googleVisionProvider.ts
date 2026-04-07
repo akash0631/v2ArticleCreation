@@ -421,6 +421,35 @@ STEP 2: ZONE-BY-ZONE DETAILED INSPECTION
 ├─ MAIN MVGR (main_mvgr) — VISUAL ONLY:
 │   • This is the SPECIFIC/DETAILED fabric design sub-category (more detailed than macro_mvgr)
 │   • Ask: "What is the exact specific design detail within the macro category?"
+│   • Use these detailed definitions for accurate classification:
+│   
+│   BASIC FABRIC TYPES:
+│   • SOLID: Single uniform color with no patterns or designs
+│   • YARN-DYED CHECKS: Checks created by weaving pre-dyed yarns (pattern is part of fabric, not printed)
+│   • ENGINEERING STRIPE: Stripes placed in a planned/structured way (not evenly repeated)
+│   • HORIZONTAL STRIPE: Stripes running left to right across the fabric
+│   • VERTICAL STRIPE: Stripes running top to bottom along the fabric
+│   • CHECK PRINT: Printed check pattern (not woven like yarn-dyed checks)
+│   
+│   PRINT CATEGORIES:
+│   • ANIMAL PRINT: Patterns inspired by animal skins (leopard, zebra, etc.)
+│   • ALL OVER PRINT - ABSTRACT: Non-realistic, artistic shapes and forms
+│   • ALL OVER PRINT - BOOTY (BUTI): Small traditional Indian motifs repeated evenly
+│   • ALL OVER PRINT - CLOUD: Soft, cloud-like shapes or sky-inspired patterns
+│   • ALL OVER PRINT - FLORAL: Repeating flower-based designs
+│   • ALL OVER PRINT - GEOMETRIC: Shapes like squares, triangles, circles in repetition
+│   • ALL OVER PRINT - TROPICAL: Palm leaves, exotic plants, beach-inspired prints
+│   • ALL OVER PRINT - ANIMAL: Repeating animal or animal-skin patterns
+│   • ALL OVER PRINT - CARTOON: Animated or character-based prints
+│   • ALL OVER PRINT - CAMOUFLAGE: Military-style irregular patch patterns
+│   • ALL OVER PRINT - NUMERIC: Repeating numbers or digits
+│   • ALL OVER PRINT - ALPHABETICAL: Letters or text-based repeating patterns
+│   • ALL OVER PRINT - SCARF: Designs inspired by scarf layouts (often bordered + ornate)
+│   • ALL OVER PRINT - PAISLEY: Curved teardrop-shaped traditional motif
+│   • ALL OVER PRINT - BANDHANI: Tie-dye style dotted patterns (traditional Indian)
+│   • ALL OVER PRINT AHMEDABAD: Regional print style from Ahmedabad (often block print-inspired)
+│   • ALL OVER PRINT JAIPURI: Traditional Jaipur-style prints (floral, block prints, ethnic motifs)
+│   
 │   • Examples: If macro = AOP (all over print), what specific type? (AOP_TRPL / AOP_ABST / AOP_GMTL etc.)
 │   • If macro = OD (over dyed), what variant? (OD_PLN / OD_OMBRE / OD_T&D etc.)
 │   • ONLY return a value from the main_mvgr allowed values list

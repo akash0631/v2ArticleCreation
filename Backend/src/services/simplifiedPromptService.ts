@@ -24,6 +24,36 @@ export class SimplifiedPromptService {
     return `
 You are an AI fashion attribute extraction specialist. Analyze this clothing image and extract ONLY the following attributes.
 
+FABRIC CLASSIFICATION GUIDANCE:
+For fabric_main_mvgr attribute, use these detailed definitions to classify the fabric type:
+
+BASIC FABRIC TYPES:
+- SOLID: Single uniform color with no patterns or designs
+- YARN-DYED CHECKS: Checks created by weaving pre-dyed yarns (pattern is part of fabric, not printed)
+- ENGINEERING STRIPE: Stripes placed in a planned/structured way (not evenly repeated)
+- HORIZONTAL STRIPE: Stripes running left to right across the fabric
+- VERTICAL STRIPE: Stripes running top to bottom along the fabric
+- CHECK PRINT: Printed check pattern (not woven like yarn-dyed checks)
+
+PRINT CATEGORIES:
+- ANIMAL PRINT: Patterns inspired by animal skins (leopard, zebra, etc.)
+- ALL OVER PRINT - ABSTRACT: Non-realistic, artistic shapes and forms
+- ALL OVER PRINT - BOOTY (BUTI): Small traditional Indian motifs repeated evenly
+- ALL OVER PRINT - CLOUD: Soft, cloud-like shapes or sky-inspired patterns
+- ALL OVER PRINT - FLORAL: Repeating flower-based designs
+- ALL OVER PRINT - GEOMETRIC: Shapes like squares, triangles, circles in repetition
+- ALL OVER PRINT - TROPICAL: Palm leaves, exotic plants, beach-inspired prints
+- ALL OVER PRINT - ANIMAL: Repeating animal or animal-skin patterns
+- ALL OVER PRINT - CARTOON: Animated or character-based prints
+- ALL OVER PRINT - CAMOUFLAGE: Military-style irregular patch patterns
+- ALL OVER PRINT - NUMERIC: Repeating numbers or digits
+- ALL OVER PRINT - ALPHABETICAL: Letters or text-based repeating patterns
+- ALL OVER PRINT - SCARF: Designs inspired by scarf layouts (often bordered + ornate)
+- ALL OVER PRINT - PAISLEY: Curved teardrop-shaped traditional motif
+- ALL OVER PRINT - BANDHANI: Tie-dye style dotted patterns (traditional Indian)
+- ALL OVER PRINT AHMEDABAD: Regional print style from Ahmedabad (often block print-inspired)
+- ALL OVER PRINT JAIPURI: Traditional Jaipur-style prints (floral, block prints, ethnic motifs)
+
 CRITICAL RULES:
 1. Extract ONLY these specific attributes - do not hallucinate or make up attributes
 2. Only provide a value if you are AT LEAST 65% confident

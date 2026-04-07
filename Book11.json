@@ -9,15 +9,15 @@
  },
  {
   "OTHER MVGR - 02": "AOP_TRPL",
-  "FULL FORM": "ALL OVER PRINT - TROPICAL"
+  "FULL FORM": "ALL OVER PRINT - TROPICAL – Palm leaves, exotic plants, beach-inspired prints."
  },
  {
   "OTHER MVGR - 02": "AOP_ABST",
-  "FULL FORM": "ALL OVER PRINT - ABSTRACT"
+  "FULL FORM": "ALL OVER PRINT - ABSTRACT – Non-realistic, artistic shapes and forms."
  },
  {
   "OTHER MVGR - 02": "AOP_GMTL",
-  "FULL FORM": "ALL OVER PRINT - GEOMETRIC"
+  "FULL FORM": "ALL OVER PRINT - GEOMETRIC – Shapes like squares, triangles, circles in repetition."
  },
  {
   "OTHER MVGR - 02": "AOP_CHKS",
@@ -29,7 +29,7 @@
  },
  {
   "OTHER MVGR - 02": "AOP_CLOUD",
-  "FULL FORM": "ALL OVER PRINT - CLOUD"
+  "FULL FORM": "ALL OVER PRINT - CLOUD – Soft, cloud-like shapes or sky-inspired patterns."
  },
  {
   "OTHER MVGR - 02": "OD_OMBRE",
@@ -49,15 +49,15 @@
  },
  {
   "OTHER MVGR - 02": "H_STP",
-  "FULL FORM": "HORIZONTAL STRIPE"
+  "FULL FORM": "HORIZONTAL STRIPE – Stripes running left to right across the fabric."
  },
  {
   "OTHER MVGR - 02": "E_STP",
-  "FULL FORM": "ENGINEERING STRIPE"
+  "FULL FORM": "ENGINEERING STRIPE – Stripes placed in a planned/structured way (not evenly repeated)."
  },
  {
   "OTHER MVGR - 02": "V_STP",
-  "FULL FORM": "VERTICAL STRIPE"
+  "FULL FORM": "VERTICAL STRIPE – Stripes running top to bottom along the fabric."
  },
  {
   "OTHER MVGR - 02": "SW",
@@ -65,7 +65,7 @@
  },
  {
   "OTHER MVGR - 02": "AOP_BOOTY",
-  "FULL FORM": "ALL OVER PRINT - BOOTY"
+  "FULL FORM": "ALL OVER PRINT - BOOTY (BUTI) – Small traditional Indian motifs repeated evenly."
  },
  {
   "OTHER MVGR - 02": "AOP_TYPO",
@@ -89,11 +89,11 @@
  },
  {
   "OTHER MVGR - 02": "AOP_FLRL",
-  "FULL FORM": "ALL OVER PRINT - FLORAL"
+  "FULL FORM": "ALL OVER PRINT - FLORAL – Repeating flower-based designs."
  },
  {
   "OTHER MVGR - 02": "YD_CHKS",
-  "FULL FORM": "YARN DYED CHECKS"
+  "FULL FORM": "YARN-DYED CHECKS – Checks created by weaving pre-dyed yarns (pattern is part of fabric, not printed)."
  },
  {
   "OTHER MVGR - 02": "IND_CHK",
@@ -133,7 +133,7 @@
  },
  {
   "OTHER MVGR - 02": "CHK",
-  "FULL FORM": "CHECK"
+  "FULL FORM": "CHECK PRINT – Printed check pattern (not woven like yarn-dyed checks)."
  },
  {
   "OTHER MVGR - 02": "OD",
@@ -233,7 +233,7 @@
  },
  {
   "OTHER MVGR - 02": "AOP_ANML",
-  "FULL FORM": "ALL OVER PRINT - ANIMAL"
+  "FULL FORM": "ALL OVER PRINT - ANIMAL – Repeating animal or animal-skin patterns."
  },
  {
   "OTHER MVGR - 02": "PLN_WRK",

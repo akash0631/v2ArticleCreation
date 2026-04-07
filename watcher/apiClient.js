@@ -45,7 +45,7 @@ async function submitImage(filePath, meta, catData) {
   form.append('watcher_mc_code',           catData?.mc_code       || '');
 
   const response = await axios.post(
-    `${API_BASE_URL}/api/watcher/extract/upload`,
+    `${API_BASE_URL}/watcher/extract/upload`,
     form,
     {
       headers: {
