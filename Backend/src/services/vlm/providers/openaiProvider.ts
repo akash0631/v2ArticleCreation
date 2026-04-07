@@ -15,7 +15,7 @@ export class OpenAIVLMProvider extends BaseApiService implements VLMProvider {
       detail: 'high',
       maxTokens: 3000,
       temperature: 0.1,
-      timeout: 30000,
+      timeout: 120000,
       ...config
     };
   }

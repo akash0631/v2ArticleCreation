@@ -20,7 +20,7 @@ export class GoogleVisionProvider implements VLMProvider {
       model: 'gemini-2.5-pro',  // Highest quality model for maximum accuracy
       maxTokens: 12000,  // Maximum tokens for comprehensive analysis
       temperature: 0.0,  // Zero temperature for maximum consistency
-      timeout: 60000,  // 60 seconds for thorough processing
+      timeout: 180000,  // 3 minutes for thorough processing
       ...config
     };
     this.initializeClient();
@@ -130,7 +130,7 @@ ${Object.entries(ocrHint)
         .map(([k, v]) => `• ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
         .join('\n')}
 Rules for OCR_HINTS:
-• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, g_weight/weight, yarn_01, yarn_02, fabric_main_mvgr, colour
+• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, g_weight/weight/wt/fabric_weight/garment_weight, yarn_01, yarn_02, fabric_main_mvgr, colour
 • If OCR_HINTS are unclear or conflict with your own OCR read, return null for that field (do not guess)
 ` : '';
 
@@ -519,7 +519,7 @@ STEP 3: TAG/LABEL READING (Critical for metadata)
 │   • Do not hallucinate missing characters; if any character is unclear, leave the entire field null
 │   • If multiple boards are present, use the closest/clearest board only
 ├─ Extract (OCR ONLY): Division, Vendor name, Design number, PPT number, Rate/Price, Size, Major category, GSM, G-Weight
-│   • G-Weight may appear as "Weight", "G-Weight", or "Numeric/G"
+│   • G-Weight may appear as "Weight", "G-Weight", "Numeric/G", "WT", "Fabric Weight", "Garment Weight", "G.WT", or similar variations
 │   • For G-Weight return NUMERIC ONLY (digits/decimal only, no unit/suffix/prefix)
 │   • Example: "Numeric/G: 180G" → weight = "180"
 ├─ If the board has "FAB" or "FABRIC" line, parse into yarn_01, yarn_02, fabric_main_mvgr:
@@ -1047,7 +1047,13 @@ IMPORTANT:
         'division': 'division',
         'gsm': 'gsm',
         'g_weight': 'weight',
-        'weight': 'weight'
+        'weight': 'weight',
+        'wt': 'weight',
+        'fabric weight': 'weight',
+        'garment weight': 'weight',
+        'fab weight': 'weight',
+        'g.wt': 'weight',
+        'g wt': 'weight'
       };
 
       const mergeNonNull = (base: Record<string, any>, incoming?: Record<string, any> | null) => {
@@ -1077,7 +1083,7 @@ IMPORTANT:
         size: ['size', 'sizes', 'size_range', 'size range', 'size-range', 'siz'],
         major_category: ['majorcategory', 'major_category', 'major category', 'category'],
         gsm: ['gsm', 'gsm_value', 'gsm value', 'g/m2', 'g/m²', 'gram per square meter'],
-        weight: ['weight', 'g_weight', 'g-weight', 'gweight', 'numeric/g', 'numeric / g', 'num/g']
+        weight: ['weight', 'g_weight', 'g-weight', 'gweight', 'numeric/g', 'numeric / g', 'num/g', 'wt', 'fabric weight', 'garment weight', 'fab weight', 'g.wt', 'g wt']
       };
 
       const extractNumericWeight = (input: unknown): string | null => {
@@ -1095,12 +1101,22 @@ IMPORTANT:
           mergedMetadata?.['g-weight'],
           mergedMetadata?.gweight,
           mergedMetadata?.weight,
+          mergedMetadata?.wt,
+          mergedMetadata?.['fabric weight'],
+          mergedMetadata?.['garment weight'],
+          mergedMetadata?.['fab weight'],
+          mergedMetadata?.['g.wt'],
+          mergedMetadata?.['g wt'],
           metadataLower['g_weight'],
           metadataLower['g-weight'],
           metadataLower['gweight'],
           metadataLower['weight'],
-          metadataLower['numeric/g'],
-          metadataLower['numeric / g']
+          metadataLower['wt'],
+          metadataLower['fabric weight'],
+          metadataLower['garment weight'],
+          metadataLower['fab weight'],
+          metadataLower['g.wt'],
+          metadataLower['g wt']
         ];
 
         for (const candidate of directCandidates) {
@@ -1112,7 +1128,7 @@ IMPORTANT:
           ? (mergedMetadata?.rawLines as unknown[]).map(v => String(v))
           : [];
 
-        const taggedLine = rawLines.find(line => /g-?weight|weight|numeric\s*\/\s*g/i.test(line));
+        const taggedLine = rawLines.find(line => /g-?\s*weight|weight|fabric\s+weight|garment\s+weight|fab\s+weight|numeric\s*\/\s*g|wt\.?|g\.?\s*wt/i.test(line));
         if (taggedLine) {
           const parsed = extractNumericWeight(taggedLine);
           if (parsed) return parsed;

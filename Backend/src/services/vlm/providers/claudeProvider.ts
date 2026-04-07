@@ -20,7 +20,7 @@ export class ClaudeVLMProvider implements VLMProvider {
       model: 'claude-3-5-sonnet-20241022',
       maxTokens: 4000,
       temperature: 0.1,
-      timeout: 30000,
+      timeout: 120000,
       ...config
     };
     this.initializeClient();
