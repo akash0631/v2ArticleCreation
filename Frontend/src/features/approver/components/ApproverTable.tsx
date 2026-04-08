@@ -756,7 +756,8 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                         selectedRowKeys,
                         onChange: onSelectionChange,
                         getCheckboxProps: (record) => ({
-                            disabled: record.approvalStatus === 'APPROVED' || record.approvalStatus === 'REJECTED',
+                            // APPROVED rows can be selected (for export only); REJECTED cannot
+                            disabled: record.approvalStatus === 'REJECTED',
                         }),
                     }}
                 />

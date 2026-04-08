@@ -393,12 +393,20 @@ export default function ApproverDashboard() {
         await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], 'Article Creation');
     }, [buildApproverExportData, filteredItems, selectedRowKeys]);
 
+    // Only PENDING items from the selection are eligible for approve/reject actions
+    const pendingSelectedKeys = useMemo(() =>
+        selectedRowKeys.filter(key =>
+            filteredItems.find(item => item.id === key)?.approvalStatus === 'PENDING'
+        ),
+        [selectedRowKeys, filteredItems]
+    );
+
     const handleApprove = async () => {
-        if (selectedRowKeys.length === 0) return;
+        if (pendingSelectedKeys.length === 0) return;
 
         Modal.confirm({
             title: 'Confirm Approval',
-            content: `Are you sure you want to approve ${selectedRowKeys.length} items? This action cannot be undone.`,
+            content: `Are you sure you want to approve ${pendingSelectedKeys.length} items? This action cannot be undone.`,
             okText: 'Approve',
             okType: 'primary',
             onOk: async () => {
@@ -410,7 +418,7 @@ export default function ApproverDashboard() {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({ ids: selectedRowKeys })
+                        body: JSON.stringify({ ids: pendingSelectedKeys })
                     });
 
                     if (!response.ok) throw new Error('Approval failed');
@@ -433,11 +441,11 @@ export default function ApproverDashboard() {
     };
 
     const handleReject = async () => {
-        if (selectedRowKeys.length === 0) return;
+        if (pendingSelectedKeys.length === 0) return;
 
         Modal.confirm({
             title: 'Confirm Rejection',
-            content: `Are you sure you want to reject ${selectedRowKeys.length} items?`,
+            content: `Are you sure you want to reject ${pendingSelectedKeys.length} items?`,
             okText: 'Reject',
             okButtonProps: { danger: true },
             onOk: async () => {
@@ -449,7 +457,7 @@ export default function ApproverDashboard() {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({ ids: selectedRowKeys })
+                        body: JSON.stringify({ ids: pendingSelectedKeys })
                     });
 
                     if (!response.ok) throw new Error('Rejection failed');
@@ -924,18 +932,18 @@ export default function ApproverDashboard() {
                                 danger
                                 icon={<CloseCircleOutlined />}
                                 onClick={handleReject}
-                                disabled={selectedRowKeys.length === 0}
+                                disabled={pendingSelectedKeys.length === 0}
                             >
-                                Reject ({selectedRowKeys.length})
+                                Reject ({pendingSelectedKeys.length})
                             </Button>
                             <Button
                                 type="primary"
                                 icon={<CheckCircleOutlined />}
                                 onClick={handleApprove}
-                                disabled={selectedRowKeys.length === 0}
+                                disabled={pendingSelectedKeys.length === 0}
                                 style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
                             >
-                                Approve ({selectedRowKeys.length})
+                                Approve ({pendingSelectedKeys.length})
                             </Button>
                         </Col>
                     </Row>
