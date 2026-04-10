@@ -5,6 +5,8 @@
  *   - M_PATTERN  : O_ELS, I_ELS
  *   - M_PRINT_STYLE : PLK_PRT
  *   - M_EMBROIDERY  : NK_PIP, NK_FRL
+ *   - M_FAB2     : LED
+ *   - major_category : M_RNCT (Mens Raincoat, MS-L, MC 114070101, HSN 620342)
  *
  * Adds missing entries only — does NOT delete existing values.
  * Run: npx ts-node --project tsconfig.json prisma/seed-new-attribute-values.ts
@@ -51,6 +53,10 @@ const NEW_VALUES: Record<string, { shortForm: string; fullForm: string }[]> = {
   EMBROIDERY: [
     { shortForm: 'NK_PIP', fullForm: 'NECK PIPPING' },
     { shortForm: 'NK_FRL', fullForm: 'NECK FRILL' },
+  ],
+
+  M_FAB2: [
+    { shortForm: 'LED', fullForm: 'LED' },
   ],
 };
 
@@ -119,12 +125,66 @@ async function seedAttribute(
   console.log(`   📊 Total values for ${key} after seed: ${total}`);
 }
 
+// New major categories to add (keeps aliases for mcCode / division / subDivision lookups)
+const NEW_MAJOR_CATEGORIES = [
+  { name: 'M_RNCT', mcCode: '114070101', division: 'MENS', subDivision: 'MS-L' },
+];
+
+async function seedMajorCategories(
+  entries: Array<{ name: string; mcCode: string; division: string; subDivision: string }>
+) {
+  const attr = await prisma.masterAttribute.findFirst({ where: { key: 'major_category' } });
+  if (!attr) {
+    console.warn(`⚠️  Master attribute 'major_category' not found — skipping.`);
+    return;
+  }
+  console.log(`\n🔑 major_category (id=${attr.id})`);
+
+  const existing = await prisma.attributeAllowedValue.findMany({
+    where: { attributeId: attr.id },
+    select: { shortForm: true },
+  });
+  const existingSet = new Set(existing.map((v) => v.shortForm.trim().toUpperCase()));
+
+  const toInsert = entries.filter((e) => !existingSet.has(e.name.trim().toUpperCase()));
+  if (toInsert.length === 0) {
+    console.log(`   ✅ All major category values already present — nothing to insert.`);
+    return;
+  }
+
+  const maxRow = await prisma.attributeAllowedValue.findFirst({
+    where: { attributeId: attr.id },
+    orderBy: { displayOrder: 'desc' },
+    select: { displayOrder: true },
+  });
+  let nextOrder = (maxRow?.displayOrder ?? -1) + 1;
+
+  const result = await prisma.attributeAllowedValue.createMany({
+    data: toInsert.map((e) => ({
+      attributeId: attr.id,
+      shortForm: e.name,
+      fullForm: e.name,
+      aliases: [e.mcCode, e.division, e.subDivision],
+      displayOrder: nextOrder++,
+      isActive: true,
+    })),
+    skipDuplicates: true,
+  });
+
+  console.log(`   ➕ Inserted ${result.count} new major category value(s):`);
+  toInsert.forEach((e) =>
+    console.log(`      ${e.name.padEnd(14)} MC: ${e.mcCode}  ${e.division} / ${e.subDivision}`)
+  );
+}
+
 async function main() {
   console.log('🌱 Seeding new attribute values...\n');
 
   for (const [key, values] of Object.entries(NEW_VALUES)) {
     await seedAttribute(key, values);
   }
+
+  await seedMajorCategories(NEW_MAJOR_CATEGORIES);
 
   console.log('\n✅ Done.');
 }

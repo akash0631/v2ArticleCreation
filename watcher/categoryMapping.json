@@ -1623,5 +1623,10 @@
     "sub_division": "KGW-U",
     "mc_code": "134250101",
     "division": "KIDS"
+  },
+  "M_RNCT": {
+    "sub_division": "MS-L",
+    "mc_code": "114070101",
+    "division": "MENS"
   }
 }

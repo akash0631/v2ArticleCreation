@@ -1948,5 +1948,11 @@
     "mc des": "YGW_TOP",
     "division": "KIDS",
     "sub division": "KGW-U"
+  },
+  {
+    "mc code": "114070101",
+    "mc des": "M_RNCT",
+    "division": "MENS",
+    "sub division": "MS-L"
   }
 ]

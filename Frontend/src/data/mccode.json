@@ -9839,6 +9839,12 @@
   "mc code": 113130101,
   "mc des": "M_HOLI_TEES_HS",
   "hsn code": 61091000
+ },
+ {
+  "mc code": 114070101,
+  "mc des": "M_RNCT",
+  "Column3": "IN",
+  "hsn code": 620342
  }
 ]
 }

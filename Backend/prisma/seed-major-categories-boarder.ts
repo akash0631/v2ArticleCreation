@@ -246,6 +246,7 @@ const MAJOR_CATEGORIES: Array<{ name: string; mcCode: string; division: string; 
   { name: 'M_TIGHTS_HS', mcCode: '113010101', division: 'MENS', subDivision: 'MS-U' },
   { name: 'M_TROUSER_FS', mcCode: '112010101', division: 'MENS', subDivision: 'MS-L' },
   { name: 'M_TROUSER_FS_JOGGER', mcCode: '112020101', division: 'MENS', subDivision: 'MS-L' },
+  { name: 'M_RNCT', mcCode: '114070101', division: 'MENS', subDivision: 'MS-L' },
 ];
 
 async function main() {
