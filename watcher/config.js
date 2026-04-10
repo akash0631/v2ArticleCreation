@@ -37,6 +37,9 @@ module.exports = {
   // Keep this in sync with what your approver dashboard expects
   EXTRACTION_SCHEMA: process.env.EXTRACTION_SCHEMA || '[]',
 
+  // How many images to submit in parallel (tune based on backend capacity)
+  CONCURRENCY: parseInt(process.env.CONCURRENCY || '5', 10),
+
   // File that tracks which image paths have already been processed
   PROCESSED_LOG: process.env.PROCESSED_LOG || './processed.json',
 

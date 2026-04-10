@@ -4,6 +4,7 @@ const {
   WATCH_ROOT, VALID_DIVISIONS, IMAGE_EXTENSIONS, FLAT_MODE,
   DEFAULT_DIVISION, DEFAULT_SUB_DIVISION, DEFAULT_VENDOR_NAME,
   DEFAULT_VENDOR_CODE, DEFAULT_MAJOR_CATEGORY, DEFAULT_MC_CODE,
+  CONCURRENCY,
 } = require('./config');
 const { parsePath } = require('./pathParser');
 const { has: alreadyProcessed, mark } = require('./processedTracker');
@@ -36,6 +37,30 @@ function collectImages(dir, results = []) {
     }
   }
   return results;
+}
+
+/**
+ * Process an array of tasks (async functions) with a concurrency cap.
+ * Returns { ok, dup, fail } counts aggregated from each task.
+ */
+async function processInBatches(tasks, concurrency) {
+  let ok = 0, dup = 0, fail = 0;
+  for (let i = 0; i < tasks.length; i += concurrency) {
+    const batch = tasks.slice(i, i + concurrency);
+    const results = await Promise.allSettled(batch.map(fn => fn()));
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        ok  += r.value.ok;
+        dup += r.value.dup;
+        fail += r.value.fail;
+      } else {
+        log.error('Unexpected batch error:', r.reason);
+        fail++;
+      }
+    }
+    log.info(`  Batch ${Math.floor(i / concurrency) + 1} done — processed ${Math.min(i + concurrency, tasks.length)} / ${tasks.length}`);
+  }
+  return { ok, dup, fail };
 }
 
 /**
@@ -92,6 +117,39 @@ async function runScan() {
   return runHierarchyScan();
 }
 
+/**
+ * Submit one image and return { ok, dup, fail } counts.
+ * Marks the image as processed on success or confirmed duplicate.
+ */
+async function submitOne(imgPath, meta, catData) {
+  try {
+    const result = await submitImage(imgPath, meta, catData);
+    if (result?.success) {
+      log.ok(`  OK — ${imgPath} — jobId: ${result.data?.persistence?.jobId}`);
+      mark(imgPath);
+      return { ok: 1, dup: 0, fail: 0 };
+    } else if (result?.code === 'DUPLICATE') {
+      log.warn(`  DUPLICATE (body) — marking: ${imgPath}`);
+      mark(imgPath);
+      return { ok: 0, dup: 1, fail: 0 };
+    } else {
+      log.error(`  Backend failure: ${imgPath}`, JSON.stringify(result));
+      return { ok: 0, dup: 0, fail: 1 };
+    }
+  } catch (err) {
+    const status = err?.response?.status;
+    const data   = err?.response?.data;
+    if (status === 409 && data?.code === 'DUPLICATE') {
+      log.warn(`  DUPLICATE (409) — marking: ${imgPath}`);
+      mark(imgPath);
+      return { ok: 0, dup: 1, fail: 0 };
+    }
+    log.error(`  Request failed (HTTP ${status || 'N/A'}): ${imgPath}`, err.message);
+    if (data) log.error(`  Response:`, JSON.stringify(data));
+    return { ok: 0, dup: 0, fail: 1 };
+  }
+}
+
 // ── FLAT MODE ────────────────────────────────────────────────────────────────
 // Collect every image directly under WATCH_ROOT (and sub-folders) and submit
 // with whatever DEFAULT_* metadata was configured in .env.
@@ -106,22 +164,25 @@ async function runFlatScan() {
   }
 
   const images = collectImages(WATCH_ROOT);
-  let totalFound = images.length;
-  let totalNew = 0, totalOk = 0, totalDup = 0, totalFail = 0;
+  const totalFound = images.length;
 
-  log.info(`Images found: ${totalFound}`);
+  log.info(`Images found: ${totalFound} | Concurrency: ${CONCURRENCY}`);
 
+  // Split into new vs already-done
+  const newImages = [];
+  let totalDup = 0;
   for (const imgPath of images) {
-    if (alreadyProcessed(imgPath)) {
-      totalDup++;
-      continue;
-    }
+    if (alreadyProcessed(imgPath)) { totalDup++; } else { newImages.push(imgPath); }
+  }
+  log.info(`  New: ${newImages.length} | Already processed: ${totalDup}`);
 
-    totalNew++;
+  const catData = DEFAULT_MC_CODE || DEFAULT_SUB_DIVISION
+    ? { sub_division: DEFAULT_SUB_DIVISION, mc_code: DEFAULT_MC_CODE }
+    : null;
+
+  const tasks = newImages.map(imgPath => async () => {
     const imageName = path.basename(imgPath);
     log.info(`Processing: ${imgPath}`);
-
-    // Flat metadata — no path parsing, use .env defaults
     const meta = {
       division:            DEFAULT_DIVISION,
       vendorName:          DEFAULT_VENDOR_NAME,
@@ -129,44 +190,15 @@ async function runFlatScan() {
       majorCategoryFolder: DEFAULT_MAJOR_CATEGORY,
       imageName,
     };
-    const catData = DEFAULT_MC_CODE || DEFAULT_SUB_DIVISION
-      ? { sub_division: DEFAULT_SUB_DIVISION, mc_code: DEFAULT_MC_CODE }
-      : null;
+    return submitOne(imgPath, meta, catData);
+  });
 
-    try {
-      const result = await submitImage(imgPath, meta, catData);
-
-      if (result?.success) {
-        log.ok(`  Submitted OK — jobId: ${result.data?.persistence?.jobId}`);
-        mark(imgPath);
-        totalOk++;
-      } else if (result?.code === 'DUPLICATE') {
-        log.warn(`  Already in DB (DUPLICATE) — marking as processed`);
-        mark(imgPath);
-        totalDup++;
-      } else {
-        log.error(`  Backend returned failure:`, JSON.stringify(result));
-        totalFail++;
-      }
-    } catch (err) {
-      const status = err?.response?.status;
-      const data   = err?.response?.data;
-
-      if (status === 409 && data?.code === 'DUPLICATE') {
-        log.warn(`  Already in DB (409 DUPLICATE) — marking as processed`);
-        mark(imgPath);
-        totalDup++;
-      } else {
-        log.error(`  Request failed (HTTP ${status || 'N/A'}):`, err.message);
-        if (data) log.error(`  Response:`, JSON.stringify(data));
-        totalFail++;
-      }
-    }
-  }
+  const { ok: totalOk, dup: dupFromSubmit, fail: totalFail } = await processInBatches(tasks, CONCURRENCY);
+  totalDup += dupFromSubmit;
 
   log.info('=== Flat-mode scan complete ===');
   log.info(`  Found:     ${totalFound}`);
-  log.info(`  New:       ${totalNew}`);
+  log.info(`  New:       ${newImages.length}`);
   log.info(`  Submitted: ${totalOk}`);
   log.info(`  Duplicate: ${totalDup}`);
   log.info(`  Failed:    ${totalFail}`);
@@ -243,60 +275,36 @@ async function runHierarchyScan() {
         const images = collectImages(dateDirs[0]);
         totalFound += images.length;
 
+        // Separate new from already-processed
+        const newImages = [];
         for (const imgPath of images) {
-          if (alreadyProcessed(imgPath)) {
-            totalDup++;
-            continue;
-          }
+          if (alreadyProcessed(imgPath)) { totalDup++; } else { newImages.push(imgPath); }
+        }
+        totalNew += newImages.length;
 
-          totalNew++;
+        // Build task list
+        const tasks = [];
+        for (const imgPath of newImages) {
           const meta = parsePath(imgPath);
           if (!meta) {
             log.warn(`Could not parse path, skipping: ${imgPath}`);
             totalFail++;
-            mark(imgPath); // mark so we don't retry bad paths forever
+            mark(imgPath);
             continue;
           }
-
           const catData = categoryMapping[meta.majorCategoryFolder] || null;
           if (!catData) {
-            log.warn(`Unknown major category: "${meta.majorCategoryFolder}" — will submit without sub_division/mc_code`);
+            log.warn(`Unknown major category: "${meta.majorCategoryFolder}" — submitting without sub_division/mc_code`);
           }
-
-          log.info(`Processing: ${imgPath}`);
+          log.info(`Queuing: ${imgPath}`);
           log.info(`  Division: ${meta.division} | Vendor: ${meta.vendorName} (${meta.vendorCode}) | MC: ${meta.majorCategoryFolder}`);
-
-          try {
-            const result = await submitImage(imgPath, meta, catData);
-
-            if (result?.success) {
-              log.ok(`  Submitted OK — jobId: ${result.data?.persistence?.jobId}`);
-              mark(imgPath);
-              totalOk++;
-            } else if (result?.code === 'DUPLICATE') {
-              log.warn(`  Already in DB (DUPLICATE) — marking as processed`);
-              mark(imgPath);
-              totalDup++;
-            } else {
-              log.error(`  Backend returned failure:`, JSON.stringify(result));
-              totalFail++;
-            }
-          } catch (err) {
-            const status = err?.response?.status;
-            const data   = err?.response?.data;
-
-            if (status === 409 && data?.code === 'DUPLICATE') {
-              log.warn(`  Already in DB (409 DUPLICATE) — marking as processed`);
-              mark(imgPath);
-              totalDup++;
-            } else {
-              log.error(`  Request failed (HTTP ${status || 'N/A'}):`, err.message);
-              if (data) log.error(`  Response:`, JSON.stringify(data));
-              totalFail++;
-              // Do NOT mark — will retry on next scheduled run
-            }
-          }
+          tasks.push(() => submitOne(imgPath, meta, catData));
         }
+
+        const counts = await processInBatches(tasks, CONCURRENCY);
+        totalOk   += counts.ok;
+        totalDup  += counts.dup;
+        totalFail += counts.fail;
       }
     }
 
