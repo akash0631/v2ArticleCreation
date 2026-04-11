@@ -452,8 +452,8 @@ export default function Products() {
       return;
     }
     const exportData = buildOrderedExportDataFromResults([row]);
-    await exportToExcel(exportData, ORDERED_EXPORT_HEADERS, exportSchema, row.productType || 'results');
-  }, [buildOrderedExportDataFromResults, exportSchema]);
+    await exportToExcel(exportData, ORDERED_EXPORT_HEADERS, [], row.productType || 'results');
+  }, [buildOrderedExportDataFromResults]);
 
   const handleBulkExport = useCallback(async () => {
     if (selectedRows.length === 0) {
@@ -475,8 +475,8 @@ export default function Products() {
     }
 
     const exportData = buildOrderedExportDataFromResults(completedRows);
-    await exportToExcel(exportData, ORDERED_EXPORT_HEADERS, exportSchema, 'bulk');
-  }, [buildOrderedExportDataFromResults, exportSchema, selectedRows]);
+    await exportToExcel(exportData, ORDERED_EXPORT_HEADERS, [], 'bulk');
+  }, [buildOrderedExportDataFromResults, selectedRows]);
 
   const columns = useMemo(() => {
     const baseColumns = [
