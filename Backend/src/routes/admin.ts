@@ -82,4 +82,9 @@ router.delete('/users/:id', adminController.deactivateUser);
 // ═══════════════════════════════════════════════════════
 router.get('/extractions', adminController.getAllExtractions);
 
+// ═══════════════════════════════════════════════════════
+// BACKFILLS (ADMIN ONLY)
+// ═══════════════════════════════════════════════════════
+router.post('/backfill-watcher-subdivisions', adminController.backfillWatcherSubDivisions);
+
 export default router;

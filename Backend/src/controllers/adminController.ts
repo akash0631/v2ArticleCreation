@@ -1499,3 +1499,91 @@ export const getDetailedExpenses = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// ═══════════════════════════════════════════════════════
+// BACKFILL: Fix subDivision for all watcher articles using majorCategory
+// POST /api/admin/backfill-watcher-subdivisions
+// Logic:
+//   - majorCategory present → look up Category.code → SubDepartment.code → use as subDivision
+//   - majorCategory absent  → set subDivision = null
+// ═══════════════════════════════════════════════════════
+export const backfillWatcherSubDivisions = async (req: Request, res: Response) => {
+  try {
+    // Load all watcher flat rows
+    const rows = await prisma.extractionResultFlat.findMany({
+      where: { source: 'WATCHER' },
+      select: { id: true, majorCategory: true, subDivision: true },
+    });
+
+    // Build a cache: majorCategory code → subDepartment code (avoid repeated DB hits)
+    const cache = new Map<string, string | null>();
+
+    let updated = 0;
+    let cleared = 0;
+    let notFound = 0;
+    let skipped = 0;
+
+    for (const row of rows) {
+      const mc = row.majorCategory?.trim() || null;
+
+      if (!mc) {
+        // No major category — clear subDivision
+        if (row.subDivision !== null && row.subDivision !== '') {
+          await prisma.extractionResultFlat.update({
+            where: { id: row.id },
+            data: { subDivision: null },
+          });
+          cleared++;
+        } else {
+          skipped++;
+        }
+        continue;
+      }
+
+      // Look up correct subDivision from DB category
+      let correctSubDivision: string | null;
+      if (cache.has(mc)) {
+        correctSubDivision = cache.get(mc)!;
+      } else {
+        const category = await prisma.category.findFirst({
+          where: { code: { equals: mc, mode: 'insensitive' } },
+          select: { subDepartment: { select: { code: true } } },
+        });
+        correctSubDivision = category?.subDepartment?.code ?? null;
+        cache.set(mc, correctSubDivision);
+      }
+
+      if (!correctSubDivision) {
+        // Category not found in DB — leave subDivision unchanged
+        notFound++;
+        continue;
+      }
+
+      // Only update if it's currently wrong
+      if (row.subDivision !== correctSubDivision) {
+        await prisma.extractionResultFlat.update({
+          where: { id: row.id },
+          data: { subDivision: correctSubDivision },
+        });
+        updated++;
+      } else {
+        skipped++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Watcher subDivision backfill complete',
+      stats: {
+        total: rows.length,
+        updated,
+        cleared,
+        notFound,
+        skipped,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in backfillWatcherSubDivisions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

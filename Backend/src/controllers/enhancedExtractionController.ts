@@ -168,9 +168,19 @@ export class EnhancedExtractionController {
         }
       }
 
-      // Final fallback
+      // Final fallback — prefer the correct division if watcher provided one
       if (!category) {
-        category = await prisma.category.findFirst({ select: { id: true } });
+        const divisionHint = department || params.watcherFields?.division;
+        category = await prisma.category.findFirst({
+          where: divisionHint ? {
+            subDepartment: { department: { name: { equals: divisionHint, mode: 'insensitive' } } }
+          } : {},
+          select: { id: true }
+        });
+        // Absolute last resort
+        if (!category) {
+          category = await prisma.category.findFirst({ select: { id: true } });
+        }
       }
 
       const fallbackCategory = category;
@@ -356,7 +366,9 @@ export class EnhancedExtractionController {
           if (watcherFields.vendorCode)     overrides.vendorCode    = watcherFields.vendorCode;
           else if (ocrVendorCode)           overrides.vendorCode    = ocrVendorCode;
           if (watcherFields.majorCategory)  overrides.majorCategory = watcherFields.majorCategory;
-          if (watcherFields.subDivision)    overrides.subDivision   = watcherFields.subDivision;
+          // Always override subDivision: use watcher value if provided, else null
+          // This prevents the wrong fallback category's sub-code (e.g. MENS) from staying
+          if (watcherFields.division) overrides.subDivision = watcherFields.subDivision || null;
           if (watcherFields.mcCode)         overrides.mcCode        = watcherFields.mcCode;
           if (watcherFields.source)         overrides.source        = watcherFields.source;
           if (watcherFields.imageUncPath)   overrides.imageUncPath  = watcherFields.imageUncPath;
@@ -618,8 +630,8 @@ export class EnhancedExtractionController {
         categoryName,
         customPrompt,
         discoveryMode: discoveryMode === 'true' || discoveryMode === true,
-        department: enforcedDepartment as any,
-        subDepartment: enforcedSubDepartment as any,
+        department: (enforcedDepartment || watcher_division) as any,
+        subDepartment: (enforcedSubDepartment || watcher_sub_division) as any,
         season: season as any,
         occasion: occasion as any
       };
