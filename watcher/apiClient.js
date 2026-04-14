@@ -54,7 +54,7 @@ async function submitImage(filePath, meta, catData) {
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 120_000, // 2 min per image
+      timeout: 300_000, // 5 min per image
     }
   );
 
