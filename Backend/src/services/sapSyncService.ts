@@ -77,6 +77,13 @@ const sapFieldMappings: SapFieldMapping[] = parseMapRows()
   })
   .filter((row): row is SapFieldMapping => !!row);
 
+// Log neck-related mappings at startup so we can verify the correct map.json is loaded
+const neckMappings = sapFieldMappings.filter(m => m.attribute.toLowerCase().includes('neck'));
+console.log(`[SAP] map.json loaded from: ${SAP_MAP_PATH}`);
+console.log(`[SAP] Neck mappings: ${JSON.stringify(neckMappings)}`);
+
+export const getSapFieldMappings = () => sapFieldMappings;
+
 const getVendorValue = (item: SapSyncItemInput): string => {
   const vendor = String(item.vendorCode || '').trim();
   return vendor;
