@@ -18,9 +18,9 @@ export class ClaudeVLMProvider implements VLMProvider {
   constructor(config?: Partial<ClaudeVLMConfig>) {
     this.config = {
       model: 'claude-sonnet-4-5',
-      maxTokens: 4000,
-      temperature: 0.1,
-      timeout: 120000,
+      maxTokens: 8000,
+      temperature: 0.0,
+      timeout: 90000,
       ...config
     };
     this.initializeClient();
@@ -96,9 +96,9 @@ export class ClaudeVLMProvider implements VLMProvider {
 
     const schemaDefinition = schema.map(item => {
       const allowedValues = item.allowedValues?.length
-        ? ` (allowed: ${item.allowedValues.map(av => typeof av === 'string' ? av : av.shortForm).slice(0, 5).join(', ')}${item.allowedValues.length > 5 ? '...' : ''})`
+        ? ` [${item.allowedValues.map((av: any) => typeof av === 'string' ? av : av.shortForm || av.fullForm || '').filter(Boolean).join('|')}]`
         : '';
-      return `- ${item.key}: ${item.label}${allowedValues}`;
+      return `${item.key}${allowedValues}`;
     }).join('\n');
 
     return `You are an expert fashion AI analyst. Analyze this clothing image with precision.${categoryContext}

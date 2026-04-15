@@ -17,10 +17,10 @@ export class GoogleVisionProvider implements VLMProvider {
 
   constructor(config?: Partial<GoogleVisionConfig>) {
     this.config = {
-      model: 'gemini-2.0-flash',  // No thinking mode, fast, good accuracy for structured extraction
-      maxTokens: 8000,
+      model: 'gemini-2.5-pro',  // Best accuracy; thinking mode disabled via thinkingBudget:0
+      maxTokens: 65536,  // Gemini 2.5-pro max — effectively unlimited
       temperature: 0.0,
-      timeout: 60000,
+      timeout: 300000,
       ...config
     };
     this.initializeClient();
@@ -973,9 +973,8 @@ COLOUR EXTRACTION (READ CAREFULLY):
     const model = this.client.getGenerativeModel({
       model: this.config.model,
       generationConfig: {
-        maxOutputTokens: this.config.maxTokens,
         temperature: this.config.temperature,
-        // Disable thinking mode (gemini-2.5-flash enables it by default, consuming output budget)
+        // Disable thinking mode (2.5-series enables it by default, consuming output budget)
         ...(this.config.model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
       } as any
     });
