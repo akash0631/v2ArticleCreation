@@ -973,9 +973,10 @@ COLOUR EXTRACTION (READ CAREFULLY):
     const model = this.client.getGenerativeModel({
       model: this.config.model,
       generationConfig: {
+        maxOutputTokens: 32768,  // High limit to cover thinking tokens + full JSON response
         temperature: this.config.temperature,
-        // Disable thinking mode (2.5-series enables it by default, consuming output budget)
-        ...(this.config.model.includes('2.5') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
+        // 2.5-pro requires thinking mode (cannot disable). 2.5-flash can disable with budget 0.
+        ...(this.config.model.includes('2.5-flash') ? { thinkingConfig: { thinkingBudget: 0 } } : {})
       } as any
     });
 
