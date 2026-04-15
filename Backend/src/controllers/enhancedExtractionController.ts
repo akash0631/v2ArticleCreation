@@ -12,6 +12,7 @@ import { storageService } from '../services/storageService';
 import { getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { duplicateForKidsDivision } from '../services/kidsDivisionDuplicationService';
 
 export class EnhancedExtractionController {
   private vlmService = new VLMService();
@@ -440,6 +441,15 @@ export class EnhancedExtractionController {
         } catch (overrideError) {
           console.warn('⚠️ Failed to apply watcher field overrides:', overrideError);
         }
+      }
+
+      // ── Kids Division Duplication ────────────────────────────────────────
+      // Fire-and-forget: if the saved record belongs to KIDS division, create
+      // sibling copies for all other MAJ_CATs that share the same NAME in the
+      // kids-division-mapping.xlsx file. Wrapped in a void call so it never
+      // blocks the main response or propagates errors.
+      if (flatId) {
+        void duplicateForKidsDivision(flatId);
       }
 
       return {

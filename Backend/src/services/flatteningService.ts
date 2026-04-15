@@ -1,4 +1,4 @@
-import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
+import { getMcCodeByMajorCategory, getDivisionByMajorCategory, getSubDivisionByMajorCategory } from '../utils/mcCodeMapper';
 import { prismaClient as prisma } from '../utils/prisma';
 import { calculateMrpFromRate, parseNumericValue } from '../utils/mrpCalculator';
 import { mvgrMappingService } from './mvgrMappingService';
@@ -176,8 +176,19 @@ export class FlatteningService {
             vendorCode: resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode || null,
 
             // Hierarchy Mapping
-            division: job.category?.subDepartment?.department?.name || resultsMap.get('division') || null,
-            subDivision: job.category?.subDepartment?.code || null,
+            // Priority: watcher/user-provided division > JSON lookup by majorCategory > category hierarchy > AI extracted
+            division: (job.watcherDivision as string | null | undefined)
+              || (job.division as string | null | undefined)
+              || getDivisionByMajorCategory(rawMajorCategory)
+              || job.category?.subDepartment?.department?.name
+              || resultsMap.get('division')
+              || null,
+            // Priority: watcher/user-provided subDivision > JSON lookup by majorCategory > category hierarchy
+            subDivision: (job.watcherSubDivision as string | null | undefined)
+              || (job.subDivision as string | null | undefined)
+              || getSubDivisionByMajorCategory(rawMajorCategory)
+              || job.category?.subDepartment?.code
+              || null,
             referenceArticleNumber: resultsMap.get('reference_article_number') || null,
             referenceArticleDescription: resultsMap.get('reference_article_description') || null,
         };

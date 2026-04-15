@@ -6,7 +6,16 @@
       "Bash(ls -la /c/Users/Administrator/Desktop/Ai-fashion/Backend/prisma/*.ts)",
       "Bash(node -e ':*)",
       "Bash(npx tsc:*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Read(//c/Users/Administrator/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/942cf45d-718e-4d7e-ad78-9609ab4f2098/e6a9dd99-275b-41ec-85bf-dfea9f8ea11d/skills/xlsx/**)",
+      "Bash(python -c ':*)",
+      "Bash(ls -la /c/Users/Administrator/Desktop/Ai-fashion/*.json)",
+      "Bash(node -e \"const XLSX = require\\('xlsx'\\); const wb = XLSX.readFile\\('../NEW ME.xlsx'\\); const ws = wb.Sheets[wb.SheetNames[0]]; const data = XLSX.utils.sheet_to_json\\(ws\\); console.log\\('Columns:', Object.keys\\(data[0]\\)\\); console.log\\('First 5 rows:', JSON.stringify\\(data.slice\\(0,5\\), null, 2\\)\\); console.log\\('Total rows:', data.length\\);\")",
+      "Bash(node -e \"const XLSX = require\\('xlsx'\\); const wb = XLSX.readFile\\('C:/Users/Administrator/Desktop/NEW ME.xlsx'\\); const ws = wb.Sheets[wb.SheetNames[0]]; const data = XLSX.utils.sheet_to_json\\(ws\\); console.log\\('Columns:', Object.keys\\(data[0]\\)\\); console.log\\('First 10 rows:', JSON.stringify\\(data.slice\\(0,10\\), null, 2\\)\\); console.log\\('Total rows:', data.length\\);\")",
+      "Bash(node -e \"const XLSX = require\\('xlsx'\\); const wb = XLSX.readFile\\('C:/Users/Administrator/Desktop/Ai-fashion/Backend/data/kids-division-mapping.xlsx'\\); const ws = wb.Sheets[wb.SheetNames[0]]; const data = XLSX.utils.sheet_to_json\\(ws\\); console.log\\('Rows:', data.length, '| Cols:', Object.keys\\(data[0]\\).join\\(', '\\)\\);\")",
+      "Bash(node -e \"const XLSX = require\\('./node_modules/xlsx'\\); const wb = XLSX.readFile\\('./data/kids-division-mapping.xlsx'\\); const ws = wb.Sheets[wb.SheetNames[0]]; const data = XLSX.utils.sheet_to_json\\(ws\\); console.log\\('Rows:', data.length, '| Cols:', Object.keys\\(data[0]\\).join\\(', '\\)\\);\")",
+      "Bash(find \"/c/Users/Administrator/Desktop/Ai-fashion/Backend/src\" -name \"*.ts\" -type f -exec grep -l \"division.*majorCategory\\\\|majorCategory.*division\" {} \\\\;)",
+      "Bash(find \"/c/Users/Administrator/Desktop/Ai-fashion/Backend/src\" -name \"*.ts\" -type f -exec grep -l \"division.*majorCategory\\\\|update.*division\\\\|override.*division\" {} \\\\;)"
     ]
   }
 }

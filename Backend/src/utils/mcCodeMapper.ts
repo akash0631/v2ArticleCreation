@@ -10,6 +10,11 @@ type McCodeRow = {
   'hsn code'?: number | string;
 };
 
+type MajorCategoryRow = McCodeRow & {
+  division?: string;
+  'sub division'?: string;
+};
+
 type McCodePayload = McCodeRow[] | { Sheet1?: McCodeRow[] };
 
 const normalizeCategory = (value?: string | null): string =>
@@ -22,9 +27,9 @@ const normalizeCategory = (value?: string | null): string =>
 
 const payload = majorCategoryCodeData as McCodePayload;
 
-const rows: McCodeRow[] = Array.isArray(payload)
-  ? payload
-  : (payload.Sheet1 || []);
+const rows: MajorCategoryRow[] = Array.isArray(payload)
+  ? (payload as MajorCategoryRow[])
+  : ((payload as { Sheet1?: MajorCategoryRow[] }).Sheet1 || []);
 
 const mcCodeLookup = new Map<string, string>(
   rows
@@ -38,6 +43,25 @@ const mcCodeLookup = new Map<string, string>(
     })
     .filter((row) => !!row.category && row.code !== undefined && row.code !== null)
     .map((row) => [normalizeCategory(row.category), String(row.code)])
+);
+
+// Lookup maps for division and sub_division derived from the major-category JSON
+const divisionByMajorCategoryLookup = new Map<string, string>(
+  rows
+    .filter((row) => !!(row['mc des'] ?? row.MC_DESC) && !!row.division)
+    .map((row) => [
+      normalizeCategory(row['mc des'] ?? row.MC_DESC),
+      String(row.division)
+    ])
+);
+
+const subDivisionByMajorCategoryLookup = new Map<string, string>(
+  rows
+    .filter((row) => !!(row['mc des'] ?? row.MC_DESC) && !!(row['sub division']))
+    .map((row) => [
+      normalizeCategory(row['mc des'] ?? row.MC_DESC),
+      String(row['sub division'])
+    ])
 );
 
 const hsnPayload = hsnCodeData as McCodePayload;
@@ -72,3 +96,23 @@ export const getHsnCodeByMcCode = (mcCode?: string | number | null): string | nu
   if (!key) return null;
   return hsnByMcCodeLookup.get(key) || null;
 };
+
+/**
+ * Returns the division (e.g. "KIDS", "MENS") for a given major category string,
+ * looked up directly from mc-code-list-major-category.json.
+ */
+export function getDivisionByMajorCategory(majorCategory?: string | null): string | null {
+  const key = normalizeCategory(majorCategory);
+  if (!key) return null;
+  return divisionByMajorCategoryLookup.get(key) || null;
+}
+
+/**
+ * Returns the sub-division (e.g. "KBW-L") for a given major category string,
+ * looked up directly from mc-code-list-major-category.json.
+ */
+export function getSubDivisionByMajorCategory(majorCategory?: string | null): string | null {
+  const key = normalizeCategory(majorCategory);
+  if (!key) return null;
+  return subDivisionByMajorCategoryLookup.get(key) || null;
+}
