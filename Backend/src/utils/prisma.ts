@@ -63,7 +63,9 @@ function isTransientPrismaError(error: any): boolean {
     message.includes('forcibly closed by the remote host') ||
     message.includes('server has closed the connection') ||
     message.includes('can\'t reach database server') ||
-    message.includes('timed out fetching a new connection from the connection pool')
+    message.includes('timed out fetching a new connection from the connection pool') ||
+    message.includes('maxclientsinsessionmode') ||
+    message.includes('max clients reached')
   );
 }
 

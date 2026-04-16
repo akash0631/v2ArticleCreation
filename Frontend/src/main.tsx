@@ -13,13 +13,11 @@ import './styles/index.css'
 initSentry()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <QueryProvider>
-        <ConfigProvider theme={antdTheme}>
-          <App />
-        </ConfigProvider>
-      </QueryProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
+  <ErrorBoundary>
+    <QueryProvider>
+      <ConfigProvider theme={antdTheme}>
+        <App />
+      </ConfigProvider>
+    </QueryProvider>
+  </ErrorBoundary>,
 )

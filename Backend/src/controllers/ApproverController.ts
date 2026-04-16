@@ -16,12 +16,16 @@ export class ApproverController {
     private static readonly STARTUP_BACKFILLS_ENABLED = String(process.env.STARTUP_BACKFILLS_ENABLED ?? 'true').toLowerCase() !== 'false';
     private static readonly STARTUP_BACKFILLS_IN_DEV = String(process.env.STARTUP_BACKFILLS_IN_DEV ?? 'false').toLowerCase() === 'true';
     private static readonly APPROVER_ATTRIBUTES_CACHE_TTL_MS = parseInt(process.env.APPROVER_ATTRIBUTES_CACHE_TTL_MS || '300000', 10);
-    private static readonly NUMERIC_OLD_ARTICLES_CACHE_TTL_MS = parseInt(process.env.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS || '30000', 10);
+    private static readonly NUMERIC_OLD_ARTICLES_CACHE_TTL_MS = parseInt(process.env.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS || '1800000', 10); // 30 min default
     private static startupBackfillRunning = false;
     private static attributesCache: { data: any[]; expiresAt: number } | null = null;
     private static pendingAttributesLoad: Promise<any[]> | null = null;
     private static numericOldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
     private static pendingNumericOldArticleIdsLoad: Promise<string[]> | null = null;
+    // Combined cache: all "old" article IDs (path-marker based + numeric name based).
+    // Used so the main getItems query can do id IN/NOT IN instead of ILIKE on every request.
+    private static oldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
+    private static pendingOldArticleIdsLoad: Promise<string[]> | null = null;
 
     private static extractNumericWeight(value: unknown): string | null {
         if (value === null || value === undefined) return null;
@@ -563,12 +567,16 @@ export class ApproverController {
         }
 
         // Only PENDING articles with 10-digit numeric names are routed to Old Articles.
-        // Approved articles stay out (they're done), rejected ones go to the Rejected page.
+        // NOTE: Do NOT wrap in prisma.$transaction — SET LOCAL does not persist across statements
+        // in PgBouncer transaction mode (each statement may hit a different backend connection).
+        // Use a plain $queryRaw so the Prisma transaction timeout cannot block concurrent requests.
         const loadPromise = prisma.$queryRaw<{ id: string }[]>`
             SELECT id FROM extraction_results_flat
-            WHERE (article_number ~ '^[0-9]{10}$'
-               OR image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
-              AND approval_status = 'PENDING'
+            WHERE approval_status = 'PENDING'
+              AND (
+                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
+                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
+              )
         `.then((rows) => {
             const ids = rows.map(r => r.id);
             ApproverController.numericOldArticleIdsCache = {
@@ -576,11 +584,70 @@ export class ApproverController {
                 expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
             };
             return ids;
+        }).catch((err) => {
+            // On timeout/error, return empty array so the main query still runs.
+            // The ILIKE-based old-path detection still works; only numeric IDs are missed temporarily.
+            console.error('[ApproverController] getNumericOldArticleIds failed, using empty fallback:', err?.message);
+            return [] as string[];
         }).finally(() => {
             ApproverController.pendingNumericOldArticleIdsLoad = null;
         });
 
         ApproverController.pendingNumericOldArticleIdsLoad = loadPromise;
+        return loadPromise;
+    }
+
+    /**
+     * Returns ALL "old" article IDs: those whose imageUncPath contains an old-path marker,
+     * PLUS those with a 10-digit numeric article/image name.
+     *
+     * Cached for 30 minutes. On error, returns [] so the caller degrades gracefully.
+     *
+     * This cache is the key optimisation: by resolving "old vs new" to a set of IDs once,
+     * the main getItems query can use  WHERE id IN (...)  or  WHERE id NOT IN (...)
+     * instead of  ILIKE '%marker%'  on every request, avoiding full table scans.
+     */
+    private static async getOldArticleIds(): Promise<string[]> {
+        const cached = ApproverController.oldArticleIdsCache;
+        if (cached && cached.expiresAt > Date.now()) {
+            return cached.ids;
+        }
+
+        if (ApproverController.pendingOldArticleIdsLoad) {
+            return ApproverController.pendingOldArticleIdsLoad;
+        }
+
+        const markers = ApproverController.OLD_PATH_MARKERS;
+
+        // Build the ILIKE conditions as a raw SQL OR chain.
+        // Also include numeric-name articles (PENDING only, using index on approval_status).
+        const loadPromise = prisma.$queryRaw<{ id: string }[]>`
+            SELECT id FROM extraction_results_flat
+            WHERE image_unc_path ILIKE ${'%' + markers[0] + '%'}
+               OR image_unc_path ILIKE ${'%' + markers[1] + '%'}
+               OR image_unc_path ILIKE ${'%' + markers[2] + '%'}
+            UNION
+            SELECT id FROM extraction_results_flat
+            WHERE approval_status = 'PENDING'
+              AND (
+                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
+                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
+              )
+        `.then((rows) => {
+            const ids = rows.map(r => r.id);
+            ApproverController.oldArticleIdsCache = {
+                ids,
+                expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
+            };
+            return ids;
+        }).catch((err) => {
+            console.error('[ApproverController] getOldArticleIds failed, using empty fallback:', err?.message);
+            return [] as string[];
+        }).finally(() => {
+            ApproverController.pendingOldArticleIdsLoad = null;
+        });
+
+        ApproverController.pendingOldArticleIdsLoad = loadPromise;
         return loadPromise;
     }
 
@@ -600,47 +667,30 @@ export class ApproverController {
                 ApproverController.applyApproverScope(where, req.user);
             }
 
-            // Path-type filter: 'old' → only OLD_PATH_MARKERS or 10-digit numeric article/image names,
-            // 'new' → exclude both, 'rejected' → only REJECTED status.
-            // Using `contains` (no backslashes) avoids PostgreSQL LIKE escape-character issues
-            // that occur when using `startsWith` with UNC paths (\\server\folder...).
+            // Path-type filter: resolved via cached ID sets to avoid ILIKE full-table scans.
+            // getOldArticleIds() returns all old IDs (path-marker + numeric name), cached 30 min.
+            // Main query uses id IN / id NOT IN (indexed PK lookup) instead of ILIKE.
             console.log(`[ApproverController] pathType=${pathType ?? 'none'}`);
             if (pathType === 'old' || pathType === 'new') {
-                // Fetch IDs of articles with 10-digit numeric article/image names — these are always "old".
-                const numericOldIds = await ApproverController.getNumericOldArticleIds();
+                const oldIds = await ApproverController.getOldArticleIds();
 
+                where.AND = where.AND || [];
                 if (pathType === 'old') {
-                    where.AND = where.AND || [];
-                    // OLD = path matches OLD_PATH_MARKERS OR has a 10-digit numeric article/image name.
-                    const oldConditions: any[] = ApproverController.OLD_PATH_MARKERS.map(marker => ({
-                        imageUncPath: { contains: marker, mode: 'insensitive' }
-                    }));
-                    if (numericOldIds.length > 0) {
-                        oldConditions.push({ id: { in: numericOldIds } });
+                    if (oldIds.length > 0) {
+                        where.AND.push({ id: { in: oldIds } });
+                    } else {
+                        // Cache not yet warmed or timed out — return empty rather than ILIKE full-table-scan.
+                        // The GIN trigram index (pg_trgm) must be created in Supabase for the cache to populate.
+                        // Do NOT fall back to ILIKE here — it causes statement-timeout loops.
+                        where.AND.push({ id: { in: [] } });
                     }
-                    where.AND.push({ OR: oldConditions });
                 } else {
-                    where.AND = where.AND || [];
-                    // NEW = not an OLD_PATH_MARKER path AND not a numeric old article.
-                    // Also include records where imageUncPath is NULL (manual uploads) unless they are numeric old.
-                    const notOldPath = {
-                        OR: [
-                            { imageUncPath: null },
-                            {
-                                AND: ApproverController.OLD_PATH_MARKERS.map(marker => ({
-                                    NOT: { imageUncPath: { contains: marker, mode: 'insensitive' } }
-                                }))
-                            }
-                        ]
-                    };
-                    where.AND.push(notOldPath);
-                    if (numericOldIds.length > 0) {
-                        where.AND.push({ NOT: { id: { in: numericOldIds } } });
+                    // NEW = not in old set, not REJECTED
+                    if (oldIds.length > 0) {
+                        where.AND.push({ id: { notIn: oldIds } });
                     }
-                    // Exclude REJECTED articles from the new articles view — they have their own dedicated page.
-                    where.AND.push({
-                        NOT: { approvalStatus: ApprovalStatus.REJECTED }
-                    });
+                    // Exclude REJECTED articles from the new articles view — they have their own page.
+                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
                 }
             } else if (pathType === 'rejected') {
                 // Dedicated rejected articles view — always filter to REJECTED only.
@@ -710,7 +760,7 @@ export class ApproverController {
 
             const skip = (Number(page) - 1) * Number(limit);
 
-            const [items, total] = await prisma.$transaction([
+            const [items, total] = await Promise.all([
               prisma.extractionResultFlat.findMany({
                 where,
                 skip,
@@ -829,35 +879,24 @@ export class ApproverController {
                 ApproverController.applyApproverScope(where, req.user);
             }
 
-            // Path-type filter (same logic as getItems — old includes numeric old article IDs too)
+            // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
             console.log(`[ApproverController] exportAll pathType=${pathType ?? 'none'}`);
             if (pathType === 'old' || pathType === 'new') {
-                const numericOldIds = await ApproverController.getNumericOldArticleIds();
+                const oldIds = await ApproverController.getOldArticleIds();
 
+                where.AND = where.AND || [];
                 if (pathType === 'old') {
-                    where.AND = where.AND || [];
-                    const oldConditions: any[] = ApproverController.OLD_PATH_MARKERS.map(marker => ({
-                        imageUncPath: { contains: marker, mode: 'insensitive' }
-                    }));
-                    if (numericOldIds.length > 0) {
-                        oldConditions.push({ id: { in: numericOldIds } });
+                    if (oldIds.length > 0) {
+                        where.AND.push({ id: { in: oldIds } });
+                    } else {
+                        // Same as getItems: no ILIKE fallback — return empty to prevent timeout loops.
+                        where.AND.push({ id: { in: [] } });
                     }
-                    where.AND.push({ OR: oldConditions });
                 } else {
-                    where.AND = where.AND || [];
-                    where.AND.push({
-                        OR: [
-                            { imageUncPath: null },
-                            {
-                                AND: ApproverController.OLD_PATH_MARKERS.map(marker => ({
-                                    NOT: { imageUncPath: { contains: marker, mode: 'insensitive' } }
-                                }))
-                            }
-                        ]
-                    });
-                    if (numericOldIds.length > 0) {
-                        where.AND.push({ NOT: { id: { in: numericOldIds } } });
+                    if (oldIds.length > 0) {
+                        where.AND.push({ id: { notIn: oldIds } });
                     }
+                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
                 }
             }
 

@@ -339,6 +339,10 @@ model ExtractionResultFlat {
   @@index([pptNumber])
   @@index([referenceArticleNumber])
   @@index([isGeneric, approvalStatus, division])
+  // GIN trigram index — speeds up ILIKE '%...%' queries on imageUncPath (old/new path classification).
+  // Requires pg_trgm extension (enabled by default on Supabase).
+  // Apply with: npx prisma db push  (or prisma migrate dev)
+  @@index([imageUncPath(ops: raw("gin_trgm_ops"))], type: Gin, name: "extraction_results_flat_image_unc_path_gin_trgm")
   @@map("extraction_results_flat")
 }
 
