@@ -337,11 +337,13 @@
  },
  {
   "Sr no.": 62,
+  "Attributes": "mainMvgr",
   "SAP NAME": "M_MAIN_MVGR",
   "API Name": "M_MAIN_MVGR"
  },
  {
   "Sr no.": 63,
+  "Attributes": "macroMvgr",
   "SAP NAME": "M_MACRO_MVGR",
   "API Name": "M_MACRO_MVGR"
  },

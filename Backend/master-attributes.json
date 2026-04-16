@@ -514,10 +514,6 @@
         "fullForm": "DAFFODIL – soft surface with light texture, slightly decorative look"
       },
       {
-        "shortForm": "HRY",
-        "fullForm": "HAIRY – visible loose fibers on surface, fuzzy appearance"
-      },
-      {
         "shortForm": "BUTTER_LOVE",
         "fullForm": "BUTTERLOVE – extremely smooth, even surface, no visible texture"
       },
@@ -700,6 +696,22 @@
       {
         "shortForm": "KNIT",
         "fullForm": "KNIT – looped yarn structure, stretchable, visible knit pattern"
+      },
+      {
+        "shortForm": "RANGILA_SLK",
+        "fullForm": "RANGILA SILK"
+      },
+      {
+        "shortForm": "FENDY_SLK",
+        "fullForm": "FENDY SILK"
+      },
+      {
+        "shortForm": "GLASS_SLK",
+        "fullForm": "GLASS SILK"
+      },
+      {
+        "shortForm": "VICHITRA",
+        "fullForm": "VICHITRA"
       }
     ]
   },
@@ -908,6 +920,10 @@
       {
         "shortForm": "IND",
         "fullForm": "INDIGO"
+      },
+      {
+        "shortForm": "HRY",
+        "fullForm": "HAIRY"
       }
     ]
   },
