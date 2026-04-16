@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prismaClient as prisma } from '../utils/prisma';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { parseNumericValue } from '../utils/mrpCalculator';
+import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
 
 export class FlatExtractionController {
     private attributeKeyToFieldMap: Record<string, string> = {
@@ -171,7 +172,8 @@ export class FlatExtractionController {
                 orderBy: [
                     { createdAt: 'desc' },
                     { id: 'desc' }
-                ]
+                ],
+                take: 500,
             });
 
             res.json({
@@ -344,6 +346,13 @@ export class FlatExtractionController {
                     data.mcCode = null;
                     data.hsnTaxCode = null;
                 }
+            } else if (fieldName === 'vendorCode') {
+                if (!hasVendorCode(value) || !isValidVendorCode(value)) {
+                    res.status(400).json({ success: false, error: 'Vendor Code is required and must be exactly 6 digits' });
+                    return;
+                }
+
+                data.vendorCode = normalizeVendorCode(value);
             } else {
                 data[fieldName] = fieldName === 'weight'
                     ? this.extractNumericWeight(value)

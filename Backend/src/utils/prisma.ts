@@ -19,8 +19,8 @@ const globalForPrisma = globalThis as GlobalWithPrisma;
 function buildRuntimeDatabaseUrl(): string | undefined {
   const rawUrl = process.env.DATABASE_URL;
   if (!rawUrl) return undefined;
-  const runtimeConnectionLimit = process.env.PRISMA_CONNECTION_LIMIT || '3';
-  const runtimePoolTimeout = process.env.PRISMA_POOL_TIMEOUT || '30';
+  const runtimeConnectionLimit = process.env.PRISMA_CONNECTION_LIMIT || '10';
+  const runtimePoolTimeout = process.env.PRISMA_POOL_TIMEOUT || '60';
   const runtimeConnectTimeout = process.env.PRISMA_CONNECT_TIMEOUT || '20';
 
   try {

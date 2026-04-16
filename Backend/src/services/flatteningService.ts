@@ -4,6 +4,7 @@ import { parseNumericValue } from '../utils/mrpCalculator';
 import { mvgrMappingService } from './mvgrMappingService';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
+import { normalizeVendorCode } from '../utils/vendorCode';
 
 function getCurrentSeasonCode(): string {
     const month = new Date().getMonth() + 1;
@@ -112,6 +113,10 @@ export class FlatteningService {
             || resultsMap.get('gweight')
         );
 
+        const normalizedVendorCode = normalizeVendorCode(
+            resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode
+        );
+
         return {
             jobId: job.id,
 
@@ -185,7 +190,7 @@ export class FlatteningService {
             wash: resultsMap.get('wash'),
             fatherBelt: resultsMap.get('father_belt'),
             childBelt: resultsMap.get('child_belt') || resultsMap.get('child_belt_detail'),
-            vendorCode: resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode || null,
+            vendorCode: normalizedVendorCode,
 
             // Hierarchy Mapping
             // Priority: watcher/user-provided division > JSON lookup by majorCategory > category hierarchy > AI extracted
@@ -225,7 +230,7 @@ export class FlatteningService {
                 printStyle: resultsMap.get('print_style'),
                 embroidery: resultsMap.get('embroidery'),
                 pocketType: resultsMap.get('pocket_type'),
-                vendorCode: resultsMap.get('vendor_code') || resultsMap.get('vendor code') || existingVendorCode,
+                vendorCode: normalizedVendorCode,
                 designNumber: resultsMap.get('design_number'),
                 size: resultsMap.get('size'),
             }),

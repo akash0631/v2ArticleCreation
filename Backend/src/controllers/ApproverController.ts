@@ -8,6 +8,7 @@ import { storageService } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { prismaClient as prisma } from '../utils/prisma';
 import { syncGenericToVariants, addColorVariants } from '../services/variantCreationService';
+import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
 
 export class ApproverController {
     private static readonly STARTUP_BACKFILL_BATCH_SIZE = parseInt(process.env.STARTUP_BACKFILL_BATCH_SIZE || '250', 10);
@@ -709,7 +710,8 @@ export class ApproverController {
 
             const skip = (Number(page) - 1) * Number(limit);
 
-            const items = await prisma.extractionResultFlat.findMany({
+            const [items, total] = await prisma.$transaction([
+              prisma.extractionResultFlat.findMany({
                 where,
                 skip,
                 take: Number(limit),
@@ -792,9 +794,9 @@ export class ApproverController {
                     variantSize: true,
                     variantColor: true,
                 }
-            });
-
-            const total = await prisma.extractionResultFlat.count({ where });
+              }),
+              prisma.extractionResultFlat.count({ where }),
+            ]);
 
             return res.json({
                 data: items,
@@ -1011,6 +1013,20 @@ export class ApproverController {
                         value = null;
                     }
 
+                    if (field === 'vendorCode') {
+                        if (!hasVendorCode(value)) {
+                            return res.status(400).json({
+                                error: 'Vendor Code is required and must be exactly 6 digits.'
+                            });
+                        }
+                        if (!isValidVendorCode(value)) {
+                            return res.status(400).json({
+                                error: 'Vendor Code is required and must be exactly 6 digits.'
+                            });
+                        }
+                        value = normalizeVendorCode(value);
+                    }
+
                     data[field] = value;
                 }
             }
@@ -1084,6 +1100,7 @@ export class ApproverController {
                     wash: true,
                     fatherBelt: true,
                     childBelt: true,
+                    vendorCode: true,
                     season: true,
                     year: true,
                     isGeneric: true
@@ -1092,6 +1109,16 @@ export class ApproverController {
 
             if (!existingItem) {
                 return res.status(404).json({ error: 'Item not found' });
+            }
+
+            const finalVendorCode = data.vendorCode !== undefined
+                ? data.vendorCode
+                : (existingItem as any).vendorCode;
+
+            if (!hasVendorCode(finalVendorCode) || !isValidVendorCode(finalVendorCode)) {
+                return res.status(400).json({
+                    error: 'Vendor Code is required and must be exactly 6 digits.'
+                });
             }
 
             // Prevent updating approved items
