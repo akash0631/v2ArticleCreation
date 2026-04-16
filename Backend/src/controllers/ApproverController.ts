@@ -26,6 +26,14 @@ export class ApproverController {
     // Used so the main getItems query can do id IN/NOT IN instead of ILIKE on every request.
     private static oldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
     private static pendingOldArticleIdsLoad: Promise<string[]> | null = null;
+    // Short-lived cache for getItems responses (8s TTL). Eliminates redundant DB hits
+    // when multiple users load the same page simultaneously or filters haven't changed.
+    private static readonly ITEMS_CACHE_TTL_MS = 8_000;
+    private static itemsCache = new Map<string, { data: any; expiresAt: number }>();
+    // Count cache (60s TTL). COUNT(*) is a full-table scan — cache it so only the
+    // very first request per filter combination pays the cost.
+    private static readonly COUNT_CACHE_TTL_MS = 60_000;
+    private static countCache = new Map<string, { value: number; expiresAt: number }>();
 
     private static extractNumericWeight(value: unknown): string | null {
         if (value === null || value === undefined) return null;
@@ -537,7 +545,12 @@ export class ApproverController {
                 ApproverController.startupBackfillRunning = false;
             }
         };
-        // Delay startup backfills so the first page load is not competing for DB sessions.
+        // Warm caches early (5s after start) so the first real request hits a warm cache.
+        setTimeout(() => {
+            void ApproverController.getOldArticleIds().catch(() => {});
+        }, 5_000);
+
+        // Delay heavier startup backfills so the first page load is not competing for DB sessions.
         setTimeout(() => { void run(); }, ApproverController.STARTUP_BACKFILL_DELAY_MS);
     }
 
@@ -655,10 +668,32 @@ export class ApproverController {
         try {
             const { status, division, subDivision, startDate, endDate, search, page = 1, limit = 50, pathType } = req.query;
 
+            // ── Response cache (8 s TTL) ───────────────────────────────────────────
+            // Key includes all query params + user scope so different users/filters
+            // never share a cached response.
+            const role = String(req.user?.role || '');
+            const cacheKey = JSON.stringify({
+                role,
+                userId: role !== 'ADMIN' ? req.user?.id : undefined,
+                userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
+                userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
+                status, division, subDivision, startDate, endDate, search, page, limit, pathType,
+            });
+            const cached = ApproverController.itemsCache.get(cacheKey);
+            if (cached && cached.expiresAt > Date.now()) {
+                return res.json(cached.data);
+            }
+            // Evict expired entries periodically (keep map small)
+            if (ApproverController.itemsCache.size > 200) {
+                const now = Date.now();
+                for (const [k, v] of ApproverController.itemsCache) {
+                    if (v.expiresAt <= now) ApproverController.itemsCache.delete(k);
+                }
+            }
+
             const where: any = {};
 
             // RBAC: Enforce scope by role
-            const role = String(req.user?.role || '');
             if (role === 'ADMIN') {
                 // Admins can filter freely
                 if (division && division !== 'ALL') where.division = division as string;
@@ -667,33 +702,32 @@ export class ApproverController {
                 ApproverController.applyApproverScope(where, req.user);
             }
 
-            // Path-type filter: resolved via cached ID sets to avoid ILIKE full-table scans.
-            // getOldArticleIds() returns all old IDs (path-marker + numeric name), cached 30 min.
-            // Main query uses id IN / id NOT IN (indexed PK lookup) instead of ILIKE.
-            console.log(`[ApproverController] pathType=${pathType ?? 'none'}`);
+            // Path-type filter — NON-BLOCKING.
+            // Read old IDs only if the cache is already warm (instant).
+            // If the cache is cold, kick off a background load and skip the old/new split
+            // so this request returns immediately. The next request (after ~5s) will have
+            // the warm cache and apply the filter correctly.
             if (pathType === 'old' || pathType === 'new') {
-                const oldIds = await ApproverController.getOldArticleIds();
+                const cachedOld = ApproverController.oldArticleIdsCache;
+                const oldIds = (cachedOld && cachedOld.expiresAt > Date.now()) ? cachedOld.ids : null;
 
-                where.AND = where.AND || [];
-                if (pathType === 'old') {
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { in: oldIds } });
-                    } else {
-                        // Cache not yet warmed or timed out — return empty rather than ILIKE full-table-scan.
-                        // The GIN trigram index (pg_trgm) must be created in Supabase for the cache to populate.
-                        // Do NOT fall back to ILIKE here — it causes statement-timeout loops.
-                        where.AND.push({ id: { in: [] } });
-                    }
+                if (oldIds === null) {
+                    // Cache cold — fire background warm, skip old/new split this request.
+                    void ApproverController.getOldArticleIds();
                 } else {
-                    // NEW = not in old set, not REJECTED
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { notIn: oldIds } });
+                    where.AND = where.AND || [];
+                    if (pathType === 'old') {
+                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
+                    } else {
+                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
                     }
-                    // Exclude REJECTED articles from the new articles view — they have their own page.
+                }
+
+                if (pathType === 'new') {
+                    where.AND = where.AND || [];
                     where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
                 }
             } else if (pathType === 'rejected') {
-                // Dedicated rejected articles view — always filter to REJECTED only.
                 where.AND = where.AND || [];
                 where.AND.push({ approvalStatus: ApprovalStatus.REJECTED });
             }
@@ -760,8 +794,39 @@ export class ApproverController {
 
             const skip = (Number(page) - 1) * Number(limit);
 
-            const [items, total] = await Promise.all([
-              prisma.extractionResultFlat.findMany({
+            // ── Count: NEVER block the response on it ─────────────────────────────
+            // COUNT(*) is a full table scan — it starves the connection pool under
+            // concurrent load. Strategy: serve a cached value instantly; if nothing
+            // is cached yet, kick off a background query and return a best-effort
+            // estimate so this response goes out immediately using only ONE connection.
+            const whereKey = JSON.stringify(where);
+            const cachedCount = ApproverController.countCache.get(whereKey);
+            let total: number;
+            if (cachedCount && cachedCount.expiresAt > Date.now()) {
+                total = cachedCount.value;
+            } else {
+                // Placeholder while background count runs: just enough to show the
+                // NEXT page button. Real total arrives before user reaches page 2.
+                // Will be corrected after findMany (last-page detection below).
+                total = skip + Number(limit) + 1;
+                void prisma.extractionResultFlat.count({ where }).then((n) => {
+                    ApproverController.countCache.set(whereKey, {
+                        value: n,
+                        expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
+                    });
+                    // Also bust the response cache so the next load shows the real total.
+                    ApproverController.itemsCache.clear();
+                    if (ApproverController.countCache.size > 500) {
+                        const now = Date.now();
+                        for (const [k, v] of ApproverController.countCache) {
+                            if (v.expiresAt <= now) ApproverController.countCache.delete(k);
+                        }
+                    }
+                }).catch(() => { /* non-critical */ });
+            }
+
+            // Only ONE connection used: just the findMany (LIMIT 50).
+            const items = await prisma.extractionResultFlat.findMany({
                 where,
                 skip,
                 take: Number(limit),
@@ -844,19 +909,30 @@ export class ApproverController {
                     variantSize: true,
                     variantColor: true,
                 }
-              }),
-              prisma.extractionResultFlat.count({ where }),
-            ]);
+            });
+            // Last-page detection: if fewer rows returned than limit, we know the exact total.
+            if (items.length < Number(limit)) {
+                total = skip + items.length;
+                ApproverController.countCache.set(whereKey, {
+                    value: total,
+                    expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
+                });
+            }
 
-            return res.json({
+            const responseBody = {
                 data: items,
                 meta: {
                     total,
                     page: Number(page),
-                    div: Number(limit), // limit
+                    div: Number(limit),
                     totalPages: Math.ceil(total / Number(limit))
                 }
+            };
+            ApproverController.itemsCache.set(cacheKey, {
+                data: responseBody,
+                expiresAt: Date.now() + ApproverController.ITEMS_CACHE_TTL_MS,
             });
+            return res.json(responseBody);
         } catch (error) {
             console.error('Error fetching approver items:', error);
             return res.status(500).json({ error: 'Failed to fetch items' });
@@ -1007,6 +1083,8 @@ export class ApproverController {
 
     // Update item details (Edit)
     static async updateItem(req: Request, res: Response) {
+        ApproverController.itemsCache.clear();
+        ApproverController.countCache.clear();
         try {
             const { id } = req.params;
             const rawData = req.body;
@@ -1265,6 +1343,8 @@ export class ApproverController {
 
     // Approve items
     static async approveItems(req: Request, res: Response) {
+        ApproverController.itemsCache.clear();
+        ApproverController.countCache.clear();
         try {
             const { ids } = req.body; // Array of UUIDs
             if (!Array.isArray(ids) || ids.length === 0) {
@@ -1444,6 +1524,8 @@ export class ApproverController {
 
     // Reject items
     static async rejectItems(req: Request, res: Response) {
+        ApproverController.itemsCache.clear();
+        ApproverController.countCache.clear();
         try {
             const { ids } = req.body;
             if (!Array.isArray(ids) || ids.length === 0) {
