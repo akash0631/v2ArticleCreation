@@ -336,6 +336,7 @@ const ArticleCard = React.memo(({
     };
 
     const handleSave = (field: string, value: string | null) => {
+        console.log(`[handleSave] field="${field}" value="${value}" itemId=${item.id}`);
         const updates: Record<string, string | null> = { [field]: value };
         if (field === 'rate') {
             const rate = parseFloat(String(value ?? ''));
@@ -843,13 +844,14 @@ const ArticleCard = React.memo(({
                                                                 autoFocus
                                                                 showSearch
                                                                 allowClear
-                                                                open
+                                                                defaultOpen
                                                                 size="small"
-                                                                defaultValue={val === '—' ? undefined : val}
+                                                                value={val === '—' ? undefined : val}
                                                                 style={{ width: '100%', minWidth: 140 }}
                                                                 optionFilterProp="children"
-                                                                onChange={(v) => handleSave(field, v ?? null)}
-                                                                onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
+                                                                onSelect={(v: string) => { handleSave(field, v ?? null); }}
+                                                                onClear={() => { handleSave(field, null); }}
+                                                                onBlur={() => setEditingField(null)}
                                                                 getPopupContainer={() => document.body}
                                                             >
                                                                 {dropdownOptions.map(v => (

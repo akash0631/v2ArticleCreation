@@ -1113,6 +1113,10 @@ export class ApproverController {
         try {
             const { id } = req.params;
             const rawData = req.body;
+            // TEMP DEBUG: log impAtrbt2 flow
+            if (rawData.impAtrbt2 !== undefined) {
+                console.log(`[updateItem] impAtrbt2 received in body: "${rawData.impAtrbt2}" for id=${id}`);
+            }
 
             // Whitelist allowed fields to prevent overwriting metadata
             // and sanitize types
@@ -1338,6 +1342,11 @@ export class ApproverController {
                 descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
             }
             data.articleDescription = buildArticleDescription(descriptionSource);
+
+            // TEMP DEBUG
+            console.log(`[updateItem] Final data keys being saved: ${Object.keys(data).join(', ')}`);
+            if ('impAtrbt2' in data) console.log(`[updateItem] impAtrbt2 in final data: "${data.impAtrbt2}"`);
+            else console.log(`[updateItem] impAtrbt2 NOT in final data — was dropped somewhere`);
 
             const updated = await prisma.extractionResultFlat.update({
                 where: { id },

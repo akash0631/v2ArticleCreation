@@ -1240,7 +1240,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                     .map(([key, value]) => [key, value === undefined ? null : value])
                             );
                         }
-                        if (Object.keys(updatePayload).length === 0) return;
+                        if (Object.keys(updatePayload).length === 0) {
+                            console.log('[onSave] updatePayload is EMPTY — no API call made. row.impAtrbt2=', (row as any).impAtrbt2, 'item.impAtrbt2=', (items.find(i => i.id === row.id) as any)?.impAtrbt2);
+                            return;
+                        }
+                        console.log('[onSave] Sending updatePayload:', JSON.stringify(updatePayload));
                         try {
                             const token = localStorage.getItem('authToken');
                             const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}`, {
@@ -1248,7 +1252,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                 body: JSON.stringify(updatePayload)
                             });
-                            if (!response.ok) throw new Error('Update failed');
+                            if (!response.ok) {
+                                const errText = await response.text();
+                                console.error('[onSave] Save failed:', response.status, errText);
+                                throw new Error('Update failed');
+                            }
                             message.success('Saved');
                         } catch {
                             message.error('Failed to save');
