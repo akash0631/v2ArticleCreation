@@ -488,6 +488,33 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
             render: (v: string | number | null) => (v != null ? String(v) : '—'),
         },
         {
+            title: 'SAP Article #',
+            dataIndex: 'sapArticleId',
+            key: 'sapArticleId',
+            width: 140,
+            render: (sapId: string | null, record: ApproverItem) => {
+                if (sapId) {
+                    return (
+                        <Text strong style={{ color: '#389e0d', fontSize: 12 }}>
+                            {sapId}
+                        </Text>
+                    );
+                }
+                const status = record.sapSyncStatus;
+                if (status === 'FAILED') {
+                    return (
+                        <Tag color="red" style={{ fontSize: 11 }}>
+                            FAILED
+                        </Tag>
+                    );
+                }
+                if (status === 'SYNCED') {
+                    return <Tag color="orange" style={{ fontSize: 11 }}>SYNCED</Tag>;
+                }
+                return <Text type="secondary" style={{ fontSize: 11 }}>Pending SAP</Text>;
+            },
+        },
+        {
             title: '',
             key: 'actions',
             width: 70,
