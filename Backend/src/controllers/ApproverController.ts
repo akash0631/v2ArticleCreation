@@ -7,6 +7,7 @@ import { parseNumericValue } from '../utils/mrpCalculator';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
 import { syncArticlesToSapViaRfc } from '../services/zmmArtCreationService';
+import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
 import { storageService } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { prismaClient as prisma } from '../utils/prisma';
@@ -1554,6 +1555,69 @@ export class ApproverController {
                     }
                 });
             }
+
+            // ── Variant RFC sync ─────────────────────────────────────────────
+            // Build map: genericDbId → SAP article number (only for successfully synced generics)
+            const genericSapArticleMap = new Map<string, string>();
+            for (const syncResult of finalizedSyncResults) {
+                if (syncResult.success && syncResult.sapArticleNumber) {
+                    genericSapArticleMap.set(syncResult.id, syncResult.sapArticleNumber);
+                }
+            }
+
+            if (genericSapArticleMap.size > 0) {
+                // Fetch all variants linked to successfully approved+synced generics
+                const allVariants = await prisma.extractionResultFlat.findMany({
+                    where: {
+                        genericArticleId: { in: [...genericSapArticleMap.keys()] },
+                        isGeneric: false
+                    }
+                });
+
+                if (allVariants.length > 0) {
+                    // Group variants by their parent genericArticleId
+                    const variantsByGenericId = new Map<string, typeof allVariants>();
+                    for (const variant of allVariants) {
+                        if (!variant.genericArticleId) continue;
+                        if (!variantsByGenericId.has(variant.genericArticleId)) {
+                            variantsByGenericId.set(variant.genericArticleId, []);
+                        }
+                        variantsByGenericId.get(variant.genericArticleId)!.push(variant);
+                    }
+
+                    // Call ZMM_VAR_ART_CREATION_RFC for each variant
+                    const variantSyncResults = await syncVariantsToSapViaRfc(
+                        variantsByGenericId as Map<string, any>,
+                        genericSapArticleMap
+                    );
+
+                    // Persist variant SAP sync results
+                    const variantUpdates = variantSyncResults.map((vResult) =>
+                        prisma.extractionResultFlat.update({
+                            where: { id: vResult.id },
+                            data: {
+                                sapSyncStatus: vResult.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
+                                sapSyncMessage: vResult.message,
+                                ...(vResult.sapArticleNumber
+                                    ? { sapArticleId: vResult.sapArticleNumber, articleNumber: vResult.sapArticleNumber }
+                                    : {})
+                            }
+                        })
+                    );
+
+                    if (variantUpdates.length > 0) {
+                        // Use allSettled so one failure doesn't block the rest
+                        await Promise.allSettled(variantUpdates);
+                    }
+
+                    const variantSynced = variantSyncResults.filter((r) => r.success).length;
+                    const variantFailed = variantSyncResults.length - variantSynced;
+                    console.log(
+                        `[ZMM_VAR_RFC] Variant sync complete — synced: ${variantSynced}, failed: ${variantFailed}`
+                    );
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────
 
             return res.json({
                 message: 'Items approved successfully',
