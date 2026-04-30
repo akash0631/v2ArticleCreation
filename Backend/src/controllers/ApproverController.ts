@@ -907,6 +907,7 @@ export class ApproverController {
                     articleFashionType: true,
                     articleDimension: true,
                     mcCode: true,
+                    impAtrbt2: true,
                     segment: true,
                     season: true,
                     hsnTaxCode: true,

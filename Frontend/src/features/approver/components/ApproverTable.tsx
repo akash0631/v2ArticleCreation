@@ -114,6 +114,8 @@ export interface ApproverItem {
     dcShape: string | null;
     btnColour: string | null;
     collarStyle: string | null;
+    // BOM fields
+    impAtrbt2: string | null;
     // Variant system fields
     isGeneric: boolean;
     genericArticleId: string | null;
