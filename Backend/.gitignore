@@ -226,7 +226,8 @@ dev.json
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
-/src/generated/prisma
+# Prisma generated client is committed so all machines get it via git pull
+# (binaries are excluded via src/generated/prisma/.gitignore)
 
 
 *.md
