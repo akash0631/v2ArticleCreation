@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem } from './ApproverTable';
 import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -807,6 +807,10 @@ const ArticleCard = React.memo(({
                                             const val = field === '_markdown' ? markdown
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
+                                            const isDropdown = field === 'impAtrbt2';
+                                            const dropdownOptions = isDropdown
+                                                ? (getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
+                                                : [];
                                             return (
                                                 <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                     <td style={{
@@ -826,7 +830,25 @@ const ArticleCard = React.memo(({
                                                         }}
                                                         onClick={() => { if (editable && !isLocked && !isEditingBom) setEditingField(`bom_${field}`); }}
                                                     >
-                                                        {isEditingBom ? (
+                                                        {isEditingBom && isDropdown ? (
+                                                            <Select
+                                                                autoFocus
+                                                                showSearch
+                                                                allowClear
+                                                                open
+                                                                size="small"
+                                                                defaultValue={val === '—' ? undefined : val}
+                                                                style={{ width: '100%', minWidth: 140 }}
+                                                                optionFilterProp="children"
+                                                                onChange={(v) => handleSave(field, v ?? null)}
+                                                                onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
+                                                                getPopupContainer={() => document.body}
+                                                            >
+                                                                {dropdownOptions.map(v => (
+                                                                    <Option key={v} value={v}>{v}</Option>
+                                                                ))}
+                                                            </Select>
+                                                        ) : isEditingBom ? (
                                                             <Input
                                                                 autoFocus size="small"
                                                                 defaultValue={val === '—' ? '' : val}
