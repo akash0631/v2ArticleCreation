@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
-import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import type { ApproverItem } from './ApproverTable';
+import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
+import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
 import { preloadAttributeValues, getCachedValues } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import VariantSubTable from './VariantSubTable';
 
 const { Option } = Select;
 
@@ -119,6 +120,8 @@ export interface ApproverArticleListProps {
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
+    attributes: MasterAttribute[];
+    onRefresh: () => void;
     serverPagination: {
         total: number;
         current: number;
@@ -143,6 +146,8 @@ const ArticleCard = React.memo(({
     onCreateFabricArticle,
     onCreateBodyArticle,
     onProceedFGArticle,
+    attributes,
+    onRefresh,
 }: {
     item: ApproverItem;
     isSelected: boolean;
@@ -151,7 +156,10 @@ const ArticleCard = React.memo(({
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
+    attributes: MasterAttribute[];
+    onRefresh: () => void;
 }) => {
+    const [showVariants, setShowVariants] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
 
     // Normalize majorCategory: use local edit when available, otherwise fall back to item prop
@@ -895,6 +903,43 @@ const ArticleCard = React.memo(({
                         </Button>
                     </div>
                 )}
+
+                {/* ── Variants section — only for generic articles ── */}
+                {item.isGeneric && (
+                    <div style={{ borderTop: '1px solid #e8e8e8' }}>
+                        {/* Toggle button */}
+                        <div
+                            style={{
+                                padding: '6px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                cursor: 'pointer',
+                                background: showVariants ? '#e6f4ff' : '#fafafa',
+                                userSelect: 'none',
+                            }}
+                            onClick={() => setShowVariants(v => !v)}
+                        >
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#1d39c4', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <TeamOutlined />
+                                Variants
+                            </span>
+                            <span style={{ fontSize: 11, color: '#8c8c8c' }}>
+                                {showVariants ? '▲ Hide' : '▼ Show'}
+                            </span>
+                        </div>
+
+                        {/* Variant table — rendered only when expanded */}
+                        {showVariants && (
+                            <VariantSubTable
+                                genericId={item.id}
+                                genericRecord={item}
+                                attributes={attributes}
+                                onRefresh={onRefresh}
+                            />
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -912,6 +957,8 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
     onCreateFabricArticle,
     onCreateBodyArticle,
     onProceedFGArticle,
+    attributes,
+    onRefresh,
     serverPagination,
 }) => {
     // Each ArticleCard computes its own attributes from item.majorCategory directly.
@@ -968,6 +1015,8 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
                     onCreateFabricArticle={onCreateFabricArticle}
                     onCreateBodyArticle={onCreateBodyArticle}
                     onProceedFGArticle={onProceedFGArticle}
+                    attributes={attributes}
+                    onRefresh={onRefresh}
                 />
             ))}
 
