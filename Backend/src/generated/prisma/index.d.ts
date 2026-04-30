@@ -13527,6 +13527,7 @@ export namespace Prisma {
     mvgrBrandVendor: string | null
     vendorCode: string | null
     mrp: Decimal | null
+    impAtrbt2: string | null
     mcCode: string | null
     segment: string | null
     season: string | null
@@ -13647,6 +13648,7 @@ export namespace Prisma {
     mvgrBrandVendor: string | null
     vendorCode: string | null
     mrp: Decimal | null
+    impAtrbt2: string | null
     mcCode: string | null
     segment: string | null
     season: string | null
@@ -13767,6 +13769,7 @@ export namespace Prisma {
     mvgrBrandVendor: number
     vendorCode: number
     mrp: number
+    impAtrbt2: number
     mcCode: number
     segment: number
     season: number
@@ -13919,6 +13922,7 @@ export namespace Prisma {
     mvgrBrandVendor?: true
     vendorCode?: true
     mrp?: true
+    impAtrbt2?: true
     mcCode?: true
     segment?: true
     season?: true
@@ -14039,6 +14043,7 @@ export namespace Prisma {
     mvgrBrandVendor?: true
     vendorCode?: true
     mrp?: true
+    impAtrbt2?: true
     mcCode?: true
     segment?: true
     season?: true
@@ -14159,6 +14164,7 @@ export namespace Prisma {
     mvgrBrandVendor?: true
     vendorCode?: true
     mrp?: true
+    impAtrbt2?: true
     mcCode?: true
     segment?: true
     season?: true
@@ -14366,6 +14372,7 @@ export namespace Prisma {
     mvgrBrandVendor: string | null
     vendorCode: string | null
     mrp: Decimal | null
+    impAtrbt2: string | null
     mcCode: string | null
     segment: string | null
     season: string | null
@@ -14505,6 +14512,7 @@ export namespace Prisma {
     mvgrBrandVendor?: boolean
     vendorCode?: boolean
     mrp?: boolean
+    impAtrbt2?: boolean
     mcCode?: boolean
     segment?: boolean
     season?: boolean
@@ -14627,6 +14635,7 @@ export namespace Prisma {
     mvgrBrandVendor?: boolean
     vendorCode?: boolean
     mrp?: boolean
+    impAtrbt2?: boolean
     mcCode?: boolean
     segment?: boolean
     season?: boolean
@@ -14749,6 +14758,7 @@ export namespace Prisma {
     mvgrBrandVendor?: boolean
     vendorCode?: boolean
     mrp?: boolean
+    impAtrbt2?: boolean
     mcCode?: boolean
     segment?: boolean
     season?: boolean
@@ -14871,6 +14881,7 @@ export namespace Prisma {
     mvgrBrandVendor?: boolean
     vendorCode?: boolean
     mrp?: boolean
+    impAtrbt2?: boolean
     mcCode?: boolean
     segment?: boolean
     season?: boolean
@@ -14893,7 +14904,7 @@ export namespace Prisma {
     sapSyncMessage?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
@@ -15011,6 +15022,7 @@ export namespace Prisma {
       mvgrBrandVendor: string | null
       vendorCode: string | null
       mrp: Prisma.Decimal | null
+      impAtrbt2: string | null
       mcCode: string | null
       segment: string | null
       season: string | null
@@ -15553,6 +15565,7 @@ export namespace Prisma {
     readonly mvgrBrandVendor: FieldRef<"ExtractionResultFlat", 'String'>
     readonly vendorCode: FieldRef<"ExtractionResultFlat", 'String'>
     readonly mrp: FieldRef<"ExtractionResultFlat", 'Decimal'>
+    readonly impAtrbt2: FieldRef<"ExtractionResultFlat", 'String'>
     readonly mcCode: FieldRef<"ExtractionResultFlat", 'String'>
     readonly segment: FieldRef<"ExtractionResultFlat", 'String'>
     readonly season: FieldRef<"ExtractionResultFlat", 'String'>
@@ -34677,6 +34690,7 @@ export namespace Prisma {
     mvgrBrandVendor: 'mvgrBrandVendor',
     vendorCode: 'vendorCode',
     mrp: 'mrp',
+    impAtrbt2: 'impAtrbt2',
     mcCode: 'mcCode',
     segment: 'segment',
     season: 'season',
@@ -35245,6 +35259,7 @@ export namespace Prisma {
     attrArticleNums: 'attrArticleNums',
     mvgrBrandVendor: 'mvgrBrandVendor',
     vendorCode: 'vendorCode',
+    impAtrbt2: 'impAtrbt2',
     mcCode: 'mcCode',
     segment: 'segment',
     season: 'season',
@@ -36654,6 +36669,7 @@ export namespace Prisma {
     mvgrBrandVendor?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     vendorCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mrp?: DecimalNullableFilter<"ExtractionResultFlat"> | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mcCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     segment?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     season?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -36776,6 +36792,7 @@ export namespace Prisma {
     mvgrBrandVendor?: SortOrderInput | SortOrder
     vendorCode?: SortOrderInput | SortOrder
     mrp?: SortOrderInput | SortOrder
+    impAtrbt2?: SortOrderInput | SortOrder
     mcCode?: SortOrderInput | SortOrder
     segment?: SortOrderInput | SortOrder
     season?: SortOrderInput | SortOrder
@@ -36903,6 +36920,7 @@ export namespace Prisma {
     mvgrBrandVendor?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     vendorCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mrp?: DecimalNullableFilter<"ExtractionResultFlat"> | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mcCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     segment?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     season?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -37024,6 +37042,7 @@ export namespace Prisma {
     mvgrBrandVendor?: SortOrderInput | SortOrder
     vendorCode?: SortOrderInput | SortOrder
     mrp?: SortOrderInput | SortOrder
+    impAtrbt2?: SortOrderInput | SortOrder
     mcCode?: SortOrderInput | SortOrder
     segment?: SortOrderInput | SortOrder
     season?: SortOrderInput | SortOrder
@@ -37152,6 +37171,7 @@ export namespace Prisma {
     mvgrBrandVendor?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     vendorCode?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     mrp?: DecimalNullableWithAggregatesFilter<"ExtractionResultFlat"> | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     mcCode?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     segment?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     season?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
@@ -39878,6 +39898,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -39999,6 +40020,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -40118,6 +40140,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40239,6 +40262,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40359,6 +40383,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -40478,6 +40503,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40597,6 +40623,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -43743,6 +43770,7 @@ export namespace Prisma {
     mvgrBrandVendor?: SortOrder
     vendorCode?: SortOrder
     mrp?: SortOrder
+    impAtrbt2?: SortOrder
     mcCode?: SortOrder
     segment?: SortOrder
     season?: SortOrder
@@ -43878,6 +43906,7 @@ export namespace Prisma {
     mvgrBrandVendor?: SortOrder
     vendorCode?: SortOrder
     mrp?: SortOrder
+    impAtrbt2?: SortOrder
     mcCode?: SortOrder
     segment?: SortOrder
     season?: SortOrder
@@ -43998,6 +44027,7 @@ export namespace Prisma {
     mvgrBrandVendor?: SortOrder
     vendorCode?: SortOrder
     mrp?: SortOrder
+    impAtrbt2?: SortOrder
     mcCode?: SortOrder
     segment?: SortOrder
     season?: SortOrder
@@ -48119,6 +48149,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -48238,6 +48269,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -48481,6 +48513,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -48600,6 +48633,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -49493,6 +49527,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -49613,6 +49648,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -49862,6 +49898,7 @@ export namespace Prisma {
     mvgrBrandVendor?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     vendorCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mrp?: DecimalNullableFilter<"ExtractionResultFlat"> | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     mcCode?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     segment?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     season?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -51900,6 +51937,7 @@ export namespace Prisma {
     mvgrBrandVendor?: string | null
     vendorCode?: string | null
     mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
     mcCode?: string | null
     segment?: string | null
     season?: string | null
@@ -52180,6 +52218,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52300,6 +52339,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52419,6 +52459,7 @@ export namespace Prisma {
     mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
     vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
     mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
     mcCode?: NullableStringFieldUpdateOperationsInput | string | null
     segment?: NullableStringFieldUpdateOperationsInput | string | null
     season?: NullableStringFieldUpdateOperationsInput | string | null
