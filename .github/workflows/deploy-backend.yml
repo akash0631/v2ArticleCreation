@@ -32,6 +32,7 @@ jobs:
             --startup-file "node --max-old-space-size=512 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
+            SCM_DO_BUILD_DURING_DEPLOYMENT=false \
             FRONTEND_URL=https://articles.v2retail.net \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
@@ -58,14 +59,21 @@ jobs:
           zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip --async true \
-            --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}" || true
+            --src-path /tmp/v2-backend.zip --type zip \
+            --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
       - name: Restart and health check
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
-          sleep 60
+          echo "Waiting 90s for app to start..."
+          sleep 90
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://v2-article-backend.azurewebsites.net/api/health || echo 000)
           echo "Health check: $HTTP"
-          [ "$HTTP" = "200" ] && echo "BACKEND LIVE" || echo "Returned HTTP $HTTP"
+          if [ "$HTTP" = "200" ]; then
+            echo "BACKEND LIVE"
+          else
+            echo "Health check failed: HTTP $HTTP"
+            curl -s https://v2-article-backend.azurewebsites.net/api/health || true
+            exit 1
+          fi
