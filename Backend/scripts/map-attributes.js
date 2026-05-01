@@ -67,8 +67,8 @@ async function mapAttributes() {
         console.log(`   ✅ Found: ${foundCount}/${USER_ATTRIBUTES.length}`);
         console.log(`   ❌ Not Found: ${notFoundCount}/${USER_ATTRIBUTES.length}`);
 
-        fs.writeFileSync('attribute-mapping.json', JSON.stringify(mapped, null, 2));
-        console.log(`\n💾 Mapping saved to attribute-mapping.json`);
+        fs.writeFileSync(require('path').join(__dirname, '..', 'outputs', 'attribute-mapping.json'), JSON.stringify(mapped, null, 2));
+        console.log(`\n💾 Mapping saved to outputs/attribute-mapping.json`);
 
     } catch (error) {
         console.error('Error:', error);

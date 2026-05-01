@@ -11,12 +11,12 @@
  * The script creates a complete backup JSON file with all hierarchy, users, and logs.
  */
 
-const { PrismaClient } = require('./src/generated/prisma');
+const { PrismaClient } = require('../src/generated/prisma');
 const fs = require('fs');
 const path = require('path');
 
 const MODE = process.argv[2] || 'export'; // 'export' or 'import'
-const BACKUP_FILE = path.join(__dirname, 'database-backup.json');
+const BACKUP_FILE = path.join(__dirname, '..', 'outputs', 'database-backup.json');
 
 async function exportData() {
   const prisma = new PrismaClient();

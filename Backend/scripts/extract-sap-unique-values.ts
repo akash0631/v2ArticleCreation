@@ -362,11 +362,11 @@ async function main(): Promise<void> {
   const uniqueValuesByColumn = buildUniqueValuesByColumn(records);
   const sapColumns = Object.keys(uniqueValuesByColumn);
 
-  const masterAttributesPath = path.resolve(__dirname, '..', 'master-attributes.json');
+  const masterAttributesPath = path.resolve(__dirname, '..', 'outputs', 'master-attributes.json');
   const masterAttributes = readJsonIfExists<MasterAttribute[]>(masterAttributesPath) || [];
 
   if (masterAttributes.length === 0) {
-    console.warn('⚠️ master-attributes.json not found or empty. Mapping quality will be limited.');
+    console.warn('⚠️ outputs/master-attributes.json not found or empty. Mapping quality will be limited.');
   }
 
   const mapping = mapSapColumnsToAttributes(sapColumns, masterAttributes);
