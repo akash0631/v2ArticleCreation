@@ -403,14 +403,14 @@ const ExtractionPage = () => {
                   {extractedRows.length > 0 && (
                     <div style={{ marginBottom: 12 }}>
                       {/* Overall Progress Bar */}
-                      {(isExtracting || stats.done > 0) && (
+                      {(isExtracting || (stats?.done ?? 0) > 0) && (
                         <div style={{ marginBottom: 12 }}>
                           <Progress
                             percent={Math.round(progress)}
                             status={
                               isExtracting ? 'active' :
-                                stats.error > 0 && stats.done + stats.error === stats.total ? 'exception' :
-                                  stats.done === stats.total ? 'success' : 'normal'
+                                (stats?.error ?? 0) > 0 && (stats?.done ?? 0) + (stats?.error ?? 0) === (stats?.total ?? 0) ? 'exception' :
+                                  (stats?.done ?? 0) === (stats?.total ?? 0) ? 'success' : 'normal'
                             }
                             strokeColor={{
                               from: '#722ed1',
@@ -455,7 +455,7 @@ const ExtractionPage = () => {
                         />
                       )}
 
-                      {!isExtracting && stats.done + stats.error === stats.total && stats.total > 0 && (
+                      {!isExtracting && stats && (stats.done + stats.error) === stats.total && stats.total > 0 && (
                         <Alert
                           message={
                             stats.error === 0
@@ -477,7 +477,7 @@ const ExtractionPage = () => {
                       <div style={{ marginTop: 12, marginBottom: 12 }}>
                         <Space wrap size="small">
                           {/* Start/Pause/Resume/Stop */}
-                          {!isExtracting && stats.pending > 0 && (
+                          {!isExtracting && (stats?.pending ?? 0) > 0 && (
                             <Button
                               type="primary"
                               icon={<RobotOutlined />}
@@ -492,7 +492,7 @@ const ExtractionPage = () => {
                                 border: 'none'
                               }}
                             >
-                              Start Batch ({stats.pending + stats.error})
+                              Start Batch ({(stats?.pending ?? 0) + (stats?.error ?? 0)})
                             </Button>
                           )}
 
@@ -526,21 +526,21 @@ const ExtractionPage = () => {
                           )}
 
                           {/* Batch Operations */}
-                          {!isExtracting && stats.error > 0 && (
+                          {!isExtracting && (stats?.error ?? 0) > 0 && (
                             <Button
                               icon={<CheckCircleOutlined />}
                               onClick={retryFailed}
                             >
-                              Retry Failed ({stats.error})
+                              Retry Failed ({stats!.error})
                             </Button>
                           )}
 
-                          {!isExtracting && stats.done > 0 && (
+                          {!isExtracting && (stats?.done ?? 0) > 0 && (
                             <Button
                               icon={<DeleteOutlined />}
                               onClick={clearCompleted}
                             >
-                              Clear Completed ({stats.done})
+                              Clear Completed ({stats!.done})
                             </Button>
                           )}
                         </Space>

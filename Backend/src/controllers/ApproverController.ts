@@ -209,12 +209,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingHsnCodes(baseWhere: any): Promise<number> {
@@ -253,12 +249,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingSegments(baseWhere: any): Promise<number> {
@@ -299,12 +291,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingYears(baseWhere: any): Promise<number> {
