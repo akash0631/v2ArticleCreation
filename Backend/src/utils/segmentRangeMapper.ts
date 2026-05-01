@@ -11,14 +11,13 @@ type SegmentRange = {
   max: number;
 };
 
-const RANGE_FILE_PATH = path.resolve(__dirname, '../../../aa (1).json');
+const RANGE_FILE_PATH = path.resolve(__dirname, '../../data/segment-ranges.json');
 
 const resolveRangeFilePath = (): string => {
   const envPath = process.env.SEGMENT_RANGE_FILE_PATH?.trim();
   const candidates = [
     envPath,
     RANGE_FILE_PATH,
-    path.resolve(__dirname, '../../../aa.json')
   ].filter((value): value is string => !!value);
 
   for (const candidate of candidates) {

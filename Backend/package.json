@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "prisma generate && tsc --skipLibCheck && npm run postbuild",
-    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true})\"",
+    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true}); require('fs').cpSync('src/data', 'dist/data', {recursive: true})\"",
     "postinstall": "prisma generate",
     "start": "node --max-old-space-size=512 dist/index.js",
     "lint": "tsc --noEmit",
