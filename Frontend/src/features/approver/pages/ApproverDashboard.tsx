@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker, Tooltip } from 'antd';
+import { Card, Button, Typography, App, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker, Tooltip } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, DownloadOutlined, FileTextOutlined, AppstoreAddOutlined, RocketOutlined } from '@ant-design/icons';
 // FileTextOutlined, AppstoreAddOutlined, RocketOutlined used in per-article modal icons
 import { ApproverTable } from '../components/ApproverTable';
@@ -181,6 +181,7 @@ interface ApproverDashboardProps {
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
+    const { message } = App.useApp();
     const [items, setItems] = useState<ApproverItem[]>([]);
     const [attributes, setAttributes] = useState<MasterAttribute[]>([]);
     const [loading, setLoading] = useState(false);
@@ -1169,8 +1170,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 <Tooltip
                                     placement="bottomRight"
                                     color="#fff"
-                                    overlayStyle={{ maxWidth: 500 }}
-                                    overlayInnerStyle={{ background: '#fff7f7', border: '1px solid #ffccc7', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 16px rgba(255,77,79,0.15)' }}
+                                    styles={{ root: { maxWidth: 500 }, body: { background: '#fff7f7', border: '1px solid #ffccc7', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 16px rgba(255,77,79,0.15)' } }}
                                     title={approveBlockedReasons.length > 0 ? (
                                         <div style={{ color: '#434343', fontSize: 12, lineHeight: '1.6' }}>
                                             <div style={{ fontWeight: 700, marginBottom: 6, color: '#cf1322', fontSize: 13 }}>⚠ Fill required fields first:</div>

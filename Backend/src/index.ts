@@ -38,7 +38,7 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
 const isProduction = process.env.NODE_ENV === 'production';
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || `${15 * 60 * 1000}`, 10);
-const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '500', 10);
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '1000', 10);
 let shutdownInProgress = false;
 
 // Trust proxy - required for Cloudflare, load balancers, and rate limiting
@@ -56,9 +56,12 @@ const limiter = rateLimit({
     error: '⚠️ Too many requests from this IP. Please try again in 15 minutes.',
     timestamp: Date.now()
   },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Skip rate limiting for health checks
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Use CF-Connecting-IP when behind Cloudflare so each real client gets its own bucket.
+  // Falls back to req.ip (express trust-proxy value) for non-Cloudflare environments.
+  keyGenerator: (req) =>
+    (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown',
   skip: (req) => req.path === '/' || req.path === '/api/health'
 });
 

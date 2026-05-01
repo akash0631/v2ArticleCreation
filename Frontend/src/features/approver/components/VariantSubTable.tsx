@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+    App,
     Button,
     Col,
     Form,
@@ -11,7 +12,6 @@ import {
     Table,
     Tag,
     Typography,
-    message,
 } from 'antd';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -45,6 +45,7 @@ const EditVariantModal: React.FC<EditVariantModalProps> = ({
     onClose,
     onSaved,
 }) => {
+    const { message } = App.useApp();
     const [form] = Form.useForm();
     const [saving, setSaving] = useState(false);
 
@@ -149,7 +150,7 @@ const EditVariantModal: React.FC<EditVariantModalProps> = ({
             okButtonProps={{ loading: saving }}
             width={720}
             centered
-            destroyOnClose
+            destroyOnHidden
         >
             <Form form={form} layout="vertical">
                 <Row gutter={12}>
@@ -336,7 +337,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
             onCancel={onClose}
             okText={saving ? 'Adding…' : 'Add Color'}
             okButtonProps={{ loading: saving }}
-            destroyOnClose
+            destroyOnHidden
         >
             <p style={{ marginBottom: 8, color: '#555' }}>
                 This will create one variant per size with the specified color.
@@ -380,6 +381,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
     attributes,
     onRefresh,
 }) => {
+    const { message } = App.useApp();
     const [variants, setVariants] = useState<ApproverItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [editingVariant, setEditingVariant] = useState<ApproverItem | null>(null);

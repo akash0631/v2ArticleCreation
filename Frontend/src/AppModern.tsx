@@ -1,7 +1,7 @@
 // Modern App Root with Clean Architecture
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App as AntdApp } from 'antd';
 import { antdTheme } from './theme';
 
 // App Configuration
@@ -98,6 +98,7 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const App: React.FC = () => {
   return (
     <ConfigProvider theme={antdTheme}>
+      <AntdApp>
       <AppProviders>
         <ErrorBoundary>
           <Router>
@@ -267,6 +268,7 @@ const App: React.FC = () => {
           </Router>
         </ErrorBoundary>
       </AppProviders>
+      </AntdApp>
     </ConfigProvider>
   );
 };

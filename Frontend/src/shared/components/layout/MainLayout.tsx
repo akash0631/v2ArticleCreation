@@ -214,7 +214,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <>
               <Dropdown
                 trigger={['click']}
-                dropdownRender={() => (
+                popupRender={() => (
                   <div className="notification-dropdown">
                     <div className="notification-header">
                       <Text strong>Notifications</Text>
