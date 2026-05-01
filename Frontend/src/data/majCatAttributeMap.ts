@@ -122,6 +122,7 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_AGE_GROUP:         'age_group',
   'Price Band Category': 'segment',
   'Fashion Grade':     'article_fashion_type',
+  'Cost':              'rate',
   'Mrp ( Char Val)':   'mrp',
   'Vendor':            'vendor_name',
   'Weight (Net)(g)':   'weight',
