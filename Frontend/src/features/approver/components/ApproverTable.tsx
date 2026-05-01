@@ -168,6 +168,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
     const inputRef = useRef<any>(null);
     const form = useContext(EditableContext)!;
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (editing) {
@@ -175,6 +176,15 @@ const EditableCell: React.FC<EditableCellProps> = ({
             if (record.division) preloadAttributeValues(record.division).catch(() => {});
         }
     }, [editing]);
+
+    useEffect(() => {
+        // Cleanup timeout on unmount
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const toggleEdit = () => {
         setEditing(!editing);
@@ -191,6 +201,16 @@ const EditableCell: React.FC<EditableCellProps> = ({
         }
     };
 
+    // Debounced save: wait 800ms after last input before sending request
+    const debouncedSave = () => {
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+            save();
+        }, 800);
+    };
+
     let childNode = children;
 
     if (editable) {
@@ -203,7 +223,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
                     <Select
                         ref={inputRef}
                         onBlur={save}
-                        onChange={save}
+                        onChange={() => debouncedSave()}
                         allowClear
                         style={{ width: '100%', minWidth: 100 }}
                     >
@@ -215,7 +235,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
                     <Select
                         ref={inputRef}
                         onBlur={save}
-                        onChange={save}
+                        onChange={() => debouncedSave()}
                         allowClear
                         style={{ width: '100%', minWidth: 110 }}
                     >
@@ -228,7 +248,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
                     <Select
                         ref={inputRef}
                         onBlur={save}
-                        onChange={(val) => { form.setFieldsValue({ [dataIndex]: val }); save(); }}
+                        onChange={() => { form.setFieldsValue({ [dataIndex]: form.getFieldValue(dataIndex) }); debouncedSave(); }}
                         allowClear
                         style={{ width: '100%', minWidth: 100 }}
                         showSearch

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
@@ -11,6 +11,24 @@ import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import VariantSubTable from './VariantSubTable';
 
 const { Option } = Select;
+
+// Module-level BOM cache: category → promise of data (shared across all card instances)
+// Prevents N duplicate fetches when multiple rows share the same majorCategory.
+const bomCache = new Map<string, Promise<Record<string, Record<string, string>>>>();
+
+const fetchBomMap = (category: string): Promise<Record<string, Record<string, string>>> => {
+    const existing = bomCache.get(category);
+    if (existing) return existing;
+    const token = localStorage.getItem('authToken');
+    const p = fetch(`${APP_CONFIG.api.baseURL}/approver/bom-art-numbers/${encodeURIComponent(category)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+        .then(r => r.json())
+        .then(res => (res?.data as Record<string, Record<string, string>>) ?? {})
+        .catch(() => ({}));
+    bomCache.set(category, p);
+    return p;
+};
 
 // Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
@@ -197,7 +215,6 @@ const ArticleCard = React.memo(({
     });
     // BOM grid map for auto Art # lookup: { excelAttrName: { mvgrValue: sapCd } }
     const [bomMap, setBomMap] = useState<Record<string, Record<string, string>>>({});
-    const bomFetchedFor = useRef<string>('');
 
     useEffect(() => {
         if (!item.division) return;
@@ -207,15 +224,12 @@ const ArticleCard = React.memo(({
     }, [item.division]);
 
     useEffect(() => {
-        if (!effectiveMajCat || bomFetchedFor.current === effectiveMajCat) return;
-        bomFetchedFor.current = effectiveMajCat;
-        const token = localStorage.getItem('authToken');
-        fetch(`${APP_CONFIG.api.baseURL}/approver/bom-art-numbers/${encodeURIComponent(effectiveMajCat)}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-        })
-            .then(r => r.json())
-            .then(res => { if (res?.data) setBomMap(res.data); })
-            .catch(() => {});
+        if (!effectiveMajCat) return;
+        let cancelled = false;
+        fetchBomMap(effectiveMajCat).then(data => {
+            if (!cancelled) setBomMap(data);
+        });
+        return () => { cancelled = true; };
     }, [effectiveMajCat]);
 
     // Compute Art # for a field: auto-lookup from bomMap, fallback to manual override

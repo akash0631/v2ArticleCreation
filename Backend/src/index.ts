@@ -65,6 +65,22 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/' || req.path === '/api/health'
 });
 
+// Approver API rate limiter (more lenient for edit-on-card functionality)
+// Allows up to 500 requests per 15 minutes (debounced to ~300-400 in practice due to 800ms delay)
+const approverLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: 500,
+  message: {
+    success: false,
+    error: '⚠️ Too many requests. Please wait a moment before making more changes.',
+    timestamp: Date.now()
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown',
+  skip: (req) => false
+});
 
 // Rate limiting for extraction endpoints disabled
 // const extractionLimiter = rateLimit({
@@ -196,8 +212,9 @@ app.use('/api/admin/costs', authenticate, requireAdmin, costRoutes);
 
 // ═══════════════════════════════════════════════════════
 // APPROVER ROUTES (Approver role required)
+// Uses custom rate limiter: 500 requests per 15 minutes (more lenient for edit-on-card)
 // ═══════════════════════════════════════════════════════
-app.use('/api/approver', authenticate, auditLog, approverRoutes);
+app.use('/api/approver', authenticate, approverLimiter, auditLog, approverRoutes);
 
 // ═══════════════════════════════════════════════════════
 // WATCHER ROUTES (External file-watcher service only)
