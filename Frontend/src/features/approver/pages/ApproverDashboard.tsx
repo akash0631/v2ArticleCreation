@@ -950,14 +950,16 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     // Dynamic attributes tab — shows only the attributes relevant for the selected major category.
     // Values are filtered from the Excel grid data. Mandatory fields are marked with *.
     const attributesTab = (() => {
-        const majorCat = editingItem?.majorCategory || '';
         const division = editingItem?.division || '';
+        const majorCat = normalizeMajorCategory(editingItem?.majorCategory || '', division);
         const mandatoryKeys = getMajCatMandatoryKeys(majorCat);
 
         const visibleFields = ATTRIBUTE_FIELDS.filter(field => {
-            if (!division) return true; // no division selected → show all
+            if (!majorCat) return true; // no major category yet → show all so user can fill in
+            // Only show fields that are mandatory for this category AND have dropdown values
+            if (!mandatoryKeys.has(field.schemaKey)) return false;
             const values = getMajCatAllowedValues(division, field.schemaKey);
-            return values !== null || mandatoryKeys.has(field.schemaKey);
+            return values !== null;
         });
 
         if (visibleFields.length === 0) {
