@@ -24,7 +24,8 @@ async function updateMapping() {
         console.log(`📊 Total master attributes in database: ${masterAttributes.length}\n`);
 
         // Read existing mapping
-        const existingMapping = JSON.parse(fs.readFileSync('attribute-mapping.json', 'utf8'));
+        const mappingPath = require('path').join(__dirname, '..', 'outputs', 'attribute-mapping.json');
+        const existingMapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
 
         let updatedCount = 0;
 
@@ -57,8 +58,8 @@ async function updateMapping() {
         console.log(`   🔄 Updated: ${updatedCount}`);
 
         // Save updated mapping
-        fs.writeFileSync('attribute-mapping.json', JSON.stringify(existingMapping, null, 2));
-        console.log(`\n💾 Updated mapping saved to attribute-mapping.json`);
+        fs.writeFileSync(mappingPath, JSON.stringify(existingMapping, null, 2));
+        console.log(`\n💾 Updated mapping saved to outputs/attribute-mapping.json`);
 
         // Show remaining not found
         const stillMissing = existingMapping.filter(m => m.status === 'NOT_FOUND');

@@ -12,12 +12,12 @@ dotenv.config();
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { PrismaClient } from './src/generated/prisma';
+import { PrismaClient } from '../src/generated/prisma';
 
 const prisma = new PrismaClient();
 
 // Load categoryMapping.json from watcher folder
-const mappingPath = path.join(__dirname, '../watcher/categoryMapping.json');
+const mappingPath = path.join(__dirname, '../../watcher/categoryMapping.json');
 const categoryMapping: Record<string, { sub_division: string; mc_code: string; division: string }> = JSON.parse(
   fs.readFileSync(mappingPath, 'utf-8')
 );

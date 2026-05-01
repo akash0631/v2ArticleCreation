@@ -5,7 +5,7 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import compression from 'compression';
 
 // Routes
@@ -59,9 +59,9 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   // Use CF-Connecting-IP when behind Cloudflare so each real client gets its own bucket.
-  // Falls back to req.ip (express trust-proxy value) for non-Cloudflare environments.
+  // Falls back to ipKeyGenerator (handles IPv6) for non-Cloudflare environments.
   keyGenerator: (req) =>
-    (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown',
+    (req.headers['cf-connecting-ip'] as string) || ipKeyGenerator(req.ip ?? ''),
   skip: (req) => req.path === '/' || req.path === '/api/health'
 });
 
@@ -78,7 +78,7 @@ const approverLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) =>
-    (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown',
+    (req.headers['cf-connecting-ip'] as string) || ipKeyGenerator(req.ip ?? ''),
   skip: (req) => false
 });
 

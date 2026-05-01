@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { Table, Image, Tag, Button, Tooltip, Space, Dropdown } from 'antd';
 import { ReloadOutlined, EyeOutlined, MoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -8,9 +8,9 @@ import { AttributeCell } from './AttributeCell';
 import { formatDuration, formatFileSize } from '../../../shared/utils/common/helpers';
 
 interface AttributeTableProps {
-  extractedRows: ExtractedRow[]; // 📸 Your uploaded images with data
-  schema: SchemaItem[]; // 📋 List of attributes for current category
-  selectedRowKeys: React.Key[]; // ✅ Which rows are selected (checkboxes)
+  extractedRows: ExtractedRow[]; // ≡ƒô╕ Your uploaded images with data
+  schema: SchemaItem[]; // ≡ƒôï List of attributes for current category
+  selectedRowKeys: React.Key[]; // Γ£à Which rows are selected (checkboxes)
   onSelectionChange: (selectedRowKeys: React.Key[]) => void; // When user selects rows
   onAttributeChange: (rowId: string, attributeKey: string, value: string | number | null) => void; // When user edits attribute
   onDeleteRow: (rowId: string) => void; // When user deletes a row
@@ -36,11 +36,11 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
   // focusedCellKey format: `${rowId}::${schemaKey}`
   const [focusedCellKey, setFocusedCellKey] = useState<string | null>(null);
 
-  // 🏗️ BUILD TABLE COLUMNS DYNAMICALLY
+  // ≡ƒÅù∩╕Å BUILD TABLE COLUMNS DYNAMICALLY
   const columns: ColumnsType<ExtractedRow> = useMemo(() => {
-    // 1️⃣ FIXED COLUMNS (always show these)
+    // 1∩╕ÅΓâú FIXED COLUMNS (always show these)
     const baseColumns: ColumnsType<ExtractedRow> = [
-      // 🔢 PICTURE NUMBER COLUMN (original filename, for creator reference only)
+      // ≡ƒöó PICTURE NUMBER COLUMN (original filename, for creator reference only)
       {
         title: 'Picture No.',
         key: 'pictureNumber',
@@ -53,7 +53,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
         ),
       },
 
-      // 📸 IMAGE COLUMN
+      // ≡ƒô╕ IMAGE COLUMN
       {
         title: 'Image',
         key: 'image',
@@ -79,7 +79,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
         ),
       },
       
-      // 🔄 STATUS COLUMN
+      // ≡ƒöä STATUS COLUMN
       {
         title: 'Status',
         key: 'status',
@@ -101,7 +101,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
             {record.error && (
               <Tooltip title={record.error} trigger="hover">
                 <div style={{ fontSize: 9, color: '#f5222d', marginTop: 2, cursor: 'help' }}>
-                  ⚠️ Error
+                  ΓÜá∩╕Å Error
                 </div>
               </Tooltip>
             )}
@@ -110,7 +110,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       },
     ];
 
-    // 2️⃣ DYNAMIC ATTRIBUTE COLUMNS (changes based on category)
+    // 2∩╕ÅΓâú DYNAMIC ATTRIBUTE COLUMNS (changes based on category)
     // For each attribute in the schema, create a column
     const attributeColumns: ColumnsType<ExtractedRow> = schema.map((schemaItem, schemaIndex) => ({
       title: (
@@ -161,7 +161,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       }
     }));
 
-    // 3️⃣ ACTIONS COLUMN (always on the right)
+    // 3∩╕ÅΓâú ACTIONS COLUMN (always on the right)
     const actionsColumn: ColumnsType<ExtractedRow> = [
       {
         title: 'Actions',
@@ -170,7 +170,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
         fixed: 'right', // Always visible on right
         render: (_, record) => (
           <Space direction="horizontal" size={2}>
-            {/* 👁️ View Image Button */}
+            {/* ≡ƒæü∩╕Å View Image Button */}
             <Tooltip title="View Image">
               <Button
                 type="text"
@@ -180,7 +180,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
               />
             </Tooltip>
             
-            {/* 🔄 Re-extract Button (uses cache if available) */}
+            {/* ≡ƒöä Re-extract Button (uses cache if available) */}
             <Tooltip title="Re-extract">
               <Button
                 type="text"
@@ -203,7 +203,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
               />
             </Tooltip>
             
-            {/* 🗑️ Delete Button (in dropdown menu) */}
+            {/* ≡ƒùæ∩╕Å Delete Button (in dropdown menu) */}
             <Dropdown
               menu={{
                 items: [{
@@ -232,7 +232,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       render: (_: unknown, record: ExtractedRow) => {
         const mrp = parseFloat(String(record.attributes?.['mrp'] ?? ''));
         const rate = parseFloat(String(record.attributes?.['rate'] ?? ''));
-        if (!isFinite(mrp) || !isFinite(rate) || mrp === 0) return <span style={{ color: '#bfbfbf' }}>—</span>;
+        if (!isFinite(mrp) || !isFinite(rate) || mrp === 0) return <span style={{ color: '#bfbfbf' }}>ΓÇö</span>;
         const md = ((mrp - rate) / mrp * 100).toFixed(1);
         return <span style={{ color: '#2f54eb', fontWeight: 600 }}>{md}%</span>;
       }
@@ -244,11 +244,11 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       attributeColumns.splice(mrpIdx + 1, 0, ...markdownColumn);
     }
 
-    // 🔗 COMBINE ALL COLUMNS: Fixed Left + Dynamic Attributes + Fixed Right
+    // ≡ƒöù COMBINE ALL COLUMNS: Fixed Left + Dynamic Attributes + Fixed Right
     return [...baseColumns, ...attributeColumns, ...actionsColumn];
   }, [schema, extractedRows, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract, focusedCellKey]);
 
-  // ✅ ROW SELECTION CONFIGURATION (checkboxes)
+  // Γ£à ROW SELECTION CONFIGURATION (checkboxes)
   const rowSelection = {
     selectedRowKeys,
     onChange: onSelectionChange,
@@ -258,7 +258,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
     }),
   };
 
-  // 🎨 RENDER THE TABLE
+  // ≡ƒÄ¿ RENDER THE TABLE
   return (
     <Table<ExtractedRow>
       columns={columns} // All our column definitions
@@ -266,13 +266,13 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       rowKey="id" // Unique identifier for each row
       rowSelection={rowSelection} // Checkbox functionality
       
-      // 📱 RESPONSIVE SCROLLING
+      // ≡ƒô▒ RESPONSIVE SCROLLING
       scroll={{
         x: 'max-content', // Horizontal scroll for many columns
         y: 'calc(100vh - 320px)' // Increased from 280px to give more table space
       }}
       
-      // 📄 PAGINATION
+      // ≡ƒôä PAGINATION
       pagination={{
         pageSize: 100, // Show 100 rows per page for less scrolling
         showSizeChanger: true, // Let user change page size
@@ -285,7 +285,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       size="small" // Compact table for more data
       bordered // Show borders around cells
       
-      // 🎨 ROW STYLING based on status
+      // ≡ƒÄ¿ ROW STYLING based on status
       rowClassName={(record) => {
         if (record.status === 'Error') return 'table-row-error';
         if (record.status === 'Done') return 'table-row-success';
@@ -293,7 +293,7 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
         return '';
       }}
       
-      // 📊 SUMMARY ROW at bottom showing stats
+      // ≡ƒôè SUMMARY ROW at bottom showing stats
       summary={(pageData) => {
         const stats = {
           total: pageData.length,
