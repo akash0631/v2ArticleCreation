@@ -11,7 +11,7 @@ type SegmentRange = {
   max: number;
 };
 
-const RANGE_FILE_PATH = path.resolve(__dirname, '../../data/segment-ranges.json');
+const RANGE_FILE_PATH = path.resolve(__dirname, '../data/segment-ranges.json');
 
 const resolveRangeFilePath = (): string => {
   const envPath = process.env.SEGMENT_RANGE_FILE_PATH?.trim();
