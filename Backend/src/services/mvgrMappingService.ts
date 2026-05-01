@@ -42,7 +42,7 @@ class MvgrMappingService {
         'FAB2',
         this.weave2Map
       );
-      console.log(`[MvgrMappingService] Loaded ${this.weave2Map.size} weave2 mappings from FAB 2 UPDATED.json`);
+      console.log(`[MvgrMappingService] Loaded ${this.weave2Map.size} weave2 mappings from FAB2.json`);
 
       this.isInitialized = true;
       console.log('[MvgrMappingService] Initialization complete');
