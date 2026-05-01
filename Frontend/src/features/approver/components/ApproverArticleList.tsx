@@ -200,6 +200,8 @@ const ArticleCard = React.memo(({
                 if (af.freeText) {
                     return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values: [] as { shortForm: string; fullForm: string }[], freeText: true };
                 }
+                // Only show dropdown fields that are mandatory for this major category
+                if (!mandatory.has(af.schemaKey)) return null;
                 const values = getMajCatAllowedValues(item.division || '', af.schemaKey);
                 return values ? { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false } : null;
             })
@@ -574,7 +576,7 @@ const ArticleCard = React.memo(({
                                                 const currentValue = getValue(field);
                                                 // '-' counts as filled; only truly empty/null is unfilled
                                                 const isEmpty = !currentValue;
-                                                const isMandatory = !freeText; // all dropdown fields are mandatory
+                                                const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
                                                 const isEditing = editingField === field;
                                                 const artNum = getArtNum(schemaKey, field, currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;

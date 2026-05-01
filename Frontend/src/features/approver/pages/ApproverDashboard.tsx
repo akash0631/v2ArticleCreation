@@ -485,10 +485,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         const errors: { articleId: string; missing: string[] }[] = [];
         for (const item of pendingItems) {
             const missing: string[] = [];
+            const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
+            const mandatoryKeys = getMajCatMandatoryKeys(majCat);
             for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-                // Only check fields that have dropdown values for this division
+                // Only check fields that are mandatory per Excel AND have dropdown values
                 const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
-                if (hasValues && !(item as any)[field]) {
+                if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
                     missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);
                 }
             }
@@ -516,10 +518,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         for (const item of pendingItems) {
             const missing: string[] = [];
 
-            // All visible dropdown fields are mandatory; '-' counts as filled
+            // Only validate fields that are mandatory per Excel for this major category
+            const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
+            const mandatoryKeys = getMajCatMandatoryKeys(majCat);
             for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
                 const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
-                if (hasValues && !(item as any)[field]) {
+                if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
                     missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);
                 }
             }
@@ -946,14 +950,16 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     // Dynamic attributes tab — shows only the attributes relevant for the selected major category.
     // Values are filtered from the Excel grid data. Mandatory fields are marked with *.
     const attributesTab = (() => {
-        const majorCat = editingItem?.majorCategory || '';
         const division = editingItem?.division || '';
+        const majorCat = normalizeMajorCategory(editingItem?.majorCategory || '', division);
         const mandatoryKeys = getMajCatMandatoryKeys(majorCat);
 
         const visibleFields = ATTRIBUTE_FIELDS.filter(field => {
-            if (!division) return true; // no division selected → show all
+            if (!majorCat) return true; // no major category yet → show all so user can fill in
+            // Only show fields that are mandatory for this category AND have dropdown values
+            if (!mandatoryKeys.has(field.schemaKey)) return false;
             const values = getMajCatAllowedValues(division, field.schemaKey);
-            return values !== null || mandatoryKeys.has(field.schemaKey);
+            return values !== null;
         });
 
         if (visibleFields.length === 0) {
