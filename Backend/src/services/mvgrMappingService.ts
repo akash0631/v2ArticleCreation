@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-// JSON files are at workspace root, one level above the Backend folder
-// __dirname = Backend/src/services -> go up 3 levels to reach workspace root
-const WORKSPACE_ROOT = path.join(__dirname, '..', '..', '..');
+// Data files live in src/data/ (deployed to dist/data/ via postbuild cpSync)
+// __dirname at runtime = dist/services/ → ../data/ = dist/data/
+const DATA_DIR = path.join(__dirname, '..', 'data');
 
 class MvgrMappingService {
   private macroMvgrMap: Map<string, string> = new Map(); // code -> fullForm
@@ -22,7 +22,7 @@ class MvgrMappingService {
 
       // Book10.json -> Macro MVGR ("OTHER MVGR - 01")
       this.loadMappingFromFile(
-        path.join(WORKSPACE_ROOT, 'Book10.json'),
+        path.join(DATA_DIR, 'Book10.json'),
         'OTHER MVGR - 01',
         this.macroMvgrMap
       );
@@ -30,15 +30,15 @@ class MvgrMappingService {
 
       // Book11.json -> Main MVGR ("OTHER MVGR - 02")
       this.loadMappingFromFile(
-        path.join(WORKSPACE_ROOT, 'Book11.json'),
+        path.join(DATA_DIR, 'Book11.json'),
         'OTHER MVGR - 02',
         this.mainMvgrMap
       );
       console.log(`[MvgrMappingService] Loaded ${this.mainMvgrMap.size} main MVGR mappings from Book11.json`);
 
-      // FAB 2 UPDATED.json -> M_FAB2
+      // FAB2.json -> M_FAB2
       this.loadMappingFromFile(
-        path.join(WORKSPACE_ROOT, 'FAB 2 UPDATED.json'),
+        path.join(DATA_DIR, 'FAB2.json'),
         'FAB2',
         this.weave2Map
       );
