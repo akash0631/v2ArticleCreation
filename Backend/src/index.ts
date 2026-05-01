@@ -135,10 +135,16 @@ app.use(cors({
   maxAge: 3600
 }));
 
-// Apply general rate limiting to all API routes EXCEPT watcher (which processes
-// 24k+ images one-by-one and must not be throttled by the per-IP cap).
+// Apply general rate limiting to all API routes EXCEPT:
+// - /watcher/   — processes 24k+ images one-by-one, must not be throttled
+// - /approver/  — authenticated multi-user routes; per-IP limiting unfairly
+//                 blocks whole offices sharing a NAT IP. Auth middleware already
+//                 secures these endpoints.
+// - /article-config/ — lightweight cached lookups called once per card on load
 app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/watcher/')) return next();
+  if (req.path.startsWith('/approver/')) return next();
+  if (req.path.startsWith('/article-config/')) return next();
   return limiter(req, res, next);
 });
 

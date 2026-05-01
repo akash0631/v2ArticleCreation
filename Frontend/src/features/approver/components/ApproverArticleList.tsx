@@ -10,8 +10,6 @@ import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import VariantSubTable from './VariantSubTable';
 
-const { Option } = Select;
-
 // Module-level BOM cache: category → promise of data (shared across all card instances)
 // Prevents N duplicate fetches when multiple rows share the same majorCategory.
 const bomCache = new Map<string, Promise<Record<string, Record<string, string>>>>();
@@ -29,6 +27,8 @@ const fetchBomMap = (category: string): Promise<Record<string, Record<string, st
     bomCache.set(category, p);
     return p;
 };
+
+const { Option } = Select;
 
 // Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
