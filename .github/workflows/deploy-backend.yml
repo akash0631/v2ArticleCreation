@@ -59,8 +59,10 @@ jobs:
           zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip \
+            --src-path /tmp/v2-backend.zip --type zip --async true \
             --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "Waiting for deployment to propagate..."
+          sleep 120
 
       - name: Restart and health check
         run: |
