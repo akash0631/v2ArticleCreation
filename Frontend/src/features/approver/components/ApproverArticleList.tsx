@@ -574,7 +574,7 @@ const ArticleCard = React.memo(({
                                                 const currentValue = getValue(field);
                                                 // '-' counts as filled; only truly empty/null is unfilled
                                                 const isEmpty = !currentValue;
-                                                const isMandatory = !freeText; // all dropdown fields are mandatory
+                                                const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
                                                 const isEditing = editingField === field;
                                                 const artNum = getArtNum(schemaKey, field, currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;
