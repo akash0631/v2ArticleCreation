@@ -1235,18 +1235,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         let updatePayload: Record<string, unknown> = {};
                         if (index > -1) {
                             const item = newData[index];
-                            if (row.majorCategory && (row.majorCategory !== item.majorCategory || !row.mcCode)) {
-                                row.mcCode = inferMcCode(row.majorCategory) || row.mcCode;
-                            }
-                            newData.splice(index, 1, { ...item, ...row });
-                            setItems(newData);
-                            // Use the direct updates passed from the card — avoids stale-closure diff bugs.
-                            // directUpdates contains exactly the fields the user changed (e.g. { impAtrbt2: 'STRT' }).
+
+                            // Build payload from directUpdates — the exact fields the user changed.
+                            // This avoids stale-closure diffs that could send the wrong fields.
                             updatePayload = Object.fromEntries(
                                 Object.entries(directUpdates || {})
                                     .map(([key, value]) => [key, value === undefined ? null : value])
                             );
-                            // Fallback: if no directUpdates provided, compute diff (legacy path)
+                            // Fallback: compute diff from full row (legacy path, should rarely trigger)
                             if (Object.keys(updatePayload).length === 0) {
                                 updatePayload = Object.fromEntries(
                                     Object.entries(row)
@@ -1254,11 +1250,17 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                         .map(([key, value]) => [key, value === undefined ? null : value])
                                 );
                             }
+                            if (updatePayload.majorCategory && !updatePayload.mcCode) {
+                                updatePayload.mcCode = inferMcCode(updatePayload.majorCategory as string) || undefined;
+                            }
+
+                            // Optimistic update — show change immediately in the list
+                            newData.splice(index, 1, { ...item, ...updatePayload });
+                            setItems(newData);
                         }
                         if (Object.keys(updatePayload).length === 0) {
                             return;
                         }
-                        console.log('[onSave] Sending updatePayload:', JSON.stringify(updatePayload));
                         try {
                             const token = localStorage.getItem('authToken');
                             const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}`, {
@@ -1271,12 +1273,26 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 console.error('[onSave] Save failed:', response.status, errText);
                                 throw new Error('Update failed');
                             }
+                            // Sync server's authoritative values (articleDescription, segment,
+                            // mcCode, hsnTaxCode, year, season) back into items state so the
+                            // card reflects derived-field recalculations without a full reload.
+                            const saved = await response.json();
+                            setItems(prev => {
+                                const idx = prev.findIndex(i => i.id === saved.id);
+                                if (idx === -1) return prev;
+                                const copy = [...prev];
+                                copy[idx] = {
+                                    ...copy[idx],
+                                    ...saved,
+                                    // Apply the same mcCode inference that fetchItems uses
+                                    mcCode: saved.mcCode || inferMcCode(saved.majorCategory) || copy[idx].mcCode || '',
+                                };
+                                return copy;
+                            });
                             message.success('Saved');
-                            // Always re-fetch so the UI reflects exactly what is in the DB.
-                            // This eliminates any stale-state or merge inconsistencies.
-                            fetchItems(currentPage);
                         } catch {
                             message.error('Failed to save');
+                            // On error, resync from server to undo the optimistic update
                             fetchItems(currentPage);
                         }
                     }}

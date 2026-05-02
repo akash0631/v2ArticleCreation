@@ -180,6 +180,34 @@ const ArticleCard = React.memo(({
     const [showVariants, setShowVariants] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
 
+    // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
+    // drop any localValues entries whose value now matches the item prop — they're stale overrides.
+    // This ensures the card always reflects the authoritative server value after a re-fetch.
+    const prevItemRef = React.useRef<ApproverItem>(item);
+    React.useEffect(() => {
+        const prev = prevItemRef.current;
+        prevItemRef.current = item;
+        if (prev === item) return; // same reference — no change
+        setLocalValues(local => {
+            const next: Record<string, string | null> = {};
+            for (const [k, v] of Object.entries(local)) {
+                // Keep the override only if item didn't change for this key.
+                // Once item reflects the saved value, the override is redundant.
+                const itemVal = (item as any)[k] ?? null;
+                const strItemVal = itemVal === null ? null : String(itemVal);
+                if (strItemVal !== (v === null ? null : String(v ?? ''))) {
+                    // item changed to something different from our local edit — server wins
+                    // (don't keep the local override)
+                } else {
+                    next[k] = v;
+                }
+            }
+            return next;
+        });
+    // Only run when item identity changes (reference change from setItems in parent)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item]);
+
     // Normalize majorCategory: use local edit when available, otherwise fall back to item prop
     const effectiveMajCat = useMemo(() => {
         const raw = (localValues['majorCategory'] !== undefined ? localValues['majorCategory'] : item.majorCategory) || '';
