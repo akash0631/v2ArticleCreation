@@ -497,16 +497,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
-            if (!item.referenceArticleDescription) missing.push('Reference Article Description');
+            // referenceArticleDescription is optional
             if (missing.length > 0) {
-                errors.push({
-                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
-                    missing,
-                });
-            }
-        }
-        return errors;
-    }, [pendingSelectedKeys, items]);
 
     const handleApprove = async () => {
         if (pendingSelectedKeys.length === 0) return;
@@ -530,15 +522,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
-            if (!item.referenceArticleDescription) missing.push('Reference Article Description');
-
-            if (missing.length > 0) {
-                errors.push({
-                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
-                    missing,
-                });
-            }
-        }
+            // referenceArticleDescription is optional
 
         if (errors.length > 0) {
             Modal.error({
@@ -905,7 +889,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 </Form.Item>
             </Col>
             <Col span={12}>
-                <Form.Item name="referenceArticleDescription" label="Ref. Description" rules={[{ required: true, message: 'Reference Article Description is required' }]}>
+                <Form.Item name="referenceArticleDescription" label="Ref. Description">
                     <Input />
                 </Form.Item>
             </Col>

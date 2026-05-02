@@ -106,7 +106,7 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'design_number',                 label: 'Design Number',                 type: 'text' },
   { key: 'vendor_name',                   label: 'Vendor Name',                   type: 'text' },
   { key: 'reference_article_number',      label: 'Reference Article Number',      type: 'text' },
-  { key: 'reference_article_description', label: 'Reference Article Description', type: 'text', required: true },
+  { key: 'reference_article_description', label: 'Reference Article Description', type: 'text', required: false },
   { key: 'rate',                          label: 'Rate/Price',                    type: 'text' },
   { key: 'mrp',                           label: 'MRP',                           type: 'text' },
   { key: 'imp_atrbt_2',                   label: 'IMP_ATRBT-2',                   type: 'text' },
