@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -101,9 +102,7 @@ const allowedOrigins = [
     ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
     : []),
   process.env.FRONTEND_URL,
-  'https://ai-fashion-extractor.vercel.app',
   'https://articlecreation.v2retail.net',
-  'https://articlecreation-api.v2retail.net',
 ].filter(Boolean);
 
 app.use(cors({
@@ -168,6 +167,11 @@ app.use((req, res, next) => {
 
 // Serve uploaded images as static files
 app.use('/uploads', express.static('uploads'));
+
+// Serve frontend static files in production (built into public/ during CI)
+if (isProduction) {
+  app.use(express.static(path.join(__dirname, '../public')));
+}
 
 // Request logging middleware (development only)
 if (process.env.NODE_ENV === 'development') {
@@ -234,8 +238,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Root route
+// Root route — serves frontend in production, API info in development
 app.get('/', async (req, res) => {
+  if (isProduction) {
+    return res.sendFile(path.join(__dirname, '../public/index.html'));
+  }
   try {
     const cacheStats = await cacheService.getStats();
 
@@ -260,6 +267,13 @@ app.get('/', async (req, res) => {
     });
   }
 });
+
+// SPA catch-all: all non-API routes serve index.html so React Router works
+if (isProduction) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  });
+}
 
 // 404 handler
 app.use(notFound);
