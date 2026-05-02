@@ -10,6 +10,7 @@ import os from 'os';
 import path from 'path';
 import { EnhancedExtractionController } from '../controllers/enhancedExtractionController';
 import { backfillWatcherSubDivisions } from '../controllers/adminController';
+import { syncFromSrm } from '../services/srmSyncService';
 
 const router = Router();
 const enhancedController = new EnhancedExtractionController();
@@ -61,5 +62,24 @@ router.post('/extract/upload',
 
 // One-time backfill: fix subDivision for all watcher articles from their majorCategory
 router.post('/backfill-subdivisions', backfillWatcherSubDivisions);
+
+/**
+ * POST /api/watcher/sync-srm
+ *
+ * Fetches all presentation records from the SRM API and inserts them
+ * into extraction_results_flat without any AI extraction.
+ * Idempotent — already-synced records (matched by pptNumber + designNumber) are skipped.
+ *
+ * Called by the watcher service on its cron schedule (12pm, 8pm),
+ * or manually from the admin UI / CLI.
+ */
+router.post('/sync-srm', async (req, res, next) => {
+  try {
+    const result = await syncFromSrm();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;
