@@ -147,7 +147,7 @@ export class FlatteningService {
             hsnTaxCode: mappedMcCode ? (getHsnCodeByMcCode(mappedMcCode)?.toString() ?? null) : null,
             vendorName: resultsMap.get('vendor_name'),
             designNumber: resultsMap.get('design_number'),
-            pptNumber: resultsMap.get('ppt_number'),
+            // pptNumber intentionally NOT set from AI extraction — only SRM sync populates this
             rate: parsedRate,
             mrp: finalMrp,
             size: resultsMap.get('size'),
