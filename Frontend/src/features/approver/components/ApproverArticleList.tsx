@@ -134,7 +134,7 @@ export interface ApproverArticleListProps {
     selectedRowKeys: React.Key[];
     onSelectionChange: (keys: React.Key[]) => void;
     onEdit: (item: ApproverItem) => void;
-    onSave: (item: ApproverItem) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -170,7 +170,7 @@ const ArticleCard = React.memo(({
     item: ApproverItem;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
-    onSave: (item: ApproverItem) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -179,6 +179,34 @@ const ArticleCard = React.memo(({
 }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
+
+    // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
+    // drop any localValues entries whose value now matches the item prop — they're stale overrides.
+    // This ensures the card always reflects the authoritative server value after a re-fetch.
+    const prevItemRef = React.useRef<ApproverItem>(item);
+    React.useEffect(() => {
+        const prev = prevItemRef.current;
+        prevItemRef.current = item;
+        if (prev === item) return; // same reference — no change
+        setLocalValues(local => {
+            const next: Record<string, string | null> = {};
+            for (const [k, v] of Object.entries(local)) {
+                // Keep the override only if item didn't change for this key.
+                // Once item reflects the saved value, the override is redundant.
+                const itemVal = (item as any)[k] ?? null;
+                const strItemVal = itemVal === null ? null : String(itemVal);
+                if (strItemVal !== (v === null ? null : String(v ?? ''))) {
+                    // item changed to something different from our local edit — server wins
+                    // (don't keep the local override)
+                } else {
+                    next[k] = v;
+                }
+            }
+            return next;
+        });
+    // Only run when item identity changes (reference change from setItems in parent)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item]);
 
     // Normalize majorCategory: use local edit when available, otherwise fall back to item prop
     const effectiveMajCat = useMemo(() => {
@@ -246,7 +274,8 @@ const ArticleCard = React.memo(({
     const saveAttrArticleNum = (field: string, val: string) => {
         const updated = { ...attrArticleNums, [field]: val };
         setAttrArticleNums(updated);
-        onSave({ ...item, attrArticleNums: JSON.stringify(updated) } as any);
+        const attrUpdates = { attrArticleNums: JSON.stringify(updated) };
+        onSave({ ...item, ...attrUpdates } as any, attrUpdates);
     };
     const [failedImg, setFailedImg] = useState(false);
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
@@ -366,7 +395,7 @@ const ArticleCard = React.memo(({
         }
         setLocalValues(prev => ({ ...prev, ...updates }));
         setEditingField(null);
-        onSave({ ...item, ...updates } as ApproverItem);
+        onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
     };
 
     const borderColor = item.approvalStatus === 'APPROVED' ? '#b7eb8f'
@@ -453,6 +482,11 @@ const ArticleCard = React.memo(({
                             {item.rate != null && `  ·  ₹${item.rate}`}
                             {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
                         </span>
+                        {item.pptNumber && (
+                            <span style={{ fontSize: 10, color: '#fff', background: '#6366f1', borderRadius: 4, padding: '1px 6px', marginLeft: 6, fontWeight: 600, letterSpacing: '0.3px', flexShrink: 0 }}>
+                                {item.pptNumber}
+                            </span>
+                        )}
                     </div>
 
                     {/* 6 horizontal info fields — click to edit */}
@@ -485,7 +519,7 @@ const ArticleCard = React.memo(({
                                 onClick={() => { if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`); }}
                                 >
                                     <div style={{ fontSize: 9, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2, fontWeight: 600 }}>
-                                        {label}{field === 'referenceArticleDescription' && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
+                                        {label}
                                     </div>
                                     {isEditingThis && field === 'majorCategory' ? (
                                         <Select
@@ -513,8 +547,8 @@ const ArticleCard = React.memo(({
                                             onBlur={(e) => handleSave(field, e.target.value || null)}
                                         />
                                     ) : (
-                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : (field === 'referenceArticleDescription' && !isLocked ? '#fa8c16' : '#bfbfbf'), fontStyle: (!displayVal && field === 'referenceArticleDescription' && !isLocked) ? 'italic' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {displayVal || (field === 'referenceArticleDescription' && !isLocked ? 'Required' : (canEdit ? 'Click to fill' : '—'))}
+                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {displayVal || (canEdit ? 'Click to fill' : '—')}
                                         </div>
                                     )}
                                 </div>

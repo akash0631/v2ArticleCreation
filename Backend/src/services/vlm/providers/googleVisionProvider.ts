@@ -157,7 +157,7 @@ ${Object.entries(ocrHint)
         .map(([k, v]) => `• ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
         .join('\n')}
 Rules for OCR_HINTS:
-• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, g_weight/weight/wt/fabric_weight/garment_weight, yarn_01, yarn_02, fabric_main_mvgr, colour
+• Use OCR_HINTS ONLY for: division, vendor_name, design_number, rate, size, major_category, gsm, g_weight/weight/wt/fabric_weight/garment_weight, yarn_01, yarn_02, fabric_main_mvgr, colour
 • If OCR_HINTS are unclear or conflict with your own OCR read, return null for that field (do not guess)
 ` : '';
 
@@ -583,7 +583,7 @@ COLOR OCR (SPECIAL RULE):
 • PRIORITY 2: If no colour on board, look at the garment/fabric itself and extract its colour
 • Return the colour value exactly as written on the board — do NOT require database validation, do NOT return null just because a value is not in an allowed list
 • Only return null if there is genuinely no colour information anywhere in the image (board or garment)
-• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, weight, yarn_01, yarn_02, fabric_main_mvgr
+• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, rate, size, major_category, gsm, weight, yarn_01, yarn_02, fabric_main_mvgr
 • Size must be returned exactly as written (e.g., "S-XXL", "30-36"), no normalization
 
 LYCRA / NON-LYCRA (STRICT):

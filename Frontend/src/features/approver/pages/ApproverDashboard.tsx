@@ -497,7 +497,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
-            if (!item.referenceArticleDescription) missing.push('Reference Article Description');
+            // referenceArticleDescription is optional
             if (missing.length > 0) {
                 errors.push({
                     articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
@@ -530,7 +530,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
-            if (!item.referenceArticleDescription) missing.push('Reference Article Description');
+            // referenceArticleDescription is optional
 
             if (missing.length > 0) {
                 errors.push({
@@ -905,7 +905,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 </Form.Item>
             </Col>
             <Col span={12}>
-                <Form.Item name="referenceArticleDescription" label="Ref. Description" rules={[{ required: true, message: 'Reference Article Description is required' }]}>
+                <Form.Item name="referenceArticleDescription" label="Ref. Description">
                     <Input />
                 </Form.Item>
             </Col>
@@ -1079,7 +1079,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         <Row gutter={[10, 8]} align="middle">
                             <Col xs={24} sm={12} md={7}>
                                 <Input.Search
-                                    placeholder="Search article, vendor, design..."
+                                    placeholder="Search article, vendor, design, PPT no..."
                                     onSearch={val => setSearchText(val)}
                                     onChange={handleSearchChange}
                                     allowClear
@@ -1229,28 +1229,38 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         pageSize: PAGE_SIZE,
                         onChange: (page) => { setSelectedRowKeys([]); fetchItems(page); }
                     }}
-                    onSave={async (row) => {
+                    onSave={async (row, directUpdates) => {
                         const newData = [...items];
                         const index = newData.findIndex((item) => item.id === row.id);
                         let updatePayload: Record<string, unknown> = {};
                         if (index > -1) {
                             const item = newData[index];
-                            if (row.majorCategory && (row.majorCategory !== item.majorCategory || !row.mcCode)) {
-                                row.mcCode = inferMcCode(row.majorCategory) || row.mcCode;
-                            }
-                            newData.splice(index, 1, { ...item, ...row });
-                            setItems(newData);
+
+                            // Build payload from directUpdates — the exact fields the user changed.
+                            // This avoids stale-closure diffs that could send the wrong fields.
                             updatePayload = Object.fromEntries(
-                                Object.entries(row)
-                                    .filter(([key, value]) => (item as any)[key] !== value)
+                                Object.entries(directUpdates || {})
                                     .map(([key, value]) => [key, value === undefined ? null : value])
                             );
+                            // Fallback: compute diff from full row (legacy path, should rarely trigger)
+                            if (Object.keys(updatePayload).length === 0) {
+                                updatePayload = Object.fromEntries(
+                                    Object.entries(row)
+                                        .filter(([key, value]) => (item as any)[key] !== value)
+                                        .map(([key, value]) => [key, value === undefined ? null : value])
+                                );
+                            }
+                            if (updatePayload.majorCategory && !updatePayload.mcCode) {
+                                updatePayload.mcCode = inferMcCode(updatePayload.majorCategory as string) || undefined;
+                            }
+
+                            // Optimistic update — show change immediately in the list
+                            newData.splice(index, 1, { ...item, ...updatePayload });
+                            setItems(newData);
                         }
                         if (Object.keys(updatePayload).length === 0) {
-                            console.log('[onSave] updatePayload is EMPTY — no API call made. row.impAtrbt2=', (row as any).impAtrbt2, 'item.impAtrbt2=', (items.find(i => i.id === row.id) as any)?.impAtrbt2);
                             return;
                         }
-                        console.log('[onSave] Sending updatePayload:', JSON.stringify(updatePayload));
                         try {
                             const token = localStorage.getItem('authToken');
                             const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}`, {
@@ -1263,9 +1273,26 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 console.error('[onSave] Save failed:', response.status, errText);
                                 throw new Error('Update failed');
                             }
+                            // Sync server's authoritative values (articleDescription, segment,
+                            // mcCode, hsnTaxCode, year, season) back into items state so the
+                            // card reflects derived-field recalculations without a full reload.
+                            const saved = await response.json();
+                            setItems(prev => {
+                                const idx = prev.findIndex(i => i.id === saved.id);
+                                if (idx === -1) return prev;
+                                const copy = [...prev];
+                                copy[idx] = {
+                                    ...copy[idx],
+                                    ...saved,
+                                    // Apply the same mcCode inference that fetchItems uses
+                                    mcCode: saved.mcCode || inferMcCode(saved.majorCategory) || copy[idx].mcCode || '',
+                                };
+                                return copy;
+                            });
                             message.success('Saved');
                         } catch {
                             message.error('Failed to save');
+                            // On error, resync from server to undo the optimistic update
                             fetchItems(currentPage);
                         }
                     }}
