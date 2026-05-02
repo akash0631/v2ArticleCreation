@@ -1,3 +1,6 @@
+# Frontend build output (bundled into zip during CI, not committed)
+public/
+
 # Dependencies
 node_modules/
 npm-debug.log*

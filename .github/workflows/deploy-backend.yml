@@ -1,4 +1,4 @@
-name: Deploy Backend to Azure
+name: Deploy to Azure
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'Backend/**'
+      - 'Frontend/**'
       - '.github/workflows/deploy-backend.yml'
 
 jobs:
@@ -34,7 +35,7 @@ jobs:
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
             SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-            FRONTEND_URL=https://articles.v2retail.net \
+            FRONTEND_URL=https://articlecreation.v2retail.net \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "DIRECT_URL=${{ secrets.DIRECT_URL }}" \
@@ -45,6 +46,14 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Build frontend
+        working-directory: Frontend
+        run: |
+          npm install --production=false
+          npm run build
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+
       - name: Build backend
         working-directory: Backend
         run: |
@@ -54,10 +63,13 @@ jobs:
           npm run postbuild
           npm prune --production
 
+      - name: Bundle frontend into backend
+        run: cp -r Frontend/dist Backend/public
+
       - name: Deploy zip to Azure
         working-directory: Backend
         run: |
-          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json
+          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
             --src-path /tmp/v2-backend.zip --type zip --async true \
@@ -71,12 +83,11 @@ jobs:
           az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
           echo "Waiting 90s for app to start..."
           sleep 90
-          HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://v2-article-backend.azurewebsites.net/api/health || echo 000)
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://articlecreation.v2retail.net || echo 000)
           echo "Health check: $HTTP"
           if [ "$HTTP" = "200" ]; then
-            echo "BACKEND LIVE"
+            echo "LIVE"
           else
-            echo "Health check failed: HTTP $HTTP"
-            curl -s https://v2-article-backend.azurewebsites.net/api/health || true
+            echo "Health check returned HTTP $HTTP — check Azure logs"
             exit 1
           fi
