@@ -1229,7 +1229,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         pageSize: PAGE_SIZE,
                         onChange: (page) => { setSelectedRowKeys([]); fetchItems(page); }
                     }}
-                    onSave={async (row) => {
+                    onSave={async (row, directUpdates) => {
                         const newData = [...items];
                         const index = newData.findIndex((item) => item.id === row.id);
                         let updatePayload: Record<string, unknown> = {};
@@ -1240,14 +1240,22 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                             }
                             newData.splice(index, 1, { ...item, ...row });
                             setItems(newData);
+                            // Use the direct updates passed from the card — avoids stale-closure diff bugs.
+                            // directUpdates contains exactly the fields the user changed (e.g. { impAtrbt2: 'STRT' }).
                             updatePayload = Object.fromEntries(
-                                Object.entries(row)
-                                    .filter(([key, value]) => (item as any)[key] !== value)
+                                Object.entries(directUpdates || {})
                                     .map(([key, value]) => [key, value === undefined ? null : value])
                             );
+                            // Fallback: if no directUpdates provided, compute diff (legacy path)
+                            if (Object.keys(updatePayload).length === 0) {
+                                updatePayload = Object.fromEntries(
+                                    Object.entries(row)
+                                        .filter(([key, value]) => (item as any)[key] !== value)
+                                        .map(([key, value]) => [key, value === undefined ? null : value])
+                                );
+                            }
                         }
                         if (Object.keys(updatePayload).length === 0) {
-                            console.log('[onSave] updatePayload is EMPTY — no API call made. row.impAtrbt2=', (row as any).impAtrbt2, 'item.impAtrbt2=', (items.find(i => i.id === row.id) as any)?.impAtrbt2);
                             return;
                         }
                         console.log('[onSave] Sending updatePayload:', JSON.stringify(updatePayload));
@@ -1263,6 +1271,15 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 console.error('[onSave] Save failed:', response.status, errText);
                                 throw new Error('Update failed');
                             }
+                            // Update the item in state with the authoritative server response
+                            const saved = await response.json();
+                            setItems(prev => {
+                                const idx = prev.findIndex(i => i.id === saved.id);
+                                if (idx === -1) return prev;
+                                const copy = [...prev];
+                                copy[idx] = { ...copy[idx], ...saved };
+                                return copy;
+                            });
                             message.success('Saved');
                         } catch {
                             message.error('Failed to save');

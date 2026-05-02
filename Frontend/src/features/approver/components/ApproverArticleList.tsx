@@ -134,7 +134,7 @@ export interface ApproverArticleListProps {
     selectedRowKeys: React.Key[];
     onSelectionChange: (keys: React.Key[]) => void;
     onEdit: (item: ApproverItem) => void;
-    onSave: (item: ApproverItem) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -170,7 +170,7 @@ const ArticleCard = React.memo(({
     item: ApproverItem;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
-    onSave: (item: ApproverItem) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -246,7 +246,8 @@ const ArticleCard = React.memo(({
     const saveAttrArticleNum = (field: string, val: string) => {
         const updated = { ...attrArticleNums, [field]: val };
         setAttrArticleNums(updated);
-        onSave({ ...item, attrArticleNums: JSON.stringify(updated) } as any);
+        const attrUpdates = { attrArticleNums: JSON.stringify(updated) };
+        onSave({ ...item, ...attrUpdates } as any, attrUpdates);
     };
     const [failedImg, setFailedImg] = useState(false);
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
@@ -366,7 +367,7 @@ const ArticleCard = React.memo(({
         }
         setLocalValues(prev => ({ ...prev, ...updates }));
         setEditingField(null);
-        onSave({ ...item, ...updates } as ApproverItem);
+        onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
     };
 
     const borderColor = item.approvalStatus === 'APPROVED' ? '#b7eb8f'
