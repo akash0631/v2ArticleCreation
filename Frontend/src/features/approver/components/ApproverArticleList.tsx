@@ -453,6 +453,11 @@ const ArticleCard = React.memo(({
                             {item.rate != null && `  ·  ₹${item.rate}`}
                             {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
                         </span>
+                        {item.pptNumber && (
+                            <span style={{ fontSize: 10, color: '#fff', background: '#6366f1', borderRadius: 4, padding: '1px 6px', marginLeft: 6, fontWeight: 600, letterSpacing: '0.3px', flexShrink: 0 }}>
+                                {item.pptNumber}
+                            </span>
+                        )}
                     </div>
 
                     {/* 6 horizontal info fields — click to edit */}

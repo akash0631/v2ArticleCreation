@@ -1079,7 +1079,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         <Row gutter={[10, 8]} align="middle">
                             <Col xs={24} sm={12} md={7}>
                                 <Input.Search
-                                    placeholder="Search article, vendor, design..."
+                                    placeholder="Search article, vendor, design, PPT no..."
                                     onSearch={val => setSearchText(val)}
                                     onChange={handleSearchChange}
                                     allowClear
