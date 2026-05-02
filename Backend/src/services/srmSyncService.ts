@@ -18,6 +18,7 @@
  *   fabric            → macroMvgr (closest match)
  *   no_of_colors      → stored in impAtrbt2 as "Colors: N"
  *   price             → rate
+ *   image_url         → imageUrl
  */
 
 import { prismaClient as prisma } from '../utils/prisma';
@@ -25,8 +26,6 @@ import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMap
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
-import { duplicateForKidsDivision } from '../services/kidsDivisionDuplicationService';
-import { createVariantsForGeneric } from '../services/variantCreationService';
 
 const SRM_API_BASE = 'https://pymdqnnwwxrgeolvgvgv.supabase.co/functions/v1/srm-presentation-images-api';
 const SRM_API_KEY = process.env.SRM_API_KEY || 'v2@123';
@@ -45,6 +44,7 @@ interface SrmRow {
   fabric: string;
   no_of_colors: number;
   price: number;
+  image_url?: string | null;
 }
 
 interface SrmApiResponse {
@@ -94,18 +94,18 @@ async function fetchAllRows(): Promise<SrmRow[]> {
 }
 
 /**
- * Check if we already have a record for this presentation_no + design_number pair.
+ * Find an existing SRM record for this presentation_no + design_number pair.
+ * Returns the record id and current imageUrl so we can patch the image if needed.
  */
-async function isDuplicate(presentationNo: string, designNumber: string): Promise<boolean> {
-  const existing = await prisma.extractionResultFlat.findFirst({
+async function findExisting(presentationNo: string, designNumber: string): Promise<{ id: string; imageUrl: string | null } | null> {
+  return prisma.extractionResultFlat.findFirst({
     where: {
       pptNumber: presentationNo,
       designNumber: designNumber,
       source: 'SRM',
     },
-    select: { id: true },
+    select: { id: true, imageUrl: true },
   });
-  return !!existing;
 }
 
 /**
@@ -144,10 +144,12 @@ async function insertRow(row: SrmRow): Promise<void> {
   const categoryId = await resolveCategoryId(row.major_category, row.division);
 
   // Create ExtractionJob (required by FK; no AI used — just a shell record)
+  const srmImageUrl = row.image_url || null;
+
   const job = await prisma.extractionJob.create({
     data: {
       categoryId,
-      imageUrl: '',           // No image from SRM
+      imageUrl: srmImageUrl || '',
       status:   'COMPLETED',
       aiModel:  null,
       designNumber: row.design_number || null,
@@ -178,7 +180,7 @@ async function insertRow(row: SrmRow): Promise<void> {
       source:         'SRM',
       extractionStatus: 'SRM_IMPORT',
       imageName:      null,
-      imageUrl:       null,
+      imageUrl:       srmImageUrl,
 
       // SRM-provided fields
       pptNumber:      row.presentation_no || null,
@@ -253,9 +255,20 @@ export async function syncFromSrm(): Promise<SyncResult> {
 
   for (const row of rows) {
     try {
-      const dup = await isDuplicate(row.presentation_no, row.design_number);
-      if (dup) {
-        result.skipped++;
+      const existing = await findExisting(row.presentation_no, row.design_number);
+      if (existing) {
+        // Record exists — patch imageUrl if the API now provides one and we don't have it yet
+        if (row.image_url && !existing.imageUrl) {
+          await prisma.extractionResultFlat.update({
+            where: { id: existing.id },
+            data: { imageUrl: row.image_url },
+          });
+          void mirror360FlatUpdate(existing.id, { imageUrl: row.image_url });
+          console.log(`[SRM Sync] Patched image for: ${row.presentation_no} / ${row.design_number}`);
+          result.inserted++; // count as updated
+        } else {
+          result.skipped++;
+        }
         continue;
       }
       await insertRow(row);
