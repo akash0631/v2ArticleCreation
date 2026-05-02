@@ -1271,16 +1271,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 console.error('[onSave] Save failed:', response.status, errText);
                                 throw new Error('Update failed');
                             }
-                            // Update the item in state with the authoritative server response
-                            const saved = await response.json();
-                            setItems(prev => {
-                                const idx = prev.findIndex(i => i.id === saved.id);
-                                if (idx === -1) return prev;
-                                const copy = [...prev];
-                                copy[idx] = { ...copy[idx], ...saved };
-                                return copy;
-                            });
                             message.success('Saved');
+                            // Always re-fetch so the UI reflects exactly what is in the DB.
+                            // This eliminates any stale-state or merge inconsistencies.
+                            fetchItems(currentPage);
                         } catch {
                             message.error('Failed to save');
                             fetchItems(currentPage);
