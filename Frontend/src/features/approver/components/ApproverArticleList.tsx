@@ -490,7 +490,7 @@ const ArticleCard = React.memo(({
                                 onClick={() => { if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`); }}
                                 >
                                     <div style={{ fontSize: 9, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2, fontWeight: 600 }}>
-                                        {label}{field === 'referenceArticleDescription' && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
+                                        {label}
                                     </div>
                                     {isEditingThis && field === 'majorCategory' ? (
                                         <Select
@@ -518,8 +518,8 @@ const ArticleCard = React.memo(({
                                             onBlur={(e) => handleSave(field, e.target.value || null)}
                                         />
                                     ) : (
-                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : (field === 'referenceArticleDescription' && !isLocked ? '#fa8c16' : '#bfbfbf'), fontStyle: (!displayVal && field === 'referenceArticleDescription' && !isLocked) ? 'italic' : 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {displayVal || (field === 'referenceArticleDescription' && !isLocked ? 'Required' : (canEdit ? 'Click to fill' : '—'))}
+                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {displayVal || (canEdit ? 'Click to fill' : '—')}
                                         </div>
                                     )}
                                 </div>
