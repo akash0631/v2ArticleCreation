@@ -24,7 +24,7 @@ export default defineConfig({
     'import.meta.env.VITE_WORKER_SUPPORT': JSON.stringify(true)
   },
   build: {
-    sourcemap: true, // Enable source maps for Sentry
+    sourcemap: false,
   },
   server: {
     host: '0.0.0.0',

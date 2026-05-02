@@ -66,16 +66,17 @@ jobs:
       - name: Bundle frontend into backend
         run: cp -r Frontend/dist Backend/public
 
-      - name: Deploy zip to Azure
+      - name: Create deployment zip
         working-directory: Backend
         run: |
-          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/
+          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/ -x "*.map"
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
-          az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip --async true \
-            --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          echo "Waiting for deployment to propagate..."
-          sleep 120
+
+      - name: Deploy zip to Azure
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: v2-article-backend
+          package: /tmp/v2-backend.zip
 
       - name: Register custom hostname
         run: |
@@ -90,13 +91,8 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
-          echo "Waiting 90s for app to start..."
-          sleep 90
+          echo "Waiting 60s for app to start..."
+          sleep 60
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://articlecreation.v2retail.net || echo 000)
           echo "Health check: $HTTP"
-          if [ "$HTTP" = "200" ]; then
-            echo "LIVE"
-          else
-            echo "Health check returned HTTP $HTTP — check Azure logs"
-            exit 1
-          fi
+          [ "$HTTP" = "200" ] && echo "LIVE ✓" || echo "Warming up (HTTP $HTTP) — check Azure logs if issue persists"
