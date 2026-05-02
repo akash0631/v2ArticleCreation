@@ -6,6 +6,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "env": {
+    "VITE_API_BASE_URL": "https://v2-article-backend.azurewebsites.net/api",
     "VITE_APP_NAME": "AI Fashion Attribute Extractor",
     "VITE_APP_VERSION": "2.0.0-vlm",
     "VITE_MAX_FILE_SIZE": "15728640",
