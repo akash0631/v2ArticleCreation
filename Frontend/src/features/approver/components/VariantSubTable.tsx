@@ -286,6 +286,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
     onClose,
     onAdded,
 }) => {
+    const { message } = App.useApp();
     const [color, setColor] = useState('');
     const [saving, setSaving] = useState(false);
 

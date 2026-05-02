@@ -77,6 +77,7 @@ export interface ApproverItem {
     year: string | null;
     articleType: string | null;
     yarn1: string | null;
+    yarn2: string | null;
     weave: string | null;
     macroMvgr: string | null;
     mainMvgr: string | null;
