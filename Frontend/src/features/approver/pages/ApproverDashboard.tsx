@@ -499,6 +499,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
             // referenceArticleDescription is optional
             if (missing.length > 0) {
+                errors.push({
+                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
+                    missing,
+                });
+            }
+        }
+        return errors;
+    }, [pendingSelectedKeys, items]);
 
     const handleApprove = async () => {
         if (pendingSelectedKeys.length === 0) return;
@@ -523,6 +531,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
             // referenceArticleDescription is optional
+
+            if (missing.length > 0) {
+                errors.push({
+                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
+                    missing,
+                });
+            }
+        }
 
         if (errors.length > 0) {
             Modal.error({
