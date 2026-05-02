@@ -77,6 +77,15 @@ jobs:
           echo "Waiting for deployment to propagate..."
           sleep 120
 
+      - name: Register custom hostname
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          az webapp config hostname add \
+            --webapp-name v2-article-backend \
+            --resource-group dab-rg \
+            --hostname articlecreation.v2retail.net \
+            --subscription "$SUB" || echo "Hostname may already exist, continuing"
+
       - name: Restart and health check
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
