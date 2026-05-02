@@ -226,9 +226,11 @@ async function insertRow(row: SrmRow): Promise<void> {
     hsnTaxCode: flat.hsnTaxCode, segment: flat.segment,
   });
 
-  // Kids duplication + variant creation (fire-and-forget, same as watcher)
-  void duplicateForKidsDivision(flat.id);
-  void createVariantsForGeneric(flat.id);
+  // NOTE: Do NOT call duplicateForKidsDivision for SRM records.
+  // SRM provides the exact major category from the vendor — we must trust it as-is.
+  // Duplication would create spurious sibling records (e.g. YBW_... alongside JBW_...).
+  // Variant creation is also skipped: SRM records have no real images; variants with
+  // null imageUrl add noise without value.
 }
 
 /**
