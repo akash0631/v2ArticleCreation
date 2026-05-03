@@ -6,15 +6,11 @@
     "name": "Shubham Kushvanshi"
   },
   "license": "MIT",
-  "private": false,
+  "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/Kushvanshi-Shubham/ai-fashion-extractor.git"
+    "url": "https://github.com/uditmalik1998/Article-Creation.git"
   },
-  "bugs": {
-    "url": "https://github.com/Kushvanshi-Shubham/ai-fashion-extractor/issues"
-  },
-  "homepage": "https://kushvanshi-shubham.github.io/ai-fashion-extractor",
   "keywords": [
     "ai",
     "fashion",
@@ -74,7 +70,6 @@
     "eslint": "^9.35.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
-    "gh-pages": "^6.3.0",
     "globals": "^16.4.0",
     "postcss": "^8.5.6",
     "typescript": "~5.8.3",
