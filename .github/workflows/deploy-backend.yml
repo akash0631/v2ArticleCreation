@@ -98,6 +98,21 @@ jobs:
             echo "Log download failed or no logs available"
           fi
 
+      - name: Show domain verification ID (add TXT record in Cloudflare if hostname binding fails)
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          VERIFICATION_ID=$(az webapp show --name v2-article-backend --resource-group dab-rg \
+            --subscription "$SUB" --query customDomainVerificationId -o tsv 2>/dev/null || echo "FETCH_FAILED")
+          echo "======================================================"
+          echo "AZURE CUSTOM DOMAIN VERIFICATION ID: $VERIFICATION_ID"
+          echo "======================================================"
+          echo "Add this TXT record in Cloudflare DNS (if not already present):"
+          echo "  Type: TXT"
+          echo "  Name: asuid.articlecreation.v2retail.net"
+          echo "  Value: $VERIFICATION_ID"
+          echo "  TTL: Auto"
+          echo "======================================================"
+
       - name: Register custom hostnames
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
