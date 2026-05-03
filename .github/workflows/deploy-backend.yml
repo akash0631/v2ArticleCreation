@@ -76,8 +76,27 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip \
+            --src-path /tmp/v2-backend.zip --type zip --async true \
             --subscription "$SUB"
+          echo "Zip uploaded. Waiting 90s for app to start..."
+          sleep 90
+
+      - name: Capture startup logs
+        if: always()
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "=== Fetching Docker/startup logs ==="
+          az webapp log download --name v2-article-backend --resource-group dab-rg \
+            --subscription "$SUB" --log-file /tmp/app-logs.zip 2>&1 || true
+          if [ -f /tmp/app-logs.zip ]; then
+            unzip -q /tmp/app-logs.zip -d /tmp/app-logs/ 2>/dev/null || true
+            echo "--- Files in log zip ---"
+            find /tmp/app-logs -type f | head -20
+            echo "--- Last 80 lines of app log ---"
+            find /tmp/app-logs -name "*.log" | xargs grep -l "" 2>/dev/null | head -3 | xargs tail -n 80 2>/dev/null || echo "No logs found"
+          else
+            echo "Log download failed or no logs available"
+          fi
 
       - name: Register custom hostname
         run: |
