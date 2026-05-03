@@ -98,14 +98,16 @@ jobs:
             echo "Log download failed or no logs available"
           fi
 
-      - name: Register custom hostname
+      - name: Register custom hostnames
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          az webapp config hostname add \
-            --webapp-name v2-article-backend \
-            --resource-group dab-rg \
-            --hostname articlecreation.v2retail.net \
-            --subscription "$SUB" || echo "Hostname may already exist, continuing"
+          for HOSTNAME in articlecreation.v2retail.net articlecreationliveweb.v2retail.net; do
+            echo "Binding $HOSTNAME..."
+            az rest --method put \
+              --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/dab-rg/providers/Microsoft.Web/sites/v2-article-backend/hostNameBindings/$HOSTNAME?api-version=2023-01-01" \
+              --body "{\"properties\":{\"siteName\":\"v2-article-backend\",\"customHostNameDnsRecordType\":\"CName\",\"hostNameType\":\"Verified\",\"sslState\":\"Disabled\"}}" \
+              && echo "$HOSTNAME bound OK" || echo "$HOSTNAME binding failed (may already exist)"
+          done
 
       - name: Restart and health check
         run: |
