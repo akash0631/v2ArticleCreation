@@ -34,7 +34,7 @@ jobs:
             --startup-file "node --max-old-space-size=512 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
-            SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+            SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
             FRONTEND_URL=https://articlecreation.v2retail.net \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
@@ -73,10 +73,11 @@ jobs:
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
 
       - name: Deploy zip to Azure
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: v2-article-backend
-          package: /tmp/v2-backend.zip
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          az webapp deploy --name v2-article-backend --resource-group dab-rg \
+            --src-path /tmp/v2-backend.zip --type zip \
+            --subscription "$SUB"
 
       - name: Register custom hostname
         run: |
