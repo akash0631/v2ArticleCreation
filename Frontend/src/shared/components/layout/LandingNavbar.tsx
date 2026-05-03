@@ -76,9 +76,9 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({
         <div className="landing-navbar-container">
           {/* Logo */}
           <div className="landing-navbar-logo" onClick={() => navigate('/')}>
-            <RocketOutlined style={{ fontSize: '28px', color: colors.primary[500] }} />
+            <img src="/V2retail.png" alt="Logo" width={32} height={32} />
             <span className="landing-navbar-logo-text">
-              AI Fashion Extractor
+              Article Creation
             </span>
           </div>
 
@@ -136,7 +136,7 @@ export const LandingNavbar: React.FC<LandingNavbarProps> = ({
       <Drawer
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <RocketOutlined style={{ fontSize: '24px', color: colors.primary[500] }} />
+            <img src="/V2retail.png" alt="Logo" width={32} height={32} />
             <span style={{ fontWeight: 600 }}>Menu</span>
           </div>
         }

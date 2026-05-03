@@ -185,8 +185,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Header className="top-nav">
         <div className="top-nav-left">
           <div className="brand" onClick={() => navigate('/dashboard')}>
-            <GlobalOutlined />
-            <span>360 Article Creation</span>
+            <img src="/V2retail.png" alt="V2Retail" style={{ height: '28px', objectFit: 'contain' }} />
+            <span>Article Creation</span>
           </div>
 
           {!isLandingPage && !isMobile && (
