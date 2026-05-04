@@ -505,24 +505,38 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                 const text = value == null ? '' : String(value);
                 if (!text.trim()) return '-';
 
+                const isValidationError = text.startsWith('Validation failed');
+                const lines = text.split('\n').filter(Boolean);
+                const headerLine = lines[0];
+                const bulletLines = lines.slice(1);
+
                 return (
                     <div>
-                        <div
-                            title={text}
-                            style={{
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
-                                lineHeight: 1.3,
-                                maxHeight: 84,
-                                overflowY: 'auto'
-                            }}
-                        >
-                            {text}
-                        </div>
+                        {isValidationError ? (
+                            <div>
+                                <div style={{ color: '#cf1322', fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+                                    {headerLine}
+                                </div>
+                                {bulletLines.slice(0, 2).map((line, i) => (
+                                    <div key={i} style={{ fontSize: 11, color: '#595959', lineHeight: 1.4 }}>
+                                        {line}
+                                    </div>
+                                ))}
+                                {bulletLines.length > 2 && (
+                                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                                        +{bulletLines.length - 2} more…
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: 12, color: '#595959', lineHeight: 1.4 }}>
+                                {text}
+                            </div>
+                        )}
                         <Button
                             type="link"
                             size="small"
-                            style={{ padding: 0, height: 'auto', marginTop: 4 }}
+                            style={{ padding: 0, height: 'auto', marginTop: 4, fontSize: 11 }}
                             onClick={() => {
                                 setActiveRemarks(text);
                                 setRemarksModalOpen(true);
@@ -745,18 +759,51 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                 open={remarksModalOpen}
                 onCancel={() => setRemarksModalOpen(false)}
                 footer={null}
-                width={760}
+                width={640}
             >
-                <div
-                    style={{
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        maxHeight: '60vh',
-                        overflowY: 'auto'
-                    }}
-                >
-                    {activeRemarks || '-'}
-                </div>
+                {(() => {
+                    const text = activeRemarks || '';
+                    if (!text) return <span style={{ color: '#8c8c8c' }}>—</span>;
+                    if (!text.startsWith('Validation failed')) {
+                        return (
+                            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 13 }}>
+                                {text}
+                            </div>
+                        );
+                    }
+                    const lines = text.split('\n').filter(Boolean);
+                    const [header, ...bullets] = lines;
+                    return (
+                        <div>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                marginBottom: 16, padding: '8px 12px',
+                                background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 6
+                            }}>
+                                <span style={{ color: '#cf1322', fontSize: 16 }}>✕</span>
+                                <span style={{ color: '#cf1322', fontWeight: 600, fontSize: 13 }}>{header}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {bullets.map((line, i) => {
+                                    const clean = line.replace(/^•\s*/, '');
+                                    const colonIdx = clean.indexOf(':');
+                                    const field = colonIdx > -1 ? clean.slice(0, colonIdx) : clean;
+                                    const rest = colonIdx > -1 ? clean.slice(colonIdx + 1) : '';
+                                    return (
+                                        <div key={i} style={{
+                                            padding: '8px 12px',
+                                            background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6,
+                                            fontSize: 12, lineHeight: 1.5
+                                        }}>
+                                            <span style={{ fontWeight: 600, color: '#d46b08' }}>{field}</span>
+                                            <span style={{ color: '#595959' }}>:{rest}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })()}
             </Modal>
         </>
     );

@@ -1441,7 +1441,10 @@ export class ApproverController {
                 }
             });
 
+            console.log(`[APPROVE_DEBUG] approvedItems=${approvedItems.length}, ids=${approvedItems.map(i => i.id).join(',')}`);
+            approvedItems.forEach(i => console.log(`[APPROVE_DEBUG] id=${i.id} majorCategory="${i.majorCategory}" finish="${i.finish}"`));
             const syncResults = await syncArticlesToSapViaRfc(approvedItems);
+            console.log(`[APPROVE_DEBUG] syncResults=${JSON.stringify(syncResults)}`);
             const approvedItemById = new Map(approvedItems.map((item) => [item.id, item]));
 
             // Phase 1: Persist SAP article creation/sync outcome first.
