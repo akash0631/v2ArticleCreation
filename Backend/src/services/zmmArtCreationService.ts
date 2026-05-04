@@ -10,7 +10,16 @@
 
 import { SapSyncItemResult } from './sapSyncService';
 import majCatMandatory from '../data/maj-cat-mandatory.json';
-import majCatAttributeValues from '../data/maj-cat-attribute-values.json';
+
+// Lazy-loaded to avoid OOM on startup (4.92MB JSON → ~60MB parsed object)
+let _attrValues: Record<string, Record<string, string[]>> | null = null;
+function getAttrValues(): Record<string, Record<string, string[]>> {
+    if (_attrValues === null) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        _attrValues = require('../data/maj-cat-attribute-values.json') as Record<string, Record<string, string[]>>;
+    }
+    return _attrValues;
+}
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -198,8 +207,6 @@ const RFC_TO_EXCEL_COL: Record<string, string> = {
     PRICE_BAND_CATEGORY:  'SEGMENT',
 };
 
-const attrValues = majCatAttributeValues as Record<string, Record<string, string[]>>;
-
 /**
  * Returns the allowed values for an RFC field within a major category, or null
  * if no validation data is available (unknown field or unknown category).
@@ -207,7 +214,7 @@ const attrValues = majCatAttributeValues as Record<string, Record<string, string
 function getValidValues(majorCategory: string, rfcField: string): string[] | null {
     const col = RFC_TO_EXCEL_COL[rfcField];
     if (!col) return null;
-    const catData = attrValues[majorCategory];
+    const catData = getAttrValues()[majorCategory];
     if (!catData) return null;
     const values = catData[col];
     if (!Array.isArray(values) || values.length === 0) return null;
