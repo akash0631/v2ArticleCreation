@@ -602,7 +602,54 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     const payload = await response.json();
 
                     if (payload?.sapSync) {
-                        message.success(`Approved ${payload.count}. SAP sync: ${payload.sapSync.synced} synced, ${payload.sapSync.failed} failed.`);
+                        const { synced, failed, failures } = payload.sapSync;
+                        if (failed === 0) {
+                            message.success(`✅ Approved ${payload.count}. SAP sync: ${synced} synced successfully.`);
+                        } else if (synced === 0) {
+                            // All failed — show SAP error messages
+                            const hasDetails = failures && failures.length > 0;
+                            Modal.error({
+                                title: `SAP Sync Failed (${failed} article${failed > 1 ? 's' : ''})`,
+                                content: (
+                                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                                        {hasDetails
+                                            ? failures.map((f: { id: string; message: string }, i: number) => (
+                                                <div key={i} style={{ marginBottom: 8, padding: '6px 8px', background: '#fff1f0', borderRadius: 4, fontSize: 13 }}>
+                                                    <span style={{ color: '#cf1322' }}>{f.message}</span>
+                                                </div>
+                                            ))
+                                            : (
+                                                <div style={{ padding: '6px 8px', background: '#fff1f0', borderRadius: 4, fontSize: 13, color: '#cf1322' }}>
+                                                    SAP rejected the article. Check the <strong>⚠ SAP Error</strong> banner on the article card below for the exact reason.
+                                                </div>
+                                            )
+                                        }
+                                        <div style={{ marginTop: 12, color: '#666', fontSize: 12 }}>
+                                            Please fix the highlighted field{failed > 1 ? 's' : ''} and try approving again.
+                                        </div>
+                                    </div>
+                                ),
+                                width: 520,
+                            });
+                        } else {
+                            // Partial success
+                            message.warning(`Approved ${synced} articles. ${failed} failed SAP sync.`);
+                            if (failures && failures.length > 0) {
+                                Modal.warning({
+                                    title: `${failed} Article${failed > 1 ? 's' : ''} Failed SAP Sync`,
+                                    content: (
+                                        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                                            {failures.map((f: { id: string; message: string }, i: number) => (
+                                                <div key={i} style={{ marginBottom: 8, padding: '6px 8px', background: '#fffbe6', borderRadius: 4, fontSize: 13 }}>
+                                                    <span style={{ color: '#d46b08' }}>{f.message}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ),
+                                    width: 520,
+                                });
+                            }
+                        }
                     } else {
                         message.success('Items approved successfully');
                     }

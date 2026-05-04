@@ -454,6 +454,13 @@ const ArticleCard = React.memo(({
             <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Header: 6 info fields horizontal, then attributes below */}
                 <div style={{ padding: '6px 12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    {/* SAP sync failure banner — shown inline so user knows exactly what to fix */}
+                    {item.sapSyncStatus === 'FAILED' && item.sapSyncMessage && (
+                        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 4, padding: '4px 8px', marginBottom: 6, fontSize: 12, color: '#cf1322', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                            <span style={{ fontWeight: 600, flexShrink: 0 }}>⚠ SAP Error:</span>
+                            <span>{item.sapSyncMessage}</span>
+                        </div>
+                    )}
                     {/* Status + division on the same top line, right-aligned */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <Tag style={{ fontSize: 10, lineHeight: '16px', padding: '0 6px', margin: 0, background: status.color + '22', color: status.color, border: `1px solid ${status.color}44` }}>
