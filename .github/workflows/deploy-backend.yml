@@ -36,6 +36,7 @@ jobs:
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
             SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
             FRONTEND_URL=https://articlecreation.v2retail.net \
+            STARTUP_BACKFILLS_ENABLED=false \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "DIRECT_URL=${{ secrets.DIRECT_URL }}" \
