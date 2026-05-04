@@ -10,6 +10,7 @@ import {
   HistoryOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -64,6 +65,11 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
           key: '/approver/rejected',
           icon: <CloseCircleOutlined />,
           label: <Link to="/approver/rejected">Rejected Articles</Link>,
+        },
+        {
+          key: '/approver/created',
+          icon: <CheckCircleOutlined />,
+          label: <Link to="/approver/created">Created</Link>,
         },
       ],
     }] : []),

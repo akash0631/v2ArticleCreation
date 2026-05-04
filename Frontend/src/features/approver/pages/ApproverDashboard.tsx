@@ -177,7 +177,7 @@ const ATTRIBUTE_FIELDS: { formName: string; label: string; schemaKey: string }[]
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-    pathType?: 'old' | 'new' | 'rejected';
+    pathType?: 'old' | 'new' | 'rejected' | 'created';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
@@ -268,7 +268,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             const params = new URLSearchParams();
             params.set('page', String(page));
             params.set('limit', String(PAGE_SIZE));
-            params.set('status', statusFilter);
+            // Enforce correct status per page type — never let search return wrong-status articles
+            const effectiveStatus = pathType === 'new' ? 'PENDING'
+                : pathType === 'rejected' ? 'REJECTED'
+                : pathType === 'created' ? 'APPROVED'
+                : statusFilter;
+            params.set('status', effectiveStatus);
             if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
             if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
             if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
@@ -298,6 +303,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     }, [statusFilter, divisionFilter, subDivisionFilter, searchText, dateRangeFilter, pathType]);
 
     useEffect(() => { fetchAttributes(); }, [fetchAttributes]);
+
+    // Lock status filter to APPROVED on the Created page
+    useEffect(() => {
+        if (pathType === 'created') setStatusFilter('APPROVED');
+    }, [pathType]);
 
     // Preload DB attribute values (division-scoped) whenever editing item changes
     useEffect(() => {
@@ -407,7 +417,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         try {
             const token = localStorage.getItem('authToken');
             const params = new URLSearchParams();
-            params.set('status', statusFilter);
+            const effectiveStatus = pathType === 'new' ? 'PENDING'
+                : pathType === 'rejected' ? 'REJECTED'
+                : pathType === 'created' ? 'APPROVED'
+                : statusFilter;
+            params.set('status', effectiveStatus);
             if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
             if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
             if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
@@ -1058,7 +1072,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 background: 'linear-gradient(180deg, #6366f1, #a78bfa)',
                             }} />
                             <span style={{ fontWeight: 700, fontSize: 15, color: '#1e1b4b' }}>
-                                {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : 'Approver Dashboard'}
+                                {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : pathType === 'created' ? 'Created Articles' : 'Approver Dashboard'}
                             </span>
                             {user?.division && (
                                 <span style={{
@@ -1086,7 +1100,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                     onClear={() => setSearchText('')}
                                 />
                             </Col>
-                            {pathType !== 'rejected' && (
+                            {pathType !== 'rejected' && pathType !== 'created' && pathType !== 'new' && (
                             <Col xs={12} sm={6} md={4}>
                                 <Select style={{ width: '100%' }} value={statusFilter} onChange={(val) => setStatusFilter(val)}>
                                     <Option value="ALL">All Statuses</Option>
