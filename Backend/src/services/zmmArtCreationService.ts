@@ -9,6 +9,7 @@
  */
 
 import { SapSyncItemResult } from './sapSyncService';
+import majCatMandatory from '../data/maj-cat-mandatory.json';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,27 @@ const MANDATORY: Array<{ flat: string; label: string }> = [
     { flat: 'impAtrbt2',     label: 'Important Attribute (M_MAIN_MVGR)' },
 ];
 
+// ─── Mandatory-field lookup by major category ─────────────────────────────────
+
+const mandatoryData = majCatMandatory as Record<string, string[]>;
+
+/**
+ * Returns the set of RFC field names that are mandatory for a given major category.
+ * Tries exact match first, then case-insensitive. Returns null if category unknown
+ * (caller should fall back to sending all non-empty fields).
+ */
+function getMandatoryRfcFields(majorCategory: string | null | undefined): Set<string> | null {
+    if (!majorCategory) return null;
+    const exact = mandatoryData[majorCategory];
+    if (exact) return new Set(exact);
+    // Case-insensitive fallback
+    const upper = majorCategory.trim().toUpperCase();
+    for (const [key, fields] of Object.entries(mandatoryData)) {
+        if (key.toUpperCase() === upper) return new Set(fields);
+    }
+    return null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const toStr = (v: unknown): string => {
@@ -146,16 +168,32 @@ const toStr = (v: unknown): string => {
 
 /**
  * Build the JSON body for ZMM_ART_CREATION_RFC.
- * All RFC_ALWAYS_INCLUDE fields are present; remaining fields are included
- * only when non-empty to keep the payload clean.
+ * - RFC_ALWAYS_INCLUDE fields are always present (even empty).
+ * - Optional fields are only included when they are BOTH non-empty AND listed
+ *   as mandatory for the article's major category. This prevents AI-extracted
+ *   values for irrelevant attributes (e.g. M_FINISH for a category where finish
+ *   is not applicable) from being sent to SAP and causing validation errors.
+ * - If the major category is unknown (not in the mandatory map), all non-empty
+ *   fields are included as before (safe fallback).
  */
 function buildRfcPayload(item: FlatItem): Record<string, string> {
     const payload: Record<string, string> = {};
+    const mandatoryRfcFields = getMandatoryRfcFields(item.majorCategory as string | null);
+    const categoryKnown = mandatoryRfcFields !== null;
 
     for (const { rfc, flat } of FLAT_TO_RFC) {
         const val = toStr(item[flat]);
-        if (val || RFC_ALWAYS_INCLUDE.has(rfc)) {
+
+        if (RFC_ALWAYS_INCLUDE.has(rfc)) {
+            // Always include header fields (even empty)
             payload[rfc] = val;
+        } else if (val) {
+            // Only include optional fields if:
+            // - Category unknown (safe fallback: send everything non-empty)
+            // - OR field is explicitly mandatory for this category
+            if (!categoryKnown || mandatoryRfcFields!.has(rfc)) {
+                payload[rfc] = val;
+            }
         }
     }
 
