@@ -703,18 +703,24 @@ export class ApproverController {
                 if (pathType === 'old') {
                     where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
                 } else {
+                    // 'new' — only PENDING articles, excluding old-path articles
                     if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
-                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
+                    // Set at TOP LEVEL (not just AND) so search can never bypass it
+                    where.approvalStatus = ApprovalStatus.PENDING;
                 }
             } else if (pathType === 'rejected') {
+                where.approvalStatus = ApprovalStatus.REJECTED;
+            } else if (pathType === 'created') {
+                const oldIds = await ApproverController.getOldArticleIds();
                 where.AND = where.AND || [];
-                where.AND.push({ approvalStatus: ApprovalStatus.REJECTED });
+                if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                where.approvalStatus = ApprovalStatus.APPROVED;
             }
 
             // Status Filtering (Multi-select support)
             // Supports virtual FAILED status mapped from sapSyncStatus=FAILED.
-            // Skip status filter when pathType forces a specific status (rejected view).
-            if (status && status !== 'ALL' && pathType !== 'rejected') {
+            // Skip status filter when pathType already forces a specific status.
+            if (status && status !== 'ALL' && !pathType) {
                 const requestedStatuses = (status as string)
                     .split(',')
                     .map(s => String(s || '').trim().toUpperCase())
@@ -756,16 +762,20 @@ export class ApproverController {
                 };
             }
 
-            // Text Search
+            // Text Search — pushed into AND so it never overrides path/status filters
             if (search) {
                 const searchTerm = search as string;
-                where.OR = [
-                    { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { designNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { vendorName: { contains: searchTerm, mode: 'insensitive' } },
-                    { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } }
-                ];
+                where.AND = where.AND || [];
+                where.AND.push({
+                    OR: [
+                        { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { designNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorCode: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorName: { contains: searchTerm, mode: 'insensitive' } },
+                        { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                    ],
+                });
             }
 
             // Major category filter
@@ -776,43 +786,19 @@ export class ApproverController {
 
             const skip = (Number(page) - 1) * Number(limit);
 
-            // ── Count: NEVER block the response on it ─────────────────────────────
-            // COUNT(*) is a full table scan — it starves the connection pool under
-            // concurrent load. Strategy: serve a cached value instantly; if nothing
-            // is cached yet, kick off a background query and return a best-effort
-            // estimate so this response goes out immediately using only ONE connection.
+            // ── Count: serve from cache instantly; fetch synchronously on cache miss ──
+            // On the first request for a given filter, run COUNT and findMany in parallel
+            // so the response always shows the real total (not a placeholder).
+            // The 60-second cache means subsequent requests pay no extra cost.
             const whereKey = JSON.stringify(where);
             const cachedCount = ApproverController.countCache.get(whereKey);
             let total: number;
-            if (cachedCount && cachedCount.expiresAt > Date.now()) {
-                total = cachedCount.value;
-            } else {
-                // Placeholder while background count runs: just enough to show the
-                // NEXT page button. Real total arrives before user reaches page 2.
-                // Will be corrected after findMany (last-page detection below).
-                total = skip + Number(limit) + 1;
-                void prisma.extractionResultFlat.count({ where }).then((n) => {
-                    ApproverController.countCache.set(whereKey, {
-                        value: n,
-                        expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
-                    });
-                    // Also bust the response cache so the next load shows the real total.
-                    ApproverController.itemsCache.clear();
-                    if (ApproverController.countCache.size > 500) {
-                        const now = Date.now();
-                        for (const [k, v] of ApproverController.countCache) {
-                            if (v.expiresAt <= now) ApproverController.countCache.delete(k);
-                        }
-                    }
-                }).catch(() => { /* non-critical */ });
-            }
 
-            // Only ONE connection used: just the findMany (LIMIT 50).
-            const items = await prisma.extractionResultFlat.findMany({
+            const findManyArgs = {
                 where,
                 skip,
                 take: Number(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy: { createdAt: 'desc' as const },
                 select: {
                     id: true,
                     imageName: true,
@@ -916,7 +902,34 @@ export class ApproverController {
                     variantSize: true,
                     variantColor: true,
                 }
-            });
+            };
+
+            let items: any[];
+            if (cachedCount && cachedCount.expiresAt > Date.now()) {
+                // Cache hit — total is known; only one DB query needed
+                total = cachedCount.value;
+                items = await prisma.extractionResultFlat.findMany(findManyArgs);
+            } else {
+                // Cache miss — run findMany + COUNT in parallel so first load shows real total
+                const [fetchedItems, countResult] = await Promise.all([
+                    prisma.extractionResultFlat.findMany(findManyArgs),
+                    prisma.extractionResultFlat.count({ where }),
+                ]);
+                items = fetchedItems;
+                total = countResult;
+                ApproverController.countCache.set(whereKey, {
+                    value: total,
+                    expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
+                });
+                // Evict expired count cache entries periodically
+                if (ApproverController.countCache.size > 500) {
+                    const now = Date.now();
+                    for (const [k, v] of ApproverController.countCache) {
+                        if (v.expiresAt <= now) ApproverController.countCache.delete(k);
+                    }
+                }
+            }
+
             // Last-page detection: if fewer rows returned than limit, we know the exact total.
             if (items.length < Number(limit)) {
                 total = skip + items.length;
@@ -979,8 +992,13 @@ export class ApproverController {
                     if (oldIds.length > 0) {
                         where.AND.push({ id: { notIn: oldIds } });
                     }
-                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
+                    where.AND.push({ approvalStatus: ApprovalStatus.PENDING });
                 }
+            } else if (pathType === 'created') {
+                const oldIds = await ApproverController.getOldArticleIds();
+                where.AND = where.AND || [];
+                if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                where.AND.push({ approvalStatus: ApprovalStatus.APPROVED });
             }
 
             // Status filter
@@ -1023,16 +1041,20 @@ export class ApproverController {
                 };
             }
 
-            // Text search
+            // Text search — pushed into AND so it never overrides path/status filters
             if (search) {
                 const searchTerm = search as string;
-                where.OR = [
-                    { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { designNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { vendorName: { contains: searchTerm, mode: 'insensitive' } },
-                    { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } }
-                ];
+                where.AND = where.AND || [];
+                where.AND.push({
+                    OR: [
+                        { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { designNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorCode: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorName: { contains: searchTerm, mode: 'insensitive' } },
+                        { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                    ],
+                });
             }
 
             // Major category filter
@@ -1101,10 +1123,6 @@ export class ApproverController {
         try {
             const { id } = req.params;
             const rawData = req.body;
-            // TEMP DEBUG: log impAtrbt2 flow
-            if (rawData.impAtrbt2 !== undefined) {
-                console.log(`[updateItem] impAtrbt2 received in body: "${rawData.impAtrbt2}" for id=${id}`);
-            }
 
             // Whitelist allowed fields to prevent overwriting metadata
             // and sanitize types
@@ -1330,11 +1348,6 @@ export class ApproverController {
                 descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
             }
             data.articleDescription = buildArticleDescription(descriptionSource);
-
-            // TEMP DEBUG
-            console.log(`[updateItem] Final data keys being saved: ${Object.keys(data).join(', ')}`);
-            if ('impAtrbt2' in data) console.log(`[updateItem] impAtrbt2 in final data: "${data.impAtrbt2}"`);
-            else console.log(`[updateItem] impAtrbt2 NOT in final data — was dropped somewhere`);
 
             const updated = await prisma.extractionResultFlat.update({
                 where: { id },

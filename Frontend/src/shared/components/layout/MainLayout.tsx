@@ -15,6 +15,7 @@ import {
   HistoryOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
@@ -109,6 +110,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           { key: '/approver', icon: <FileOutlined />, label: 'New Articles' },
           { key: '/approver/old-articles', icon: <HistoryOutlined />, label: 'Old Articles' },
           { key: '/approver/rejected', icon: <CloseCircleOutlined />, label: 'Rejected Articles' },
+          { key: '/approver/created', icon: <CheckCircleOutlined />, label: 'Created' },
         ],
       },
     ];
@@ -185,8 +187,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Header className="top-nav">
         <div className="top-nav-left">
           <div className="brand" onClick={() => navigate('/dashboard')}>
-            <GlobalOutlined />
-            <span>360 Article Creation</span>
+            <img src="/V2retail.png" alt="V2Retail" style={{ height: '28px', objectFit: 'contain' }} />
+            <span>Article Creation</span>
           </div>
 
           {!isLandingPage && !isMobile && (

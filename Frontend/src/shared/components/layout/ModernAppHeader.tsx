@@ -12,7 +12,7 @@ interface ModernAppHeaderProps {
 }
 
 export default function ModernAppHeader({ 
-  title = 'AI Fashion Extractor',
+  title = 'Article Creation',
   user,
   onLogout 
 }: ModernAppHeaderProps) {
@@ -56,7 +56,8 @@ export default function ModernAppHeader({
         justifyContent: 'space-between'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <img src="/V2retail.png" alt="V2Retail" style={{ height: '32px', objectFit: 'contain' }} />
         <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>
           {title}
         </h1>
