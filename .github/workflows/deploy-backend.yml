@@ -31,7 +31,7 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp config set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" \
-            --startup-file "node --max-old-space-size=512 dist/index.js" --linux-fx-version "NODE|22-lts"
+            --startup-file "node --max-old-space-size=2048 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
             SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
@@ -76,10 +76,10 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip --async true \
+            --src-path /tmp/v2-backend.zip --type zip \
             --subscription "$SUB"
-          echo "Zip uploaded. Waiting 90s for app to start..."
-          sleep 90
+          echo "Deployment complete (synchronous). Waiting 60s for app to start..."
+          sleep 60
 
       - name: Capture startup logs
         if: always()
@@ -98,21 +98,37 @@ jobs:
             echo "Log download failed or no logs available"
           fi
 
-      - name: Register custom hostname
+      - name: Show domain verification ID (add TXT record in Cloudflare if hostname binding fails)
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          az webapp config hostname add \
-            --webapp-name v2-article-backend \
-            --resource-group dab-rg \
-            --hostname articlecreation.v2retail.net \
-            --subscription "$SUB" || echo "Hostname may already exist, continuing"
+          VERIFICATION_ID=$(az webapp show --name v2-article-backend --resource-group dab-rg \
+            --subscription "$SUB" --query customDomainVerificationId -o tsv 2>/dev/null || echo "FETCH_FAILED")
+          echo "======================================================"
+          echo "AZURE CUSTOM DOMAIN VERIFICATION ID: $VERIFICATION_ID"
+          echo "======================================================"
+          echo "Add this TXT record in Cloudflare DNS (if not already present):"
+          echo "  Type: TXT"
+          echo "  Name: asuid.articlecreation.v2retail.net"
+          echo "  Value: $VERIFICATION_ID"
+          echo "  TTL: Auto"
+          echo "======================================================"
 
-      - name: Restart and health check
+      - name: Register custom hostnames
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
-          echo "Waiting 60s for app to start..."
-          sleep 60
+          for HOSTNAME in articlecreation.v2retail.net articlecreationliveweb.v2retail.net; do
+            echo "Binding $HOSTNAME..."
+            az webapp config hostname add \
+              --webapp-name v2-article-backend \
+              --resource-group dab-rg \
+              --hostname "$HOSTNAME" \
+              --subscription "$SUB" \
+              && echo "$HOSTNAME bound OK" \
+              || echo "$HOSTNAME binding failed — may need TXT record asuid.$HOSTNAME in Cloudflare DNS"
+          done
+
+      - name: Health check
+        run: |
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://articlecreation.v2retail.net || echo 000)
           echo "Health check: $HTTP"
           [ "$HTTP" = "200" ] && echo "LIVE ✓" || echo "Warming up (HTTP $HTTP) — check Azure logs if issue persists"

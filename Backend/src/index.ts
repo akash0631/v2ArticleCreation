@@ -270,7 +270,8 @@ app.get('/', async (req, res) => {
 
 // SPA catch-all: all non-API routes serve index.html so React Router works
 if (isProduction) {
-  app.get('*', (req, res) => {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
     res.sendFile(path.join(__dirname, '../public/index.html'));
   });
 }
