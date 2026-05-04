@@ -15,6 +15,7 @@ import {
   HistoryOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
@@ -109,6 +110,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           { key: '/approver', icon: <FileOutlined />, label: 'New Articles' },
           { key: '/approver/old-articles', icon: <HistoryOutlined />, label: 'Old Articles' },
           { key: '/approver/rejected', icon: <CloseCircleOutlined />, label: 'Rejected Articles' },
+          { key: '/approver/created', icon: <CheckCircleOutlined />, label: 'Created' },
         ],
       },
     ];

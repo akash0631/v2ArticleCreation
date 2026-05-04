@@ -381,7 +381,6 @@ const ArticleCard = React.memo(({
     };
 
     const handleSave = (field: string, value: string | null) => {
-        console.log(`[handleSave] field="${field}" value="${value}" itemId=${item.id}`);
         const updates: Record<string, string | null> = { [field]: value };
         if (field === 'rate') {
             const rate = parseFloat(String(value ?? ''));

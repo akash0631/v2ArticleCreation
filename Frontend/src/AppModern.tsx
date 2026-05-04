@@ -249,6 +249,16 @@ const App: React.FC = () => {
                   </ApproverRoute>
                 }
               />
+              <Route
+                path="/approver/created"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ApproverDashboard key="created-articles" pathType="created" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
 
               {/* PO Presentation */}
               <Route
