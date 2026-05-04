@@ -970,7 +970,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
         const visibleFields = ATTRIBUTE_FIELDS.filter(field => {
             if (!majorCat) return true; // no major category yet → show all so user can fill in
-            // Only show fields that are mandatory for this category AND have dropdown values
+            // Always show fields that already have a value (even if not mandatory) so user can clear bad values
+            const currentValue = editingItem?.[field.formName as keyof typeof editingItem];
+            if (currentValue) return true;
+            // Show mandatory fields that have dropdown values
             if (!mandatoryKeys.has(field.schemaKey)) return false;
             const values = getMajCatAllowedValues(division, field.schemaKey);
             return values !== null;
