@@ -66,11 +66,12 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/' || req.path === '/api/health'
 });
 
-// Approver API rate limiter (more lenient for edit-on-card functionality)
-// Allows up to 500 requests per 15 minutes (debounced to ~300-400 in practice due to 800ms delay)
+// Approver API rate limiter — generous limit per user per 15-min window.
+// Multiple users share an office NAT IP so the bucket must be large enough
+// for concurrent multi-user usage (each page load = 2–3 API calls).
 const approverLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
-  max: 500,
+  max: parseInt(process.env.APPROVER_RATE_LIMIT_MAX || '5000', 10),
   message: {
     success: false,
     error: '⚠️ Too many requests. Please wait a moment before making more changes.',
