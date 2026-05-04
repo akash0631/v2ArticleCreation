@@ -76,10 +76,10 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip --async true \
+            --src-path /tmp/v2-backend.zip --type zip \
             --subscription "$SUB"
-          echo "Zip uploaded. Waiting 90s for app to start..."
-          sleep 90
+          echo "Deployment complete (synchronous). Waiting 60s for app to start..."
+          sleep 60
 
       - name: Capture startup logs
         if: always()
@@ -124,12 +124,8 @@ jobs:
               && echo "$HOSTNAME bound OK" || echo "$HOSTNAME binding failed (may already exist)"
           done
 
-      - name: Restart and health check
+      - name: Health check
         run: |
-          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
-          echo "Waiting 60s for app to start..."
-          sleep 60
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://articlecreation.v2retail.net || echo 000)
           echo "Health check: $HTTP"
           [ "$HTTP" = "200" ] && echo "LIVE ✓" || echo "Warming up (HTTP $HTTP) — check Azure logs if issue persists"
