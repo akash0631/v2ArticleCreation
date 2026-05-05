@@ -43,11 +43,12 @@ export class GoogleVisionProvider implements VLMProvider {
     }
 
     try {
+      const imageData = await this.resolveImageToBase64(request.image);
       const prompt = this.buildPrompt(request);
       let response: Awaited<ReturnType<typeof this.callGeminiVision>> | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          response = await this.callGeminiVision(request.image, prompt);
+          response = await this.callGeminiVision(imageData, prompt);
           break;
         } catch (err: any) {
           console.warn(`Gemini extraction attempt ${attempt}/3 failed: ${err?.message}`);
@@ -92,6 +93,20 @@ export class GoogleVisionProvider implements VLMProvider {
   async configure(config: Partial<GoogleVisionConfig>): Promise<void> {
     this.config = { ...this.config, ...config };
     this.initializeClient();
+  }
+
+  private async resolveImageToBase64(imageData: string): Promise<string> {
+    if (!imageData.startsWith('http://') && !imageData.startsWith('https://')) {
+      return imageData; // already base64 — pass through unchanged
+    }
+    const response = await fetch(imageData);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image from URL ${imageData}: ${response.status} ${response.statusText}`);
+    }
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const mimeType = contentType.split(';')[0].trim();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
   }
 
   private buildPrompt(request: FashionExtractionRequest): string {
