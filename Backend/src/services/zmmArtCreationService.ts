@@ -10,15 +10,28 @@
 
 import { SapSyncItemResult } from './sapSyncService';
 import majCatMandatory from '../data/maj-cat-mandatory.json';
+import { PrismaClient } from '../generated/prisma';
 
-// Lazy-loaded to avoid OOM on startup (4.92MB JSON → ~60MB parsed object)
-let _attrValues: Record<string, Record<string, string[]>> | null = null;
-function getAttrValues(): Record<string, Record<string, string[]>> {
-    if (_attrValues === null) {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        _attrValues = require('../data/maj-cat-attribute-values.json') as Record<string, Record<string, string[]>>;
+const prisma = new PrismaClient();
+
+// Division-scoped cache: 'MENS' | 'LADIES' | 'KIDS' → { dbField → string[] }
+const _dbValuesCache = new Map<string, Record<string, string[]>>();
+
+async function getDbValues(division: string): Promise<Record<string, string[]>> {
+    const div = division.trim().toUpperCase();
+    if (_dbValuesCache.has(div)) return _dbValuesCache.get(div)!;
+    const rows = await prisma.sapAttributeValue.findMany({
+        where: { majorCategory: div, isActive: true },
+        select: { value: true, fieldConfig: { select: { dbField: true } } },
+    });
+    const grouped: Record<string, string[]> = {};
+    for (const row of rows) {
+        const key = row.fieldConfig.dbField;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(row.value);
     }
-    return _attrValues;
+    _dbValuesCache.set(div, grouped);
+    return grouped;
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -78,8 +91,8 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     // Body
     { rfc: 'M_COLLAR',              flat: 'collar' },
     { rfc: 'M_COLLAR_STYLE',        flat: 'collarStyle' },
-    { rfc: 'M_NECK_BAND',           flat: 'neck' },
-    { rfc: 'M_NECK_BAND_STYLE',     flat: 'neckDetails' },
+    { rfc: 'M_NECK_TYPE',            flat: 'neck' },
+    { rfc: 'M_NECK_STYLE',          flat: 'neckDetails' },
     { rfc: 'M_PLACKET',             flat: 'placket' },
     { rfc: 'M_BLT_MAIN_STYLE',      flat: 'fatherBelt' },
     { rfc: 'M_SUB_STYLE_BLT',       flat: 'childBelt' },
@@ -164,88 +177,84 @@ function getMandatoryRfcFields(majorCategory: string | null | undefined): Set<st
 
 // ─── Value validation against allowed values ──────────────────────────────────
 
-// Maps RFC field name → column key in maj-cat-attribute-values.json
-const RFC_TO_EXCEL_COL: Record<string, string> = {
-    M_FAB:                'F_WEAVE_01',
-    M_FAB2:               'F_WEAVE_02',
-    M_YARN:               'F_YARN',
-    M_FINISH:             'F_FINISH',
-    M_COMPOSITION:        'F_COMP',
-    M_LYCRA:              'F_STRETCH',
-    M_GSM:                'F_GSM_GLM',
-    M_WEAVE_2:            'F_FABRIC MAIN MVGR-02',
-    M_COLLAR:             'COLLAR TYPE',
-    M_COLLAR_STYLE:       'COLLAR STYLE',
-    M_POCKET:             'POCKET TYPE',
-    M_PLACKET:            'PLACKET',
-    M_BTM_FOLD:           'BOTTOM FOLD',
-    M_NECK_BAND:          'NECK TYPE',
-    M_NECK_BAND_STYLE:    'NECK STYLE',
-    M_SLEEVES_MAIN_STYLE: 'SLEEVE',
-    M_SLEEVE_FOLD:        'SLEEVE FOLD',
-    M_FIT:                'FIT',
-    M_PATTERN:            'BODY STYLE',
-    M_LENGTH:             'LENGTH',
-    M_DC_SUB_STYLE:       'DC_TYPE',
-    M_DC_SHAPE:           'DC_SHAPE',
-    M_BTN_MAIN_MVGR:      'BTN_TYPE',
-    M_BTN_CLR:            'BTN_CLR',
-    M_ZIP:                'ZIP_TYPE',
-    M_ZIP_COL:            'ZIP_CLR',
-    M_PATCH_TYPE:         'PATCH_TYPE',
-    M_PATCHES:            'PATCH_STYLE',
-    M_HTRF_TYPE:          'HTRF_TYPE',
-    M_HTRF_STYLE:         'HTRF_STYLE',
-    M_EMBROIDERY:         'EMB_STYLE',
-    M_EMB_TYPE:           'EMB_TYPE',
-    M_EMB_PLACEMENT:      'EMB_PLACEMENT',
-    M_PRINT_TYPE:         'PRT_TYPE',
-    M_PRINT_PLACEMENT:    'PRT_PLCMNT',
-    M_PRINT_STYLE:        'PRT_STYLE',
-    M_WASH:               'WASH',
-    M_AGE_GROUP:          'AGE GROUP',
-    PRICE_BAND_CATEGORY:  'SEGMENT',
+// Maps RFC field name → DB field name in sap_attribute_value table
+const RFC_TO_DB_FIELD: Record<string, string> = {
+    M_FAB:                'weave',
+    M_FAB2:               'mFab2',
+    M_YARN:               'yarn1',
+    M_FINISH:             'finish',
+    M_COMPOSITION:        'composition',
+    M_LYCRA:              'lycra',
+    M_GSM:                'gsm',
+    M_WEAVE_2:            'fabricMainMvgr',
+    M_COLLAR:             'collar',
+    M_COLLAR_TYPE:        'collar',
+    M_COLLAR_STYLE:       'collarStyle',
+    M_POCKET:             'pocketType',
+    M_PLACKET:            'placket',
+    M_BTM_FOLD:           'bottomFold',
+    M_NECK_TYPE:          'neck',
+    M_NECK_BAND:          'neck',           // legacy alias
+    M_NECK_STYLE:         'neckDetails',
+    M_NECK_BAND_STYLE:    'neckDetails',    // legacy alias
+    M_SLEEVES_MAIN_STYLE: 'sleeve',
+    M_SLEEVE_FOLD:        'sleeveFold',
+    M_FIT:                'fit',
+    M_PATTERN:            'bodyStyle',
+    M_LENGTH:             'length',
+    M_DC_SUB_STYLE:       'drawcord',
+    M_DC_STYLE:           'drawcord',
+    M_DC_SHAPE:           'dcShape',
+    M_BTN_MAIN_MVGR:      'button',
+    M_BTN_TYPE:           'button',
+    M_BTN_CLR:            'btnColour',
+    M_ZIP:                'zipper',
+    M_ZIP_TYPE:           'zipper',
+    M_ZIP_COL:            'zipColour',
+    M_PATCH_TYPE:         'patchesType',
+    M_PATCHES:            'patches',
+    M_PATCH_STYLE:        'patches',
+    M_PATCHE_TYPE:        'patchesType',
+    M_HTRF_TYPE:          'htrfType',
+    M_HTRF_STYLE:         'htrfStyle',
+    M_EMBROIDERY:         'embroidery',
+    M_EMB_TYPE:           'embroideryType',
+    M_EMB_PLACEMENT:      'embPlacement',
+    M_PRINT_TYPE:         'printType',
+    M_PRINT_PLACEMENT:    'printPlacement',
+    M_PRINT_STYLE:        'printStyle',
+    M_WASH:               'wash',
+    M_AGE_GROUP:          'ageGroup',
+    PRICE_BAND_CATEGORY:  'segment',
 };
 
 /**
- * Returns the allowed values for an RFC field within a major category, or null
- * if no validation data is available (unknown field or unknown category).
- */
-function getValidValues(majorCategory: string, rfcField: string): string[] | null {
-    const col = RFC_TO_EXCEL_COL[rfcField];
-    if (!col) return null;
-    const catData = getAttrValues()[majorCategory];
-    if (!catData) return null;
-    const values = catData[col];
-    if (!Array.isArray(values) || values.length === 0) return null;
-    // Skip columns whose only allowed "value" is the placeholder dash
-    if (values.length === 1 && values[0] === '-') return null;
-    return values;
-}
-
-/**
  * Validates all field values in a built RFC payload against the allowed values
- * for the article's major category.
+ * from the DB (sap_attribute_value), scoped to the article's division.
  * Returns an array of human-readable error strings (empty = all OK).
  */
-function validatePayloadValues(
-    majorCategory: string,
+async function validatePayloadValues(
+    division: string,
     payload: Record<string, string>
-): string[] {
+): Promise<string[]> {
     const errors: string[] = [];
+    const dbValues = await getDbValues(division);
+
     for (const [rfcField, value] of Object.entries(payload)) {
         if (!value) continue;
         if (RFC_ALWAYS_INCLUDE.has(rfcField)) continue;
-        const validValues = getValidValues(majorCategory, rfcField);
-        if (validValues === null) continue;
+        const dbField = RFC_TO_DB_FIELD[rfcField];
+        if (!dbField) continue;
+        const validValues = dbValues[dbField];
+        if (!validValues || validValues.length === 0) continue;
+        if (validValues.length === 1 && validValues[0] === '-') continue;
         const upperVal = value.toUpperCase();
         const isValid = validValues.some(v => v.toUpperCase() === upperVal);
         if (!isValid) {
-            const colName = RFC_TO_EXCEL_COL[rfcField] ?? rfcField;
             const MAX_SHOW = 5;
             const shown = validValues.slice(0, MAX_SHOW).join(', ');
             const extra = validValues.length > MAX_SHOW ? ` … +${validValues.length - MAX_SHOW} more` : '';
-            errors.push(`• ${colName}: "${value}" is not valid — expected: ${shown}${extra}`);
+            errors.push(`• ${rfcField}: "${value}" is not valid — expected: ${shown}${extra}`);
         }
     }
     return errors;
@@ -409,8 +418,9 @@ export async function syncArticlesToSapViaRfc(
 
         // ── 3. Pre-validate field values against allowed values ───────────────
         const majorCat = toStr(item.majorCategory as string | null);
+        const division = toStr(item.division as string | null) || 'MENS';
         if (majorCat) {
-            const valErrors = validatePayloadValues(majorCat, payload);
+            const valErrors = await validatePayloadValues(division, payload);
             if (valErrors.length > 0) {
                 console.warn(`[ZMM_RFC] ❌ Pre-validation failed for flat_id=${item.id}:`, valErrors);
                 results.push({
