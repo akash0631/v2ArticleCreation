@@ -43,46 +43,20 @@ export class GoogleVisionProvider implements VLMProvider {
     }
 
     try {
-      let ocrMetadata: Record<string, any> | null = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const ocrPrompt = this.buildOcrPrompt(request);
-          const ocrResponse = await this.callGeminiVision(request.image, ocrPrompt);
-          ocrMetadata = this.parseOcrResponse(ocrResponse.content);
-          break; // success
-        } catch (ocrError: any) {
-          console.warn(`⚠️ [OCR] Pre-pass attempt ${attempt}/3 failed: ${ocrError?.message}`);
-          if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
-        }
-      }
-
-      const prompt = this.buildPrompt(request, ocrMetadata || undefined);
+      const prompt = this.buildPrompt(request);
       let response: Awaited<ReturnType<typeof this.callGeminiVision>> | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           response = await this.callGeminiVision(request.image, prompt);
           break;
         } catch (err: any) {
-          console.warn(`⚠️ [Main] Extraction attempt ${attempt}/3 failed: ${err?.message}`);
+          console.warn(`Gemini extraction attempt ${attempt}/3 failed: ${err?.message}`);
           if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
           else throw err;
         }
       }
 
-      const { attributes, extractedMetadata } = await this.parseResponse(response!.content, request.schema, ocrMetadata || undefined);
-
-      // Simple direct fallback: if colour is still null but OCR extracted it, use it directly
-      if (!attributes['colour'] && ocrMetadata?.colour) {
-        const colourVal = String(ocrMetadata.colour).trim();
-        attributes['colour'] = {
-          rawValue: colourVal,
-          schemaValue: colourVal,
-          visualConfidence: 90,
-          isNewDiscovery: false,
-          mappingConfidence: 90,
-          reasoning: 'Colour read directly from board/tag OCR'
-        };
-      }
+      const { attributes, extractedMetadata } = await this.parseResponse(response!.content, request.schema);
 
       const confidence = this.calculateConfidence(attributes);
 
@@ -120,7 +94,7 @@ export class GoogleVisionProvider implements VLMProvider {
     this.initializeClient();
   }
 
-  private buildPrompt(request: FashionExtractionRequest, ocrHint?: Record<string, any>): string {
+  private buildPrompt(request: FashionExtractionRequest): string {
     const { schema, categoryName, department, subDepartment } = request;
 
     const categoryContext = categoryName
@@ -137,18 +111,6 @@ export class GoogleVisionProvider implements VLMProvider {
         : '';
       return `${item.key}${allowedValues}`;
     }).join('\n');
-
-    const ocrHintBlock = ocrHint ? `
-
-OCR_HINTS (from dedicated OCR pre-pass — use ONLY for OCR-ONLY fields):
-${Object.entries(ocrHint)
-        .filter(([_, v]) => v !== null && v !== undefined && v !== '')
-        .map(([k, v]) => `• ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-        .join('\n')}
-Rules for OCR_HINTS:
-• Use OCR_HINTS ONLY for: division, vendor_name, design_number, rate, size, major_category, gsm, g_weight/weight/wt/fabric_weight/garment_weight, yarn_01, yarn_02, fabric_main_mvgr, colour
-• If OCR_HINTS are unclear or conflict with your own OCR read, return null for that field (do not guess)
-` : '';
 
     return `YOU ARE A FASHION ATTRIBUTE DATABASE LOOKUP SYSTEM.
 
@@ -301,7 +263,6 @@ NOT IN DATASET → RETURN NULL (do not use): BK LESS, MUFFLER, SHRUG/SHRUGS, WIT
 
 📋 ALLOWED VALUES (key [val1|val2|...] — use ONLY these exact values, NULL if not present):
 ${schemaDefinition}
-${ocrHintBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔬 MANDATORY ANALYSIS PROTOCOL (FOLLOW EXACTLY):
@@ -902,66 +863,6 @@ TOPWEAR EXAMPLE (SHIRT):
 GOAL: Achieve 90%+ accuracy. Take your time. Be thorough. Be precise.`;
   }
 
-  private buildOcrPrompt(request: FashionExtractionRequest): string {
-    return `YOU ARE A DOCUMENT OCR SCANNER.
-
-TASK: Read ONLY the WHITE BOARD/TAG text in the image. Ignore the garment.
-
-OCR RULES:
-• Read text TOP-TO-BOTTOM, LEFT-TO-RIGHT
-• Preserve punctuation, dots, slashes, hyphens, and spacing exactly
-• Do NOT infer or fix spelling
-• If any character in a field is unclear, set the entire field to null
-• If multiple boards/tags exist, use the clearest/closest board only
-
-Return JSON only (no markdown):
-{
-  "ocr": {
-    "rawLines": ["line1", "line2"],
-    "division": "string or null",
-    "vendor_code": "string or null",
-    "vendor_name": "string or null",
-    "design_number": "string or null",
-    "ppt_number": "string or null",
-    "rate": "string or null",
-    "size": "string or null",
-    "major_category": "string or null",
-    "gsm": "string or null",
-    "g_weight": "numeric string only or null",
-    "fab_line": "string or null",
-    "colour": "string or null"
-  }
-}
-
-IMPORTANT:
-• For size, return EXACTLY what is written on the board (e.g., "S-XXL", "30-36", "L/XL", "M", "FREE SIZE"). Do NOT normalize or change it.
-• For major_category, return exact text/punctuation (e.g., "M.JEANS")
-• For g_weight/weight/Numeric/G, return only the numeric value (no unit like G, GSM, gm)
-• If a FAB/FABRIC line exists, copy the full line into fab_line (do NOT parse)
-
-COLOUR EXTRACTION (READ CAREFULLY):
-• STEP 1 — Look for a field explicitly labeled CLR, COLOR, COLOUR, CLR:, COLOR:, COL: on the board → copy its value exactly
-• STEP 2 — If no labeled colour field, scan ALL lines of board text for a standalone token that looks like a colour code (e.g., "L_BL", "ECRU", "WHT", "NVY", "D_BL", "M_GRY", "BLK", "RED", "GRN", "OFW"). These codes typically appear on their own line or after a slash/dash.
-• STEP 3 — If still not found, look at the fabric/garment itself and describe the colour as a short code (e.g., "WHT" for white, "BLK" for black, "NVY" for navy blue)
-• Return whatever is found — do NOT return null just because it is not labeled. If you see a colour code anywhere, put it in the colour field.
-• If truly no colour information anywhere → return null
-
-• If no board/tag visible, return all fields as null
-`;
-  }
-
-  private parseOcrResponse(content: string): Record<string, any> | null {
-    try {
-      const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
-      const parsed = JSON.parse(cleanContent);
-      const ocr = parsed?.ocr;
-      if (!ocr || typeof ocr !== 'object') return null;
-      return ocr;
-    } catch {
-      return null;
-    }
-  }
-
   private async callGeminiVision(imageData: string, prompt: string): Promise<{
     content: string;
     tokensUsed: number;
@@ -1050,7 +951,7 @@ COLOUR EXTRACTION (READ CAREFULLY):
     };
   }
 
-  private async parseResponse(content: string, schema: any[], ocrHint?: Record<string, any>): Promise<{ attributes: AttributeData; extractedMetadata?: any }> {
+  private async parseResponse(content: string, schema: any[]): Promise<{ attributes: AttributeData; extractedMetadata?: any }> {
     try {
       const cleanContent = (content || '').replace(/```json\n?|\n?```/g, '').trim();
       if (!cleanContent) {
@@ -1097,19 +998,8 @@ COLOUR EXTRACTION (READ CAREFULLY):
         'g wt': 'weight'
       };
 
-      const mergeNonNull = (base: Record<string, any>, incoming?: Record<string, any> | null) => {
-        if (!incoming) return base;
-        const merged = { ...base };
-        for (const [k, v] of Object.entries(incoming)) {
-          if (v !== null && v !== undefined && v !== '') {
-            merged[k] = v;
-          }
-        }
-        return merged;
-      };
-
       const metadataObj = extractedMetadata && typeof extractedMetadata === 'object' ? extractedMetadata : null;
-      const mergedMetadata = mergeNonNull(metadataObj ? { ...metadataObj } : {}, ocrHint);
+      const mergedMetadata = metadataObj ? { ...metadataObj } : {};
 
       const metadataLower = mergedMetadata
         ? Object.fromEntries(Object.entries(mergedMetadata).map(([k, v]) => [String(k).toLowerCase(), v]))
