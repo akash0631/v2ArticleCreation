@@ -61,13 +61,10 @@ export class VLMService {
     }
 
     try {
-      // Stage 1: Fast Fashion-Specific Detection (no-op — Fashion-CLIP disabled)
-      const fashionResult = await this.runFashionSpecificExtraction(request);
+      // Stage 1: Detailed Analysis (Gemini extraction)
+      const enhancedResult = await this.runDetailedAnalysis(request, { attributes: {}, confidence: 0, tokensUsed: 0 });
 
-      // Stage 2: Detailed Analysis for Missing/Low-Confidence Attributes
-      const enhancedResult = await this.runDetailedAnalysis(request, fashionResult);
-
-      // Stage 3: Discovery Mode (if enabled)
+      // Stage 2: Discovery Mode (if enabled)
       const finalResult = request.discoveryMode
         ? await this.runDiscoveryAnalysis(request, enhancedResult)
         : enhancedResult;
@@ -91,17 +88,7 @@ export class VLMService {
   }
 
   /**
-   * Stage 1: Fashion-Specific Rapid Extraction
-   * Fashion-CLIP is disabled — returns empty result to pass through to Stage 2
-   */
-  private async runFashionSpecificExtraction(
-    request: FashionExtractionRequest
-  ): Promise<Partial<EnhancedExtractionResult>> {
-    return { attributes: {}, confidence: 0, tokensUsed: 0 };
-  }
-
-  /**
-   * Stage 2: Detailed Analysis for Missing Attributes
+   * Detailed Analysis — runs Gemini extraction for all schema attributes
    */
   private async runDetailedAnalysis(
     request: FashionExtractionRequest,
