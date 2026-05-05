@@ -809,7 +809,6 @@ const SimplifiedExtractionPage = () => {
             </div>
           </div>
         </div>
-      </div>
 
       <Modal
         title={selectedImage?.name || "Image Preview"}
