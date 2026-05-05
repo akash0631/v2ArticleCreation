@@ -130,8 +130,8 @@ export class QueueManagementService {
       clearInterval(this.processingInterval);
     }
 
-    this.processingInterval = setInterval(async () => {
-      await this.processNextJob();
+    this.processingInterval = setInterval(() => {
+      void this.processNextJob().catch((err: any) => console.error('[Queue] processNextJob failed:', err?.message));
     }, 2000); // Check every 2 seconds
 
     console.log('Queue processing started');
