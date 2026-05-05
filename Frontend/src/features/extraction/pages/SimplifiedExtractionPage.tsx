@@ -13,7 +13,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import {
-  Layout, Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
+  Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
 } from "antd";
 import {
   ClearOutlined, DownloadOutlined,
@@ -34,7 +34,6 @@ import { preloadAttributeValues } from "../../../services/articleConfigService";
 import "./ExtractionPage.css";
 import "../../../styles/App.css";
 
-const { Content } = Layout;
 const { Title, Text } = Typography;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5001/api" : "/api");
@@ -525,8 +524,7 @@ const SimplifiedExtractionPage = () => {
   }, []);
 
   return (
-    <Layout className="app-layout extraction-scroll-page">
-      <Content className="app-content">
+    <div className="extraction-scroll-page">
         <div className="content-wrapper">
           {/* Header */}
           <Card size="small" style={{ marginBottom: 12, background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)', border: 'none' }}>
@@ -811,7 +809,7 @@ const SimplifiedExtractionPage = () => {
             </div>
           </div>
         </div>
-      </Content>
+      </div>
 
       <Modal
         title={selectedImage?.name || "Image Preview"}
@@ -848,7 +846,7 @@ const SimplifiedExtractionPage = () => {
           onClose={() => setExportModalVisible(false)}
         />
       </Modal>
-    </Layout>
+    </div>
   );
 };
 
