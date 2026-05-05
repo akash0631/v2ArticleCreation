@@ -320,31 +320,37 @@ const ArticleCard = React.memo(({
         return v ? String(v).trim() : null;
     }, [localValues, item]);
 
-    // Reactively rebuild fabric/body descriptions whenever any mandatory field value changes
+    // Reactively rebuild fabric/body descriptions whenever mandatory fields or item changes.
+    // Reading localValues inside the setLocalValues updater (not as a dep) breaks the
+    // getFieldVal → localValues → effect → setLocalValues → localValues circular loop.
     React.useEffect(() => {
         if (item.approvalStatus !== 'PENDING') return;
         if (mandatoryKeys.size === 0) return;
 
-        const fabParts = FAB_FIELDS
-            .filter(f => mandatoryKeys.has(f.schemaKey))
-            .map(f => getFieldVal(f.field))
-            .filter(Boolean) as string[];
-        const bodyParts = BODY_FIELDS
-            .filter(f => mandatoryKeys.has(f.schemaKey))
-            .map(f => getFieldVal(f.field))
-            .filter(Boolean) as string[];
-
-        const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
-        const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
-
         setLocalValues(prev => {
+            const getVal = (field: string) => {
+                const v = prev[field] !== undefined ? prev[field] : (item as any)[field];
+                return v ? String(v).trim() : null;
+            };
+
+            const fabParts = FAB_FIELDS
+                .filter(f => mandatoryKeys.has(f.schemaKey))
+                .map(f => getVal(f.field))
+                .filter(Boolean) as string[];
+            const bodyParts = BODY_FIELDS
+                .filter(f => mandatoryKeys.has(f.schemaKey))
+                .map(f => getVal(f.field))
+                .filter(Boolean) as string[];
+
+            const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
+            const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
+
             const updates: Record<string, string | null> = {};
             if (newFabDesc !== null && newFabDesc !== prev['fabricArticleDescription']) updates['fabricArticleDescription'] = newFabDesc;
             if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
             return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mandatoryKeys, getFieldVal]);
+    }, [mandatoryKeys, item]);
 
     const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
     const status = getDisplayStatus(item);
