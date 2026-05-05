@@ -14,7 +14,7 @@
 import axios from 'axios';
 import type { CategoryConfig } from '../types/category/CategoryTypes';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/api/user' || 'http://localhost:5001/api/user';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api')) + '/user';
 
 // Create axios instance with auth interceptor
 const apiClient = axios.create({
