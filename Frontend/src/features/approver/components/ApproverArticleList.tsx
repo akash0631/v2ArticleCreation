@@ -279,6 +279,8 @@ const ArticleCard = React.memo(({
     };
     const [failedImg, setFailedImg] = useState(false);
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+    // Prevent infinite retry: only attempt a signed-URL refresh once per card mount.
+    const refreshAttempted = React.useRef(false);
 
     const FAB_FIELDS: { field: string; schemaKey: string }[] = [
         { field: 'macroMvgr',      schemaKey: 'macro_mvgr' },
@@ -359,6 +361,13 @@ const ArticleCard = React.memo(({
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
 
     const handleImgError = useCallback(async () => {
+        // If we already tried a refresh once and the new URL also failed, give up.
+        // Without this guard the component loops: fail → refresh → render → fail → refresh → ...
+        if (refreshAttempted.current) {
+            setFailedImg(true);
+            return;
+        }
+        refreshAttempted.current = true;
         setFailedImg(true);
         try {
             const token = localStorage.getItem('authToken');
@@ -468,15 +477,28 @@ const ArticleCard = React.memo(({
                         {item.sapSyncMessage && (
                             <Tooltip
                                 title={
-                                    <span style={{ fontSize: 12 }}>
-                                        <strong>SAP Remark:</strong><br />
-                                        {item.sapSyncMessage}
-                                    </span>
+                                    <div style={{ fontSize: 12, color: '#1a1a1a', maxHeight: 260, overflowY: 'auto' }}>
+                                        <div style={{ fontWeight: 700, marginBottom: 6, color: '#cf1322', fontSize: 13 }}>
+                                            ⚠ SAP Remark
+                                        </div>
+                                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                            {item.sapSyncMessage}
+                                        </div>
+                                    </div>
                                 }
                                 placement="bottomLeft"
-                                overlayStyle={{ maxWidth: 420 }}
+                                color="#fff"
+                                overlayStyle={{ maxWidth: 480, zIndex: 9999 }}
+                                overlayInnerStyle={{
+                                    background: '#fff',
+                                    border: '1px solid #ffccc7',
+                                    borderRadius: 8,
+                                    boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
+                                    padding: '10px 14px',
+                                }}
+                                getPopupContainer={() => document.body}
                             >
-                                <InfoCircleOutlined style={{ fontSize: 13, color: status.color, cursor: 'pointer', flexShrink: 0 }} />
+                                <InfoCircleOutlined style={{ fontSize: 14, color: '#cf1322', cursor: 'pointer', flexShrink: 0 }} />
                             </Tooltip>
                         )}
                         <span style={{ fontSize: 11, color: '#8c8c8c' }}>

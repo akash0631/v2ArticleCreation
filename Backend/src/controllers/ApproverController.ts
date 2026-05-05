@@ -1576,13 +1576,19 @@ export class ApproverController {
             //       Uncomment the block below to activate.
             // ─────────────────────────────────────────────────────────────────
 
+            // Build failure details so the caller knows exactly what SAP rejected
+            const failureDetails = finalizedSyncResults
+                .filter((r: any) => !r.success)
+                .map((r: any) => ({ id: r.id, message: r.message || 'SAP sync failed' }));
+
             return res.json({
                 message: 'Items approved successfully',
                 count: result.count,
                 sapSync: {
                     totalAttempted: finalizedSyncResults.length,
                     synced: syncedCount,
-                    failed: failedCount
+                    failed: failedCount,
+                    failures: failureDetails   // Full SAP error messages per item
                 }
             });
         } catch (error) {
