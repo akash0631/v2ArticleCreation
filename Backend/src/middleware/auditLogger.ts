@@ -58,6 +58,12 @@ export const auditLog = (req: Request, res: Response, next: NextFunction): void 
   res.json = function (body: any) {
     const duration = Date.now() - startTime;
 
+    // For list responses (arrays or {data:[]}), skip storing the full body to avoid
+    // holding megabytes of article data in memory for the 5s batch window.
+    const isLargeListResponse = Array.isArray(body) ||
+      (body && Array.isArray(body.data) && body.data.length > 5) ||
+      (body && Array.isArray(body.items) && body.items.length > 5);
+
     // Create audit log entry
     const logEntry: AuditLogEntry = {
       userId: req.user?.id || null,
@@ -70,7 +76,7 @@ export const auditLog = (req: Request, res: Response, next: NextFunction): void 
       ip: getClientIp(req),
       userAgent: req.headers['user-agent'] || null,
       requestBody: sanitizeBody(req.body),
-      responseBody: sanitizeBody(body),
+      responseBody: isLargeListResponse ? null : sanitizeBody(body),
       duration,
       errorMessage: res.statusCode >= 400 ? body?.error || null : null,
       timestamp: new Date(),
@@ -99,7 +105,7 @@ function addToBatch(logEntry: AuditLogEntry): void {
     if (batchTimeout) {
       clearTimeout(batchTimeout);
     }
-    batchTimeout = setTimeout(flushBatch, 5000);
+    batchTimeout = setTimeout(() => { void flushBatch().catch((err: any) => console.error('[AuditLog] flush failed:', err?.message)); }, 5000);
   }
 }
 
