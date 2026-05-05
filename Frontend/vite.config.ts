@@ -33,6 +33,17 @@ export default defineConfig({
     allowedHosts: [
       'articlecreation.v2retail.net',
       'localhost',
-    ]
+      '192.168.148.235',
+    ],
+    // Proxy /api requests to the production backend so the Vite dev server
+    // forwards them server-side — no browser CORS issue regardless of which
+    // host/IP the frontend is accessed from on the local network.
+    proxy: {
+      '/api': {
+        target: 'https://articlecreation-api.v2retail.net',
+        changeOrigin: true,
+        secure: true,
+      }
+    }
   }
 })
