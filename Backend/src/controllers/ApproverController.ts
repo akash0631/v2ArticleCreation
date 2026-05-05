@@ -1355,7 +1355,7 @@ export class ApproverController {
             });
 
             // Mirror to 360article.article_360_flat (fire-and-forget)
-            void mirror360FlatUpdate(id, data);
+            void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] update failed:', err?.message));
 
             // Only sync mcCode/hsnTaxCode across rows when majorCategory actually changed.
             if (data.majorCategory !== undefined && data.majorCategory !== existingItem.majorCategory && updated.majorCategory) {
@@ -1364,7 +1364,7 @@ export class ApproverController {
                 void prisma.extractionResultFlat.updateMany({
                     where: { majorCategory: updated.majorCategory },
                     data: { mcCode: expectedMcCode, hsnTaxCode: expectedHsnCode }
-                });
+                }).catch((err: any) => console.error('[mcCode sync] updateMany failed:', err?.message));
             }
 
             // If variantColor was updated on a non-generic, sync colour field too
@@ -1378,7 +1378,7 @@ export class ApproverController {
 
             // If this is a generic article being updated, sync changes to variants (fire-and-forget)
             if (existingItem.isGeneric) {
-                void syncGenericToVariants(existingItem.id, data);
+                void syncGenericToVariants(existingItem.id, data).catch((err: any) => console.error('[syncGenericToVariants] failed:', err?.message));
             }
 
             return res.json(updated);
@@ -1420,7 +1420,7 @@ export class ApproverController {
                     void prisma.extractionResultFlat.update({
                         where: { id: row.id },
                         data: { mcCode: mc, hsnTaxCode: getHsnCodeByMcCode(mc) || null }
-                    });
+                    }).catch((err: any) => console.error('[pre-approval mcCode fix] update failed:', err?.message));
                 }
             }
 
@@ -1486,7 +1486,7 @@ export class ApproverController {
                     articleNumber:   syncResult.sapArticleNumber ?? approvedItem?.articleNumber ?? null,
                     imageUrl:        syncResult.approvedImageUrl ?? approvedItem?.imageUrl ?? null,
                 });
-            }));
+            })).catch((err: any) => console.error('[mirror360] approval mirror failed:', err?.message));
 
             // Phase 2: Upload approved image only after article creation is persisted.
             await Promise.all(finalizedSyncResults.map(async (syncResult: any) => {
@@ -1625,7 +1625,7 @@ export class ApproverController {
             // Mirror rejection to 360article (fire-and-forget)
             void Promise.all(ids.map((rid: string) =>
                 mirror360FlatUpdate(rid, { approvalStatus: 'REJECTED', sapSyncStatus: 'NOT_SYNCED' })
-            ));
+            )).catch((err: any) => console.error('[mirror360] rejection mirror failed:', err?.message));
 
             // Auto-reject all variants of rejected generic articles
             const rejectedIds = ids;
@@ -1650,7 +1650,7 @@ export class ApproverController {
             // Mirror variant rejections to 360article (fire-and-forget)
             void Promise.all(variantsToReject.map(v =>
                 mirror360FlatUpdate(v.id, { approvalStatus: 'REJECTED', sapSyncStatus: 'NOT_SYNCED' })
-            ));
+            )).catch((err: any) => console.error('[mirror360] variant rejection mirror failed:', err?.message));
 
             return res.json({
                 message: 'Items rejected',

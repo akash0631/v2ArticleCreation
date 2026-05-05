@@ -37,6 +37,14 @@ import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from 
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
+
+process.on('unhandledRejection', (reason: any) => {
+  console.error('❌ Unhandled promise rejection (process kept alive):', reason?.message ?? reason);
+});
+
+process.on('uncaughtException', (err: Error) => {
+  console.error('❌ Uncaught exception (process kept alive):', err.message, err.stack);
+});
 const isProduction = process.env.NODE_ENV === 'production';
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || `${15 * 60 * 1000}`, 10);
 const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '1000', 10);
