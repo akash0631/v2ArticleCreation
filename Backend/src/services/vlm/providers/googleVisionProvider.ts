@@ -30,15 +30,13 @@ export class GoogleVisionProvider implements VLMProvider {
     const apiKey = process.env.GOOGLE_API_KEY;
     if (apiKey) {
       this.client = new GoogleGenerativeAI(apiKey);
-      console.log('✅ Google Vision provider initialized successfully');
     } else {
-      console.log('⚠️ Google Vision provider: API key not configured');
+      console.warn('Google Vision provider: GOOGLE_API_KEY not configured');
     }
   }
 
   async extractAttributes(request: FashionExtractionRequest): Promise<EnhancedExtractionResult> {
     const startTime = Date.now();
-    console.log(`🔍 [Google ${this.config.model}] Starting extraction with ${request.schema.length} attributes`);
 
     if (!this.client) {
       throw new Error('Google Vision API client not initialized. Please set GOOGLE_API_KEY');
@@ -51,9 +49,6 @@ export class GoogleVisionProvider implements VLMProvider {
           const ocrPrompt = this.buildOcrPrompt(request);
           const ocrResponse = await this.callGeminiVision(request.image, ocrPrompt);
           ocrMetadata = this.parseOcrResponse(ocrResponse.content);
-          if (ocrMetadata) {
-            console.log(`🧾 [OCR] Pre-pass metadata extracted: colour="${ocrMetadata.colour}", size="${ocrMetadata.size}", gsm="${ocrMetadata.gsm}"`);
-          }
           break; // success
         } catch (ocrError: any) {
           console.warn(`⚠️ [OCR] Pre-pass attempt ${attempt}/3 failed: ${ocrError?.message}`);
@@ -79,7 +74,6 @@ export class GoogleVisionProvider implements VLMProvider {
       // Simple direct fallback: if colour is still null but OCR extracted it, use it directly
       if (!attributes['colour'] && ocrMetadata?.colour) {
         const colourVal = String(ocrMetadata.colour).trim();
-        console.log(`🎨 [Colour Fallback] Using OCR board colour directly: "${colourVal}"`);
         attributes['colour'] = {
           rawValue: colourVal,
           schemaValue: colourVal,
@@ -93,11 +87,6 @@ export class GoogleVisionProvider implements VLMProvider {
       const confidence = this.calculateConfidence(attributes);
 
       const processingTime = Date.now() - startTime;
-      const extractedCount = Object.values(attributes).filter(attr => attr !== null).length;
-
-      console.log(`✅ [Google Vision] Extraction complete: ${extractedCount}/${Object.keys(attributes).length} attributes, ${processingTime}ms`);
-      console.log(`📊 [Google Vision] Performance: Confidence=${confidence}%, Tokens=${response!.tokensUsed}`);
-
       return {
         attributes,
         confidence,
@@ -1036,7 +1025,6 @@ COLOUR EXTRACTION (READ CAREFULLY):
         || ((usage as any).thoughtsTokenCount ? ((usage as any).thoughtsTokenCount + (usage.candidatesTokenCount || 0)) : 0)
         || Math.max(0, (usage.totalTokenCount || 0) - inputTokens);
       tokensUsed = usage.totalTokenCount || (inputTokens + outputTokens);
-      console.log(`📊 [Gemini] Token Usage: Input=${inputTokens}, Output=${outputTokens}, Total=${tokensUsed}`);
     } else {
       // Fallback to estimation if usage data not available
       // Image tokens: ~258 tokens per image (Gemini's average)
@@ -1047,7 +1035,6 @@ COLOUR EXTRACTION (READ CAREFULLY):
       inputTokens = imageTokens + promptTokens;
       outputTokens = outputTokensEst;
       tokensUsed = inputTokens + outputTokens;
-      console.log(`📊 [Gemini] Estimated Tokens: Input=${inputTokens}, Output=${outputTokens}, Total=${tokensUsed}`);
     }
 
     // Calculate API cost
@@ -1573,17 +1560,13 @@ COLOUR EXTRACTION (READ CAREFULLY):
     }
 
     if (matchedValue) {
-      console.log(`✅ [Validation] Matched "${valueStr}" to allowed value "${matchedValue}"`);
       return matchedValue;
     }
 
     if (schemaItem.key === 'major_category') {
-      console.log(`✅ [Validation] Accepting OCR major_category value "${valueStr}" (not in allowed list)`);
       return valueStr;
     }
 
-    // Value not in allowed list - reject it
-    console.warn(`⚠️ [Validation] REJECTED "${valueStr}" for ${schemaItem.key} - not in allowed values list`);
     return null;
   }
 
