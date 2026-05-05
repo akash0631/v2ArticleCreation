@@ -37,7 +37,7 @@ import "../../../styles/App.css";
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5001/api" : "/api");
 
 const KEY_ALIASES: Record<string, string> = {
   neck_details: 'neck_detail',
