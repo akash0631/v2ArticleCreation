@@ -127,16 +127,16 @@ export class ApproverController {
             const variants = ApproverController.getDivisionVariants(divisionValue);
             if (variants.length === 0) return;
 
-            if (variants.length === 1) {
-                where.division = { equals: variants[0], mode: 'insensitive' };
-                return;
-            }
-
+            // SRM records are cross-divisional presentations — always visible regardless
+            // of the approver's assigned division.
             where.AND = where.AND || [];
             where.AND.push({
-                OR: variants.map((variant) => ({
-                    division: { equals: variant, mode: 'insensitive' }
-                }))
+                OR: [
+                    { source: 'SRM' },
+                    ...variants.map((variant) => ({
+                        division: { equals: variant, mode: 'insensitive' }
+                    }))
+                ]
             });
         };
 
@@ -145,10 +145,12 @@ export class ApproverController {
             if (variants.length === 0) return;
 
             // Include articles with matching subDivision OR with null/empty subDivision
-            // (articles extracted without category assignment should still be visible)
+            // (articles extracted without category assignment should still be visible).
+            // SRM records bypass sub-division scope for the same reason as division scope.
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
+                    { source: 'SRM' },
                     ...variants.map((variant) => ({
                         subDivision: { equals: variant, mode: 'insensitive' }
                     })),
