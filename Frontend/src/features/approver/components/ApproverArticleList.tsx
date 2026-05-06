@@ -897,15 +897,16 @@ const ArticleCard = React.memo(({
                                             { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: false },
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
+                                            { label: 'IMP_ATBT-1',  field: 'macroMvgr',  editable: true,  mandatory: true  },
                                             { label: 'IMP_ATRBT-2', field: 'impAtrbt2',  editable: true,  mandatory: true  },
                                         ].map(({ label, field, editable, mandatory }) => {
                                             const isEditingBom = editingField === `bom_${field}`;
                                             const val = field === '_markdown' ? markdown
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
-                                            const isDropdown = field === 'impAtrbt2';
+                                            const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
                                             const dropdownOptions = isDropdown
-                                                ? (getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
+                                                ? (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];
                                             return (
                                                 <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>

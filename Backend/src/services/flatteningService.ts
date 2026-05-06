@@ -94,9 +94,8 @@ export class FlatteningService {
             imageName = nameWithoutExt; // UUID for internal use
         }
 
-        // Use job.designNumber as article number (it stores the original filename from upload)
-        // Fall back to UUID if designNumber is not set
-        articleNumber = job.designNumber || imageName;
+        // articleNumber is assigned only after successful SAP sync — leave null here
+        articleNumber = null;
 
         const parsedRate = parseNumericValue(
             resultsMap.get('rate')
@@ -126,7 +125,7 @@ export class FlatteningService {
             // Essential Metadata
             imageName, // UUID-based filename for internal use
             imageUrl: job.imageUrl,
-            articleNumber, // Original uploaded filename
+            articleNumber, // null until SAP sync assigns the real article number
             extractionStatus: job.status,
             aiModel: job.aiModel,
             avgConfidence: job.avgConfidence,

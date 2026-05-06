@@ -7,24 +7,13 @@
       "CP",
       "SPN",
       "SAP",
-      "ARJT",
-      "DNM",
       "NYL",
       "RC",
-      "SLK",
-      "WLN",
-      "BMB",
       "ACR",
-      "ORGNZ",
       "TNCL",
-      "RFD",
-      "IMP",
       "RYN",
-      "NYL_VIS",
-      "P_VIS",
       "DFDL",
-      "RNBW",
-      "100%VIS"
+      "VIS"
     ],
     "mainMvgr": [
       "CHK",
@@ -565,7 +554,8 @@
       "RAW_EDGE_NK",
       "VN_HUD",
       "RN_HUD",
-      "CLR_WTH_HUD"
+      "CLR_WTH_HUD",
+      "-"
     ],
     "collar": [
       "ONE_PC_CLR",
@@ -587,7 +577,8 @@
       "PEAK_LPL_CLR",
       "RIB_CLR_WO_BND",
       "FUR_CLR",
-      "SELF_CLR"
+      "SELF_CLR",
+      "-"
     ],
     "collarStyle": [
       "RIB_PLN_CLR",
@@ -598,7 +589,7 @@
       "BRND_LG",
       "RIB_2_TPNG_CLR",
       "RIB_3_TPNG_CLR",
-      "RIB_MULT_TPNG_CLR",
+      "RIB_MULTI_TPNG_CLR",
       "JONNY_CLR",
       "RIB_TPNG_CLR",
       "DNM_CLR",
@@ -630,7 +621,8 @@
       "QTR_SLV",
       "WO_CUF_SLV",
       "DOC_SLV",
-      "CLD_SLDR"
+      "CLD_SLDR",
+      "-"
     ],
     "sleeveFold": [
       "WTH_LACE",
@@ -646,7 +638,8 @@
       "HALF_RIB_HALF_FAB",
       "UP_FOLD",
       "HALF&HALF",
-      "WTH_ELST"
+      "WTH_ELST",
+      "-"
     ],
     "placket": [
       "BRND_PRT_PLKT",
@@ -668,7 +661,8 @@
       "PLN_PLKT",
       "CON_ZIP_PLKT",
       "STRGT_PLKT",
-      "SELF_PLKT"
+      "SELF_PLKT",
+      "-"
     ],
     "fatherBelt": [
       "FLEXI",
@@ -762,13 +756,15 @@
       "8_PKT",
       "9_PKT",
       "5_PKT",
-      "10_PKT"
+      "10_PKT",
+      "-"
     ],
     "extraPocket": [
       "COIN_PKT",
       "SLV_PKT",
       "PENCL_PKT",
-      "BONE_PKT"
+      "BONE_PKT",
+      "-"
     ],
     "length": [
       "HIP_LNGTH",
@@ -783,7 +779,8 @@
       "KNEE_LNGTH",
       "LONG_LNGTH",
       "CALF_LNGTH",
-      "MIDTHIGH_LNGTH"
+      "MIDTHIGH_LNGTH",
+      "-"
     ],
     "fit": [
       "STRGHT_FIT",
@@ -815,7 +812,8 @@
       "BOYFRND_FIT",
       "OVERSIZED_FIT",
       "DEMI_FIT",
-      "TAPRD_FIT"
+      "TAPRD_FIT",
+      "-"
     ],
     "bodyStyle": [
       "1_LYR",
@@ -879,7 +877,7 @@
       "FRNT_JAQ",
       "FRNT_SIDE_KNOT",
       "FRNT_YOKE",
-      "FRNT_OPEN",
+      "FRNT_OPN",
       "FRY_BTM",
       "FULL_JAQ",
       "GTA_PTI",
@@ -969,7 +967,8 @@
       "VRSTY",
       "WIRED",
       "WRAP",
-      "WTH_INR"
+      "WTH_INR",
+      "-"
     ],
     "drawcord": [
       "SELF_FAB_DC",
@@ -991,7 +990,8 @@
     ],
     "dcShape": [
       "FLAT_DC",
-      "RND_DC"
+      "RND_DC",
+      "-"
     ],
     "zipper": [
       "PLST_ZIP",
@@ -1033,14 +1033,14 @@
       "SLVR",
       "GOLD"
     ],
-    "patches": [
+    "patchesType": [
       "ANML",
       "BRND_LG",
       "CRTN",
       "NUM",
       "TYPO"
     ],
-    "patchesType": [
+    "patches": [
       "D_MASS",
       "CNVS",
       "PVC",
@@ -1051,7 +1051,6 @@
       "LSR_CUT",
       "EMBS",
       "EMB",
-      "WO_PTCH",
       "PU",
       "LTHR_PTCH",
       "WOVEN",
@@ -1095,7 +1094,6 @@
       "BRND",
       "ANML",
       "CRTN",
-      "CMFG",
       "NUM"
     ],
     "printType": [
@@ -1115,11 +1113,11 @@
       "EMBS",
       "REFLCTV_PRT"
     ],
-    "embroidery": [
+    "embroideryType": [
       "HAND",
       "MCHN"
     ],
-    "embroideryType": [
+    "embroidery": [
       "DORI",
       "THRD_WRK",
       "BRND_EMB",
@@ -1144,8 +1142,8 @@
       "BLT",
       "FRNT_BLT",
       "BK_BLT",
-      "FRT_BK",
-      "FRT_BK_BLT",
+      "FRNT_BK",
+      "FRNT_BK_BLT",
       "INR_BLT",
       "COIN_PKT",
       "BK_PKT",
@@ -1181,8 +1179,8 @@
       "TINT_WSH",
       "SAND_WSH",
       "OD",
-      "ACID_WASH",
-      "BIO_WASH"
+      "ACID_WSH",
+      "BIO_WSH"
     ],
     "ageGroup": [
       "BABY BOOMER (62-82Y)",
@@ -1191,6 +1189,99 @@
       "GEN Z (13-29Y)",
       "GEN ALPHA (0-12Y)",
       "ALL GROUP"
+    ],
+    "macroMvgr": [
+      "PLN",
+      "PRT",
+      "AOP",
+      "OD",
+      "STRT",
+      "JAQ",
+      "STP",
+      "TXT",
+      "PRT_CHEST",
+      "SW",
+      "PLN_C&S",
+      "CHK",
+      "KNITS",
+      "WHT",
+      "COLOR",
+      "JGR",
+      "BSC",
+      "POLY",
+      "CRG",
+      "2PC",
+      "FNCY",
+      "EAR_CAP",
+      "PU",
+      "C&S",
+      "SLIM",
+      "LOOSE",
+      "STRAIGHT",
+      "DZNR_JNS",
+      "SPARKY",
+      "V_STP",
+      "DYED",
+      "DNM"
+    ],
+    "impAtrbt2": [
+      "PLN",
+      "PRT_CHEST",
+      "AOP_TRPL",
+      "AOP_ABST",
+      "AOP_GMTL",
+      "AOP_CHKS",
+      "OD_PLN",
+      "AOP_CLOUD",
+      "OD_OMBRE",
+      "OD_T&D",
+      "STRT",
+      "JAQ",
+      "H_STP",
+      "E_STP",
+      "V_STP",
+      "AOP_BOOTY",
+      "AOP_TYPO",
+      "TXT",
+      "AOP",
+      "SW",
+      "PLN_BSC",
+      "PLN_C&S",
+      "K_PLN",
+      "K_PRT",
+      "W_AOP",
+      "W_PLN",
+      "W_YD_CHK",
+      "IMP_PLN",
+      "IMP_PRT",
+      "IND_PLN",
+      "IND_PRT",
+      "WHT",
+      "COLOR",
+      "OD",
+      "POLY",
+      "CHK",
+      "PRT",
+      "CRG",
+      "BSC",
+      "AOP_FLRL",
+      "YD_CHKS",
+      "IND_CHK",
+      "OD_CHK",
+      "AOP_SCARF",
+      "FNCY",
+      "STP",
+      "EAR_CAP",
+      "PU",
+      "C&S",
+      "KNIT",
+      "SLIM",
+      "LOOSE",
+      "STRAIGHT",
+      "DZNR_JNS",
+      "SPARKY",
+      "DYED",
+      "DNM"
     ]
   },
   "LADIES": {
@@ -1201,24 +1292,13 @@
       "CP",
       "SPN",
       "SAP",
-      "ARJT",
-      "DNM",
       "NYL",
       "RC",
-      "SLK",
-      "WLN",
-      "BMB",
       "ACR",
-      "ORGNZ",
       "TNCL",
-      "RFD",
-      "IMP",
       "RYN",
-      "NYL_VIS",
-      "P_VIS",
       "DFDL",
-      "RNBW",
-      "100%VIS"
+      "VIS"
     ],
     "mainMvgr": [
       "CHK",
@@ -1759,7 +1839,8 @@
       "RAW_EDGE_NK",
       "VN_HUD",
       "RN_HUD",
-      "CLR_WTH_HUD"
+      "CLR_WTH_HUD",
+      "-"
     ],
     "collar": [
       "ONE_PC_CLR",
@@ -1781,7 +1862,8 @@
       "PEAK_LPL_CLR",
       "RIB_CLR_WO_BND",
       "FUR_CLR",
-      "SELF_CLR"
+      "SELF_CLR",
+      "-"
     ],
     "collarStyle": [
       "RIB_PLN_CLR",
@@ -1792,7 +1874,7 @@
       "BRND_LG",
       "RIB_2_TPNG_CLR",
       "RIB_3_TPNG_CLR",
-      "RIB_MULT_TPNG_CLR",
+      "RIB_MULTI_TPNG_CLR",
       "JONNY_CLR",
       "RIB_TPNG_CLR",
       "DNM_CLR",
@@ -1824,7 +1906,8 @@
       "QTR_SLV",
       "WO_CUF_SLV",
       "DOC_SLV",
-      "CLD_SLDR"
+      "CLD_SLDR",
+      "-"
     ],
     "sleeveFold": [
       "WTH_LACE",
@@ -1840,7 +1923,8 @@
       "HALF_RIB_HALF_FAB",
       "UP_FOLD",
       "HALF&HALF",
-      "WTH_ELST"
+      "WTH_ELST",
+      "-"
     ],
     "placket": [
       "BRND_PRT_PLKT",
@@ -1862,7 +1946,8 @@
       "PLN_PLKT",
       "CON_ZIP_PLKT",
       "STRGT_PLKT",
-      "SELF_PLKT"
+      "SELF_PLKT",
+      "-"
     ],
     "fatherBelt": [
       "FLEXI",
@@ -1956,13 +2041,15 @@
       "8_PKT",
       "9_PKT",
       "5_PKT",
-      "10_PKT"
+      "10_PKT",
+      "-"
     ],
     "extraPocket": [
       "COIN_PKT",
       "SLV_PKT",
       "PENCL_PKT",
-      "BONE_PKT"
+      "BONE_PKT",
+      "-"
     ],
     "length": [
       "HIP_LNGTH",
@@ -1977,7 +2064,8 @@
       "KNEE_LNGTH",
       "LONG_LNGTH",
       "CALF_LNGTH",
-      "MIDTHIGH_LNGTH"
+      "MIDTHIGH_LNGTH",
+      "-"
     ],
     "fit": [
       "STRGHT_FIT",
@@ -2009,7 +2097,8 @@
       "BOYFRND_FIT",
       "OVERSIZED_FIT",
       "DEMI_FIT",
-      "TAPRD_FIT"
+      "TAPRD_FIT",
+      "-"
     ],
     "bodyStyle": [
       "1_LYR",
@@ -2073,7 +2162,7 @@
       "FRNT_JAQ",
       "FRNT_SIDE_KNOT",
       "FRNT_YOKE",
-      "FRNT_OPEN",
+      "FRNT_OPN",
       "FRY_BTM",
       "FULL_JAQ",
       "GTA_PTI",
@@ -2163,7 +2252,8 @@
       "VRSTY",
       "WIRED",
       "WRAP",
-      "WTH_INR"
+      "WTH_INR",
+      "-"
     ],
     "drawcord": [
       "SELF_FAB_DC",
@@ -2185,7 +2275,8 @@
     ],
     "dcShape": [
       "FLAT_DC",
-      "RND_DC"
+      "RND_DC",
+      "-"
     ],
     "zipper": [
       "PLST_ZIP",
@@ -2227,14 +2318,14 @@
       "SLVR",
       "GOLD"
     ],
-    "patches": [
+    "patchesType": [
       "ANML",
       "BRND_LG",
       "CRTN",
       "NUM",
       "TYPO"
     ],
-    "patchesType": [
+    "patches": [
       "D_MASS",
       "CNVS",
       "PVC",
@@ -2245,7 +2336,6 @@
       "LSR_CUT",
       "EMBS",
       "EMB",
-      "WO_PTCH",
       "PU",
       "LTHR_PTCH",
       "WOVEN",
@@ -2289,7 +2379,6 @@
       "BRND",
       "ANML",
       "CRTN",
-      "CMFG",
       "NUM"
     ],
     "printType": [
@@ -2309,11 +2398,11 @@
       "EMBS",
       "REFLCTV_PRT"
     ],
-    "embroidery": [
+    "embroideryType": [
       "HAND",
       "MCHN"
     ],
-    "embroideryType": [
+    "embroidery": [
       "DORI",
       "THRD_WRK",
       "BRND_EMB",
@@ -2385,6 +2474,93 @@
       "GEN Z (13-29Y)",
       "GEN ALPHA (0-12Y)",
       "ALL GROUP"
+    ],
+    "macroMvgr": [
+      "PLN",
+      "PRT",
+      "WSH",
+      "H_STP",
+      "V_STP",
+      "CHK",
+      "IND_CHK",
+      "EMB",
+      "SCFL",
+      "PLN_EMB",
+      "STRT",
+      "HN",
+      "RN",
+      "FNCY_NK",
+      "STP",
+      "BL_BTM",
+      "MOM_FIT",
+      "BARREL_JEANS",
+      "STRAIGHT",
+      "WD_LEG",
+      "LACE",
+      "BTM_ELS",
+      "R_FIT",
+      "N_FIT",
+      "WD_LEG_BAGGY",
+      "PLN_WRK",
+      "PRT_WRK",
+      "OMBRE",
+      "T&D",
+      "RFD",
+      "PRT_EMB",
+      "E_STP"
+    ],
+    "impAtrbt2": [
+      "D_SHLD",
+      "H_STP",
+      "OD_PLN",
+      "OD_T&D",
+      "PLN",
+      "PRT_CHEST",
+      "AOP_TRPL",
+      "AOP_FLRL",
+      "AOP_BOOTY",
+      "AOP_ABST",
+      "AOP_GMTL",
+      "V_STP",
+      "EMB",
+      "2PC",
+      "IND_CHK",
+      "AOP_CHKS",
+      "PLN_EMB",
+      "AOP_EMB",
+      "SCFL",
+      "CHK",
+      "PRT",
+      "STRT",
+      "HN",
+      "RN",
+      "FNCY_NK",
+      "STP",
+      "BL_BTM",
+      "MOM_FIT",
+      "BARREL_JEANS",
+      "STRAIGHT",
+      "WD_LEG",
+      "OD_CHK",
+      "OD_PRT",
+      "LACE",
+      "AOP_TYPO",
+      "PLTD",
+      "BTM_ELS",
+      "R_FIT",
+      "N_FIT",
+      "WD_LEG_BAGGY",
+      "AOP_ANML",
+      "PLN_WRK",
+      "AOP_WRK",
+      "OMBRE",
+      "T&D",
+      "JAQ",
+      "SCFL_PLN",
+      "SCFL_PRT",
+      "AOP_DGTL",
+      "E_STP",
+      "RFD"
     ]
   },
   "KIDS": {
@@ -2395,24 +2571,13 @@
       "CP",
       "SPN",
       "SAP",
-      "ARJT",
-      "DNM",
       "NYL",
       "RC",
-      "SLK",
-      "WLN",
-      "BMB",
       "ACR",
-      "ORGNZ",
       "TNCL",
-      "RFD",
-      "IMP",
       "RYN",
-      "NYL_VIS",
-      "P_VIS",
       "DFDL",
-      "RNBW",
-      "100%VIS"
+      "VIS"
     ],
     "mainMvgr": [
       "CHK",
@@ -2953,7 +3118,8 @@
       "RAW_EDGE_NK",
       "VN_HUD",
       "RN_HUD",
-      "CLR_WTH_HUD"
+      "CLR_WTH_HUD",
+      "-"
     ],
     "collar": [
       "ONE_PC_CLR",
@@ -2975,7 +3141,8 @@
       "PEAK_LPL_CLR",
       "RIB_CLR_WO_BND",
       "FUR_CLR",
-      "SELF_CLR"
+      "SELF_CLR",
+      "-"
     ],
     "collarStyle": [
       "RIB_PLN_CLR",
@@ -2986,7 +3153,7 @@
       "BRND_LG",
       "RIB_2_TPNG_CLR",
       "RIB_3_TPNG_CLR",
-      "RIB_MULT_TPNG_CLR",
+      "RIB_MULTI_TPNG_CLR",
       "JONNY_CLR",
       "RIB_TPNG_CLR",
       "DNM_CLR",
@@ -3018,7 +3185,8 @@
       "QTR_SLV",
       "WO_CUF_SLV",
       "DOC_SLV",
-      "CLD_SLDR"
+      "CLD_SLDR",
+      "-"
     ],
     "sleeveFold": [
       "WTH_LACE",
@@ -3034,7 +3202,8 @@
       "HALF_RIB_HALF_FAB",
       "UP_FOLD",
       "HALF&HALF",
-      "WTH_ELST"
+      "WTH_ELST",
+      "-"
     ],
     "placket": [
       "BRND_PRT_PLKT",
@@ -3056,7 +3225,8 @@
       "PLN_PLKT",
       "CON_ZIP_PLKT",
       "STRGT_PLKT",
-      "SELF_PLKT"
+      "SELF_PLKT",
+      "-"
     ],
     "fatherBelt": [
       "FLEXI",
@@ -3150,13 +3320,15 @@
       "8_PKT",
       "9_PKT",
       "5_PKT",
-      "10_PKT"
+      "10_PKT",
+      "-"
     ],
     "extraPocket": [
       "COIN_PKT",
       "SLV_PKT",
       "PENCL_PKT",
-      "BONE_PKT"
+      "BONE_PKT",
+      "-"
     ],
     "length": [
       "HIP_LNGTH",
@@ -3171,7 +3343,8 @@
       "KNEE_LNGTH",
       "LONG_LNGTH",
       "CALF_LNGTH",
-      "MIDTHIGH_LNGTH"
+      "MIDTHIGH_LNGTH",
+      "-"
     ],
     "fit": [
       "STRGHT_FIT",
@@ -3203,7 +3376,8 @@
       "BOYFRND_FIT",
       "OVERSIZED_FIT",
       "DEMI_FIT",
-      "TAPRD_FIT"
+      "TAPRD_FIT",
+      "-"
     ],
     "bodyStyle": [
       "1_LYR",
@@ -3267,7 +3441,7 @@
       "FRNT_JAQ",
       "FRNT_SIDE_KNOT",
       "FRNT_YOKE",
-      "FRNT_OPEN",
+      "FRNT_OPN",
       "FRY_BTM",
       "FULL_JAQ",
       "GTA_PTI",
@@ -3357,7 +3531,8 @@
       "VRSTY",
       "WIRED",
       "WRAP",
-      "WTH_INR"
+      "WTH_INR",
+      "-"
     ],
     "drawcord": [
       "SELF_FAB_DC",
@@ -3379,7 +3554,8 @@
     ],
     "dcShape": [
       "FLAT_DC",
-      "RND_DC"
+      "RND_DC",
+      "-"
     ],
     "zipper": [
       "PLST_ZIP",
@@ -3421,14 +3597,14 @@
       "SLVR",
       "GOLD"
     ],
-    "patches": [
+    "patchesType": [
       "ANML",
       "BRND_LG",
       "CRTN",
       "NUM",
       "TYPO"
     ],
-    "patchesType": [
+    "patches": [
       "D_MASS",
       "CNVS",
       "PVC",
@@ -3439,7 +3615,6 @@
       "LSR_CUT",
       "EMBS",
       "EMB",
-      "WO_PTCH",
       "PU",
       "LTHR_PTCH",
       "WOVEN",
@@ -3483,7 +3658,6 @@
       "BRND",
       "ANML",
       "CRTN",
-      "CMFG",
       "NUM"
     ],
     "printType": [
@@ -3503,11 +3677,11 @@
       "EMBS",
       "REFLCTV_PRT"
     ],
-    "embroidery": [
+    "embroideryType": [
       "HAND",
       "MCHN"
     ],
-    "embroideryType": [
+    "embroidery": [
       "DORI",
       "THRD_WRK",
       "BRND_EMB",
@@ -3579,6 +3753,170 @@
       "GEN Z (13-29Y)",
       "GEN ALPHA (0-12Y)",
       "ALL GROUP"
+    ],
+    "macroMvgr": [
+      "HSR_TXT",
+      "C&S",
+      "STRT",
+      "OD",
+      "STP",
+      "PRT",
+      "PLN",
+      "HSR",
+      "TXT",
+      "DNM",
+      "CO_SET",
+      "SHRG",
+      "KOTI",
+      "JDPR",
+      "2PC",
+      "5PC",
+      "4PC",
+      "3PC",
+      "TXT_TXT",
+      "SHIRT_RFD",
+      "HSR_RFD",
+      "HSR-DNM",
+      "RN",
+      "FO",
+      "HD",
+      "DNGR",
+      "RMPR",
+      "WLN",
+      "SHRN",
+      "DOLL",
+      "CHK",
+      "HSR-OD",
+      "SHIRT-OD",
+      "TXT-TXT",
+      "8_PKT",
+      "PULL_UP",
+      "JGR",
+      "BSC",
+      "POLY",
+      "CRG",
+      "2/3_BTN",
+      "BGY_FIT",
+      "R_FIT",
+      "STRAIGHT",
+      "N_FIT",
+      "MOM_FIT",
+      "BL_BTM",
+      "SCFL",
+      "SKULL",
+      "POM",
+      "FNCY",
+      "KNITS",
+      "DORI",
+      "KURTA",
+      "D_SHLD",
+      "AOP",
+      "160ML",
+      "180ML",
+      "210ML",
+      "240ML",
+      "250ML",
+      "300ML",
+      "350ML",
+      "360ML",
+      "380ML",
+      "400ML",
+      "450ML",
+      "470ML",
+      "480ML",
+      "500ML",
+      "520ML",
+      "550ML",
+      "RFD",
+      "EMB",
+      "DUNGREE",
+      "NA",
+      "HSR_DUNGREE",
+      "TXT_DUNGREE",
+      "LNG",
+      "SHORT",
+      "TXT_CHK",
+      "JAQ",
+      "SHFL",
+      "IND",
+      "PLN_WRK",
+      "PRT_WRK",
+      "COLOR",
+      "OMBRE",
+      "100*130CM",
+      "100*140CM",
+      "110*140CM",
+      "630G",
+      "W_ZIP",
+      "PU"
+    ],
+    "impAtrbt2": [
+      "CRTN",
+      "HSR_TXT",
+      "C&S",
+      "STRT",
+      "OD_T&D",
+      "OD_OMBRE",
+      "OD",
+      "H_STP",
+      "AOP_TYPO",
+      "AOP_ABST",
+      "AOP_TRPL",
+      "PRT_CHEST",
+      "PLN",
+      "HSR",
+      "TXT",
+      "DNM",
+      "CO_SET",
+      "SHRG",
+      "KOTI",
+      "JDPR",
+      "2PC",
+      "5PC",
+      "4PC",
+      "3PC",
+      "TXT_TXT",
+      "SHIRT_RFD",
+      "HSR_RFD",
+      "HSR-DNM",
+      "PRT",
+      "STP",
+      "JKT",
+      "CHK",
+      "AOP",
+      "V_STP",
+      "8_PKT",
+      "PULL_UP",
+      "JGR",
+      "OD_PLN",
+      "AOP_ANML",
+      "AOP_GMTL",
+      "BSC",
+      "POLY",
+      "YD_CHKS",
+      "AOP_BOOTY",
+      "AOP_CHKS",
+      "CRG",
+      "2/3_BTN",
+      "AOP_FLRL",
+      "BGY_FIT",
+      "STRAIGHT",
+      "SKN_FIT",
+      "BL_BTM",
+      "MOM_FIT",
+      "SCFL",
+      "SKULL",
+      "POM",
+      "FNCY",
+      "KNITS",
+      "DORI",
+      "EMB",
+      "OD_CHK",
+      "IND_CHK",
+      "2PC_CHK",
+      "2PC_PRT",
+      "BK_PRT",
+      "E_STP"
     ]
   }
 }
