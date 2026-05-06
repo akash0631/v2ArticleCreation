@@ -659,7 +659,7 @@ export class ApproverController {
 
     static async getItems(req: Request, res: Response) {
         try {
-            const { status, division, subDivision, majorCategory, startDate, endDate, search, page = 1, limit = 50, pathType } = req.query;
+            const { status, division, subDivision, majorCategory, startDate, endDate, search, page = 1, limit = 50, pathType, source } = req.query;
 
             // ── Response cache (8 s TTL) ───────────────────────────────────────────
             // Key includes all query params + user scope so different users/filters
@@ -670,7 +670,7 @@ export class ApproverController {
                 userId: role !== 'ADMIN' ? req.user?.id : undefined,
                 userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
                 userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
-                status, division, subDivision, startDate, endDate, search, page, limit, pathType,
+                status, division, subDivision, startDate, endDate, search, page, limit, pathType, source,
             });
             const cached = ApproverController.itemsCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
@@ -780,6 +780,9 @@ export class ApproverController {
 
             // Major category filter
             if (majorCategory) where.majorCategory = majorCategory as string;
+
+            // Source filter — 'SRM', 'WATCHER', 'USER', or omitted for all
+            if (source && source !== 'ALL') where.source = source as string;
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
