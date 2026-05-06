@@ -833,31 +833,10 @@ export class EnhancedExtractionController {
         );
         imagePath = uploadResult.url;
       } catch (uploadError: any) {
-<<<<<<< HEAD
         console.error('❌ R2 Upload Failed for base64 image:', uploadError.message);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to upload image to cloud storage',
-          details: uploadError.message,
-          timestamp: Date.now()
-        });
-        return;
-      }
-
-      if (!imagePath) {
-        res.status(500).json({
-          success: false,
-          error: 'Image upload succeeded but no URL was returned',
-          timestamp: Date.now()
-        });
-        return;
-=======
-        console.error('R2 Upload Failed for base64 image:', uploadError.message);
         // Non-fatal: continue with extraction data saved, image URL will be null
-        // User can re-upload image later if needed
         console.warn('⚠️ Continuing extraction save without image URL (R2 unavailable)');
         imagePath = null;
->>>>>>> 6d87860d67e3de0c5bdbd7aa6909a97cb857f82c
       }
 
       const parsedFolderFromFileName = typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
