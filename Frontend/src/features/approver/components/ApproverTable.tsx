@@ -367,6 +367,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             return;
         }
         refreshAttempted.current.add(id);
+        // Hide first so we can remount <img> with the refreshed URL (forces browser re-fetch).
         setFailedIds(prev => new Set(prev).add(id));
         try {
             const token = localStorage.getItem('authToken');
@@ -376,8 +377,14 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             if (!res.ok) return;
             const data = await res.json();
             if (data?.url) {
-                setRefreshedUrls(prev => ({ ...prev, [id]: data.url }));
-                // Clear failedIds so the refreshed URL gets rendered
+                // Non-signed public URLs (Supabase, R2 public): add cache-bust so the
+                // remounted <img> makes a fresh network request even for the same URL.
+                // Signed URLs (X-Amz-Signature) must not be modified — use as-is.
+                const base = data.url as string;
+                const freshUrl = base.includes('X-Amz-Signature')
+                    ? base
+                    : base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+                setRefreshedUrls(prev => ({ ...prev, [id]: freshUrl }));
                 setFailedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
             }
         } catch {
