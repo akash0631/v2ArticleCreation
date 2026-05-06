@@ -1783,6 +1783,16 @@ export class ApproverController {
                 return res.json({ url: storedUrl });
             }
 
+            // If the URL is not from any R2 domain (e.g. Supabase, external CDN), return as-is.
+            // Never rewrite or persist a replacement — that would corrupt non-R2 URLs permanently.
+            const isR2Url = storedUrl.includes('.r2.cloudflarestorage.com') ||
+                storedUrl.includes('.r2.dev/') ||
+                (publicBase && storedUrl.startsWith(publicBase)) ||
+                (approvedBase && storedUrl.startsWith(approvedBase));
+            if (!isR2Url) {
+                return res.json({ url: storedUrl });
+            }
+
             // Extract the object key from a signed URL (works for signed R2 URLs)
             let key: string | null = null;
             try {
