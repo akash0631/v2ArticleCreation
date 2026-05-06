@@ -167,7 +167,6 @@ export class EnhancedExtractionController {
 
         if (subDept && subDept.categories.length > 0) {
           category = subDept.categories[0];
-          console.log(`Mapped SubDepartment '${potentialCode}' to proxy Category ID: ${category.id}`);
         }
       }
 
@@ -270,14 +269,6 @@ export class EnhancedExtractionController {
         }
       }
 
-      // DEBUG: Log token/cost data before saving
-      console.log('💰 [DEBUG] Token/Cost Data:', {
-        inputTokens: result.inputTokens,
-        outputTokens: result.outputTokens,
-        apiCost: result.apiCost,
-        tokensUsed: result.tokensUsed
-      });
-
       const job = await prisma.extractionJob.create({
         data: {
           userId: userId ?? null,
@@ -348,7 +339,6 @@ export class EnhancedExtractionController {
 
           if (Object.keys(directFill).length > 0) {
             await prisma.extractionResultFlat.update({ where: { id: flatId }, data: directFill });
-            console.log(`✅ Direct gsm/weight backfill for flat row ${flatId}:`, directFill);
             void mirror360FlatUpdate(flatId, directFill);
           }
         }
@@ -403,7 +393,6 @@ export class EnhancedExtractionController {
             data: overrides,
           });
           void mirror360FlatUpdate(flatId, overrides);
-          console.log(`✅ Watcher fields + derived fields applied to flat row ${flatId}`);
 
           // ── Step 4: Segment + Article Description (need the updated row values) ──
           const updatedRow = await prisma.extractionResultFlat.findUnique({
@@ -440,7 +429,6 @@ export class EnhancedExtractionController {
                 data: derivedStep2,
               });
               void mirror360FlatUpdate(flatId, derivedStep2);
-              console.log(`✅ Segment + article description computed for flat row ${flatId}`);
             }
           }
         } catch (overrideError) {
@@ -469,15 +457,7 @@ export class EnhancedExtractionController {
         flatId
       };
     } catch (error: any) {
-      console.error('❌ Critical Error in persistExtractionJob:', error);
-      console.error('   Error stack:', error.stack);
-      console.error('   Parameters:', {
-        image: params.image,
-        categoryName: params.categoryName,
-        userId: params.userId,
-        department: params.department,
-        subDepartment: params.subDepartment
-      });
+      console.error('Critical error in persistExtractionJob:', error?.message, error?.stack);
       return null;
     }
   }
@@ -614,7 +594,6 @@ export class EnhancedExtractionController {
                 type: ca.attribute.type.toLowerCase() as any,
                 allowedValues: ca.attribute.allowedValues.map(av => av.shortForm),
               }));
-              console.log(`📋 Watcher: loaded ${parsedSchema.length} category-specific attributes for ${resolvedCategoryCode}`);
             }
           }
 
@@ -633,7 +612,6 @@ export class EnhancedExtractionController {
               type: attr.type.toLowerCase() as any,
               allowedValues: attr.allowedValues.map(av => av.shortForm),
             }));
-            console.log(`📋 Watcher: loaded ${parsedSchema.length} master attributes (no category config found)`);
           }
         } catch (schemaErr: any) {
           console.warn(`⚠️ Watcher schema build failed: ${schemaErr.message}`);
@@ -642,8 +620,6 @@ export class EnhancedExtractionController {
 
       // Convert image to base64 for VLM processing
       const base64Image = await ImageProcessor.processImageToBase64(req.file);
-
-      console.log(`Enhanced VLM Extraction Started - Category: ${categoryName}, Schema: ${parsedSchema.length} attrs`);
 
       // Create enhanced fashion extraction request
       const vlmRequest: FashionExtractionRequest = {
@@ -661,16 +637,11 @@ export class EnhancedExtractionController {
       // Extract using Multi-VLM pipeline
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      console.log(`✅ Enhanced VLM Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
-
-
       // Upload to Cloudflare R2 (REQUIRED - fail if this doesn't work)
       let imagePath = '';
       const timestamp = Date.now();
       const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${timestamp}_${originalName}`;
-
-      console.log(`☁️ Uploading to R2 Storage: ${fileName}`);
 
       try {
         const uploadResult = await storageService.uploadFile(
@@ -680,11 +651,8 @@ export class EnhancedExtractionController {
           'fashion-images'
         );
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
-        console.error('❌ R2 Upload Failed:', uploadError);
+        console.error('R2 Upload Failed:', uploadError);
         console.error('   Error details:', uploadError.message);
 
         // Return error to user - don't proceed without image storage
@@ -699,7 +667,6 @@ export class EnhancedExtractionController {
 
       // Verify we have a valid image URL
       if (!imagePath) {
-        console.error('❌ No image URL after upload');
         res.status(500).json({
           success: false,
           error: 'Image upload succeeded but no URL was returned',
@@ -826,8 +793,6 @@ export class EnhancedExtractionController {
         return;
       }
 
-      console.log(`Enhanced Base64 VLM Extraction - Discovery: ${discoveryMode}, Schema: ${schema.length} attrs, Force Refresh: ${forceRefresh}`);
-
       // Create enhanced fashion extraction request
       const vlmRequest: FashionExtractionRequest = {
         image,
@@ -842,8 +807,6 @@ export class EnhancedExtractionController {
       };
 
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
-
-      console.log(`✅ Enhanced VLM Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
 
       // Upload base64 image to Cloudflare R2
       let imagePath: string | null = null;
@@ -862,7 +825,6 @@ export class EnhancedExtractionController {
         // Use provided filename or generate one
         const originalName = fileName || `upload_${Date.now()}.${extension}`;
 
-        console.log(`☁️ Uploading base64 image to R2: ${originalName}`);
         const uploadResult = await storageService.uploadFile(
           imageBuffer,
           originalName,
@@ -870,10 +832,8 @@ export class EnhancedExtractionController {
           'fashion-images'
         );
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
+<<<<<<< HEAD
         console.error('❌ R2 Upload Failed for base64 image:', uploadError.message);
         res.status(500).json({
           success: false,
@@ -891,6 +851,13 @@ export class EnhancedExtractionController {
           timestamp: Date.now()
         });
         return;
+=======
+        console.error('R2 Upload Failed for base64 image:', uploadError.message);
+        // Non-fatal: continue with extraction data saved, image URL will be null
+        // User can re-upload image later if needed
+        console.warn('⚠️ Continuing extraction save without image URL (R2 unavailable)');
+        imagePath = null;
+>>>>>>> 6d87860d67e3de0c5bdbd7aa6909a97cb857f82c
       }
 
       const parsedFolderFromFileName = typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
@@ -1054,8 +1021,6 @@ export class EnhancedExtractionController {
         return;
       }
 
-      console.log(`Category-Based Extraction Started - Code: ${categoryCode}`);
-
       // Load schema from database
       const { category, schema, stats } = await this.schemaService.getCategorySchema(categoryCode);
 
@@ -1081,9 +1046,6 @@ export class EnhancedExtractionController {
         }
       }
 
-      console.log(`📊 Category: ${category.name} (${category.department.name} → ${category.subDepartment.name})`);
-      console.log(`📋 Schema: ${stats.totalAttributes} attributes (${stats.aiExtractableCount} AI-extractable, ${stats.requiredCount} required)`);
-
       // Create enhanced fashion extraction request with garment type
       const vlmRequest: FashionExtractionRequest = {
         image,
@@ -1099,8 +1061,6 @@ export class EnhancedExtractionController {
       // Extract using Multi-VLM pipeline
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      console.log(`✅ Category-Based Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
-
       // Merge extracted metadata with provided metadata
       const finalMetadata = {
         vendorName: result.extractedMetadata?.vendorName || vendorName || null,
@@ -1111,10 +1071,6 @@ export class EnhancedExtractionController {
         notes,
         extractionDate: new Date().toISOString()
       };
-
-      if (result.extractedMetadata) {
-        console.log(`🏷️ AI extracted metadata from tag/board:`, result.extractedMetadata);
-      }
 
       // Upload base64 image to Cloudflare R2 (required for consistent storage)
       let imagePath = '';
@@ -1130,7 +1086,6 @@ export class EnhancedExtractionController {
 
         const originalName = fileName || `upload_${Date.now()}.${extension}`;
 
-        console.log(`☁️ Uploading category extraction image to R2: ${originalName}`);
         const uploadResult = await storageService.uploadFile(
           imageBuffer,
           originalName,
@@ -1139,11 +1094,8 @@ export class EnhancedExtractionController {
         );
 
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
-        console.error('❌ R2 Upload Failed for category extraction image:', uploadError);
+        console.error('R2 Upload Failed for category extraction image:', uploadError);
         console.error('   Error details:', uploadError.message);
 
         res.status(500).json({
@@ -1156,7 +1108,6 @@ export class EnhancedExtractionController {
       }
 
       if (!imagePath) {
-        console.error('❌ No image URL after category extraction upload');
         res.status(500).json({
           success: false,
           error: 'Image upload succeeded but no URL was returned',
@@ -1221,7 +1172,6 @@ export class EnhancedExtractionController {
    */
   getCategoryHierarchy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log('📂 Fetching category hierarchy...');
       const hierarchy = await this.schemaService.getCategoryHierarchy();
 
       res.json({
