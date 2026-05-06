@@ -686,13 +686,19 @@ export class ApproverController {
 
             const where: any = {};
 
+            // SRM records are cross-divisional presentations — bypass scope so any authenticated
+            // user can see them regardless of their assigned division.
+            const bypassScope = source === 'SRM';
+
             // RBAC: Enforce scope by role
-            if (role === 'ADMIN') {
-                // Admins can filter freely
-                if (division && division !== 'ALL') where.division = division as string;
-                if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
-            } else {
-                ApproverController.applyApproverScope(where, req.user);
+            if (!bypassScope) {
+                if (role === 'ADMIN') {
+                    // Admins can filter freely
+                    if (division && division !== 'ALL') where.division = division as string;
+                    if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+                } else {
+                    ApproverController.applyApproverScope(where, req.user);
+                }
             }
 
             // Path-type filter — NON-BLOCKING.
@@ -1785,6 +1791,16 @@ export class ApproverController {
             if (publicBase && storedUrl.startsWith(publicBase + '/')) {
                 return res.json({ url: storedUrl });
             }
+
+            // Public R2 CDN URLs (hostname starts with "pub-" and ends with ".r2.dev") never
+            // expire — they are served from Cloudflare's public CDN. Return as-is with no
+            // key extraction, no signing, and no DB update.
+            try {
+                const { hostname } = new URL(storedUrl);
+                if (hostname.startsWith('pub-') && hostname.endsWith('.r2.dev')) {
+                    return res.json({ url: storedUrl });
+                }
+            } catch { /* malformed URL — fall through */ }
 
             // If the URL is not from any R2 domain (e.g. Supabase, external CDN), return as-is.
             // Never rewrite or persist a replacement — that would corrupt non-R2 URLs permanently.
