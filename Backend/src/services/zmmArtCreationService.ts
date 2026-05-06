@@ -91,8 +91,8 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     // Body
     { rfc: 'M_COLLAR',              flat: 'collar' },
     { rfc: 'M_COLLAR_STYLE',        flat: 'collarStyle' },
-    { rfc: 'M_NECK_TYPE',            flat: 'neck' },
-    { rfc: 'M_NECK_STYLE',          flat: 'neckDetails' },
+    { rfc: 'M_NECK_BAND',            flat: 'neck' },
+    { rfc: 'M_NECK_BAND_STYLE',     flat: 'neckDetails' },
     { rfc: 'M_PLACKET',             flat: 'placket' },
     { rfc: 'M_BLT_MAIN_STYLE',      flat: 'fatherBelt' },
     { rfc: 'M_SUB_STYLE_BLT',       flat: 'childBelt' },
@@ -124,8 +124,8 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'M_PRINT_TYPE',          flat: 'printType' },
     { rfc: 'M_PRINT_PLACEMENT',     flat: 'printPlacement' },
     { rfc: 'M_PRINT_STYLE',         flat: 'printStyle' },
-    { rfc: 'M_EMBROIDERY',          flat: 'embroidery' },
-    { rfc: 'M_EMB_TYPE',            flat: 'embroideryType' },
+    { rfc: 'M_EMB_TYPE',            flat: 'embroidery' },
+    { rfc: 'M_EMBROIDERY',          flat: 'embroideryType' },
     { rfc: 'M_EMB_PLACEMENT',       flat: 'embPlacement' },
     { rfc: 'M_WASH',                flat: 'wash' },
 
