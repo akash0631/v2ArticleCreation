@@ -40,7 +40,6 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
         group: 'FAB',
         color: '#e6f4ff',
         fields: [
-            { field: 'macroMvgr',      schemaKey: 'macro_mvgr' },
             { field: 'yarn1',          schemaKey: 'yarn_01' },
             { field: 'mainMvgr',       schemaKey: 'main_mvgr' },
             { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
@@ -54,8 +53,8 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
             { field: 'gsm',            schemaKey: 'gsm' },
             { field: 'fOunce',         schemaKey: 'f_ounce' },
             { field: 'fWidth',         schemaKey: 'f_width' },
-            { field: 'shade',          schemaKey: 'shade',            freeText: true },
-            { field: 'weight',         schemaKey: 'weight',           freeText: true },
+            { field: 'shade',          schemaKey: 'shade',           freeText: true },
+            { field: 'weight',         schemaKey: 'weight',          freeText: true },
         ],
     },
     {
@@ -114,10 +113,10 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
         group: 'BUSINESS',
         color: '#f9f0ff',
         fields: [
-            { field: 'ageGroup',            schemaKey: 'age_group' },
-            { field: 'articleFashionType',  schemaKey: 'article_fashion_type' },
-            { field: 'segment',             schemaKey: 'segment' },
-            { field: 'mvgrBrandVendor',     schemaKey: 'mvgr_brand_vendor', freeText: true },
+            { field: 'ageGroup',           schemaKey: 'age_group' },
+            { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
+            { field: 'segment',            schemaKey: 'segment' },
+            { field: 'mvgrBrandVendor',    schemaKey: 'mvgr_brand_vendor', freeText: true },
         ],
     },
 ];
@@ -283,7 +282,6 @@ const ArticleCard = React.memo(({
     const refreshAttempted = React.useRef(false);
 
     const FAB_FIELDS: { field: string; schemaKey: string }[] = [
-        { field: 'macroMvgr',      schemaKey: 'macro_mvgr' },
         { field: 'yarn1',          schemaKey: 'yarn_01' },
         { field: 'mainMvgr',       schemaKey: 'main_mvgr' },
         { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
@@ -529,13 +527,13 @@ const ArticleCard = React.memo(({
                     {/* 6 horizontal info fields — click to edit */}
                     <div style={{ display: 'flex', gap: 0, borderTop: '1px solid #f0f0f0' }}>
                         {([
-                            { label: 'MAJOR CATEGORY',        field: 'majorCategory',              bold: true,  color: '#2f54eb',  editable: true },
-                            { label: 'ARTICLE NUMBER',        field: 'articleNumber',               bold: true,  color: item.sapArticleId ? '#389e0d' : '#1d39c4', editable: !item.sapArticleId },
-                            { label: 'VENDOR CODE',           field: 'vendorCode',                  bold: false, color: '#1a1a1a', editable: true },
-                            { label: 'ARTICLE DESC',          field: 'articleDescription',          bold: false, color: '#595959', editable: true },
-                            { label: 'REFERENCE ARTICLE',     field: 'referenceArticleNumber',      bold: false, color: '#1a1a1a', editable: true },
-                            { label: 'REFERENCE ARTICLE DESC',field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true },
-                        ] as { label: string; field: string; bold: boolean; color: string; editable: boolean }[]).map(({ label, field, bold, color, editable }, i) => {
+                            { label: 'MAJOR CATEGORY',        field: 'majorCategory',              bold: true,  color: '#2f54eb',  editable: true,  required: false },
+                            { label: 'ARTICLE NUMBER',        field: 'articleNumber',               bold: true,  color: item.sapArticleId ? '#389e0d' : '#1d39c4', editable: !item.sapArticleId, required: false },
+                            { label: 'VENDOR CODE',           field: 'vendorCode',                  bold: false, color: '#1a1a1a', editable: true,  required: true  },
+                            { label: 'ARTICLE DESC',          field: 'articleDescription',          bold: false, color: '#595959', editable: true,  required: false },
+                            { label: 'REFERENCE ARTICLE',     field: 'referenceArticleNumber',      bold: false, color: '#1a1a1a', editable: true,  required: false },
+                            { label: 'REFERENCE ARTICLE DESC',field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true,  required: false },
+                        ] as { label: string; field: string; bold: boolean; color: string; editable: boolean; required: boolean }[]).map(({ label, field, bold, color, editable, required }, i) => {
                             const value = field === 'articleNumber'
                                 ? (item.sapArticleId || (item as any)[field])
                                 : field === 'majorCategory'
@@ -544,6 +542,8 @@ const ArticleCard = React.memo(({
                             const displayVal = localValues[field] !== undefined ? localValues[field] : value;
                             const isEditingThis = editingField === `hdr_${field}`;
                             const canEdit = editable && !isLocked;
+                            const isEmpty = !displayVal;
+                            const showRequiredError = required && isEmpty && !isLocked;
                             return (
                                 <div key={i} style={{
                                     flex: i >= 3 ? 2 : 1,
@@ -555,8 +555,8 @@ const ArticleCard = React.memo(({
                                 }}
                                 onClick={() => { if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`); }}
                                 >
-                                    <div style={{ fontSize: 9, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2, fontWeight: 600 }}>
-                                        {label}
+                                    <div style={{ fontSize: 9, color: showRequiredError ? '#ff4d4f' : '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2, fontWeight: 600 }}>
+                                        {label}{required && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
                                     </div>
                                     {isEditingThis && field === 'majorCategory' ? (
                                         <Select
@@ -584,8 +584,8 @@ const ArticleCard = React.memo(({
                                             onBlur={(e) => handleSave(field, e.target.value || null)}
                                         />
                                     ) : (
-                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {displayVal || (canEdit ? 'Click to fill' : '—')}
+                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : showRequiredError ? '#fa8c16' : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontStyle: showRequiredError ? 'italic' : 'normal' }}>
+                                            {displayVal || (showRequiredError ? 'Required' : canEdit ? 'Click to fill' : '—')}
                                         </div>
                                     )}
                                 </div>
@@ -982,17 +982,24 @@ const ArticleCard = React.memo(({
                 )}
 
                 {/* ── Proceed for FG Article Creation — only shown when article number is not yet assigned ── */}
-                {!item.articleNumber && (
-                    <div style={{ padding: '8px 12px', borderTop: '1px solid #e8e8e8', background: '#fafafa' }}>
-                        <Button
-                            icon={<RocketOutlined />}
-                            onClick={() => onProceedFGArticle(item)}
-                            style={{ background: '#fff0ee', color: '#c94f44', border: '1px solid #f5c2bc', fontWeight: 600, fontSize: 13, width: '100%', height: 36 }}
-                        >
-                            Proceed for FG Article Creation
-                        </Button>
-                    </div>
-                )}
+                {!item.articleNumber && (() => {
+                    const effectiveVendorCode = localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
+                    const vendorCodeMissing = !effectiveVendorCode;
+                    return (
+                        <div style={{ padding: '8px 12px', borderTop: '1px solid #e8e8e8', background: '#fafafa' }}>
+                            <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
+                                <Button
+                                    icon={<RocketOutlined />}
+                                    disabled={vendorCodeMissing}
+                                    onClick={() => onProceedFGArticle(item)}
+                                    style={{ background: vendorCodeMissing ? '#f5f5f5' : '#fff0ee', color: vendorCodeMissing ? '#bfbfbf' : '#c94f44', border: `1px solid ${vendorCodeMissing ? '#d9d9d9' : '#f5c2bc'}`, fontWeight: 600, fontSize: 13, width: '100%', height: 36 }}
+                                >
+                                    Proceed for FG Article Creation
+                                </Button>
+                            </Tooltip>
+                        </div>
+                    );
+                })()}
 
                 {/* ── Variants section — only for generic articles ── */}
                 {item.isGeneric && (
