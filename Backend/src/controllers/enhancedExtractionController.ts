@@ -294,7 +294,7 @@ export class EnhancedExtractionController {
           extractedCount: attributeEntries.length,
           avgConfidence: result.confidence ?? null,
           completedAt: new Date(),
-          designNumber: originalFilename || null, // Store original filename as article number (designNumber field)
+          designNumber: null, // articleNumber is assigned only after successful SAP sync
         },
       });
 
@@ -875,10 +875,22 @@ export class EnhancedExtractionController {
         console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
         console.error('❌ R2 Upload Failed for base64 image:', uploadError.message);
-        // Non-fatal: continue with extraction data saved, image URL will be null
-        // User can re-upload image later if needed
-        console.warn('⚠️ Continuing extraction save without image URL (R2 unavailable)');
-        imagePath = null;
+        res.status(500).json({
+          success: false,
+          error: 'Failed to upload image to cloud storage',
+          details: uploadError.message,
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      if (!imagePath) {
+        res.status(500).json({
+          success: false,
+          error: 'Image upload succeeded but no URL was returned',
+          timestamp: Date.now()
+        });
+        return;
       }
 
       const parsedFolderFromFileName = typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
