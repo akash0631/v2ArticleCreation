@@ -329,6 +329,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
     const [activeRemarks, setActiveRemarks] = useState('');
     const [refreshedUrls, setRefreshedUrls] = useState<Record<string, string>>({});
     const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
+    const refreshAttempted = useRef<Set<string>>(new Set());
     const [density, setDensity] = useState(getDensity);
 
     // Re-evaluate density when browser zoom changes
@@ -360,7 +361,12 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
     }, [recalcScrollY]);
 
     const handleImageError = async (id: string) => {
-        if (failedIds.has(id)) return; // already tried, don't retry again
+        // If the refreshed URL also failed, give up — don't loop.
+        if (refreshAttempted.current.has(id)) {
+            setFailedIds(prev => new Set(prev).add(id));
+            return;
+        }
+        refreshAttempted.current.add(id);
         setFailedIds(prev => new Set(prev).add(id));
         try {
             const token = localStorage.getItem('authToken');
@@ -371,6 +377,8 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             const data = await res.json();
             if (data?.url) {
                 setRefreshedUrls(prev => ({ ...prev, [id]: data.url }));
+                // Clear failedIds so the refreshed URL gets rendered
+                setFailedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
             }
         } catch {
             // silently ignore — placeholder stays
