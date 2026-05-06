@@ -659,7 +659,7 @@ export class ApproverController {
 
     static async getItems(req: Request, res: Response) {
         try {
-            const { status, division, subDivision, majorCategory, startDate, endDate, search, page = 1, limit = 50, pathType } = req.query;
+            const { status, division, subDivision, majorCategory, startDate, endDate, search, page = 1, limit = 50, pathType, source } = req.query;
 
             // ── Response cache (8 s TTL) ───────────────────────────────────────────
             // Key includes all query params + user scope so different users/filters
@@ -670,7 +670,7 @@ export class ApproverController {
                 userId: role !== 'ADMIN' ? req.user?.id : undefined,
                 userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
                 userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
-                status, division, subDivision, startDate, endDate, search, page, limit, pathType,
+                status, division, subDivision, startDate, endDate, search, page, limit, pathType, source,
             });
             const cached = ApproverController.itemsCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
@@ -780,6 +780,9 @@ export class ApproverController {
 
             // Major category filter
             if (majorCategory) where.majorCategory = majorCategory as string;
+
+            // Source filter — 'SRM', 'WATCHER', 'USER', or omitted for all
+            if (source && source !== 'ALL') where.source = source as string;
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
@@ -1780,6 +1783,16 @@ export class ApproverController {
 
             // If it's a primary bucket public URL, return it as-is (bucket is public)
             if (publicBase && storedUrl.startsWith(publicBase + '/')) {
+                return res.json({ url: storedUrl });
+            }
+
+            // If the URL is not from any R2 domain (e.g. Supabase, external CDN), return as-is.
+            // Never rewrite or persist a replacement — that would corrupt non-R2 URLs permanently.
+            const isR2Url = storedUrl.includes('.r2.cloudflarestorage.com') ||
+                storedUrl.includes('.r2.dev/') ||
+                (publicBase && storedUrl.startsWith(publicBase)) ||
+                (approvedBase && storedUrl.startsWith(approvedBase));
+            if (!isR2Url) {
                 return res.json({ url: storedUrl });
             }
 

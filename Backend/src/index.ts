@@ -34,6 +34,7 @@ import { cacheService } from './services/cacheService';
 import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
+import { syncFromSrm } from './services/srmSyncService';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -317,6 +318,25 @@ app.use(errorHandler);
 
     // Run backfills once in the background — does not block startup
     ApproverController.runStartupBackfills();
+
+    // SRM Sync Scheduler — fires at 12:00 PM and 8:00 PM IST (UTC+5:30) daily.
+    // Replaces the external watcher cron that previously called POST /api/watcher/sync-srm.
+    let lastSrmSyncKey = '';
+    setInterval(() => {
+      const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+      const h = istNow.getUTCHours();
+      const m = istNow.getUTCMinutes();
+      if (m === 0 && (h === 12 || h === 20)) {
+        const key = `${istNow.toISOString().slice(0, 10)}-${h}`;
+        if (key !== lastSrmSyncKey) {
+          lastSrmSyncKey = key;
+          console.log(`[SRM Cron] Starting scheduled sync at IST ${h}:00`);
+          syncFromSrm()
+            .then(r => console.log(`[SRM Cron] Sync complete — inserted:${r.inserted} skipped:${r.skipped} errors:${r.errors}`))
+            .catch(err => console.error('[SRM Cron] Sync failed:', err?.message));
+        }
+      }
+    }, 60_000);
 
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {

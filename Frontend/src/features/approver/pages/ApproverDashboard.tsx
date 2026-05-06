@@ -196,6 +196,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
     const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
     const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>('');
+    const [sourceFilter, setSourceFilter] = useState<string>('ALL');
     const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
 
     // Debounce search — wait 700ms idle AND require at least 3 chars (or empty to reset)
@@ -277,6 +278,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
             if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
             if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+            if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
             if (searchText) params.set('search', searchText);
             if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
             if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
@@ -300,7 +302,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, divisionFilter, subDivisionFilter, searchText, dateRangeFilter, pathType]);
+    }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType]);
 
     useEffect(() => { fetchAttributes(); }, [fetchAttributes]);
 
@@ -425,6 +427,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
             if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
             if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+            if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
             if (searchText) params.set('search', searchText);
             if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
             if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
@@ -458,7 +461,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             hide();
             setExportingAll(false);
         }
-    }, [statusFilter, divisionFilter, subDivisionFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
+    }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
 
     // Only PENDING items from the current page selection are eligible for approve/reject actions
     const pendingSelectedKeys = useMemo(() =>
@@ -1206,6 +1209,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                             .filter(v => !prefixRegex || v.shortForm.match(prefixRegex))
                                             .map(v => <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>);
                                     })()}
+                                </Select>
+                            </Col>
+                            <Col xs={12} sm={6} md={3}>
+                                <Select style={{ width: '100%' }} value={sourceFilter} onChange={(val) => setSourceFilter(val)}>
+                                    <Option value="ALL">All Sources</Option>
+                                    <Option value="SRM">SRM</Option>
+                                    <Option value="WATCHER">Watcher</Option>
+                                    <Option value="USER">User</Option>
                                 </Select>
                             </Col>
                             <Col xs={24} sm={12} md={5}>

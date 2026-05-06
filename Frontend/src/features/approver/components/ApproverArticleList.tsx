@@ -362,13 +362,13 @@ const ArticleCard = React.memo(({
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
 
     const handleImgError = useCallback(async () => {
-        // If we already tried a refresh once and the new URL also failed, give up.
-        // Without this guard the component loops: fail → refresh → render → fail → refresh → ...
+        // If the refreshed URL also failed, give up — don't loop.
         if (refreshAttempted.current) {
             setFailedImg(true);
             return;
         }
         refreshAttempted.current = true;
+        // Hide first so we can remount <img> with the refreshed URL (forces browser re-fetch).
         setFailedImg(true);
         try {
             const token = localStorage.getItem('authToken');
@@ -377,7 +377,16 @@ const ArticleCard = React.memo(({
             });
             if (!res.ok) return;
             const data = await res.json();
-            if (data?.url) { setRefreshedUrl(data.url); setFailedImg(false); }
+            if (data?.url) {
+                // Non-signed public URLs: add cache-bust so remounted <img> re-fetches.
+                // Signed URLs (X-Amz-Signature) must not be modified.
+                const base = data.url as string;
+                const freshUrl = base.includes('X-Amz-Signature')
+                    ? base
+                    : base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+                setRefreshedUrl(freshUrl);
+                setFailedImg(false);
+            }
         } catch { /* ignore */ }
     }, [item.id]);
 
@@ -888,15 +897,16 @@ const ArticleCard = React.memo(({
                                             { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: false },
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
+                                            { label: 'IMP_ATBT-1',  field: 'macroMvgr',  editable: true,  mandatory: true  },
                                             { label: 'IMP_ATRBT-2', field: 'impAtrbt2',  editable: true,  mandatory: true  },
                                         ].map(({ label, field, editable, mandatory }) => {
                                             const isEditingBom = editingField === `bom_${field}`;
                                             const val = field === '_markdown' ? markdown
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
-                                            const isDropdown = field === 'impAtrbt2';
+                                            const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
                                             const dropdownOptions = isDropdown
-                                                ? (getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
+                                                ? (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];
                                             return (
                                                 <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>

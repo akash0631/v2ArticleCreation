@@ -329,6 +329,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
     const [activeRemarks, setActiveRemarks] = useState('');
     const [refreshedUrls, setRefreshedUrls] = useState<Record<string, string>>({});
     const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
+    const refreshAttempted = useRef<Set<string>>(new Set());
     const [density, setDensity] = useState(getDensity);
 
     // Re-evaluate density when browser zoom changes
@@ -360,7 +361,13 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
     }, [recalcScrollY]);
 
     const handleImageError = async (id: string) => {
-        if (failedIds.has(id)) return; // already tried, don't retry again
+        // If the refreshed URL also failed, give up — don't loop.
+        if (refreshAttempted.current.has(id)) {
+            setFailedIds(prev => new Set(prev).add(id));
+            return;
+        }
+        refreshAttempted.current.add(id);
+        // Hide first so we can remount <img> with the refreshed URL (forces browser re-fetch).
         setFailedIds(prev => new Set(prev).add(id));
         try {
             const token = localStorage.getItem('authToken');
@@ -370,7 +377,15 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
             if (!res.ok) return;
             const data = await res.json();
             if (data?.url) {
-                setRefreshedUrls(prev => ({ ...prev, [id]: data.url }));
+                // Non-signed public URLs (Supabase, R2 public): add cache-bust so the
+                // remounted <img> makes a fresh network request even for the same URL.
+                // Signed URLs (X-Amz-Signature) must not be modified — use as-is.
+                const base = data.url as string;
+                const freshUrl = base.includes('X-Amz-Signature')
+                    ? base
+                    : base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+                setRefreshedUrls(prev => ({ ...prev, [id]: freshUrl }));
+                setFailedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
             }
         } catch {
             // silently ignore — placeholder stays
