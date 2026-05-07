@@ -514,6 +514,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
+            if (!item.vendorCode) missing.push('VENDOR CODE');
             // referenceArticleDescription is optional
             if (missing.length > 0) {
                 errors.push({
@@ -547,6 +548,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // BOM / header fields — always mandatory regardless of division
             if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
             if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
+            if (!item.vendorCode) missing.push('VENDOR CODE');
             // referenceArticleDescription is optional
 
             if (missing.length > 0) {
