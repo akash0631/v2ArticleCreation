@@ -430,7 +430,7 @@ export const HierarchyTreeEditor: React.FC = () => {
 
   // Build Ant Design tree nodes
   const treeData: HierarchyNode[] = useMemo(() => {
-    const depts: any[] = hierarchyData?.data?.departments ?? hierarchyData?.departments ?? [];
+    const depts: any[] = Array.isArray(hierarchyData) ? hierarchyData : [];
     return depts.map((dept, di) => ({
       key: `dept-${dept.id}`,
       nodeType: 'dept' as const,
