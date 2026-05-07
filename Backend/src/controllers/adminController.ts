@@ -45,6 +45,7 @@ const MasterAttributeSchema = z.object({
   description: z.string().optional(),
   displayOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),
+  group: z.string().max(50).optional().nullable(),
 });
 
 const AllowedValueSchema = z.object({
@@ -490,12 +491,13 @@ export const getCategoryWithAllAttributes = async (req: Request, res: Response):
         attributeKey: attr.key,
         attributeLabel: attr.label,
         attributeType: attr.type,
+        attributeGroup: attr.group ?? null,
         allowedValues: attr.allowedValues,
         isEnabled: mapping?.isEnabled || false,
         isRequired: mapping?.isRequired || false,
         displayOrder: mapping?.displayOrder || attr.displayOrder,
         defaultValue: mapping?.defaultValue || null,
-        hasMapping: !!mapping,  // NEW: indicates if mapping exists in DB
+        hasMapping: !!mapping,
       };
     });
 
@@ -1584,6 +1586,136 @@ export const backfillWatcherSubDivisions = async (req: Request, res: Response) =
     });
   } catch (error: any) {
     console.error('Error in backfillWatcherSubDivisions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// SRM SYNC (ADMIN)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/srm/status
+ * Returns current DB SRM stats + next scheduled sync windows.
+ * Does NOT call the external SRM API (fast, DB-only).
+ */
+export const getSrmSyncStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [total, byDivision, byStatus, lastRecord, pendingEnrichment, hiddenFromApprovers] = await Promise.all([
+      prisma.extractionResultFlat.count({ where: { source: 'SRM' } }),
+      prisma.extractionResultFlat.groupBy({
+        by: ['division'],
+        where: { source: 'SRM' },
+        _count: { _all: true },
+      }),
+      prisma.extractionResultFlat.groupBy({
+        by: ['approvalStatus'],
+        where: { source: 'SRM' },
+        _count: { _all: true },
+      }),
+      prisma.extractionResultFlat.findFirst({
+        where: { source: 'SRM' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+      prisma.extractionResultFlat.count({
+        where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
+      }),
+      // Records currently hidden from approvers because extraction is still running (<4h old)
+      prisma.extractionResultFlat.count({
+        where: {
+          source: 'SRM',
+          extractionStatus: 'SRM_IMPORT',
+          createdAt: { gt: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+        },
+      }),
+    ]);
+
+    // Next scheduled syncs: 12:00 and 20:00 IST = 06:30 and 14:30 UTC
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const todayIST = istNow.toISOString().slice(0, 10);
+    const nextSyncs = ['12:00', '20:00'].map(t => {
+      const [h, m] = t.split(':').map(Number);
+      const candidate = new Date(`${todayIST}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000Z`);
+      // candidate is in IST-as-UTC; convert to real UTC
+      const realUtc = new Date(candidate.getTime() - istOffset);
+      if (realUtc <= now) realUtc.setDate(realUtc.getDate() + 1);
+      return { istTime: t, utc: realUtc.toISOString() };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalInDb: total,
+        lastSyncAt: lastRecord?.createdAt ?? null,
+        pendingEnrichment,
+        hiddenFromApprovers,
+        divisionBreakdown: byDivision.map(r => ({ division: r.division, count: r._count._all })),
+        statusBreakdown: byStatus.map(r => ({ status: r.approvalStatus, count: r._count._all })),
+        nextScheduledSyncs: nextSyncs,
+        schedule: 'Daily at 12:00 PM and 8:00 PM IST',
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in getSrmSyncStatus:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/sync
+ * Manually triggers a full SRM sync. Idempotent — existing records are skipped.
+ * Returns inserted / skipped / errors counts. VLM enrichment runs sequentially in background.
+ */
+export const triggerSrmSync = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { syncFromSrm } = await import('../services/srmSyncService');
+    console.log('[Admin] Manual SRM sync triggered');
+    const result = await syncFromSrm();
+    console.log(`[Admin] Manual SRM sync complete — inserted:${result.inserted} skipped:${result.skipped} errors:${result.errors}`);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('Error in triggerSrmSync:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/enrich
+ * Backfills VLM extraction for all SRM records that have an image but are still
+ * at SRM_IMPORT status. Runs sequentially (2s gap per record) to avoid rate limits.
+ * Returns immediately with a count; enrichment continues in background.
+ */
+export const triggerSrmEnrichment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { backfillSrmVlmEnrichment } = await import('../services/srmSyncService');
+
+    // Count how many need enrichment
+    const { prismaClient: prisma } = await import('../utils/prisma');
+    const pending = await prisma.extractionResultFlat.count({
+      where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
+    });
+
+    if (pending === 0) {
+      res.json({ success: true, message: 'All SRM records are already enriched.', pending: 0 });
+      return;
+    }
+
+    console.log(`[Admin] Manual SRM enrichment triggered — ${pending} records to process`);
+    // Run in background — respond immediately so the UI doesn't time out
+    void backfillSrmVlmEnrichment().then(r => {
+      console.log(`[Admin] SRM enrichment complete — enriched:${r.enriched} failed:${r.failed}`);
+    });
+
+    res.json({
+      success: true,
+      message: `Enrichment started for ${pending} SRM records. Running in background (~${Math.ceil(pending * 2 / 60)} min).`,
+      pending,
+    });
+  } catch (error: any) {
+    console.error('Error in triggerSrmEnrichment:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

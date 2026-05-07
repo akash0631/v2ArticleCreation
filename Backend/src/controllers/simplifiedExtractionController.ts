@@ -17,6 +17,7 @@ import { ImageProcessor } from '../utils/imageProcessor';
 import { SIMPLIFIED_ATTRIBUTES, getSimplifiedSchema, filterByConfidence, applyGarmentTypeRules } from '../config/simplifiedAttributes';
 import { SimplifiedPromptService } from '../services/simplifiedPromptService';
 import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
+import { hierarchyService } from '../services/hierarchyService';
 import type { FashionExtractionRequest } from '../types/vlm';
 
 export class SimplifiedExtractionController {
@@ -49,10 +50,13 @@ export class SimplifiedExtractionController {
       } = req.body;
 
       const normalizedMajorCategory = String(majorCategory || '').trim();
-      if (!normalizedMajorCategory || !getMcCodeByMajorCategory(normalizedMajorCategory)) {
+
+      // Load category from DB (falls back to hardcoded if DB is empty)
+      const dbCategory = await hierarchyService.getCategoryForExtraction(normalizedMajorCategory);
+      if (!dbCategory && !getMcCodeByMajorCategory(normalizedMajorCategory)) {
         res.status(400).json({
           success: false,
-          error: 'Invalid majorCategory. Please use mc code list (mc des) values only.',
+          error: 'Invalid majorCategory. Category not found.',
           timestamp: Date.now()
         });
         return;
@@ -61,13 +65,16 @@ export class SimplifiedExtractionController {
       // Convert image to base64
       const base64Image = await ImageProcessor.processImageToBase64(req.file);
 
+      const attrCount = dbCategory ? dbCategory.attributes.length : SIMPLIFIED_ATTRIBUTES.length;
       console.log(`🚀 Simplified Extraction Started`);
       console.log(`   Department: ${department}`);
       console.log(`   Major Category: ${majorCategory}`);
-      console.log(`   Attributes: 27 fixed`);
+      console.log(`   Attributes: ${attrCount} (${dbCategory ? 'DB-driven' : 'hardcoded fallback'})`);
 
-      // Use the fixed simplified schema
-      const schema = getSimplifiedSchema();
+      // Use DB attributes if available, else fall back to hardcoded
+      const schema = dbCategory
+        ? dbCategory.attributes.map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false, confidenceThreshold: a.confidenceThreshold }))
+        : getSimplifiedSchema();
 
       // Generate simplified prompt
       const customPrompt = this.promptService.generateSimplifiedPrompt(department, majorCategory);
@@ -85,14 +92,15 @@ export class SimplifiedExtractionController {
       // Extract using VLM service
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      // Filter attributes by confidence threshold (65%+)
       const filteredAttributes = filterByConfidence(result.attributes);
-      const garmentSafeAttributes = applyGarmentTypeRules(filteredAttributes, majorCategory);
+      const garmentSafeAttributes = dbCategory
+        ? applyGarmentTypeRules(filteredAttributes, undefined, dbCategory.garmentType as any)
+        : applyGarmentTypeRules(filteredAttributes, majorCategory);
 
       console.log(`✅ Simplified Extraction Complete`);
       console.log(`   Confidence: ${result.confidence}%`);
       console.log(`   Time: ${result.processingTime}ms`);
-      console.log(`   High-confidence attributes: ${Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length}/27`);
+      console.log(`   High-confidence attributes: ${Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length}/${attrCount}`);
 
       res.json({
         success: true,
@@ -102,7 +110,8 @@ export class SimplifiedExtractionController {
         },
         metadata: {
           simplifiedMode: true,
-          totalAttributes: SIMPLIFIED_ATTRIBUTES.length,
+          dbDriven: !!dbCategory,
+          totalAttributes: attrCount,
           highConfidenceCount: Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length,
           confidenceThreshold: 65
         },
@@ -115,43 +124,28 @@ export class SimplifiedExtractionController {
     }
   };
 
-  /**
-   * Simplified extraction from base64 image
-   */
   extractSimplifiedBase64 = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { 
-        image,
-        department,
-        majorCategory,
-        categoryName
-      } = req.body;
+      const { image, department, majorCategory, categoryName } = req.body;
 
       if (!image) {
-        res.status(400).json({
-          success: false,
-          error: 'Base64 image is required',
-          timestamp: Date.now()
-        });
+        res.status(400).json({ success: false, error: 'Base64 image is required', timestamp: Date.now() });
         return;
       }
 
       const normalizedMajorCategory = String(majorCategory || '').trim();
-      if (!normalizedMajorCategory || !getMcCodeByMajorCategory(normalizedMajorCategory)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid majorCategory. Please use mc code list (mc des) values only.',
-          timestamp: Date.now()
-        });
+      const dbCategory = await hierarchyService.getCategoryForExtraction(normalizedMajorCategory);
+      if (!dbCategory && !getMcCodeByMajorCategory(normalizedMajorCategory)) {
+        res.status(400).json({ success: false, error: 'Invalid majorCategory. Category not found.', timestamp: Date.now() });
         return;
       }
 
-      console.log(`🚀 Simplified Base64 Extraction Started`);
-      console.log(`   Department: ${department}`);
-      console.log(`   Major Category: ${majorCategory}`);
+      const attrCount = dbCategory ? dbCategory.attributes.length : SIMPLIFIED_ATTRIBUTES.length;
+      console.log(`🚀 Simplified Base64 Extraction Started — ${department} / ${majorCategory} (${attrCount} attrs)`);
 
-      // Use fixed schema
-      const schema = getSimplifiedSchema();
+      const schema = dbCategory
+        ? dbCategory.attributes.map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false, confidenceThreshold: a.confidenceThreshold }))
+        : getSimplifiedSchema();
 
       // Generate simplified prompt
       const customPrompt = this.promptService.generateSimplifiedPrompt(department, majorCategory);
@@ -169,22 +163,22 @@ export class SimplifiedExtractionController {
       // Extract
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      // Filter by confidence
       const filteredAttributes = filterByConfidence(result.attributes);
-      const garmentSafeAttributes = applyGarmentTypeRules(filteredAttributes, majorCategory);
+      const garmentSafeAttributes = dbCategory
+        ? applyGarmentTypeRules(filteredAttributes, undefined, dbCategory.garmentType as any)
+        : applyGarmentTypeRules(filteredAttributes, majorCategory);
 
-      console.log(`✅ Simplified Base64 Extraction Complete - ${Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length}/27 high-confidence`);
+      const highConf = Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length;
+      console.log(`✅ Simplified Base64 Extraction Complete - ${highConf}/${attrCount} high-confidence`);
 
       res.json({
         success: true,
-        data: {
-          ...result,
-          attributes: garmentSafeAttributes
-        },
+        data: { ...result, attributes: garmentSafeAttributes },
         metadata: {
           simplifiedMode: true,
-          totalAttributes: SIMPLIFIED_ATTRIBUTES.length,
-          highConfidenceCount: Object.keys(garmentSafeAttributes).filter(k => garmentSafeAttributes[k] !== null).length,
+          dbDriven: !!dbCategory,
+          totalAttributes: attrCount,
+          highConfidenceCount: highConf,
           confidenceThreshold: 65
         },
         timestamp: Date.now()

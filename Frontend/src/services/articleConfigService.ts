@@ -104,3 +104,98 @@ export function buildUiLabelToDbFieldMap(): Record<string, string> {
   if (!fieldsCache) return {};
   return Object.fromEntries(fieldsCache.map((f) => [f.uiLabel, f.dbField]));
 }
+
+// ─── Attribute Groups (for dynamic article card layout) ───────────────────────
+
+export interface AttributeGroupEntry {
+  key: string;
+  type: 'TEXT' | 'SELECT' | 'NUMBER';
+  group: string;
+}
+
+let attributeGroupsCache: AttributeGroupEntry[] | null = null;
+let attributeGroupsPromise: Promise<AttributeGroupEntry[]> | null = null;
+
+export async function preloadAttributeGroups(): Promise<AttributeGroupEntry[]> {
+  if (attributeGroupsCache) return attributeGroupsCache;
+  if (attributeGroupsPromise) return attributeGroupsPromise;
+
+  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+  attributeGroupsPromise = fetch(`${baseURL}/admin/attributes`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then(r => r.ok ? r.json() : null)
+    .then(json => {
+      const attrs: AttributeGroupEntry[] = (json?.data ?? [])
+        .filter((a: any) => a.group && a.isActive)
+        .map((a: any) => ({ key: a.key, type: a.type, group: a.group }));
+      attributeGroupsCache = attrs;
+      return attrs;
+    })
+    .catch(() => [] as AttributeGroupEntry[])
+    .finally(() => { attributeGroupsPromise = null; });
+
+  return attributeGroupsPromise;
+}
+
+export function getCachedAttributeGroups(): AttributeGroupEntry[] | null {
+  return attributeGroupsCache;
+}
+
+// ─── Per-category enabled/required attribute config ───────────────────────────
+
+export interface CategoryAttrConfig {
+  configured: boolean;      // false = no mappings yet, show all (fallback)
+  enabled: Set<string>;     // schema keys that are enabled
+  required: Set<string>;    // schema keys that are required
+}
+
+const CATEGORY_ATTR_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const categoryAttrCache = new Map<string, { config: CategoryAttrConfig; ts: number }>();
+const categoryAttrPending = new Map<string, Promise<CategoryAttrConfig>>();
+
+export async function preloadCategoryAttributes(categoryCode: string): Promise<CategoryAttrConfig> {
+  const cached = categoryAttrCache.get(categoryCode);
+  if (cached && Date.now() - cached.ts < CATEGORY_ATTR_TTL_MS) return cached.config;
+  if (categoryAttrPending.has(categoryCode)) return categoryAttrPending.get(categoryCode)!;
+
+  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+  const p = fetch(`${baseURL}/article-config/category-attributes/${encodeURIComponent(categoryCode)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then(r => r.ok ? r.json() : null)
+    .then((json): CategoryAttrConfig => {
+      if (!json?.success) return { configured: false, enabled: new Set(), required: new Set() };
+      const result: CategoryAttrConfig = {
+        configured: json.configured,
+        enabled: new Set<string>(json.enabled ?? []),
+        required: new Set<string>(json.required ?? []),
+      };
+      categoryAttrCache.set(categoryCode, { config: result, ts: Date.now() });
+      return result;
+    })
+    .catch((): CategoryAttrConfig => ({ configured: false, enabled: new Set(), required: new Set() }))
+    .finally(() => categoryAttrPending.delete(categoryCode));
+
+  categoryAttrPending.set(categoryCode, p);
+  return p;
+}
+
+export function getCachedCategoryAttributes(categoryCode: string): CategoryAttrConfig | null {
+  const cached = categoryAttrCache.get(categoryCode);
+  if (!cached) return null;
+  if (Date.now() - cached.ts >= CATEGORY_ATTR_TTL_MS) {
+    categoryAttrCache.delete(categoryCode);
+    return null;
+  }
+  return cached.config;
+}
+
+export function invalidateCategoryAttributeCache(categoryCode?: string) {
+  if (categoryCode) categoryAttrCache.delete(categoryCode);
+  else categoryAttrCache.clear();
+}

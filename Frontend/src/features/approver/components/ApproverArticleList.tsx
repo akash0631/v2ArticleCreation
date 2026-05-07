@@ -2,9 +2,9 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
-import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
+import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -121,10 +121,34 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
     },
 ];
 
-// Flat list used in useMemo — keeps group info attached (freeText flag carried through)
-const ATTRIBUTE_FIELDS = ATTRIBUTE_GROUPS.flatMap(g =>
-    g.fields.map(a => ({ ...a, label: f(a.schemaKey), group: g.group, groupColor: g.color, freeText: a.freeText ?? false }))
-);
+// Builds ATTRIBUTE_GROUPS from API-driven AttributeGroupEntry list.
+// Falls back to the hardcoded ATTRIBUTE_GROUPS if API returns nothing.
+const GROUP_COLORS: Record<string, string> = {
+    'FAB': '#e6f4ff', 'BODY': '#f6ffed', 'VA ACC.': '#fff7e6', 'VA PRCS': '#fff0f6', 'BUSINESS': '#f9f0ff',
+};
+const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+
+type CardGroup = typeof ATTRIBUTE_GROUPS[number];
+
+function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
+    const map = new Map<string, CardGroup['fields']>();
+    for (const e of entries) {
+        const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
+        if (!dbField) continue;
+        if (!map.has(e.group)) map.set(e.group, []);
+        map.get(e.group)!.push({
+            field: dbField,
+            schemaKey: e.key,
+            freeText: e.type === 'TEXT' ? true : undefined,
+        });
+    }
+    const built = GROUP_ORDER.filter(g => map.has(g)).map(g => ({
+        group: g,
+        color: GROUP_COLORS[g] || '#f0f0f0',
+        fields: map.get(g)!,
+    }));
+    return built.length > 0 ? built : ATTRIBUTE_GROUPS;
+}
 
 export interface ApproverArticleListProps {
     items: ApproverItem[];
@@ -165,6 +189,7 @@ const ArticleCard = React.memo(({
     onProceedFGArticle,
     attributes,
     onRefresh,
+    cardGroups,
 }: {
     item: ApproverItem;
     isSelected: boolean;
@@ -175,6 +200,7 @@ const ArticleCard = React.memo(({
     onProceedFGArticle: (item: ApproverItem) => void;
     attributes: MasterAttribute[];
     onRefresh: () => void;
+    cardGroups: CardGroup[];
 }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
@@ -216,27 +242,41 @@ const ArticleCard = React.memo(({
 
     // Tracks when the attribute values cache has loaded so visibleAttrs re-computes
     const [cacheReady, setCacheReady] = useState(false);
+    // Tracks when per-category enabled/required config has loaded
+    const [catConfigReady, setCatConfigReady] = useState(false);
+
+    // Flat attribute list derived from the active card groups
+    const attributeFields = useMemo(() =>
+        cardGroups.flatMap(g =>
+            g.fields.map(a => ({ ...a, label: f(a.schemaKey), group: g.group, groupColor: g.color, freeText: a.freeText ?? false }))
+        ),
+    [cardGroups]);
 
     // Compute attributes per-card from this article's own majorCategory
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
         if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
-        const mandatory = getMajCatMandatoryKeys(effectiveMajCat);
-        const visible = ATTRIBUTE_FIELDS
+
+        // DB-driven config (set via Attribute Mapping in Admin Panel)
+        const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
+        const mandatoryKeys: Set<string> = dbConfig?.configured ? dbConfig.required : new Set();
+
+        const visible = attributeFields
             .map(af => {
-                // freeText fields always shown as editable text inputs (no predefined values)
-                if (af.freeText) {
-                    return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values: [] as { shortForm: string; fullForm: string }[], freeText: true };
+                // If DB config exists, only show enabled attributes
+                if (dbConfig?.configured) {
+                    if (!dbConfig.enabled.has(af.schemaKey)) return null;
+                    const values = getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
+                    return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
                 }
-                // Only show dropdown fields that are mandatory for this major category
-                if (!mandatory.has(af.schemaKey)) return null;
-                const values = getMajCatAllowedValues(item.division || '', af.schemaKey);
-                return values ? { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false } : null;
+                // No DB config yet — show all fields
+                const values = af.freeText ? [] : (getMajCatAllowedValues(item.division || '', af.schemaKey) ?? []);
+                return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
             })
             .filter((af): af is NonNullable<typeof af> => af !== null);
-        return { visibleAttrs: visible, mandatoryKeys: mandatory };
-    // cacheReady is a dependency so this re-runs once the attribute cache loads
+
+        return { visibleAttrs: visible, mandatoryKeys };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveMajCat, cacheReady]);
+    }, [effectiveMajCat, cacheReady, catConfigReady, attributeFields]);
     const [editingField, setEditingField] = useState<string | null>(null);
     // Per-attribute manual overrides for Art # (user-editable)
     const [attrArticleNums, setAttrArticleNums] = useState<Record<string, string>>(() => {
@@ -249,8 +289,20 @@ const ArticleCard = React.memo(({
         if (!item.division) return;
         preloadAttributeValues(item.division)
             .then(() => setCacheReady(true))
-            .catch(() => setCacheReady(true)); // still flip so fields show (empty)
+            .catch(() => setCacheReady(true));
     }, [item.division]);
+
+    useEffect(() => {
+        if (!effectiveMajCat) return;
+        // Check cache first to avoid a flash
+        if (getCachedCategoryAttributes(effectiveMajCat)) {
+            setCatConfigReady(true);
+            return;
+        }
+        preloadCategoryAttributes(effectiveMajCat)
+            .then(() => setCatConfigReady(true))
+            .catch(() => setCatConfigReady(true));
+    }, [effectiveMajCat]);
 
     useEffect(() => {
         if (!effectiveMajCat) return;
@@ -281,39 +333,12 @@ const ArticleCard = React.memo(({
     // Prevent infinite retry: only attempt a signed-URL refresh once per card mount.
     const refreshAttempted = React.useRef(false);
 
-    const FAB_FIELDS: { field: string; schemaKey: string }[] = [
-        { field: 'yarn1',          schemaKey: 'yarn_01' },
-        { field: 'mainMvgr',       schemaKey: 'main_mvgr' },
-        { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
-        { field: 'weave',          schemaKey: 'weave' },
-        { field: 'mFab2',          schemaKey: 'm_fab2' },
-        { field: 'composition',    schemaKey: 'composition' },
-        { field: 'fCount',         schemaKey: 'f_count' },
-        { field: 'fConstruction',  schemaKey: 'f_construction' },
-        { field: 'lycra',          schemaKey: 'lycra_non_lycra' },
-        { field: 'finish',         schemaKey: 'finish' },
-        { field: 'gsm',            schemaKey: 'gsm' },
-        { field: 'fOunce',         schemaKey: 'f_ounce' },
-        { field: 'fWidth',         schemaKey: 'f_width' },
-    ];
-    const BODY_FIELDS: { field: string; schemaKey: string }[] = [
-        { field: 'collar',      schemaKey: 'collar' },
-        { field: 'collarStyle', schemaKey: 'collar_style' },
-        { field: 'neckDetails', schemaKey: 'neck_details' },
-        { field: 'neck',        schemaKey: 'neck' },
-        { field: 'placket',     schemaKey: 'placket' },
-        { field: 'fatherBelt',  schemaKey: 'father_belt' },
-        { field: 'childBelt',   schemaKey: 'child_belt' },
-        { field: 'sleeve',      schemaKey: 'sleeve' },
-        { field: 'sleeveFold',  schemaKey: 'sleeve_fold' },
-        { field: 'bottomFold',  schemaKey: 'bottom_fold' },
-        { field: 'noOfPocket',  schemaKey: 'no_of_pocket' },
-        { field: 'pocketType',  schemaKey: 'pocket_type' },
-        { field: 'extraPocket', schemaKey: 'extra_pocket' },
-        { field: 'fit',         schemaKey: 'fit' },
-        { field: 'pattern',     schemaKey: 'body_style' },
-        { field: 'length',      schemaKey: 'length' },
-    ];
+    const FAB_FIELDS = useMemo(() =>
+        (cardGroups.find(g => g.group === 'FAB')?.fields ?? []).filter(f => !f.freeText),
+    [cardGroups]);
+    const BODY_FIELDS = useMemo(() =>
+        (cardGroups.find(g => g.group === 'BODY')?.fields ?? []).filter(f => !f.freeText),
+    [cardGroups]);
 
     // Helper: get current value of a field (local edit takes priority over item)
     const getFieldVal = useCallback((field: string) => {
@@ -1058,7 +1083,17 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
     onRefresh,
     serverPagination,
 }) => {
-    // Each ArticleCard computes its own attributes from item.majorCategory directly.
+    // Load attribute groups from DB once; fall back to hardcoded ATTRIBUTE_GROUPS.
+    const [cardGroups, setCardGroups] = useState<CardGroup[]>(() => {
+        const cached = getCachedAttributeGroups();
+        return cached && cached.length > 0 ? buildCardGroups(cached) : ATTRIBUTE_GROUPS;
+    });
+
+    useEffect(() => {
+        preloadAttributeGroups().then(entries => {
+            if (entries.length > 0) setCardGroups(buildCardGroups(entries));
+        }).catch(() => {/* keep hardcoded fallback */});
+    }, []);
 
     const handleToggleSelect = useCallback((id: string) => {
         onSelectionChange(
@@ -1114,6 +1149,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
                     onProceedFGArticle={onProceedFGArticle}
                     attributes={attributes}
                     onRefresh={onRefresh}
+                    cardGroups={cardGroups}
                 />
             ))}
 

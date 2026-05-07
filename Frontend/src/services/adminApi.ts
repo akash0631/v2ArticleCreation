@@ -103,6 +103,7 @@ export interface MasterAttribute {
   description?: string;
   displayOrder: number;
   isActive: boolean;
+  group?: string | null;
   createdAt: string;
   updatedAt: string;
   allowedValues?: AllowedValue[];

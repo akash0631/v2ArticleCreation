@@ -7000,6 +7000,7 @@ export namespace Prisma {
     confidenceThreshold: Decimal | null
     hasRangeDetection: boolean | null
     rangeType: string | null
+    group: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7021,6 +7022,7 @@ export namespace Prisma {
     confidenceThreshold: Decimal | null
     hasRangeDetection: boolean | null
     rangeType: string | null
+    group: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7044,6 +7046,7 @@ export namespace Prisma {
     rangeType: number
     rangeConfig: number
     validationRules: number
+    group: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -7081,6 +7084,7 @@ export namespace Prisma {
     confidenceThreshold?: true
     hasRangeDetection?: true
     rangeType?: true
+    group?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7102,6 +7106,7 @@ export namespace Prisma {
     confidenceThreshold?: true
     hasRangeDetection?: true
     rangeType?: true
+    group?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7125,6 +7130,7 @@ export namespace Prisma {
     rangeType?: true
     rangeConfig?: true
     validationRules?: true
+    group?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -7235,6 +7241,7 @@ export namespace Prisma {
     rangeType: string | null
     rangeConfig: JsonValue | null
     validationRules: JsonValue | null
+    group: string | null
     createdAt: Date
     updatedAt: Date
     _count: MasterAttributeCountAggregateOutputType | null
@@ -7277,6 +7284,7 @@ export namespace Prisma {
     rangeType?: boolean
     rangeConfig?: boolean
     validationRules?: boolean
+    group?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     allowedValues?: boolean | MasterAttribute$allowedValuesArgs<ExtArgs>
@@ -7304,6 +7312,7 @@ export namespace Prisma {
     rangeType?: boolean
     rangeConfig?: boolean
     validationRules?: boolean
+    group?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["masterAttribute"]>
@@ -7327,6 +7336,7 @@ export namespace Prisma {
     rangeType?: boolean
     rangeConfig?: boolean
     validationRules?: boolean
+    group?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["masterAttribute"]>
@@ -7350,11 +7360,12 @@ export namespace Prisma {
     rangeType?: boolean
     rangeConfig?: boolean
     validationRules?: boolean
+    group?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type MasterAttributeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "key" | "label" | "fullForm" | "type" | "category" | "description" | "isRequired" | "displayOrder" | "isActive" | "aiExtractable" | "visibleFromDistance" | "extractionPriority" | "confidenceThreshold" | "hasRangeDetection" | "rangeType" | "rangeConfig" | "validationRules" | "createdAt" | "updatedAt", ExtArgs["result"]["masterAttribute"]>
+  export type MasterAttributeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "key" | "label" | "fullForm" | "type" | "category" | "description" | "isRequired" | "displayOrder" | "isActive" | "aiExtractable" | "visibleFromDistance" | "extractionPriority" | "confidenceThreshold" | "hasRangeDetection" | "rangeType" | "rangeConfig" | "validationRules" | "group" | "createdAt" | "updatedAt", ExtArgs["result"]["masterAttribute"]>
   export type MasterAttributeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     allowedValues?: boolean | MasterAttribute$allowedValuesArgs<ExtArgs>
     categoryAttributes?: boolean | MasterAttribute$categoryAttributesArgs<ExtArgs>
@@ -7390,6 +7401,7 @@ export namespace Prisma {
       rangeType: string | null
       rangeConfig: Prisma.JsonValue | null
       validationRules: Prisma.JsonValue | null
+      group: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["masterAttribute"]>
@@ -7836,6 +7848,7 @@ export namespace Prisma {
     readonly rangeType: FieldRef<"MasterAttribute", 'String'>
     readonly rangeConfig: FieldRef<"MasterAttribute", 'Json'>
     readonly validationRules: FieldRef<"MasterAttribute", 'Json'>
+    readonly group: FieldRef<"MasterAttribute", 'String'>
     readonly createdAt: FieldRef<"MasterAttribute", 'DateTime'>
     readonly updatedAt: FieldRef<"MasterAttribute", 'DateTime'>
   }
@@ -34506,6 +34519,7 @@ export namespace Prisma {
     rangeType: 'rangeType',
     rangeConfig: 'rangeConfig',
     validationRules: 'validationRules',
+    group: 'group',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -35128,7 +35142,8 @@ export namespace Prisma {
     fullForm: 'fullForm',
     category: 'category',
     description: 'description',
-    rangeType: 'rangeType'
+    rangeType: 'rangeType',
+    group: 'group'
   };
 
   export type MasterAttributeOrderByRelevanceFieldEnum = (typeof MasterAttributeOrderByRelevanceFieldEnum)[keyof typeof MasterAttributeOrderByRelevanceFieldEnum]
@@ -36018,6 +36033,7 @@ export namespace Prisma {
     rangeType?: StringNullableFilter<"MasterAttribute"> | string | null
     rangeConfig?: JsonNullableFilter<"MasterAttribute">
     validationRules?: JsonNullableFilter<"MasterAttribute">
+    group?: StringNullableFilter<"MasterAttribute"> | string | null
     createdAt?: DateTimeFilter<"MasterAttribute"> | Date | string
     updatedAt?: DateTimeFilter<"MasterAttribute"> | Date | string
     allowedValues?: AttributeAllowedValueListRelationFilter
@@ -36044,6 +36060,7 @@ export namespace Prisma {
     rangeType?: SortOrderInput | SortOrder
     rangeConfig?: SortOrderInput | SortOrder
     validationRules?: SortOrderInput | SortOrder
+    group?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     allowedValues?: AttributeAllowedValueOrderByRelationAggregateInput
@@ -36074,6 +36091,7 @@ export namespace Prisma {
     rangeType?: StringNullableFilter<"MasterAttribute"> | string | null
     rangeConfig?: JsonNullableFilter<"MasterAttribute">
     validationRules?: JsonNullableFilter<"MasterAttribute">
+    group?: StringNullableFilter<"MasterAttribute"> | string | null
     createdAt?: DateTimeFilter<"MasterAttribute"> | Date | string
     updatedAt?: DateTimeFilter<"MasterAttribute"> | Date | string
     allowedValues?: AttributeAllowedValueListRelationFilter
@@ -36100,6 +36118,7 @@ export namespace Prisma {
     rangeType?: SortOrderInput | SortOrder
     rangeConfig?: SortOrderInput | SortOrder
     validationRules?: SortOrderInput | SortOrder
+    group?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: MasterAttributeCountOrderByAggregateInput
@@ -36131,6 +36150,7 @@ export namespace Prisma {
     rangeType?: StringNullableWithAggregatesFilter<"MasterAttribute"> | string | null
     rangeConfig?: JsonNullableWithAggregatesFilter<"MasterAttribute">
     validationRules?: JsonNullableWithAggregatesFilter<"MasterAttribute">
+    group?: StringNullableWithAggregatesFilter<"MasterAttribute"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"MasterAttribute"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"MasterAttribute"> | Date | string
   }
@@ -39183,6 +39203,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueCreateNestedManyWithoutAttributeInput
@@ -39209,6 +39230,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueUncheckedCreateNestedManyWithoutAttributeInput
@@ -39234,6 +39256,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUpdateManyWithoutAttributeNestedInput
@@ -39260,6 +39283,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUncheckedUpdateManyWithoutAttributeNestedInput
@@ -39286,6 +39310,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -39308,6 +39333,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -39331,6 +39357,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -43105,6 +43132,7 @@ export namespace Prisma {
     rangeType?: SortOrder
     rangeConfig?: SortOrder
     validationRules?: SortOrder
+    group?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -43133,6 +43161,7 @@ export namespace Prisma {
     confidenceThreshold?: SortOrder
     hasRangeDetection?: SortOrder
     rangeType?: SortOrder
+    group?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -43154,6 +43183,7 @@ export namespace Prisma {
     confidenceThreshold?: SortOrder
     hasRangeDetection?: SortOrder
     rangeType?: SortOrder
+    group?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -47580,6 +47610,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     categoryAttributes?: CategoryAttributeCreateNestedManyWithoutAttributeInput
@@ -47605,6 +47636,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     categoryAttributes?: CategoryAttributeUncheckedCreateNestedManyWithoutAttributeInput
@@ -47685,6 +47717,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     categoryAttributes?: CategoryAttributeUpdateManyWithoutAttributeNestedInput
@@ -47710,6 +47743,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     categoryAttributes?: CategoryAttributeUncheckedUpdateManyWithoutAttributeNestedInput
@@ -47750,6 +47784,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueCreateNestedManyWithoutAttributeInput
@@ -47775,6 +47810,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueUncheckedCreateNestedManyWithoutAttributeInput
@@ -47855,6 +47891,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUpdateManyWithoutAttributeNestedInput
@@ -47880,6 +47917,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUncheckedUpdateManyWithoutAttributeNestedInput
@@ -48674,6 +48712,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueCreateNestedManyWithoutAttributeInput
@@ -48699,6 +48738,7 @@ export namespace Prisma {
     rangeType?: string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     allowedValues?: AttributeAllowedValueUncheckedCreateNestedManyWithoutAttributeInput
@@ -48868,6 +48908,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUpdateManyWithoutAttributeNestedInput
@@ -48893,6 +48934,7 @@ export namespace Prisma {
     rangeType?: NullableStringFieldUpdateOperationsInput | string | null
     rangeConfig?: NullableJsonNullValueInput | InputJsonValue
     validationRules?: NullableJsonNullValueInput | InputJsonValue
+    group?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     allowedValues?: AttributeAllowedValueUncheckedUpdateManyWithoutAttributeNestedInput
