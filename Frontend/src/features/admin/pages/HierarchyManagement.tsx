@@ -1,42 +1,37 @@
 /**
  * Hierarchy Management Page
- * Manage departments, sub-departments, categories, and attributes
+ * Tree-based editor for departments, sub-departments, categories and attribute mappings.
  */
 
 import { useState } from 'react';
 import { Layout, Tabs, Button, Space, Typography } from 'antd';
 import {
   DashboardOutlined,
-  BankOutlined,
-  TagsOutlined,
+  ApartmentOutlined,
   BgColorsOutlined,
-  DownloadOutlined
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getHierarchyTree } from '../../../services/adminApi';
 import { HierarchyStats } from '../components/HierarchyStats';
 import { HierarchyTree } from '../components/HierarchyTree';
-import { DepartmentManager } from '../components/DepartmentManager';
-import { CategoryManager } from '../components/CategoryManager';
 import { AttributeManager } from '../components/AttributeManager';
-import { CategoryAttributeMatrix } from '../components/CategoryAttributeMatrix';
+import { HierarchyTreeEditor } from '../components/HierarchyTreeEditor';
 import VLMStatusPanel from '../../../components/vlm/VLMStatusPanel';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-type TabType = 'overview' | 'departments' | 'categories' | 'attributes' | 'mappings';
+type TabType = 'overview' | 'tree' | 'attributes';
 
 export default function HierarchyManagement() {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('tree');
 
-  // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['hierarchy-stats'],
     queryFn: getDashboardStats,
   });
 
-  // Fetch hierarchy tree
   const { data: hierarchy, isLoading: hierarchyLoading } = useQuery({
     queryKey: ['hierarchy-tree'],
     queryFn: getHierarchyTree,
@@ -52,99 +47,73 @@ export default function HierarchyManagement() {
       a.download = `hierarchy-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Export failed:', error);
+    } catch {
+      console.error('Export failed');
     }
   };
 
   const tabItems = [
     {
-      key: 'overview',
-      label: (
-        <span>
-          <DashboardOutlined /> Overview
-        </span>
-      ),
+      key: 'tree',
+      label: <span><ApartmentOutlined /> Hierarchy & Mappings</span>,
       children: (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div style={{ padding: '24px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              Click any <strong>category</strong> in the tree to manage which attributes are extracted for it.
+              Use the ✏ and 🗑 icons to rename or remove nodes. Add new nodes with the dashed buttons.
+            </Text>
+          </div>
+          <HierarchyTreeEditor />
+        </div>
+      ),
+    },
+    {
+      key: 'attributes',
+      label: <span><BgColorsOutlined /> Master Attributes</span>,
+      children: <div style={{ padding: '24px' }}><AttributeManager /></div>,
+    },
+    {
+      key: 'overview',
+      label: <span><DashboardOutlined /> Overview</span>,
+      children: (
+        <Space direction="vertical" size="large" style={{ width: '100%', padding: '24px' }}>
           <VLMStatusPanel />
           <HierarchyStats stats={stats} loading={statsLoading} />
           <HierarchyTree hierarchy={hierarchy} loading={hierarchyLoading} />
         </Space>
       ),
     },
-    {
-      key: 'departments',
-      label: (
-        <span>
-          <BankOutlined /> Departments
-        </span>
-      ),
-      children: <DepartmentManager />,
-    },
-    {
-      key: 'categories',
-      label: (
-        <span>
-          <TagsOutlined /> Categories
-        </span>
-      ),
-      children: <CategoryManager />,
-    },
-    {
-      key: 'attributes',
-      label: (
-        <span>
-          <BgColorsOutlined /> Attributes
-        </span>
-      ),
-      children: <AttributeManager />,
-    },
-    {
-      key: 'mappings',
-      label: (
-        <span>
-          <TagsOutlined /> Category-Attribute Mappings
-        </span>
-      ),
-      children: <CategoryAttributeMatrix />,
-    },
   ];
 
   return (
     <Layout className="page-scroll-enabled" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       <Content style={{ padding: '24px' }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
           {/* Header */}
           <div style={{
-            background: '#fff',
-            padding: '24px',
-            marginBottom: '24px',
-            borderRadius: '8px',
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02)'
+            background: '#fff', padding: '20px 24px', marginBottom: 24,
+            borderRadius: 8,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 1px 6px rgba(0,0,0,0.02)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <Title level={2} style={{ margin: 0 }}>Hierarchy Management</Title>
-                <Text type="secondary">Manage departments, categories & attributes</Text>
+                <Text type="secondary">
+                  Manage departments, categories &amp; extraction attributes — changes reflect in the app within 5 minutes
+                </Text>
               </div>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  onClick={handleExport}
-                >
-                  Export Data
-                </Button>
-              </Space>
+              <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
+                Export JSON
+              </Button>
             </div>
           </div>
 
-          {/* Tabs Content */}
-          <div style={{ background: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
+          {/* Tabs */}
+          <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
             <Tabs
               activeKey={activeTab}
-              onChange={(key) => setActiveTab(key as TabType)}
+              onChange={k => setActiveTab(k as TabType)}
               items={tabItems}
               size="large"
               style={{ padding: '0 24px' }}
