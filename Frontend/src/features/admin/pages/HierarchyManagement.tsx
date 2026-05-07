@@ -1,6 +1,6 @@
 /**
  * Hierarchy Management Page
- * Tree-based editor for departments, sub-departments, categories and attribute mappings.
+ * Multi-tab admin UI for managing departments, categories and attribute mappings.
  */
 
 import { useState } from 'react';
@@ -10,6 +10,7 @@ import {
   ApartmentOutlined,
   BgColorsOutlined,
   DownloadOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats, getHierarchyTree } from '../../../services/adminApi';
@@ -17,15 +18,16 @@ import { HierarchyStats } from '../components/HierarchyStats';
 import { HierarchyTree } from '../components/HierarchyTree';
 import { AttributeManager } from '../components/AttributeManager';
 import { HierarchyTreeEditor } from '../components/HierarchyTreeEditor';
+import { CategoryAttributeMapper } from '../components/CategoryAttributeMapper';
 import VLMStatusPanel from '../../../components/vlm/VLMStatusPanel';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-type TabType = 'overview' | 'tree' | 'attributes';
+type TabType = 'hierarchy' | 'mappings' | 'attributes' | 'overview';
 
 export default function HierarchyManagement() {
-  const [activeTab, setActiveTab] = useState<TabType>('tree');
+  const [activeTab, setActiveTab] = useState<TabType>('hierarchy');
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['hierarchy-stats'],
@@ -54,17 +56,34 @@ export default function HierarchyManagement() {
 
   const tabItems = [
     {
-      key: 'tree',
-      label: <span><ApartmentOutlined /> Hierarchy & Mappings</span>,
+      key: 'hierarchy',
+      label: <span><ApartmentOutlined /> Hierarchy</span>,
       children: (
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '20px 24px' }}>
           <div style={{ marginBottom: 16 }}>
             <Text type="secondary">
-              Click any <strong>category</strong> in the tree to manage which attributes are extracted for it.
-              Use the ✏ and 🗑 icons to rename or remove nodes. Add new nodes with the dashed buttons.
+              Each department is shown as a card. Expand sub-departments to see categories.
+              Use the <strong>pencil</strong> icon to rename, <strong>trash</strong> to delete, and the dashed buttons to add.
+              Go to the <strong>Attribute Mapping</strong> tab to manage which attributes are extracted per category.
             </Text>
           </div>
           <HierarchyTreeEditor />
+        </div>
+      ),
+    },
+    {
+      key: 'mappings',
+      label: <span><LinkOutlined /> Attribute Mapping</span>,
+      children: (
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary">
+              Select a category to manage which of the 45 master attributes are
+              extracted for it. Toggle <strong>Enabled</strong> to include an attribute,
+              and <strong>Required</strong> to make it mandatory. Click <strong>Save Changes</strong> to apply.
+            </Text>
+          </div>
+          <CategoryAttributeMapper />
         </div>
       ),
     },

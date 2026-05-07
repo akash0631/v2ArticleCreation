@@ -1,13 +1,13 @@
 /**
  * HierarchyTreeEditor
- * Left panel: collapsible tree (dept → sub-dept → category) with inline add/edit/delete
- * Right panel: attribute assignment for selected category
+ * Department cards layout — one card per department, displayed side by side.
+ * Attribute mapping is handled in a separate tab (CategoryAttributeMapper).
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
-  Tree, Button, Input, Space, Popconfirm, message, Spin, Table,
-  Switch, Tag, Empty, Select, Divider, Badge, Tooltip, Typography, Alert,
+  Card, Button, Input, Space, Popconfirm, message, Spin, Table,
+  Tag, Tooltip, Typography, Badge, Collapse, Empty, Alert, Divider, Select, Switch,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -16,10 +16,8 @@ import {
   ArrowUpOutlined, ArrowDownOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { DataNode } from 'antd/es/tree';
 import {
-  getHierarchyTree, getMasterAttributes, getCategoryWithAllAttributes,
-  updateCategoryAttributeMapping,
+  getHierarchyTree, getCategoryWithAllAttributes, updateCategoryAttributeMapping,
   createDepartment, updateDepartment, deleteDepartment,
   createSubDepartment, updateSubDepartment, deleteSubDepartment,
   createCategory, updateCategory, deleteCategory,
@@ -27,17 +25,9 @@ import {
 
 const { Text } = Typography;
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Shared Types ─────────────────────────────────────────────────────────────
 
-interface HierarchyNode extends DataNode {
-  nodeType: 'dept' | 'subdept' | 'category';
-  nodeId: number;
-  parentId?: number;
-  displayOrder: number;
-  isActive?: boolean;
-}
-
-interface SelectedCategory {
+export interface SelectedCategory {
   id: number;
   name: string;
   code: string;
@@ -55,7 +45,10 @@ interface AttrRow {
   displayOrder: number;
 }
 
-// ─── Node Title ──────────────────────────────────────────────────────────────
+// ─── NodeTitle ────────────────────────────────────────────────────────────────
+// Inline rename + hover-reveal action buttons for dept / subdept / category nodes.
+// Root element does NOT stop propagation so Collapse headers still toggle correctly.
+// Only the action buttons stop propagation.
 
 interface NodeTitleProps {
   nodeId: number;
@@ -115,7 +108,11 @@ const NodeTitle: React.FC<NodeTitleProps> = ({
     } catch { message.error('Reorder failed'); }
   };
 
-  const iconMap = { dept: <FolderOutlined style={{ color: '#fa8c16' }} />, subdept: <AppstoreOutlined style={{ color: '#1890ff' }} />, category: <TagOutlined style={{ color: '#52c41a' }} /> };
+  const iconMap = {
+    dept: <FolderOutlined style={{ color: '#fa8c16' }} />,
+    subdept: <AppstoreOutlined style={{ color: '#1890ff' }} />,
+    category: <TagOutlined style={{ color: '#52c41a' }} />,
+  };
 
   if (editing) {
     return (
@@ -127,7 +124,7 @@ const NodeTitle: React.FC<NodeTitleProps> = ({
           onChange={e => setEditVal(e.target.value)}
           onPressEnter={saveName}
           autoFocus
-          style={{ width: 160 }}
+          style={{ width: 150 }}
         />
         <Button size="small" type="primary" icon={<CheckOutlined />} onClick={saveName} />
         <Button size="small" icon={<CloseOutlined />} onClick={() => { setEditing(false); setEditVal(label); }} />
@@ -136,40 +133,42 @@ const NodeTitle: React.FC<NodeTitleProps> = ({
   }
 
   return (
-    <Space size={6} className="hierarchy-tree-node" onClick={e => e.stopPropagation()}>
+    <span className="hierarchy-node-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
       {iconMap[nodeType]}
-      <span style={{ opacity: isActive ? 1 : 0.45 }}>{label}</span>
+      <span style={{ opacity: isActive ? 1 : 0.45, fontSize: nodeType === 'category' ? 12 : 13 }}>{label}</span>
       {!isActive && <Tag color="default" style={{ fontSize: 10 }}>inactive</Tag>}
-      <Space size={2} className="node-actions">
-        {displayOrder > 1 && (
-          <Tooltip title="Move up">
-            <Button size="small" type="text" icon={<ArrowUpOutlined />} onClick={() => moveOrder('up')} />
+      <span className="node-actions" onClick={e => e.stopPropagation()}>
+        <Space size={0}>
+          {displayOrder > 1 && (
+            <Tooltip title="Move up">
+              <Button size="small" type="text" icon={<ArrowUpOutlined />} onClick={() => moveOrder('up')} />
+            </Tooltip>
+          )}
+          {displayOrder < siblingCount && (
+            <Tooltip title="Move down">
+              <Button size="small" type="text" icon={<ArrowDownOutlined />} onClick={() => moveOrder('down')} />
+            </Tooltip>
+          )}
+          <Tooltip title="Rename">
+            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditing(true)} />
           </Tooltip>
-        )}
-        {displayOrder < siblingCount && (
-          <Tooltip title="Move down">
-            <Button size="small" type="text" icon={<ArrowDownOutlined />} onClick={() => moveOrder('down')} />
-          </Tooltip>
-        )}
-        <Tooltip title="Rename">
-          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditing(true)} />
-        </Tooltip>
-        <Popconfirm
-          title={`Delete this ${nodeType}?`}
-          description="This may fail if it has active children or linked articles."
-          onConfirm={handleDelete}
-          okText="Delete" okButtonProps={{ danger: true }}
-        >
-          <Tooltip title="Delete">
-            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-          </Tooltip>
-        </Popconfirm>
-      </Space>
-    </Space>
+          <Popconfirm
+            title={`Delete this ${nodeType}?`}
+            description="This may fail if it has active children or linked articles."
+            onConfirm={handleDelete}
+            okText="Delete" okButtonProps={{ danger: true }}
+          >
+            <Tooltip title="Delete">
+              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      </span>
+    </span>
   );
 };
 
-// ─── Add Node Row ─────────────────────────────────────────────────────────────
+// ─── AddNode ──────────────────────────────────────────────────────────────────
 
 interface AddNodeProps {
   nodeType: 'dept' | 'subdept' | 'category';
@@ -196,7 +195,7 @@ const AddNode: React.FC<AddNodeProps> = ({ nodeType, parentId, onSaved, placehol
       } else {
         await createCategory({ subDepartmentId: parentId!, code, name: val.trim(), displayOrder: 99 });
       }
-      message.success(`${nodeType === 'dept' ? 'Department' : nodeType === 'subdept' ? 'Sub-department' : 'Category'} added`);
+      message.success('Added');
       qc.invalidateQueries({ queryKey: ['hierarchy-tree'] });
       qc.invalidateQueries({ queryKey: ['hierarchy-stats'] });
       onSaved();
@@ -213,7 +212,7 @@ const AddNode: React.FC<AddNodeProps> = ({ nodeType, parentId, onSaved, placehol
       <Button
         size="small" type="dashed" icon={<PlusOutlined />}
         onClick={e => { e.stopPropagation(); setOpen(true); }}
-        style={{ marginLeft: nodeType === 'dept' ? 0 : nodeType === 'subdept' ? 24 : 48, marginTop: 4 }}
+        style={{ width: '100%', marginTop: 4 }}
       >
         {placeholder}
       </Button>
@@ -221,15 +220,13 @@ const AddNode: React.FC<AddNodeProps> = ({ nodeType, parentId, onSaved, placehol
   }
 
   return (
-    <Space size={4} onClick={e => e.stopPropagation()} style={{ marginLeft: nodeType === 'dept' ? 0 : nodeType === 'subdept' ? 24 : 48 }}>
+    <Space size={4} onClick={e => e.stopPropagation()} style={{ width: '100%', marginTop: 4 }}>
       <Input
-        size="small"
-        placeholder="Name..."
-        value={val}
+        size="small" placeholder="Name…" value={val}
         onChange={e => setVal(e.target.value)}
         onPressEnter={save}
         autoFocus
-        style={{ width: 180 }}
+        style={{ flex: 1 }}
       />
       <Button size="small" type="primary" icon={<CheckOutlined />} loading={loading} onClick={save} />
       <Button size="small" icon={<CloseOutlined />} onClick={() => setOpen(false)} />
@@ -237,7 +234,7 @@ const AddNode: React.FC<AddNodeProps> = ({ nodeType, parentId, onSaved, placehol
   );
 };
 
-// ─── Attribute Panel ──────────────────────────────────────────────────────────
+// ─── AttributePanel (exported — used by CategoryAttributeMapper tab) ───────────
 
 const GARMENT_TYPES = [
   { value: 'UPPER', label: 'Upper (tops, shirts, jackets)' },
@@ -245,12 +242,12 @@ const GARMENT_TYPES = [
   { value: 'ALL_IN_ONE', label: 'All-in-one (sets, dresses, coords)' },
 ];
 
-interface AttributePanelProps {
+export interface AttributePanelProps {
   category: SelectedCategory;
-  onGarmentTypeChange: (catId: number, type: string) => void;
+  onGarmentTypeChange?: (catId: number, type: string) => void;
 }
 
-const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentTypeChange }) => {
+export const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentTypeChange }) => {
   const qc = useQueryClient();
   const [localChanges, setLocalChanges] = useState<Record<number, Partial<AttrRow>>>({});
   const [saving, setSaving] = useState(false);
@@ -292,9 +289,8 @@ const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentType
     const entries = Object.entries(localChanges);
     let ok = 0;
     for (const [attrIdStr, changes] of entries) {
-      const attrId = parseInt(attrIdStr);
       try {
-        await updateCategoryAttributeMapping(category.id, attrId, changes);
+        await updateCategoryAttributeMapping(category.id, parseInt(attrIdStr), changes);
         ok++;
       } catch { /* skip */ }
     }
@@ -325,15 +321,16 @@ const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentType
       ),
     },
     {
-      title: () => <Space><span>Enabled</span><Badge count={enabledCount} style={{ backgroundColor: '#52c41a' }} /></Space>,
+      title: () => (
+        <Space>
+          <span>Enabled</span>
+          <Badge count={enabledCount} style={{ backgroundColor: '#52c41a' }} />
+        </Space>
+      ),
       key: 'isEnabled',
       width: 90,
       render: (_: any, r: AttrRow) => (
-        <Switch
-          size="small"
-          checked={r.isEnabled}
-          onChange={v => handleToggle(r.attributeId, 'isEnabled', v)}
-        />
+        <Switch size="small" checked={r.isEnabled} onChange={v => handleToggle(r.attributeId, 'isEnabled', v)} />
       ),
     },
     {
@@ -341,40 +338,38 @@ const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentType
       key: 'isRequired',
       width: 90,
       render: (_: any, r: AttrRow) => (
-        <Switch
-          size="small"
-          checked={r.isRequired}
-          disabled={!r.isEnabled}
-          onChange={v => handleToggle(r.attributeId, 'isRequired', v)}
-        />
+        <Switch size="small" checked={r.isRequired} disabled={!r.isEnabled} onChange={v => handleToggle(r.attributeId, 'isRequired', v)} />
       ),
     },
   ];
 
   return (
     <div>
-      {/* Category header */}
-      <div style={{ padding: '16px 0 12px', borderBottom: '1px solid #f0f0f0', marginBottom: 16 }}>
+      <div style={{ padding: '0 0 12px', borderBottom: '1px solid #f0f0f0', marginBottom: 16 }}>
         <Space wrap>
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>Category</Text>
-            <div><Text strong style={{ fontSize: 16 }}>{category.name}</Text> <Tag>{category.code}</Tag></div>
+            <div>
+              <Text strong style={{ fontSize: 16 }}>{category.name}</Text>{' '}
+              <Tag>{category.code}</Tag>
+            </div>
             <Text type="secondary">{category.departmentName}</Text>
           </div>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Garment Type</Text>
-            <Select
-              value={category.garmentType}
-              options={GARMENT_TYPES}
-              onChange={v => onGarmentTypeChange(category.id, v)}
-              style={{ width: 260 }}
-              size="small"
-            />
-          </div>
+          {onGarmentTypeChange && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Garment Type</Text>
+              <Select
+                value={category.garmentType}
+                options={GARMENT_TYPES}
+                onChange={v => onGarmentTypeChange(category.id, v)}
+                style={{ width: 260 }}
+                size="small"
+              />
+            </div>
+          )}
         </Space>
       </div>
 
-      {/* Action bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <Space>
           <Button size="small" onClick={() => toggleAll(true)}>Enable All</Button>
@@ -396,21 +391,103 @@ const AttributePanel: React.FC<AttributePanelProps> = ({ category, onGarmentType
           columns={columns}
           rowKey="attributeId"
           size="small"
-          pagination={{ pageSize: 20, showSizeChanger: false }}
-          scroll={{ y: 420 }}
+          pagination={{ pageSize: 25, showSizeChanger: false }}
+          scroll={{ y: 460 }}
           rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
         />
       </Spin>
+      <style>{`.attr-row-changed { background: #fffbe6 !important; }`}</style>
     </div>
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── DeptCard ─────────────────────────────────────────────────────────────────
+
+const DeptCard: React.FC<{ dept: any; index: number; total: number; refetch: () => void }> = ({
+  dept, index, total, refetch,
+}) => {
+  const catCount = (dept.subDepartments ?? []).reduce(
+    (acc: number, sub: any) => acc + (sub.categories ?? []).length, 0
+  );
+
+  const collapseItems = (dept.subDepartments ?? []).map((sub: any, si: number) => ({
+    key: String(sub.id),
+    label: (
+      <span style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 6 }}>
+        <NodeTitle
+          nodeId={sub.id} nodeType="subdept" parentId={dept.id} label={sub.name}
+          displayOrder={si + 1} siblingCount={(dept.subDepartments ?? []).length}
+          onSaved={refetch}
+        />
+        <Badge
+          count={(sub.categories ?? []).length}
+          size="small"
+          style={{ backgroundColor: '#bfbfbf', marginLeft: 'auto', flexShrink: 0 }}
+        />
+      </span>
+    ),
+    children: (
+      <div>
+        {(sub.categories ?? []).length === 0 && (
+          <Text type="secondary" style={{ fontSize: 12, padding: '4px 0', display: 'block' }}>
+            No categories yet
+          </Text>
+        )}
+        {(sub.categories ?? []).map((cat: any, ci: number) => (
+          <div key={cat.id} style={{ padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+            <NodeTitle
+              nodeId={cat.id} nodeType="category" parentId={sub.id}
+              label={`${cat.name} (${cat.code})`}
+              displayOrder={ci + 1} siblingCount={(sub.categories ?? []).length}
+              isActive={cat.isActive !== false}
+              onSaved={refetch}
+            />
+          </div>
+        ))}
+        <div style={{ paddingTop: 6 }}>
+          <AddNode nodeType="category" parentId={sub.id} onSaved={refetch} placeholder="Add category" />
+        </div>
+      </div>
+    ),
+  }));
+
+  return (
+    <Card
+      title={
+        <NodeTitle
+          nodeId={dept.id} nodeType="dept" label={dept.name}
+          displayOrder={index + 1} siblingCount={total}
+          onSaved={refetch}
+        />
+      }
+      extra={<Tag color="blue">{catCount} categories</Tag>}
+      style={{ width: 340, minWidth: 300, flexShrink: 0 }}
+      size="small"
+      styles={{ header: { background: '#fffbe6', borderBottom: '1px solid #f0f0f0' } }}
+    >
+      {collapseItems.length === 0 ? (
+        <Empty
+          description="No sub-departments yet"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          style={{ padding: '8px 0' }}
+        />
+      ) : (
+        <Collapse
+          items={collapseItems}
+          defaultActiveKey={collapseItems.map(i => i.key)}
+          size="small"
+          ghost
+        />
+      )}
+      <Divider dashed style={{ margin: '8px 0' }} />
+      <AddNode nodeType="subdept" parentId={dept.id} onSaved={refetch} placeholder="Add sub-department" />
+    </Card>
+  );
+};
+
+// ─── HierarchyTreeEditor ──────────────────────────────────────────────────────
 
 export const HierarchyTreeEditor: React.FC = () => {
-  const qc = useQueryClient();
-  const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [searchText, setSearchText] = useState('');
 
   const { data: hierarchyData, isLoading, isError, error, refetch } = useQuery({
@@ -419,18 +496,6 @@ export const HierarchyTreeEditor: React.FC = () => {
     retry: 1,
   });
 
-  const changeGarmentType = useMutation({
-    mutationFn: ({ catId, type }: { catId: number; type: string }) =>
-      updateCategory(catId, { garmentType: type }),
-    onSuccess: (_, { type }) => {
-      message.success('Garment type updated');
-      if (selectedCategory) setSelectedCategory(prev => prev ? { ...prev, garmentType: type } : prev);
-      qc.invalidateQueries({ queryKey: ['hierarchy-tree'] });
-    },
-    onError: () => message.error('Update failed'),
-  });
-
-  // Filter raw hierarchy by search text before building tree nodes
   const filteredDepts = useMemo((): any[] => {
     const all: any[] = Array.isArray(hierarchyData) ? hierarchyData : [];
     if (!searchText.trim()) return all;
@@ -454,228 +519,59 @@ export const HierarchyTreeEditor: React.FC = () => {
     }, []);
   }, [hierarchyData, searchText]);
 
-  // Auto-expand: dept level on first load; all matching levels when searching
-  useEffect(() => {
-    if (!Array.isArray(filteredDepts) || filteredDepts.length === 0) return;
-    if (searchText.trim()) {
-      // Expand everything that matched
-      const keys: React.Key[] = [];
-      filteredDepts.forEach((d: any) => {
-        keys.push(`dept-${d.id}`);
-        (d.subDepartments ?? []).forEach((s: any) => keys.push(`sub-${s.id}`));
-      });
-      setExpandedKeys(keys);
-    } else if (expandedKeys.length === 0) {
-      // First load: expand department level only
-      setExpandedKeys(filteredDepts.map((d: any) => `dept-${d.id}`));
-    }
-  }, [filteredDepts, searchText]);
-
-  // Build Ant Design tree nodes
-  const treeData: HierarchyNode[] = useMemo(() => {
-    const depts: any[] = filteredDepts;
-    return depts.map((dept, di) => ({
-      key: `dept-${dept.id}`,
-      nodeType: 'dept' as const,
-      nodeId: dept.id,
-      displayOrder: dept.displayOrder ?? di + 1,
-      siblingCount: depts.length,
-      isActive: dept.isActive !== false,
-      title: (
-        <NodeTitle
-          nodeId={dept.id} nodeType="dept" label={dept.name}
-          displayOrder={dept.displayOrder ?? di + 1} siblingCount={depts.length}
-          onSaved={() => refetch()}
-        />
-      ),
-      children: [
-        ...(dept.subDepartments ?? []).map((sub: any, si: number) => ({
-          key: `sub-${sub.id}`,
-          nodeType: 'subdept' as const,
-          nodeId: sub.id,
-          parentId: dept.id,
-          displayOrder: sub.displayOrder ?? si + 1,
-          siblingCount: (dept.subDepartments ?? []).length,
-          isActive: sub.isActive !== false,
-          title: (
-            <NodeTitle
-              nodeId={sub.id} nodeType="subdept" parentId={dept.id} label={sub.name}
-              displayOrder={sub.displayOrder ?? si + 1}
-              siblingCount={(dept.subDepartments ?? []).length}
-              onSaved={() => refetch()}
-            />
-          ),
-          children: [
-            ...(sub.categories ?? []).map((cat: any, ci: number) => ({
-              key: `cat-${cat.id}`,
-              nodeType: 'category' as const,
-              nodeId: cat.id,
-              parentId: sub.id,
-              displayOrder: cat.displayOrder ?? ci + 1,
-              siblingCount: (sub.categories ?? []).length,
-              isActive: cat.isActive !== false,
-              isLeaf: true,
-              title: (
-                <NodeTitle
-                  nodeId={cat.id} nodeType="category" parentId={sub.id} label={`${cat.name} (${cat.code})`}
-                  displayOrder={cat.displayOrder ?? ci + 1}
-                  siblingCount={(sub.categories ?? []).length}
-                  isActive={cat.isActive !== false}
-                  onSaved={() => refetch()}
-                />
-              ),
-              // store for right panel
-              _cat: cat,
-              _dept: dept,
-            })),
-            // Add category button (hidden while searching)
-            ...(!searchText ? [{
-              key: `add-cat-${sub.id}`,
-              nodeType: 'category' as const,
-              nodeId: -1,
-              parentId: sub.id,
-              displayOrder: 999,
-              isLeaf: true,
-              title: <AddNode nodeType="category" parentId={sub.id} onSaved={() => refetch()} placeholder="Add category" />,
-              selectable: false,
-            }] : []),
-          ],
-        })),
-        // Add sub-dept button (hidden while searching)
-        ...(!searchText ? [{
-          key: `add-sub-${dept.id}`,
-          nodeType: 'subdept' as const,
-          nodeId: -1,
-          parentId: dept.id,
-          displayOrder: 999,
-          isLeaf: true,
-          title: <AddNode nodeType="subdept" parentId={dept.id} onSaved={() => refetch()} placeholder="Add sub-department" />,
-          selectable: false,
-        }] : []),
-      ],
-    }));
-  }, [filteredDepts, searchText, refetch]);
-
-  const handleSelect = (_keys: React.Key[], info: any) => {
-    const node = info.node;
-    if (node.nodeType !== 'category' || node.nodeId < 0) return;
-    const cat = node._cat;
-    const dept = node._dept;
-    if (!cat) return;
-    setSelectedCategory({
-      id: cat.id,
-      name: cat.name,
-      code: cat.code,
-      garmentType: cat.garmentType ?? 'UPPER',
-      departmentName: dept?.name ?? '',
-    });
-  };
-
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-      {/* Left: Tree */}
-      <div style={{
-        width: 420, minWidth: 320, flexShrink: 0,
-        background: '#fafafa', borderRadius: 8, border: '1px solid #f0f0f0', padding: 16,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Text strong>Hierarchy Tree</Text>
-          <Space size={4}>
-            <Button size="small" onClick={() => setExpandedKeys(treeData.flatMap(d => [d.key, ...(d.children ?? []).map((s: any) => s.key)]))}>
-              Expand All
-            </Button>
-            <Button size="small" onClick={() => setExpandedKeys([])}>Collapse</Button>
-          </Space>
-        </div>
-        <Input.Search
-          placeholder="Search departments, sub-depts, categories…"
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          onSearch={v => setSearchText(v)}
-          allowClear
-          size="small"
-          style={{ marginBottom: 12 }}
+    <div>
+      <Input.Search
+        placeholder="Search departments, sub-departments, categories or codes…"
+        value={searchText}
+        onChange={e => setSearchText(e.target.value)}
+        onSearch={setSearchText}
+        allowClear
+        style={{ marginBottom: 16, maxWidth: 420 }}
+      />
+
+      {isError && (
+        <Alert
+          type="error"
+          message="Failed to load hierarchy"
+          description={(error as any)?.message || 'Check that the backend is running and you are logged in as Admin.'}
+          showIcon
+          action={<Button size="small" onClick={() => refetch()}>Retry</Button>}
+          style={{ marginBottom: 16 }}
         />
+      )}
 
-        {isError && (
-          <Alert
-            type="error"
-            style={{ marginBottom: 12 }}
-            message="Failed to load hierarchy"
-            description={(error as any)?.message || 'Check that the backend is running and you are logged in as Admin.'}
-            showIcon
-            action={<Button size="small" onClick={() => refetch()}>Retry</Button>}
-          />
-        )}
-        <Spin spinning={isLoading}>
-          {searchText && filteredDepts.length > 0 && (
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
-              Showing {filteredDepts.length} dept{filteredDepts.length !== 1 ? 's' : ''} matching "{searchText}"
-            </Text>
-          )}
-          {!isError && !isLoading && treeData.length === 0 && !searchText && (
-            <Empty description="No departments yet — add one below" style={{ margin: '20px 0' }} />
-          )}
-          {!isError && !isLoading && treeData.length === 0 && searchText && (
-            <Empty description={`No results for "${searchText}"`} style={{ margin: '20px 0' }} />
-          )}
-          <Tree
-            treeData={treeData}
-            expandedKeys={expandedKeys}
-            onExpand={setExpandedKeys}
-            onSelect={handleSelect}
-            showLine={{ showLeafIcon: false }}
-            blockNode
-            style={{ background: 'transparent' }}
-          />
-          {!searchText && (
-            <>
-              <Divider dashed style={{ margin: '12px 0' }} />
-              <AddNode nodeType="dept" onSaved={() => refetch()} placeholder="Add department" />
-            </>
-          )}
-        </Spin>
-      </div>
+      <Spin spinning={isLoading}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {filteredDepts.map((dept: any, i: number) => (
+            <DeptCard key={dept.id} dept={dept} index={i} total={filteredDepts.length} refetch={refetch} />
+          ))}
 
-      {/* Right: Attribute panel */}
-      <div style={{ flex: 1, minWidth: 0, background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: 16 }}>
-        {selectedCategory ? (
-          <AttributePanel
-            key={selectedCategory.id}
-            category={selectedCategory}
-            onGarmentTypeChange={(catId, type) => changeGarmentType.mutate({ catId, type })}
-          />
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            style={{ marginTop: 40 }}
-            description={
-              <div style={{ textAlign: 'left', maxWidth: 360, margin: '0 auto' }}>
-                <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                  Attribute Mapping
-                </Text>
-                <Text type="secondary">
-                  Click any <Tag color="green" style={{ margin: '0 2px' }}>category</Tag> (green leaf node)
-                  in the tree to see and edit its attribute mappings here.
-                </Text>
-                <div style={{ marginTop: 12, padding: '10px 14px', background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
-                  <Text style={{ fontSize: 12 }}>
-                    Each category has up to 45 master attributes. Toggle <strong>Enabled</strong> to include
-                    an attribute in extraction, and <strong>Required</strong> to mark it as mandatory.
-                    Changes here affect what creators see when extracting articles.
-                  </Text>
-                </div>
-              </div>
-            }
-          />
-        )}
-      </div>
+          {/* Add-department placeholder card */}
+          {!searchText && !isError && (
+            <div style={{
+              width: 340, minWidth: 300, border: '2px dashed #d9d9d9', borderRadius: 8,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: 80, padding: 12,
+            }}>
+              <AddNode nodeType="dept" onSaved={refetch} placeholder="Add department" />
+            </div>
+          )}
+
+          {filteredDepts.length === 0 && !isLoading && !isError && (
+            <Empty
+              description={searchText ? `No results for "${searchText}"` : 'No departments yet — add one'}
+              style={{ margin: '40px auto' }}
+            />
+          )}
+        </div>
+      </Spin>
 
       <style>{`
-        .hierarchy-tree-node .node-actions { opacity: 0; transition: opacity 0.15s; }
-        .hierarchy-tree-node:hover .node-actions { opacity: 1; }
-        .ant-tree-node-content-wrapper:hover .hierarchy-tree-node .node-actions { opacity: 1; }
-        .attr-row-changed { background: #fffbe6 !important; }
+        .hierarchy-node-row .node-actions { opacity: 0; transition: opacity 0.15s; }
+        .hierarchy-node-row:hover .node-actions { opacity: 1; }
+        .ant-collapse-header:hover .node-actions { opacity: 1; }
+        .ant-card-head:hover .node-actions { opacity: 1; }
       `}</style>
     </div>
   );
