@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Select, Card, Typography, Tag, Button, Spin } from 'antd';
 import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { APP_CONFIG } from '../../../config/app.config';
+import { APP_CONFIG } from '../../../constants/app/config';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
