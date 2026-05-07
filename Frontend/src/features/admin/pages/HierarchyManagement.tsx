@@ -1,10 +1,13 @@
 /**
  * Hierarchy Management Page
- * Multi-tab admin UI for managing departments, categories and attribute mappings.
+ * Tab 1 (primary): Attribute Mapping — search a category, toggle its attributes
+ * Tab 2: Hierarchy — browse dept/sub-dept/category structure, click category → jumps to Tab 1
+ * Tab 3: Master Attributes — manage the 45 attribute definitions
+ * Tab 4: Overview — stats
  */
 
 import { useState } from 'react';
-import { Layout, Tabs, Button, Space, Typography } from 'antd';
+import { Layout, Tabs, Button, Typography } from 'antd';
 import {
   DashboardOutlined,
   ApartmentOutlined,
@@ -19,15 +22,17 @@ import { HierarchyTree } from '../components/HierarchyTree';
 import { AttributeManager } from '../components/AttributeManager';
 import { HierarchyTreeEditor } from '../components/HierarchyTreeEditor';
 import { CategoryAttributeMapper } from '../components/CategoryAttributeMapper';
+import type { SelectedCategory } from '../components/HierarchyTreeEditor';
 import VLMStatusPanel from '../../../components/vlm/VLMStatusPanel';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-type TabType = 'hierarchy' | 'mappings' | 'attributes' | 'overview';
+type TabType = 'mappings' | 'hierarchy' | 'attributes' | 'overview';
 
 export default function HierarchyManagement() {
-  const [activeTab, setActiveTab] = useState<TabType>('hierarchy');
+  const [activeTab, setActiveTab] = useState<TabType>('mappings');
+  const [jumpCategory, setJumpCategory] = useState<SelectedCategory | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['hierarchy-stats'],
@@ -54,36 +59,41 @@ export default function HierarchyManagement() {
     }
   };
 
+  // Called when a category row in the Hierarchy tab is clicked
+  const handleCategorySelectFromTree = (cat: SelectedCategory) => {
+    setJumpCategory(cat);
+    setActiveTab('mappings');
+  };
+
   const tabItems = [
-    {
-      key: 'hierarchy',
-      label: <span><ApartmentOutlined /> Hierarchy</span>,
-      children: (
-        <div style={{ padding: '20px 24px' }}>
-          <div style={{ marginBottom: 16 }}>
-            <Text type="secondary">
-              Each department is shown as a card. Expand sub-departments to see categories.
-              Use the <strong>pencil</strong> icon to rename, <strong>trash</strong> to delete, and the dashed buttons to add.
-              Go to the <strong>Attribute Mapping</strong> tab to manage which attributes are extracted per category.
-            </Text>
-          </div>
-          <HierarchyTreeEditor />
-        </div>
-      ),
-    },
     {
       key: 'mappings',
       label: <span><LinkOutlined /> Attribute Mapping</span>,
       children: (
-        <div style={{ padding: '20px 24px' }}>
-          <div style={{ marginBottom: 16 }}>
+        <div style={{ padding: '16px 24px' }}>
+          <div style={{ marginBottom: 12 }}>
             <Text type="secondary">
-              Select a category to manage which of the 45 master attributes are
-              extracted for it. Toggle <strong>Enabled</strong> to include an attribute,
-              and <strong>Required</strong> to make it mandatory. Click <strong>Save Changes</strong> to apply.
+              Search or browse the category list on the left. Select a category to view and toggle its attributes on the right.
+              Changes are saved per-category — click <strong>Save Changes</strong> after toggling.
             </Text>
           </div>
-          <CategoryAttributeMapper />
+          <CategoryAttributeMapper initialCategory={jumpCategory} />
+        </div>
+      ),
+    },
+    {
+      key: 'hierarchy',
+      label: <span><ApartmentOutlined /> Hierarchy</span>,
+      children: (
+        <div style={{ padding: '16px 24px' }}>
+          <div style={{ marginBottom: 12 }}>
+            <Text type="secondary">
+              Browse departments, sub-departments, and categories.
+              Use the <strong>pencil</strong> icon to rename and <strong>trash</strong> to delete.
+              Click any <strong>category row</strong> to jump straight to its attribute mapping.
+            </Text>
+          </div>
+          <HierarchyTreeEditor onCategorySelect={handleCategorySelectFromTree} />
         </div>
       ),
     },
@@ -96,11 +106,11 @@ export default function HierarchyManagement() {
       key: 'overview',
       label: <span><DashboardOutlined /> Overview</span>,
       children: (
-        <Space direction="vertical" size="large" style={{ width: '100%', padding: '24px' }}>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
           <VLMStatusPanel />
           <HierarchyStats stats={stats} loading={statsLoading} />
           <HierarchyTree hierarchy={hierarchy} loading={hierarchyLoading} />
-        </Space>
+        </div>
       ),
     },
   ];
