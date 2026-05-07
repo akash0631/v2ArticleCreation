@@ -13,7 +13,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Input, Typography, Space, Tag, Empty, Spin, Switch, Table,
-  Button, Select, Badge, message,
+  Button, Select, Badge, message, Collapse,
 } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,6 +24,30 @@ import {
 import type { SelectedCategory } from './HierarchyTreeEditor';
 
 const { Text } = Typography;
+const { Panel } = Collapse;
+
+const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+const GROUP_COLORS: Record<string, string> = {
+  'FAB':      '#e6f4ff',
+  'BODY':     '#f6ffed',
+  'VA ACC.':  '#fff7e6',
+  'VA PRCS':  '#fff0f6',
+  'BUSINESS': '#f9f0ff',
+};
+const GROUP_BORDER: Record<string, string> = {
+  'FAB':      '#91caff',
+  'BODY':     '#95de64',
+  'VA ACC.':  '#ffd591',
+  'VA PRCS':  '#ffadd2',
+  'BUSINESS': '#d3adf7',
+};
+const GROUP_TEXT: Record<string, string> = {
+  'FAB':      '#0958d9',
+  'BODY':     '#389e0d',
+  'VA ACC.':  '#d46b08',
+  'VA PRCS':  '#c41d7f',
+  'BUSINESS': '#531dab',
+};
 
 const GARMENT_TYPES = [
   { value: 'UPPER', label: 'Upper (tops, shirts, jackets)' },
@@ -36,6 +60,7 @@ interface AttrRow {
   attrKey: string;
   attrLabel: string;
   attrType: string;
+  attrGroup: string | null;
   isEnabled: boolean;
   isRequired: boolean;
 }
@@ -60,6 +85,7 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     setGarmentType(category.garmentType);
   }, [category.id]);
 
+
   const rows: AttrRow[] = useMemo(() => {
     if (!catAttrs?.allAttributes) return [];
     return (catAttrs.allAttributes as any[]).map((a: any) => ({
@@ -67,10 +93,26 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
       attrKey: a.attributeKey,
       attrLabel: a.attributeLabel,
       attrType: a.attributeType,
+      attrGroup: a.attributeGroup ?? null,
       isEnabled: localChanges[a.attributeId]?.isEnabled ?? a.isEnabled ?? false,
       isRequired: localChanges[a.attributeId]?.isRequired ?? a.isRequired ?? false,
     }));
   }, [catAttrs, localChanges]);
+
+  // Group rows by card group
+  const groupedRows = useMemo(() => {
+    const groups: Record<string, AttrRow[]> = {};
+    const other: AttrRow[] = [];
+    for (const row of rows) {
+      if (row.attrGroup && GROUP_ORDER.includes(row.attrGroup)) {
+        if (!groups[row.attrGroup]) groups[row.attrGroup] = [];
+        groups[row.attrGroup].push(row);
+      } else {
+        other.push(row);
+      }
+    }
+    return { groups, other };
+  }, [rows]);
 
   const enabledCount = rows.filter(r => r.isEnabled).length;
   const changedCount = Object.keys(localChanges).length;
@@ -210,18 +252,78 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
         </Button>
       </div>
 
-      {/* Table */}
+      {/* Grouped attribute sections */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <Spin spinning={isLoading}>
-          <Table
-            dataSource={rows}
-            columns={columns}
-            rowKey="attributeId"
-            size="small"
-            pagination={false}
-            scroll={{ y: 'calc(75vh - 220px)' }}
-            rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
-          />
+          <Collapse
+            defaultActiveKey={GROUP_ORDER}
+            bordered={false}
+            style={{ background: 'transparent' }}
+          >
+            {GROUP_ORDER.map(groupName => {
+              const groupRows = groupedRows.groups[groupName] || [];
+              const enabledInGroup = groupRows.filter(r => r.isEnabled).length;
+              if (groupRows.length === 0) return null;
+              return (
+                <Panel
+                  key={groupName}
+                  header={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+                        background: GROUP_TEXT[groupName],
+                      }} />
+                      <Text strong style={{ color: GROUP_TEXT[groupName], fontSize: 13 }}>{groupName}</Text>
+                      <Badge
+                        count={`${enabledInGroup}/${groupRows.length}`}
+                        style={{ backgroundColor: enabledInGroup > 0 ? GROUP_TEXT[groupName] : '#d9d9d9', fontSize: 10 }}
+                      />
+                    </div>
+                  }
+                  style={{
+                    marginBottom: 8,
+                    border: `1px solid ${GROUP_BORDER[groupName]}`,
+                    borderRadius: 6,
+                    background: GROUP_COLORS[groupName],
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Table
+                    dataSource={groupRows}
+                    columns={columns}
+                    rowKey="attributeId"
+                    size="small"
+                    pagination={false}
+                    rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
+                    style={{ background: 'transparent' }}
+                  />
+                </Panel>
+              );
+            })}
+
+            {/* Other / Unassigned */}
+            {groupedRows.other.length > 0 && (
+              <Panel
+                key="__other__"
+                header={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Text strong style={{ color: '#8c8c8c', fontSize: 13 }}>Other / Unassigned</Text>
+                    <Badge count={groupedRows.other.length} style={{ backgroundColor: '#8c8c8c', fontSize: 10 }} />
+                  </div>
+                }
+                style={{ marginBottom: 8, border: '1px solid #d9d9d9', borderRadius: 6 }}
+              >
+                <Table
+                  dataSource={groupedRows.other}
+                  columns={columns}
+                  rowKey="attributeId"
+                  size="small"
+                  pagination={false}
+                  rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
+                />
+              </Panel>
+            )}
+          </Collapse>
         </Spin>
       </div>
 

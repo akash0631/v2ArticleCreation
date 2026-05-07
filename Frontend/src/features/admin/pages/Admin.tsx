@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
+import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert } from 'antd';
 import {
   UserOutlined,
   CloudUploadOutlined,
@@ -10,11 +10,31 @@ import {
   PictureOutlined,
   EyeOutlined,
   FileTextOutlined,
+  SyncOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { BackendApiService } from '../../../services/api/backendApi';
 import { APP_CONFIG } from '../../../constants/app/config';
 
 const api = new BackendApiService();
+
+interface SrmStatus {
+  totalInDb: number;
+  lastSyncAt: string | null;
+  pendingEnrichment: number;
+  hiddenFromApprovers: number;
+  divisionBreakdown: { division: string; count: number }[];
+  statusBreakdown: { status: string; count: number }[];
+  nextScheduledSyncs: { istTime: string; utc: string }[];
+  schedule: string;
+}
+
+interface SrmSyncResult {
+  inserted: number;
+  skipped: number;
+  errors: number;
+  total: number;
+}
 
 export default function Admin() {
   const [stats, setStats] = useState({ totalUploads: 0, completed: 0, failed: 0, pending: 0 });
@@ -23,10 +43,77 @@ export default function Admin() {
   const [detailedExpenses, setDetailedExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
+  const [srmStatus, setSrmStatus] = useState<SrmStatus | null>(null);
+  const [srmStatusLoading, setSrmStatusLoading] = useState(false);
+  const [srmSyncing, setSrmSyncing] = useState(false);
+  const [srmEnriching, setSrmEnriching] = useState(false);
+  const [srmLastResult, setSrmLastResult] = useState<SrmSyncResult | null>(null);
+  const [srmEnrichMessage, setSrmEnrichMessage] = useState<string | null>(null);
+
+  const loadSrmStatus = useCallback(async () => {
+    setSrmStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load SRM status');
+      setSrmStatus(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load SRM status');
+    } finally {
+      setSrmStatusLoading(false);
+    }
+  }, []);
+
+  const runSrmEnrich = async () => {
+    setSrmEnriching(true);
+    setSrmEnrichMessage(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/enrich`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Enrichment trigger failed');
+      setSrmEnrichMessage(data.message);
+      message.success(data.message);
+      await loadSrmStatus();
+    } catch (err: any) {
+      message.error(err?.message || 'Enrichment trigger failed');
+    } finally {
+      setSrmEnriching(false);
+    }
+  };
+
+  const runSrmSync = async () => {
+    setSrmSyncing(true);
+    setSrmLastResult(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/sync`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'SRM sync failed');
+      setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total });
+      message.success(`SRM sync complete — ${data.inserted} new, ${data.skipped} already exist`);
+      // Refresh status after sync
+      await loadSrmStatus();
+    } catch (err: any) {
+      message.error(err?.message || 'SRM sync failed');
+    } finally {
+      setSrmSyncing(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
-  }, []);
+    loadSrmStatus();
+  }, [loadSrmStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -266,6 +353,175 @@ export default function Admin() {
               </Popconfirm>
             </Col>
           </Row>
+        </Card>
+
+        {/* SRM Sync */}
+        <Card
+          title={<span><SyncOutlined style={{ marginRight: 8 }} />SRM Presentation Sync</span>}
+          style={{ marginBottom: 24 }}
+          extra={
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadSrmStatus}
+              loading={srmStatusLoading}
+            >
+              Refresh Status
+            </Button>
+          }
+        >
+          <Spin spinning={srmStatusLoading}>
+            {srmStatus ? (
+              <>
+                <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }}>
+                  <Descriptions.Item label="Records in DB">
+                    <strong style={{ fontSize: 18 }}>{srmStatus.totalInDb}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Last Sync">
+                    {srmStatus.lastSyncAt
+                      ? new Date(srmStatus.lastSyncAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' IST'
+                      : <span style={{ color: '#999' }}>Never</span>}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Schedule">
+                    {srmStatus.schedule}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Division Breakdown" span={2}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {srmStatus.divisionBreakdown.map(d => (
+                        <Tag key={d.division} color="blue">{d.division}: {d.count}</Tag>
+                      ))}
+                    </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Approval Status">
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {srmStatus.statusBreakdown.map(s => (
+                        <Tag
+                          key={s.status}
+                          color={s.status === 'APPROVED' ? 'green' : s.status === 'REJECTED' ? 'red' : 'orange'}
+                        >
+                          {s.status}: {s.count}
+                        </Tag>
+                      ))}
+                    </div>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Pending VLM Extraction" span={2}>
+                    {srmStatus.pendingEnrichment > 0 ? (
+                      <Tag color="volcano">{srmStatus.pendingEnrichment} records need extraction</Tag>
+                    ) : (
+                      <Tag color="green">All records extracted</Tag>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Hidden from Approvers">
+                    {srmStatus.hiddenFromApprovers > 0 ? (
+                      <Tag color="gold">{srmStatus.hiddenFromApprovers} extracting now</Tag>
+                    ) : (
+                      <Tag color="green">None</Tag>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Next Syncs" span={3}>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {srmStatus.nextScheduledSyncs.map(s => (
+                        <span key={s.istTime}>
+                          <Tag color="geekblue">{s.istTime} IST</Tag>
+                          <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                            ({new Date(s.utc).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', timeStyle: 'short' })} IST)
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+
+                {srmLastResult && (
+                  <Alert
+                    type="success"
+                    icon={<CheckCircleOutlined />}
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                    message="Last Sync Result"
+                    description={
+                      <span>
+                        <strong>{srmLastResult.inserted}</strong> new records inserted&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong>{srmLastResult.skipped}</strong> already existed (skipped)&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong>{srmLastResult.errors}</strong> errors&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong>{srmLastResult.total}</strong> total from SRM API
+                      </span>
+                    }
+                  />
+                )}
+
+                {srmEnrichMessage && (
+                  <Alert
+                    type="info"
+                    icon={<InfoCircleOutlined />}
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                    message="VLM Extraction Started"
+                    description={srmEnrichMessage}
+                  />
+                )}
+
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} sm={12}>
+                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Sync Presentations</div>
+                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                        Fetches all presentations from the SRM API and inserts any new records. Already-imported records are skipped.
+                      </div>
+                      <Popconfirm
+                        title="Trigger SRM Sync?"
+                        description="Fetch all presentations from the SRM API and insert new ones. VLM extraction will run after sync."
+                        onConfirm={runSrmSync}
+                        okText="Yes, sync now"
+                        cancelText="Cancel"
+                      >
+                        <Button
+                          type="primary"
+                          icon={<SyncOutlined spin={srmSyncing} />}
+                          loading={srmSyncing}
+                          block
+                        >
+                          {srmSyncing ? 'Syncing...' : 'Sync Now'}
+                        </Button>
+                      </Popconfirm>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                        Run VLM Extraction
+                        {srmStatus.pendingEnrichment > 0 && (
+                          <Tag color="volcano" style={{ marginLeft: 8 }}>{srmStatus.pendingEnrichment} pending</Tag>
+                        )}
+                      </div>
+                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                        Runs AI attribute extraction on SRM records that have an image but haven't been extracted yet. Processes sequentially (~2s per record).
+                      </div>
+                      <Popconfirm
+                        title="Run VLM extraction on SRM records?"
+                        description={`This will extract attributes for ${srmStatus.pendingEnrichment} records. Runs in the background — may take several minutes.`}
+                        onConfirm={runSrmEnrich}
+                        okText="Yes, start extraction"
+                        cancelText="Cancel"
+                        disabled={srmStatus.pendingEnrichment === 0}
+                      >
+                        <Button
+                          icon={<SyncOutlined spin={srmEnriching} />}
+                          loading={srmEnriching}
+                          disabled={srmStatus.pendingEnrichment === 0}
+                          block
+                        >
+                          {srmEnriching ? 'Starting...' : srmStatus.pendingEnrichment === 0 ? 'All Extracted' : 'Extract Attributes'}
+                        </Button>
+                      </Popconfirm>
+                    </div>
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <Empty description="Could not load SRM sync status" />
+            )}
+          </Spin>
         </Card>
 
         {/* Debug Info */}

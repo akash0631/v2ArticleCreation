@@ -18,15 +18,16 @@ import {
   Switch,
   message,
   Popconfirm,
+  Tabs,
 } from 'antd';
-import { 
-  BgColorsOutlined, 
-  TagOutlined, 
+import {
+  BgColorsOutlined,
+  TagOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
-import { 
+import {
   getMasterAttributes,
   createMasterAttribute,
   updateMasterAttribute,
@@ -42,12 +43,18 @@ import './AttributeManager.css';
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
+const GROUPS = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+
+const GROUP_COLORS: Record<string, string> = {
+  'FAB':      '#1677ff',
+  'BODY':     '#52c41a',
+  'VA ACC.':  '#fa8c16',
+  'VA PRCS':  '#eb2f96',
+  'BUSINESS': '#722ed1',
+};
+
 interface ApiErrorResponse {
-  response?: {
-    data?: {
-      error?: string;
-    };
-  };
+  response?: { data?: { error?: string } };
   message: string;
 }
 
@@ -137,25 +144,20 @@ export const AttributeManager = () => {
   });
 
   const handleCreateAttribute = () => {
-    if (!isAdmin) {
-      message.error('Only admin can add attributes');
-      return;
-    }
+    if (!isAdmin) { message.error('Only admin can add attributes'); return; }
     setEditingAttribute(null);
     attrForm.resetFields();
     setIsAttrModalOpen(true);
   };
 
   const handleEditAttribute = (attr: MasterAttribute) => {
-    if (!isAdmin) {
-      message.error('Only admin can edit attributes');
-      return;
-    }
+    if (!isAdmin) { message.error('Only admin can edit attributes'); return; }
     setEditingAttribute(attr);
     attrForm.setFieldsValue({
       key: attr.key,
       label: attr.label,
       type: attr.type,
+      group: attr.group ?? null,
       description: attr.description || '',
       displayOrder: attr.displayOrder,
       isActive: attr.isActive,
@@ -164,25 +166,19 @@ export const AttributeManager = () => {
   };
 
   const handleDeleteAttribute = (id: number) => {
-    if (!isAdmin) {
-      message.error('Only admin can delete attributes');
-      return;
-    }
+    if (!isAdmin) { message.error('Only admin can delete attributes'); return; }
     deleteAttrMutation.mutate(id);
   };
 
   const handleAttrModalOk = async () => {
     try {
       const values = await attrForm.validateFields();
-      
-      // Sanitize all text inputs
       const sanitizedValues = {
         ...values,
-        code: sanitizeCode(values.code), // Alphanumeric + underscore only
-        name: sanitizeText(values.name), // Remove HTML tags
+        key: sanitizeCode(values.key),
+        label: sanitizeText(values.label),
         description: values.description ? sanitizeText(values.description) : undefined,
       };
-      
       if (editingAttribute) {
         updateAttrMutation.mutate({ id: editingAttribute.id, data: sanitizedValues });
       } else {
@@ -194,10 +190,7 @@ export const AttributeManager = () => {
   };
 
   const handleAddValue = (attr: MasterAttribute) => {
-    if (!isAdmin) {
-      message.error('Only admin can add values');
-      return;
-    }
+    if (!isAdmin) { message.error('Only admin can add values'); return; }
     setSelectedAttribute(attr);
     valueForm.resetFields();
     setIsValueModalOpen(true);
@@ -205,17 +198,13 @@ export const AttributeManager = () => {
 
   const handleValueModalOk = async () => {
     if (!selectedAttribute) return;
-    
     try {
       const values = await valueForm.validateFields();
-      
-      // Sanitize allowed value input
       const sanitizedValues = {
         ...values,
-        value: sanitizeText(values.value), // Remove HTML tags
+        value: sanitizeText(values.value),
         displayValue: values.displayValue ? sanitizeText(values.displayValue) : undefined,
       };
-      
       addValueMutation.mutate({ attributeId: selectedAttribute.id, data: sanitizedValues });
     } catch (error) {
       console.error('Validation failed:', error);
@@ -223,39 +212,138 @@ export const AttributeManager = () => {
   };
 
   const handleDeleteValue = (attributeId: number, valueId: number) => {
-    if (!isAdmin) {
-      message.error('Only admin can delete values');
-      return;
-    }
+    if (!isAdmin) { message.error('Only admin can delete values'); return; }
     deleteValueMutation.mutate({ attributeId, valueId });
   };
 
   const getTypeColor = (type: string) => {
-    const colors = {
-      TEXT: 'blue',
-      SELECT: 'green',
-      NUMBER: 'purple',
-    };
+    const colors = { TEXT: 'blue', SELECT: 'green', NUMBER: 'purple' };
     return colors[type as keyof typeof colors] || 'default';
   };
 
   const totalValues = attributes?.reduce((sum, attr) => sum + (attr.allowedValues?.length || 0), 0) || 0;
 
   if (isLoading) {
-    return (
-      <Card>
-        <Skeleton active paragraph={{ rows: 6 }} />
-      </Card>
-    );
+    return <Card><Skeleton active paragraph={{ rows: 6 }} /></Card>;
   }
 
   if (!attributes || attributes.length === 0) {
-    return (
-      <Card>
-        <Empty description="No attributes found" />
-      </Card>
-    );
+    return <Card><Empty description="No attributes found" /></Card>;
   }
+
+  // Group attributes by their card group
+  const grouped: Record<string, MasterAttribute[]> = {};
+  const unassigned: MasterAttribute[] = [];
+  for (const attr of attributes) {
+    if (attr.group && GROUPS.includes(attr.group)) {
+      if (!grouped[attr.group]) grouped[attr.group] = [];
+      grouped[attr.group].push(attr);
+    } else {
+      unassigned.push(attr);
+    }
+  }
+
+  const renderAttributeList = (list: MasterAttribute[]) => (
+    <Collapse accordion bordered={false} className="attribute-collapse">
+      {list.map((attr) => (
+        <Panel
+          key={attr.id}
+          header={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <Space>
+                <Tag color={getTypeColor(attr.type)}>{attr.type}</Tag>
+                <strong>{attr.label}</strong>
+                <Text type="secondary" code>{attr.key}</Text>
+                <Badge count={attr.allowedValues?.length || 0} style={{ backgroundColor: '#52c41a' }} />
+              </Space>
+              <Space onClick={(e) => e.stopPropagation()}>
+                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditAttribute(attr)} disabled={!isAdmin}>
+                  Edit
+                </Button>
+                <Popconfirm
+                  title="Delete Attribute"
+                  description="This will delete all associated values. Continue?"
+                  onConfirm={() => handleDeleteAttribute(attr.id)}
+                  okText="Yes"
+                  cancelText="No"
+                  okButtonProps={{ danger: true }}
+                  disabled={!isAdmin}
+                >
+                  <Button type="link" danger size="small" icon={<DeleteOutlined />} disabled={!isAdmin}>
+                    Delete
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </div>
+          }
+        >
+          <div className="attribute-values">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={5} style={{ margin: 0 }}>Allowed Values:</Title>
+              <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => handleAddValue(attr)} disabled={!isAdmin}>
+                Add Value
+              </Button>
+            </div>
+            {attr.allowedValues && attr.allowedValues.length > 0 ? (
+              <div className="values-grid">
+                {attr.allowedValues.map((value) => (
+                  <Card
+                    key={value.id}
+                    size="small"
+                    className="value-card"
+                    hoverable
+                    extra={
+                      <Popconfirm
+                        title="Delete Value"
+                        onConfirm={() => handleDeleteValue(attr.id, value.id)}
+                        okText="Yes"
+                        cancelText="No"
+                        okButtonProps={{ danger: true, size: 'small' }}
+                        disabled={!isAdmin}
+                      >
+                        <Button type="text" danger size="small" icon={<DeleteOutlined />} disabled={!isAdmin} />
+                      </Popconfirm>
+                    }
+                  >
+                    <Space direction="vertical" size={4}>
+                      <Space>
+                        <TagOutlined style={{ color: '#52c41a' }} />
+                        <Text strong>{value.fullForm}</Text>
+                      </Space>
+                      <Text type="secondary" code>{value.shortForm}</Text>
+                    </Space>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Empty description="No allowed values yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            )}
+          </div>
+        </Panel>
+      ))}
+    </Collapse>
+  );
+
+  const tabItems = [
+    ...GROUPS.map((g) => ({
+      key: g,
+      label: (
+        <Space>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: GROUP_COLORS[g], display: 'inline-block' }} />
+          {g}
+          <Badge count={(grouped[g] || []).length} style={{ backgroundColor: GROUP_COLORS[g] }} />
+        </Space>
+      ),
+      children: grouped[g]?.length
+        ? renderAttributeList(grouped[g])
+        : <Empty description={`No attributes in ${g} group`} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
+    })),
+    ...(unassigned.length > 0 ? [{
+      key: '__unassigned__',
+      label: <Space>Unassigned <Badge count={unassigned.length} /></Space>,
+      children: renderAttributeList(unassigned),
+    }] : []),
+  ];
 
   return (
     <div className="attribute-manager">
@@ -263,9 +351,7 @@ export const AttributeManager = () => {
         title={
           <Space>
             <BgColorsOutlined />
-            <Title level={4} style={{ margin: 0 }}>
-              Master Attributes
-            </Title>
+            <Title level={4} style={{ margin: 0 }}>Master Attributes</Title>
           </Space>
         }
         extra={
@@ -278,130 +364,13 @@ export const AttributeManager = () => {
               <Badge count={totalValues} showZero color="green" />
               <span style={{ marginLeft: 8 }}>Values</span>
             </Text>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleCreateAttribute}
-              disabled={!isAdmin}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateAttribute} disabled={!isAdmin}>
               Add Attribute
             </Button>
           </Space>
         }
       >
-        <Collapse
-          accordion
-          bordered={false}
-          className="attribute-collapse"
-        >
-          {attributes.map((attr) => (
-            <Panel
-              key={attr.id}
-              header={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <Space>
-                    <Tag color={getTypeColor(attr.type)}>{attr.type}</Tag>
-                    <strong>{attr.label}</strong>
-                    <Text type="secondary" code>{attr.key}</Text>
-                    <Badge
-                      count={attr.allowedValues?.length || 0}
-                      style={{ backgroundColor: '#52c41a' }}
-                    />
-                  </Space>
-                  <Space onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEditAttribute(attr)}
-                      disabled={!isAdmin}
-                    >
-                      Edit
-                    </Button>
-                    <Popconfirm
-                      title="Delete Attribute"
-                      description="This will delete all associated values. Continue?"
-                      onConfirm={() => handleDeleteAttribute(attr.id)}
-                      okText="Yes"
-                      cancelText="No"
-                      okButtonProps={{ danger: true }}
-                      disabled={!isAdmin}
-                    >
-                      <Button
-                        type="link"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        disabled={!isAdmin}
-                      >
-                        Delete
-                      </Button>
-                    </Popconfirm>
-                  </Space>
-                </div>
-              }
-            >
-              <div className="attribute-values">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <Title level={5} style={{ margin: 0 }}>Allowed Values:</Title>
-                  <Button
-                    type="dashed"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleAddValue(attr)}
-                    disabled={!isAdmin}
-                  >
-                    Add Value
-                  </Button>
-                </div>
-                
-                {attr.allowedValues && attr.allowedValues.length > 0 ? (
-                  <div className="values-grid">
-                    {attr.allowedValues.map((value) => (
-                      <Card
-                        key={value.id}
-                        size="small"
-                        className="value-card"
-                        hoverable
-                        extra={
-                          <Popconfirm
-                            title="Delete Value"
-                            onConfirm={() => handleDeleteValue(attr.id, value.id)}
-                            okText="Yes"
-                            cancelText="No"
-                            okButtonProps={{ danger: true, size: 'small' }}
-                            disabled={!isAdmin}
-                          >
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<DeleteOutlined />}
-                              disabled={!isAdmin}
-                            />
-                          </Popconfirm>
-                        }
-                      >
-                        <Space direction="vertical" size={4}>
-                          <Space>
-                            <TagOutlined style={{ color: '#52c41a' }} />
-                            <Text strong>{value.fullForm}</Text>
-                          </Space>
-                          <Text type="secondary" code>{value.shortForm}</Text>
-                        </Space>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Empty
-                    description="No allowed values yet"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
-                )}
-              </div>
-            </Panel>
-          ))}
-        </Collapse>
+        <Tabs items={tabItems} />
       </Card>
 
       {/* Attribute Modal */}
@@ -413,73 +382,52 @@ export const AttributeManager = () => {
         confirmLoading={createAttrMutation.isPending || updateAttrMutation.isPending}
         width={600}
       >
-        <Form
-          form={attrForm}
-          layout="vertical"
-          initialValues={{ displayOrder: 0, isActive: true, type: 'TEXT' }}
-        >
-          <Form.Item
-            name="key"
-            label="Key"
-            rules={[
-              { required: true, message: 'Please enter attribute key' },
-              { max: 100, message: 'Key must be less than 100 characters' },
-              { pattern: /^[A-Z0-9_]+$/, message: 'Only uppercase letters, numbers, and underscores' },
-            ]}
-          >
-            <Input 
-              placeholder="e.g., FAB_COMPOSITION, COLOR" 
-              onChange={(e) => {
-                // Auto-convert to uppercase
-                const uppercaseValue = e.target.value.toUpperCase();
-                attrForm.setFieldValue('key', uppercaseValue);
-              }}
-            />
+        <Form form={attrForm} layout="vertical" initialValues={{ displayOrder: 0, isActive: true, type: 'SELECT' }}>
+          <Form.Item name="key" label="Key" rules={[
+            { required: true, message: 'Please enter attribute key' },
+            { max: 100, message: 'Key must be less than 100 characters' },
+            { pattern: /^[a-z0-9_]+$/, message: 'Only lowercase letters, numbers, and underscores' },
+          ]}>
+            <Input placeholder="e.g., yarn_01, collar" />
           </Form.Item>
 
-          <Form.Item
-            name="label"
-            label="Label"
-            rules={[
-              { required: true, message: 'Please enter attribute label' },
-              { max: 200, message: 'Label must be less than 200 characters' },
-            ]}
-          >
-            <Input placeholder="e.g., Fabric Composition, Color" />
+          <Form.Item name="label" label="Label" rules={[
+            { required: true, message: 'Please enter attribute label' },
+            { max: 200, message: 'Label must be less than 200 characters' },
+          ]}>
+            <Input placeholder="e.g., M_YARN, M_COLLAR_TYPE" />
           </Form.Item>
 
-          <Form.Item
-            name="type"
-            label="Type"
-            rules={[{ required: true, message: 'Please select type' }]}
-          >
+          <Form.Item name="group" label="Card Group">
+            <Select placeholder="Select which article card group this belongs to" allowClear>
+              {GROUPS.map(g => (
+                <Select.Option key={g} value={g}>
+                  <Space>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: GROUP_COLORS[g], display: 'inline-block' }} />
+                    {g}
+                  </Space>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="type" label="Input Type" rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="TEXT">TEXT</Select.Option>
-              <Select.Option value="SELECT">SELECT</Select.Option>
+              <Select.Option value="SELECT">SELECT (dropdown from allowed values)</Select.Option>
+              <Select.Option value="TEXT">TEXT (free text input)</Select.Option>
               <Select.Option value="NUMBER">NUMBER</Select.Option>
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="description"
-            label="Description"
-          >
+          <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} placeholder="Optional description..." />
           </Form.Item>
 
-          <Form.Item
-            name="displayOrder"
-            label="Display Order"
-            rules={[{ required: true, message: 'Please enter display order' }]}
-          >
+          <Form.Item name="displayOrder" label="Display Order" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Form.Item
-            name="isActive"
-            label="Active"
-            valuePropName="checked"
-          >
+          <Form.Item name="isActive" label="Active" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
@@ -493,46 +441,26 @@ export const AttributeManager = () => {
         onCancel={() => setIsValueModalOpen(false)}
         confirmLoading={addValueMutation.isPending}
       >
-        <Form
-          form={valueForm}
-          layout="vertical"
-          initialValues={{ displayOrder: 0, isActive: true }}
-        >
-          <Form.Item
-            name="shortForm"
-            label="Short Form"
-            rules={[
-              { required: true, message: 'Please enter short form' },
-              { max: 100, message: 'Must be less than 100 characters' },
-            ]}
-          >
+        <Form form={valueForm} layout="vertical" initialValues={{ displayOrder: 0, isActive: true }}>
+          <Form.Item name="shortForm" label="Short Form" rules={[
+            { required: true, message: 'Please enter short form' },
+            { max: 100, message: 'Must be less than 100 characters' },
+          ]}>
             <Input placeholder="e.g., COTT, POLY" />
           </Form.Item>
 
-          <Form.Item
-            name="fullForm"
-            label="Full Form"
-            rules={[
-              { required: true, message: 'Please enter full form' },
-              { max: 200, message: 'Must be less than 200 characters' },
-            ]}
-          >
+          <Form.Item name="fullForm" label="Full Form" rules={[
+            { required: true, message: 'Please enter full form' },
+            { max: 200, message: 'Must be less than 200 characters' },
+          ]}>
             <Input placeholder="e.g., Cotton, Polyester" />
           </Form.Item>
 
-          <Form.Item
-            name="displayOrder"
-            label="Display Order"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="displayOrder" label="Display Order" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Form.Item
-            name="isActive"
-            label="Active"
-            valuePropName="checked"
-          >
+          <Form.Item name="isActive" label="Active" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>

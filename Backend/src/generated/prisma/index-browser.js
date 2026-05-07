@@ -179,6 +179,7 @@ exports.Prisma.MasterAttributeScalarFieldEnum = {
   rangeType: 'rangeType',
   rangeConfig: 'rangeConfig',
   validationRules: 'validationRules',
+  group: 'group',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -711,7 +712,8 @@ exports.Prisma.MasterAttributeOrderByRelevanceFieldEnum = {
   fullForm: 'fullForm',
   category: 'category',
   description: 'description',
-  rangeType: 'rangeType'
+  rangeType: 'rangeType',
+  group: 'group'
 };
 
 exports.Prisma.AttributeAllowedValueOrderByRelevanceFieldEnum = {

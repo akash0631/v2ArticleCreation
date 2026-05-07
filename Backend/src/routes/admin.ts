@@ -94,4 +94,11 @@ router.delete('/users/:id', adminController.deactivateUser);
 // ═══════════════════════════════════════════════════════
 router.get('/extractions', adminController.getAllExtractions);
 
+// ═══════════════════════════════════════════════════════
+// SRM SYNC (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/srm/status', adminController.getSrmSyncStatus);
+router.post('/srm/sync', adminController.triggerSrmSync);
+router.post('/srm/enrich', adminController.triggerSrmEnrichment);
+
 export default router;
