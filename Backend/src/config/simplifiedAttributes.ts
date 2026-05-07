@@ -126,8 +126,34 @@ function isSetCategory(majorCategory?: string): boolean {
   return value.includes('set') || value.includes('co-ord') || value.includes('coord') || value.includes('kurti set') || value.includes('kurta set');
 }
 
-export function applyGarmentTypeRules(attributes: any, majorCategory?: string): any {
-  if (!attributes || !majorCategory) return attributes;
+export function applyGarmentTypeRules(
+  attributes: any,
+  majorCategory?: string,
+  garmentType?: 'UPPER' | 'LOWER' | 'ALL_IN_ONE'
+): any {
+  if (!attributes) return attributes;
+
+  // When garmentType is explicitly provided from DB, use it directly
+  if (garmentType) {
+    if (garmentType === 'ALL_IN_ONE') return attributes;
+    if (garmentType === 'UPPER') {
+      for (const key of LOWER_ONLY_ATTRIBUTES) attributes[key] = null;
+      if (attributes.bottom_fold === null || attributes.bottom_fold === undefined) {
+        attributes.bottom_fold = {
+          rawValue: 'BTM OPEN', schemaValue: 'BTM OPEN', visualConfidence: 60,
+          isNewDiscovery: false, mappingConfidence: 60,
+          reasoning: 'Bottom fold not detected; defaulted to BOTTOM OPEN'
+        };
+      }
+      attributes.father_belt = null;
+      attributes.child_belt = null;
+      return attributes;
+    }
+    // LOWER — fall through to bottom rules below using synthetic category name
+    majorCategory = 'lower bottom pant';
+  }
+
+  if (!majorCategory) return attributes;
 
   if (isFullBodyCategory(majorCategory)) {
     return attributes;
