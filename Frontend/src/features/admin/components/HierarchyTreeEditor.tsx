@@ -4,10 +4,10 @@
  * Right panel: attribute assignment for selected category
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Tree, Button, Input, Space, Popconfirm, message, Spin, Table,
-  Switch, Tag, Empty, Select, Divider, Badge, Tooltip, Typography,
+  Switch, Tag, Empty, Select, Divider, Badge, Tooltip, Typography, Alert,
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -412,9 +412,10 @@ export const HierarchyTreeEditor: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
 
-  const { data: hierarchyData, isLoading, refetch } = useQuery({
+  const { data: hierarchyData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hierarchy-tree'],
     queryFn: getHierarchyTree,
+    retry: 1,
   });
 
   const changeGarmentType = useMutation({
@@ -427,6 +428,13 @@ export const HierarchyTreeEditor: React.FC = () => {
     },
     onError: () => message.error('Update failed'),
   });
+
+  // Auto-expand all department nodes when data first loads
+  useEffect(() => {
+    if (hierarchyData && Array.isArray(hierarchyData) && expandedKeys.length === 0) {
+      setExpandedKeys(hierarchyData.map((d: any) => `dept-${d.id}`));
+    }
+  }, [hierarchyData]);
 
   // Build Ant Design tree nodes
   const treeData: HierarchyNode[] = useMemo(() => {
@@ -545,7 +553,20 @@ export const HierarchyTreeEditor: React.FC = () => {
           </Space>
         </div>
 
+        {isError && (
+          <Alert
+            type="error"
+            style={{ marginBottom: 12 }}
+            message="Failed to load hierarchy"
+            description={(error as any)?.message || 'Check that the backend is running and you are logged in as Admin.'}
+            showIcon
+            action={<Button size="small" onClick={() => refetch()}>Retry</Button>}
+          />
+        )}
         <Spin spinning={isLoading}>
+          {!isError && !isLoading && treeData.length === 0 && (
+            <Empty description="No departments yet — add one below" style={{ margin: '20px 0' }} />
+          )}
           <Tree
             treeData={treeData}
             expandedKeys={expandedKeys}
