@@ -411,6 +411,7 @@ export const HierarchyTreeEditor: React.FC = () => {
   const qc = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  const [searchText, setSearchText] = useState('');
 
   const { data: hierarchyData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['hierarchy-tree'],
@@ -429,16 +430,50 @@ export const HierarchyTreeEditor: React.FC = () => {
     onError: () => message.error('Update failed'),
   });
 
-  // Auto-expand all department nodes when data first loads
+  // Filter raw hierarchy by search text before building tree nodes
+  const filteredDepts = useMemo((): any[] => {
+    const all: any[] = Array.isArray(hierarchyData) ? hierarchyData : [];
+    if (!searchText.trim()) return all;
+    const lower = searchText.toLowerCase();
+    return all.reduce((acc: any[], dept: any) => {
+      const deptMatch = dept.name.toLowerCase().includes(lower);
+      const filteredSubs = (dept.subDepartments ?? []).reduce((sAcc: any[], sub: any) => {
+        const subMatch = sub.name.toLowerCase().includes(lower);
+        const filteredCats = (sub.categories ?? []).filter((cat: any) =>
+          cat.name.toLowerCase().includes(lower) || cat.code.toLowerCase().includes(lower)
+        );
+        if (deptMatch || subMatch || filteredCats.length > 0) {
+          sAcc.push({ ...sub, categories: (deptMatch || subMatch) ? sub.categories : filteredCats });
+        }
+        return sAcc;
+      }, []);
+      if (deptMatch || filteredSubs.length > 0) {
+        acc.push({ ...dept, subDepartments: deptMatch ? dept.subDepartments : filteredSubs });
+      }
+      return acc;
+    }, []);
+  }, [hierarchyData, searchText]);
+
+  // Auto-expand: dept level on first load; all matching levels when searching
   useEffect(() => {
-    if (hierarchyData && Array.isArray(hierarchyData) && expandedKeys.length === 0) {
-      setExpandedKeys(hierarchyData.map((d: any) => `dept-${d.id}`));
+    if (!Array.isArray(filteredDepts) || filteredDepts.length === 0) return;
+    if (searchText.trim()) {
+      // Expand everything that matched
+      const keys: React.Key[] = [];
+      filteredDepts.forEach((d: any) => {
+        keys.push(`dept-${d.id}`);
+        (d.subDepartments ?? []).forEach((s: any) => keys.push(`sub-${s.id}`));
+      });
+      setExpandedKeys(keys);
+    } else if (expandedKeys.length === 0) {
+      // First load: expand department level only
+      setExpandedKeys(filteredDepts.map((d: any) => `dept-${d.id}`));
     }
-  }, [hierarchyData]);
+  }, [filteredDepts, searchText]);
 
   // Build Ant Design tree nodes
   const treeData: HierarchyNode[] = useMemo(() => {
-    const depts: any[] = Array.isArray(hierarchyData) ? hierarchyData : [];
+    const depts: any[] = filteredDepts;
     return depts.map((dept, di) => ({
       key: `dept-${dept.id}`,
       nodeType: 'dept' as const,
@@ -493,8 +528,8 @@ export const HierarchyTreeEditor: React.FC = () => {
               _cat: cat,
               _dept: dept,
             })),
-            // Add category button
-            {
+            // Add category button (hidden while searching)
+            ...(!searchText ? [{
               key: `add-cat-${sub.id}`,
               nodeType: 'category' as const,
               nodeId: -1,
@@ -503,11 +538,11 @@ export const HierarchyTreeEditor: React.FC = () => {
               isLeaf: true,
               title: <AddNode nodeType="category" parentId={sub.id} onSaved={() => refetch()} placeholder="Add category" />,
               selectable: false,
-            },
+            }] : []),
           ],
         })),
-        // Add sub-dept button
-        {
+        // Add sub-dept button (hidden while searching)
+        ...(!searchText ? [{
           key: `add-sub-${dept.id}`,
           nodeType: 'subdept' as const,
           nodeId: -1,
@@ -516,10 +551,10 @@ export const HierarchyTreeEditor: React.FC = () => {
           isLeaf: true,
           title: <AddNode nodeType="subdept" parentId={dept.id} onSaved={() => refetch()} placeholder="Add sub-department" />,
           selectable: false,
-        },
+        }] : []),
       ],
     }));
-  }, [hierarchyData, refetch]);
+  }, [filteredDepts, searchText, refetch]);
 
   const handleSelect = (_keys: React.Key[], info: any) => {
     const node = info.node;
@@ -543,7 +578,7 @@ export const HierarchyTreeEditor: React.FC = () => {
         width: 420, minWidth: 320, flexShrink: 0,
         background: '#fafafa', borderRadius: 8, border: '1px solid #f0f0f0', padding: 16,
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <Text strong>Hierarchy Tree</Text>
           <Space size={4}>
             <Button size="small" onClick={() => setExpandedKeys(treeData.flatMap(d => [d.key, ...(d.children ?? []).map((s: any) => s.key)]))}>
@@ -552,6 +587,15 @@ export const HierarchyTreeEditor: React.FC = () => {
             <Button size="small" onClick={() => setExpandedKeys([])}>Collapse</Button>
           </Space>
         </div>
+        <Input.Search
+          placeholder="Search departments, sub-depts, categories…"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          onSearch={v => setSearchText(v)}
+          allowClear
+          size="small"
+          style={{ marginBottom: 12 }}
+        />
 
         {isError && (
           <Alert
@@ -564,8 +608,16 @@ export const HierarchyTreeEditor: React.FC = () => {
           />
         )}
         <Spin spinning={isLoading}>
-          {!isError && !isLoading && treeData.length === 0 && (
+          {searchText && filteredDepts.length > 0 && (
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>
+              Showing {filteredDepts.length} dept{filteredDepts.length !== 1 ? 's' : ''} matching "{searchText}"
+            </Text>
+          )}
+          {!isError && !isLoading && treeData.length === 0 && !searchText && (
             <Empty description="No departments yet — add one below" style={{ margin: '20px 0' }} />
+          )}
+          {!isError && !isLoading && treeData.length === 0 && searchText && (
+            <Empty description={`No results for "${searchText}"`} style={{ margin: '20px 0' }} />
           )}
           <Tree
             treeData={treeData}
@@ -576,8 +628,12 @@ export const HierarchyTreeEditor: React.FC = () => {
             blockNode
             style={{ background: 'transparent' }}
           />
-          <Divider dashed style={{ margin: '12px 0' }} />
-          <AddNode nodeType="dept" onSaved={() => refetch()} placeholder="Add department" />
+          {!searchText && (
+            <>
+              <Divider dashed style={{ margin: '12px 0' }} />
+              <AddNode nodeType="dept" onSaved={() => refetch()} placeholder="Add department" />
+            </>
+          )}
         </Spin>
       </div>
 
@@ -591,8 +647,26 @@ export const HierarchyTreeEditor: React.FC = () => {
           />
         ) : (
           <Empty
-            description="Select a category from the tree to manage its attributes"
-            style={{ marginTop: 60 }}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            style={{ marginTop: 40 }}
+            description={
+              <div style={{ textAlign: 'left', maxWidth: 360, margin: '0 auto' }}>
+                <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                  Attribute Mapping
+                </Text>
+                <Text type="secondary">
+                  Click any <Tag color="green" style={{ margin: '0 2px' }}>category</Tag> (green leaf node)
+                  in the tree to see and edit its attribute mappings here.
+                </Text>
+                <div style={{ marginTop: 12, padding: '10px 14px', background: '#f6ffed', borderRadius: 6, border: '1px solid #b7eb8f' }}>
+                  <Text style={{ fontSize: 12 }}>
+                    Each category has up to 45 master attributes. Toggle <strong>Enabled</strong> to include
+                    an attribute in extraction, and <strong>Required</strong> to mark it as mandatory.
+                    Changes here affect what creators see when extracting articles.
+                  </Text>
+                </div>
+              </div>
+            }
           />
         )}
       </div>
