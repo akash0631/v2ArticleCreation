@@ -31,7 +31,7 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp config set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" \
-            --startup-file "node --max-old-space-size=2048 dist/index.js" --linux-fx-version "NODE|22-lts"
+            --startup-file "node --max-old-space-size=4096 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
             NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
             SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
@@ -49,7 +49,8 @@ jobs:
             "R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}" \
             "R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" \
             "APPROVED_R2_ACCESS_KEY_ID=${{ secrets.APPROVED_R2_ACCESS_KEY_ID }}" \
-            "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}"
+            "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}" \
+            "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}"
 
       - name: Setup Node 22
         uses: actions/setup-node@v4

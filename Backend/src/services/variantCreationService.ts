@@ -22,7 +22,7 @@ let cachedSizeMappings: SizeMappingRow[] | null = null;
 
 function loadSizeMappings(): SizeMappingRow[] {
   if (cachedSizeMappings) return cachedSizeMappings;
-  const excelPath = path.resolve(__dirname, '../../data/variant-sizes-mapping.xlsx');
+  const excelPath = path.resolve(__dirname, '../data/variant-sizes-mapping.xlsx');
   if (!fs.existsSync(excelPath)) {
     console.warn('[VariantCreation] Excel not found at', excelPath);
     cachedSizeMappings = [];

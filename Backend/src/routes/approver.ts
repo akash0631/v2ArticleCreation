@@ -1,44 +1,46 @@
 import { Router } from 'express';
 import { ApproverController } from '../controllers/ApproverController';
 import { authenticate, requireApprover } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
+const h = asyncHandler; // shorthand — wraps every handler so unhandled errors become 500s
 
 // Apply middleware to all routes
 router.use(authenticate);
 router.use(requireApprover);
 
 // Get attributes for dropdowns
-router.get('/attributes', ApproverController.getAttributes);
+router.get('/attributes', h(ApproverController.getAttributes));
 
 // Get items for dashboard
-router.get('/items', ApproverController.getItems);
+router.get('/items', h(ApproverController.getItems));
 
-// Export ALL items matching current filters (no pagination)
-router.get('/items/export-all', ApproverController.exportAll);
+// Export ALL items matching current filters (capped at 10k rows)
+router.get('/items/export-all', h(ApproverController.exportAll));
 
 // Update specific item (edit extracted data)
-router.put('/items/:id', ApproverController.updateItem);
+router.put('/items/:id', h(ApproverController.updateItem));
 
 // Approve selected items
-router.post('/approve', ApproverController.approveItems);
+router.post('/approve', h(ApproverController.approveItems));
 
 // Reject selected items
-router.post('/reject', ApproverController.rejectItems);
+router.post('/reject', h(ApproverController.rejectItems));
 
 // Refresh image URL (fixes expired signed URLs)
-router.get('/image/:id', ApproverController.getImageUrl);
+router.get('/image/:id', h(ApproverController.getImageUrl));
 
 // Variant routes
-router.get('/items/:id/variants', ApproverController.getVariants);
-router.post('/items/:id/add-color', ApproverController.addColor);
-router.post('/items/:id/sync-color', ApproverController.syncColorToVariants);
+router.get('/items/:id/variants', h(ApproverController.getVariants));
+router.post('/items/:id/add-color', h(ApproverController.addColor));
+router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 
 // BOM grid Art # lookup — returns { attrName: { mvgrValue: sapCd } } for a major category
-router.get('/bom-art-numbers/:majCat', ApproverController.getBomArtNumbers);
+router.get('/bom-art-numbers/:majCat', h(ApproverController.getBomArtNumbers));
 
 // Admin: backfill article descriptions for a date range
 // POST /api/approver/backfill-descriptions?fromDate=2026-04-10&toDate=2026-04-16
-router.post('/backfill-descriptions', ApproverController.backfillDescriptions);
+router.post('/backfill-descriptions', h(ApproverController.backfillDescriptions));
 
 export default router;

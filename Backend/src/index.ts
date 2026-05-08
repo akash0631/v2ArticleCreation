@@ -21,9 +21,10 @@ import costRoutes from './routes/costs'; // NEW: Cost tracking routes
 import approverRoutes from './routes/approver'; // NEW: Approver workflow routes
 import watcherRoutes from './routes/watcher'; // Watcher service routes
 import articleConfigRoutes from './routes/articleConfig';
+import modelGenerationRoutes from './routes/modelGeneration';
 
 // Middleware
-import { errorHandler, notFound } from './middleware/errorHandler';
+import { errorHandler, notFound, requestTimeout } from './middleware/errorHandler';
 import { authenticate, requireAdmin, requireUser } from './middleware/auth';
 import { authenticateWatcher } from './middleware/watcherAuth';
 import { auditLog, flushAuditLogsOnShutdown } from './middleware/auditLogger';
@@ -161,6 +162,10 @@ app.use('/api/', (req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Global request timeout — 90s for normal routes, 4min for watcher (processes images)
+app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
+app.use('/api/', requestTimeout(90 * 1000));
+
 app.use((req, res, next) => {
   if (!isAppShuttingDown()) {
     next();
@@ -242,6 +247,7 @@ app.use('/api/approver', authenticate, approverLimiter, auditLog, approverRoutes
 // ═══════════════════════════════════════════════════════
 app.use('/api/watcher', authenticateWatcher, watcherRoutes); // TODO: Add requireApprover middleware
 app.use('/api/article-config', authenticate, articleConfigRoutes);
+app.use('/api/model-generation', authenticate, requireUser, modelGenerationRoutes);
 
 // Health check endpoint (public)
 app.get('/api/health', (req, res) => {

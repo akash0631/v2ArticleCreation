@@ -11,6 +11,7 @@ import path from 'path';
 import { EnhancedExtractionController } from '../controllers/enhancedExtractionController';
 import { backfillWatcherSubDivisions } from '../controllers/adminController';
 import { syncFromSrm } from '../services/srmSyncService';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 const enhancedController = new EnhancedExtractionController();
@@ -57,11 +58,11 @@ const upload = multer({
  */
 router.post('/extract/upload',
   upload.single('image'),
-  enhancedController.extractFromUploadVLM
+  asyncHandler(enhancedController.extractFromUploadVLM)
 );
 
 // One-time backfill: fix subDivision for all watcher articles from their majorCategory
-router.post('/backfill-subdivisions', backfillWatcherSubDivisions);
+router.post('/backfill-subdivisions', asyncHandler(backfillWatcherSubDivisions));
 
 /**
  * POST /api/watcher/sync-srm
