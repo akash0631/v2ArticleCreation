@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "prisma generate && tsc --skipLibCheck && npm run postbuild",
-    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true}); require('fs').cpSync('src/data', 'dist/data', {recursive: true}); ['data/majCatGridMap.json','data/kids-division-mapping.xlsx','data/variant-sizes-mapping.xlsx'].forEach(f=>require('fs').copyFileSync(f,'dist/'+f))\"",
+    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true}); require('fs').cpSync('src/data', 'dist/data', {recursive: true})\"",
     "postinstall": "prisma generate",
     "start": "node --max-old-space-size=1024 dist/index.js",
     "lint": "tsc --noEmit",
