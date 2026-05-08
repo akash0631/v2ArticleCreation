@@ -47,8 +47,9 @@ class MvgrMappingService {
       this.isInitialized = true;
       console.log('[MvgrMappingService] Initialization complete');
     } catch (error) {
-      console.error('[MvgrMappingService] Error during initialization:', error);
-      throw error;
+      console.error('[MvgrMappingService] Initialization failed — MVGR lookups will return null:', error);
+      // Non-fatal: server starts without MVGR data; lookups degrade gracefully to null
+      this.isInitialized = true;
     }
   }
 
@@ -98,7 +99,7 @@ class MvgrMappingService {
       }
     } catch (error) {
       console.error(`[MvgrMappingService] Error loading mappings from ${filePath}:`, error);
-      throw error;
+      // Non-fatal: skip this file, mappings from it will be empty
     }
   }
 
