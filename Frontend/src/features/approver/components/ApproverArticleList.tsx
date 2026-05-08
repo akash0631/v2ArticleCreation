@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -287,6 +287,11 @@ const ArticleCard = React.memo(({
 
     useEffect(() => {
         if (!item.division) return;
+        // If cache exists but is missing impAtrbt2, it was built from a stale backend
+        // response (before the imp_atrbt2→impAtrbt2 mapping fix). Invalidate and re-fetch.
+        if (isValuesCached(item.division) && getCachedValues(item.division, 'impAtrbt2') === null) {
+            invalidateValuesCache(item.division);
+        }
         preloadAttributeValues(item.division)
             .then(() => setCacheReady(true))
             .catch(() => setCacheReady(true));
@@ -923,13 +928,13 @@ const ArticleCard = React.memo(({
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
                                             { label: 'IMP_ATBT-1',  field: 'macroMvgr',  editable: true,  mandatory: true  },
-                                            { label: 'IMP_ATRBT-2', field: 'impAtrbt2',  editable: true,  mandatory: true  },
+                                            { label: 'IMP_ATRBT-2', field: 'imp_atrbt2',  editable: true,  mandatory: true  },
                                         ].map(({ label, field, editable, mandatory }) => {
                                             const isEditingBom = editingField === `bom_${field}`;
                                             const val = field === '_markdown' ? markdown
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
-                                            const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
+                                            const isDropdown = field === 'imp_atrbt2' || field === 'macroMvgr';
                                             const dropdownOptions = isDropdown
                                                 ? (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];

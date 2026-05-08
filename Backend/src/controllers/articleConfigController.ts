@@ -23,7 +23,7 @@ const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   segment: 'segment', age_group: 'ageGroup', article_fashion_type: 'articleFashionType',
   mvgr_brand_vendor: 'mvgrBrandVendor', f_count: 'fCount',
   f_construction: 'fConstruction', f_ounce: 'fOunce', f_width: 'fWidth',
-  extra_pocket: 'extraPocket',
+  extra_pocket: 'extraPocket', imp_atrbt2: 'impAtrbt2',
 };
 
 /** GET /api/article-config/fields — all active field configs */
