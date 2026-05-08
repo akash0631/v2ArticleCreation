@@ -122,7 +122,7 @@ export default function Admin() {
         api.getAdminStats(),
         api.getExpenseAnalytics(),
         api.getImageUsageAnalytics(),
-        api.getDetailedExpenses(),
+        api.getDetailedExpenses({ limit: 500 }),
       ]);
       console.log('Admin Stats:', adminStats);
       console.log('Expense Data:', expenses);
