@@ -1449,18 +1449,20 @@ export const getDetailedExpenses = async (req: Request, res: Response): Promise<
   try {
     const { limit, offset } = req.query;
 
-    const parsedLimit = typeof limit === 'string' ? parseInt(limit, 10) : undefined;
+    const parsedLimit = typeof limit === 'string' ? parseInt(limit, 10) : 500;
     const parsedOffset = typeof offset === 'string' ? parseInt(offset, 10) : 0;
+    // Hard cap at 1000 to prevent OOM — 64k+ records in one JSON response crashes the process
+    const take = Math.min(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 500, 1000);
 
     const whereClause = {
       extractionStatus: 'COMPLETED', // Only show completed extractions
     } as const;
 
-    // Fetch detailed expense data from flat table (full dataset by default)
+    // Fetch detailed expense data from flat table (paginated)
     const expenses = await prisma.extractionResultFlat.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
-      ...(Number.isFinite(parsedLimit as number) && (parsedLimit as number) > 0 ? { take: parsedLimit } : {}),
+      take,
       ...(parsedOffset > 0 ? { skip: parsedOffset } : {}),
       select: {
         jobId: true,
