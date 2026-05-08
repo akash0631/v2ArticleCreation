@@ -484,8 +484,11 @@ export class ApproverController {
 
     // Backfill variantColor (and colour) for existing size variants that are missing them.
     // Looks up each variant's generic article and copies its colour.
+    // Capped at STARTUP_BACKFILL_BATCH_SIZE rows per run to avoid holding DB connections
+    // for minutes and starving normal user requests.
     private static async backfillVariantColors(): Promise<number> {
-        // Find all non-generic variants that are missing variantColor OR colour
+        // Limit rows fetched per startup run — prevents the N individual updates from
+        // holding all pooled DB connections for 10–15 min on large datasets.
         const variants = await prisma.extractionResultFlat.findMany({
             where: {
                 isGeneric: false,
@@ -495,12 +498,13 @@ export class ApproverController {
                     { colour: null }
                 ]
             },
-            select: { id: true, colour: true, variantColor: true, genericArticleId: true }
+            select: { id: true, colour: true, variantColor: true, genericArticleId: true },
+            take: ApproverController.STARTUP_BACKFILL_BATCH_SIZE
         });
 
         if (variants.length === 0) return 0;
 
-        // Group by genericArticleId to batch generic lookups
+        // Group by genericArticleId to batch the generic lookup into one query
         const genericIds = [...new Set(variants.map(v => v.genericArticleId!))];
         const generics = await prisma.extractionResultFlat.findMany({
             where: { id: { in: genericIds } },
@@ -508,16 +512,28 @@ export class ApproverController {
         });
         const genericColourMap = new Map(generics.map(g => [g.id, g.colour]));
 
-        let count = 0;
+        // Group variants by their resolved colour so we can do one updateMany per colour
+        // instead of one update per row (avoids N individual DB round-trips).
+        const idsByColour = new Map<string, string[]>();
         for (const v of variants) {
             const colour = v.colour || genericColourMap.get(v.genericArticleId!) || null;
-            if (!colour) continue; // skip if neither variant nor generic has colour
-            await prisma.extractionResultFlat.update({
-                where: { id: v.id },
-                data: { variantColor: colour, colour }
-            });
-            count++;
+            if (!colour) continue;
+            const ids = idsByColour.get(colour) || [];
+            ids.push(v.id);
+            idsByColour.set(colour, ids);
         }
+
+        if (idsByColour.size === 0) return 0;
+
+        const updates = Array.from(idsByColour.entries()).map(([colour, ids]) =>
+            prisma.extractionResultFlat.updateMany({
+                where: { id: { in: ids } },
+                data: { variantColor: colour, colour }
+            })
+        );
+
+        const results = await Promise.all(updates);
+        const count = results.reduce((sum, r) => sum + r.count, 0);
         console.log(`[Backfill] Fixed variantColor for ${count} variant rows`);
         return count;
     }
@@ -541,14 +557,17 @@ export class ApproverController {
         ApproverController.startupBackfillRunning = true;
 
         const run = async () => {
+            // Small delay between each step so normal user requests can acquire a
+            // DB connection without competing with the backfill the entire time.
+            const pause = () => new Promise<void>(resolve => setTimeout(resolve, 2_000));
             try {
-                await ApproverController.backfillSrmIsGeneric();
-                await ApproverController.backfillMissingMcCodes({});
-                await ApproverController.backfillMissingHsnCodes({});
-                await ApproverController.backfillMissingSegments({});
-                await ApproverController.backfillMissingYears({});
-                await ApproverController.backfillMissingSeasonCodes({});
-                await ApproverController.refreshArticleDescriptions({});
+                await ApproverController.backfillSrmIsGeneric(); await pause();
+                await ApproverController.backfillMissingMcCodes({}); await pause();
+                await ApproverController.backfillMissingHsnCodes({}); await pause();
+                await ApproverController.backfillMissingSegments({}); await pause();
+                await ApproverController.backfillMissingYears({}); await pause();
+                await ApproverController.backfillMissingSeasonCodes({}); await pause();
+                await ApproverController.refreshArticleDescriptions({}); await pause();
                 await ApproverController.backfillVariantColors();
                 console.log('✅ Startup backfills completed');
             } catch (err: any) {
@@ -1833,7 +1852,7 @@ export class ApproverController {
     private static loadBomGridMap() {
         if (ApproverController.bomGridMap) return ApproverController.bomGridMap;
         try {
-            const filePath = path.resolve(__dirname, '../../data/majCatGridMap.json');
+            const filePath = path.resolve(__dirname, '../data/majCatGridMap.json');
             ApproverController.bomGridMap = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         } catch (err) {
             console.error('[BomGrid] Failed to load majCatGridMap.json:', err);
