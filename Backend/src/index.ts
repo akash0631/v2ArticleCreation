@@ -23,7 +23,7 @@ import watcherRoutes from './routes/watcher'; // Watcher service routes
 import articleConfigRoutes from './routes/articleConfig';
 
 // Middleware
-import { errorHandler, notFound } from './middleware/errorHandler';
+import { errorHandler, notFound, requestTimeout } from './middleware/errorHandler';
 import { authenticate, requireAdmin, requireUser } from './middleware/auth';
 import { authenticateWatcher } from './middleware/watcherAuth';
 import { auditLog, flushAuditLogsOnShutdown } from './middleware/auditLogger';
@@ -160,6 +160,10 @@ app.use('/api/', (req, res, next) => {
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Global request timeout — 90s for normal routes, 4min for watcher (processes images)
+app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
+app.use('/api/', requestTimeout(90 * 1000));
 
 app.use((req, res, next) => {
   if (!isAppShuttingDown()) {

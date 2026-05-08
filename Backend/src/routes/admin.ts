@@ -5,6 +5,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import * as adminController from '../controllers/adminController';
 import { hierarchyService } from '../services/hierarchyService';
+import { asyncHandler } from '../middleware/asyncHandler';
+
+const h = asyncHandler;
 
 const router = Router();
 
@@ -22,76 +25,76 @@ const mut = invalidateHierarchyCache;
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
-router.get('/stats', adminController.getDashboardStats);
+router.get('/stats', h(adminController.getDashboardStats));
 
 // ═══════════════════════════════════════════════════════
 // ANALYTICS (EXPENSES & IMAGE USAGE)
 // ═══════════════════════════════════════════════════════
-router.get('/analytics/expenses', adminController.getExpenseAnalytics);
-router.get('/analytics/expenses/detailed', adminController.getDetailedExpenses);
-router.get('/analytics/image-usage', adminController.getImageUsageAnalytics);
+router.get('/analytics/expenses', h(adminController.getExpenseAnalytics));
+router.get('/analytics/expenses/detailed', h(adminController.getDetailedExpenses));
+router.get('/analytics/image-usage', h(adminController.getImageUsageAnalytics));
 
 // ═══════════════════════════════════════════════════════
 // DEPARTMENTS
 // ═══════════════════════════════════════════════════════
-router.get('/departments', adminController.getAllDepartments);
-router.get('/departments/:id', adminController.getDepartmentById);
-router.post('/departments', mut, adminController.createDepartment);
-router.put('/departments/:id', mut, adminController.updateDepartment);
-router.delete('/departments/:id', mut, adminController.deleteDepartment);
+router.get('/departments', h(adminController.getAllDepartments));
+router.get('/departments/:id', h(adminController.getDepartmentById));
+router.post('/departments', mut, h(adminController.createDepartment));
+router.put('/departments/:id', mut, h(adminController.updateDepartment));
+router.delete('/departments/:id', mut, h(adminController.deleteDepartment));
 
 // ═══════════════════════════════════════════════════════
 // SUB-DEPARTMENTS
 // ═══════════════════════════════════════════════════════
-router.get('/sub-departments', adminController.getAllSubDepartments);
-router.get('/sub-departments/:id', adminController.getSubDepartmentById);
-router.post('/sub-departments', mut, adminController.createSubDepartment);
-router.put('/sub-departments/:id', mut, adminController.updateSubDepartment);
-router.delete('/sub-departments/:id', mut, adminController.deleteSubDepartment);
+router.get('/sub-departments', h(adminController.getAllSubDepartments));
+router.get('/sub-departments/:id', h(adminController.getSubDepartmentById));
+router.post('/sub-departments', mut, h(adminController.createSubDepartment));
+router.put('/sub-departments/:id', mut, h(adminController.updateSubDepartment));
+router.delete('/sub-departments/:id', mut, h(adminController.deleteSubDepartment));
 
 // ═══════════════════════════════════════════════════════
 // CATEGORIES
 // ═══════════════════════════════════════════════════════
-router.get('/categories', adminController.getAllCategories);
-router.get('/categories/:id', adminController.getCategoryById);
-router.get('/categories/:id/all-attributes', adminController.getCategoryWithAllAttributes); // Get with ALL 44 master attributes
-router.get('/categories/:code/attributes', adminController.getCategoryByCode); // Get by code with attributes
-router.post('/categories', mut, adminController.createCategory);
-router.put('/categories/:id', mut, adminController.updateCategory);
-router.delete('/categories/:id', mut, adminController.deleteCategory);
-router.put('/categories/:id/attributes', mut, adminController.updateCategoryAttributes);
-router.put('/categories/:categoryId/attributes/:attributeId', mut, adminController.updateCategoryAttributeMapping);
-router.post('/categories/:categoryId/attributes', mut, adminController.addAttributeToCategory);
-router.delete('/categories/:categoryId/attributes/:attributeId', mut, adminController.removeAttributeFromCategory);
+router.get('/categories', h(adminController.getAllCategories));
+router.get('/categories/:id', h(adminController.getCategoryById));
+router.get('/categories/:id/all-attributes', h(adminController.getCategoryWithAllAttributes));
+router.get('/categories/:code/attributes', h(adminController.getCategoryByCode));
+router.post('/categories', mut, h(adminController.createCategory));
+router.put('/categories/:id', mut, h(adminController.updateCategory));
+router.delete('/categories/:id', mut, h(adminController.deleteCategory));
+router.put('/categories/:id/attributes', mut, h(adminController.updateCategoryAttributes));
+router.put('/categories/:categoryId/attributes/:attributeId', mut, h(adminController.updateCategoryAttributeMapping));
+router.post('/categories/:categoryId/attributes', mut, h(adminController.addAttributeToCategory));
+router.delete('/categories/:categoryId/attributes/:attributeId', mut, h(adminController.removeAttributeFromCategory));
 
 // ═══════════════════════════════════════════════════════
 // MASTER ATTRIBUTES
 // ═══════════════════════════════════════════════════════
-router.get('/attributes', adminController.getAllMasterAttributes);
-router.get('/attributes/:id', adminController.getMasterAttributeById);
-router.post('/attributes', mut, adminController.createMasterAttribute);
-router.put('/attributes/:id', mut, adminController.updateMasterAttribute);
-router.delete('/attributes/:id', mut, adminController.deleteMasterAttribute);
-router.post('/attributes/:id/values', mut, adminController.addAllowedValue);
-router.delete('/attributes/:id/values/:valueId', mut, adminController.deleteAllowedValue);
+router.get('/attributes', h(adminController.getAllMasterAttributes));
+router.get('/attributes/:id', h(adminController.getMasterAttributeById));
+router.post('/attributes', mut, h(adminController.createMasterAttribute));
+router.put('/attributes/:id', mut, h(adminController.updateMasterAttribute));
+router.delete('/attributes/:id', mut, h(adminController.deleteMasterAttribute));
+router.post('/attributes/:id/values', mut, h(adminController.addAllowedValue));
+router.delete('/attributes/:id/values/:valueId', mut, h(adminController.deleteAllowedValue));
 
 // ═══════════════════════════════════════════════════════
 // HIERARCHY
 // ═══════════════════════════════════════════════════════
-router.get('/hierarchy/tree', adminController.getHierarchyTree);
-router.get('/hierarchy/export', adminController.exportHierarchy);
+router.get('/hierarchy/tree', h(adminController.getHierarchyTree));
+router.get('/hierarchy/export', h(adminController.exportHierarchy));
 
 // ═══════════════════════════════════════════════════════
 // USERS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
-router.get('/users', adminController.getAllUsers);
-router.post('/users', adminController.createUser);
-router.put('/users/:id', adminController.updateUser);
-router.delete('/users/:id', adminController.deactivateUser);
+router.get('/users', h(adminController.getAllUsers));
+router.post('/users', h(adminController.createUser));
+router.put('/users/:id', h(adminController.updateUser));
+router.delete('/users/:id', h(adminController.deactivateUser));
 
 // ═══════════════════════════════════════════════════════
 // EXTRACTIONS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
-router.get('/extractions', adminController.getAllExtractions);
+router.get('/extractions', h(adminController.getAllExtractions));
 
 export default router;

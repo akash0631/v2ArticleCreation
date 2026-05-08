@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+export { asyncHandler, requestTimeout } from './asyncHandler';
 
 export interface ApiError extends Error {
   statusCode?: number;

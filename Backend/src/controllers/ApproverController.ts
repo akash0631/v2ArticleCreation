@@ -1074,15 +1074,18 @@ export class ApproverController {
             // Only generic articles (variants are sub-rows, not top-level exports)
             where.isGeneric = true;
 
-            // Fetch ALL matching rows (no skip/take) ordered by createdAt desc
+            // Hard cap to prevent OOM: single DB fetch of unlimited rows can exhaust heap
+            const EXPORT_MAX = 10_000;
             const items = await prisma.extractionResultFlat.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
+                take: EXPORT_MAX,
             });
 
-            console.log(`[ApproverController] exportAll returning ${items.length} rows`);
+            console.log(`[ApproverController] exportAll returning ${items.length} rows (cap ${EXPORT_MAX})`);
+            const capped = items.length === EXPORT_MAX;
 
-            return res.json({ data: items, meta: { total: items.length } });
+            return res.json({ data: items, meta: { total: items.length, capped } });
         } catch (error) {
             console.error('Error in exportAll:', error);
             return res.status(500).json({ error: 'Failed to export items' });
