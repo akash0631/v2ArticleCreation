@@ -11,7 +11,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { SimplifiedExtractionController } from '../controllers/simplifiedExtractionController';
-import { authenticate } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -24,9 +24,8 @@ const controller = new SimplifiedExtractionController();
  */
 router.post(
   '/extract-upload',
-  authenticate,
   upload.single('image'),
-  controller.extractSimplified
+  asyncHandler(controller.extractSimplified)
 );
 
 /**
@@ -35,8 +34,7 @@ router.post(
  */
 router.post(
   '/extract-base64',
-  authenticate,
-  controller.extractSimplifiedBase64
+  asyncHandler(controller.extractSimplifiedBase64)
 );
 
 export default router;

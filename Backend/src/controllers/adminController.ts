@@ -1692,28 +1692,31 @@ export const triggerSrmEnrichment = async (req: Request, res: Response): Promise
   try {
     const { backfillSrmVlmEnrichment } = await import('../services/srmSyncService');
 
-    // Count how many need enrichment
-    const { prismaClient: prisma } = await import('../utils/prisma');
-    const pending = await prisma.extractionResultFlat.count({
-      where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
-    });
-
-    if (pending === 0) {
-      res.json({ success: true, message: 'All SRM records are already enriched.', pending: 0 });
-      return;
-    }
-
-    console.log(`[Admin] Manual SRM enrichment triggered — ${pending} records to process`);
-    // Run in background — respond immediately so the UI doesn't time out
-    void backfillSrmVlmEnrichment().then(r => {
-      console.log(`[Admin] SRM enrichment complete — enriched:${r.enriched} failed:${r.failed}`);
-    });
-
+    // Respond IMMEDIATELY — enrichment runs for many minutes and even a count query
+    // can hang >100s (Cloudflare timeout) if the DB pool is busy from a prior run.
     res.json({
       success: true,
-      message: `Enrichment started for ${pending} SRM records. Running in background (~${Math.ceil(pending * 2 / 60)} min).`,
-      pending,
+      message: 'SRM enrichment started in background. Check server logs for progress.',
     });
+
+    // Count + run entirely in background after response is sent
+    void (async () => {
+      try {
+        const { prismaClient: prisma } = await import('../utils/prisma');
+        const pending = await prisma.extractionResultFlat.count({
+          where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
+        });
+        if (pending === 0) {
+          console.log('[Admin] SRM enrichment: all records already enriched.');
+          return;
+        }
+        console.log(`[Admin] Manual SRM enrichment triggered — ${pending} records to process`);
+        const r = await backfillSrmVlmEnrichment();
+        console.log(`[Admin] SRM enrichment complete — enriched:${r.enriched} failed:${r.failed}`);
+      } catch (err: any) {
+        console.error('[Admin] SRM enrichment background error:', err?.message);
+      }
+    })();
   } catch (error: any) {
     console.error('Error in triggerSrmEnrichment:', error);
     res.status(500).json({ success: false, error: error.message });
