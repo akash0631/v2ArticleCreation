@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
+import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
@@ -434,6 +434,14 @@ const ArticleCard = React.memo(({
     };
 
     const handleSave = (field: string, value: string | null) => {
+        if (field === 'vendorCode' && value) {
+            const trimmed = value.trim();
+            if (!/^\d{6}$/.test(trimmed)) {
+                message.error('Vendor Code must be exactly 6 digits');
+                setEditingField(null);
+                return;
+            }
+        }
         const updates: Record<string, string | null> = { [field]: value };
         if (field === 'rate') {
             const rate = parseFloat(String(value ?? ''));
