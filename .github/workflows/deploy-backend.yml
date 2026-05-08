@@ -50,7 +50,7 @@ jobs:
             "R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" \
             "APPROVED_R2_ACCESS_KEY_ID=${{ secrets.APPROVED_R2_ACCESS_KEY_ID }}" \
             "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}" \
-            "GEMINIAPI_KEY=${{ secrets.GEMINIAPI_KEY }}"
+            "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}"
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
