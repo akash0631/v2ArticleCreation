@@ -63,6 +63,15 @@ interface SyncResult {
   total: number;
 }
 
+export interface EnrichResult {
+  processed: number;
+  enriched: number;
+  failed: number;
+}
+
+// Minimum delay between consecutive VLM calls to avoid Gemini rate limits
+const VLM_ENRICH_DELAY_MS = 2000;
+
 /**
  * Fetch one page from the SRM API.
  */
@@ -299,9 +308,13 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
 }
 
 /**
- * Insert one SRM row into the database.
+ * Insert one SRM row into the database. Returns the created flat record.
  */
-async function insertRow(row: SrmRow): Promise<void> {
+async function insertRowAndReturn(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
+  return insertRow(row);
+}
+
+async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
   const categoryId = await resolveCategoryId(row.major_category, row.division);
 
   // Create ExtractionJob (required by FK; no AI used — just a shell record)
@@ -342,6 +355,7 @@ async function insertRow(row: SrmRow): Promise<void> {
       extractionStatus: 'SRM_IMPORT',
       imageName:      null,
       imageUrl:       srmImageUrl,
+      isGeneric:      true,   // SRM records are standalone articles, not variants
 
       // SRM-provided fields
       pptNumber:      row.presentation_no || null,
@@ -394,10 +408,8 @@ async function insertRow(row: SrmRow): Promise<void> {
   // Duplication would create spurious sibling records (e.g. YBW_... alongside JBW_...).
   // Variant creation is also skipped for the same reason.
 
-  // Enrich with VLM extraction if an image is available
-  if (srmImageUrl) {
-    void enrichSrmRowWithVlm(flat.id, srmImageUrl, row.major_category || null);
-  }
+  // VLM enrichment is now handled by the caller (syncFromSrm) in a sequential queue.
+  return { id: flat.id, imageUrl: flat.imageUrl };
 }
 
 /**
@@ -418,6 +430,9 @@ export async function syncFromSrm(): Promise<SyncResult> {
   result.total = rows.length;
   console.log(`[SRM Sync] Fetched ${rows.length} records from SRM API`);
 
+  // Collect IDs that need VLM enrichment — run AFTER the insert loop to avoid concurrent API calls
+  const toEnrich: Array<{ id: string; imageUrl: string; majorCategory: string | null }> = [];
+
   for (const row of rows) {
     try {
       const existing = await findExisting(row.presentation_no, row.design_number);
@@ -429,18 +444,20 @@ export async function syncFromSrm(): Promise<SyncResult> {
             data: { imageUrl: row.image_url },
           });
           void mirror360FlatUpdate(existing.id, { imageUrl: row.image_url });
-          // Now that there's an image, enrich with VLM
-          void enrichSrmRowWithVlm(existing.id, row.image_url, row.major_category || null);
+          toEnrich.push({ id: existing.id, imageUrl: row.image_url, majorCategory: row.major_category || null });
           console.log(`[SRM Sync] Patched image for: ${row.presentation_no} / ${row.design_number}`);
-          result.inserted++; // count as updated
+          result.inserted++;
         } else {
           result.skipped++;
         }
         continue;
       }
-      await insertRow(row);
+      const flat = await insertRowAndReturn(row);
       result.inserted++;
       console.log(`[SRM Sync] Inserted: ${row.presentation_no} / ${row.design_number}`);
+      if (flat && flat.imageUrl) {
+        toEnrich.push({ id: flat.id, imageUrl: flat.imageUrl, majorCategory: row.major_category || null });
+      }
     } catch (err: any) {
       result.errors++;
       console.error(`[SRM Sync] Error for ${row.presentation_no}/${row.design_number}:`, err.message);
@@ -448,5 +465,68 @@ export async function syncFromSrm(): Promise<SyncResult> {
   }
 
   console.log(`[SRM Sync] Done — inserted: ${result.inserted}, skipped: ${result.skipped}, errors: ${result.errors}`);
+
+  // Enrich sequentially in the background with a delay between calls to avoid rate limits
+  if (toEnrich.length > 0) {
+    console.log(`[SRM Sync] Queuing VLM enrichment for ${toEnrich.length} records (sequential, ${VLM_ENRICH_DELAY_MS}ms gap)...`);
+    void (async () => {
+      let enriched = 0;
+      for (const item of toEnrich) {
+        await enrichSrmRowWithVlm(item.id, item.imageUrl, item.majorCategory);
+        enriched++;
+        if (enriched < toEnrich.length) {
+          await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+        }
+      }
+      console.log(`[SRM Sync] VLM enrichment complete — ${enriched}/${toEnrich.length} processed`);
+    })();
+  }
+
+  return result;
+}
+
+/**
+ * Backfill VLM enrichment for all SRM records that have an imageUrl
+ * but are still at SRM_IMPORT status. Runs sequentially to avoid rate limits.
+ * Exported for the admin panel manual trigger.
+ */
+export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
+  const records = await prisma.extractionResultFlat.findMany({
+    where: {
+      source: 'SRM',
+      extractionStatus: 'SRM_IMPORT',
+      imageUrl: { not: null },
+    },
+    select: { id: true, imageUrl: true, majorCategory: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const result: EnrichResult = { processed: records.length, enriched: 0, failed: 0 };
+  console.log(`[SRM Enrich Backfill] Starting — ${records.length} records to process`);
+
+  for (let i = 0; i < records.length; i++) {
+    const rec = records[i];
+    if (!rec.imageUrl) continue;
+    try {
+      await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
+      // Check if it was actually enriched (extractionStatus changed to COMPLETED)
+      const updated = await prisma.extractionResultFlat.findUnique({
+        where: { id: rec.id },
+        select: { extractionStatus: true },
+      });
+      if (updated?.extractionStatus === 'COMPLETED') {
+        result.enriched++;
+      } else {
+        result.failed++;
+      }
+    } catch {
+      result.failed++;
+    }
+    if (i < records.length - 1) {
+      await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+    }
+  }
+
+  console.log(`[SRM Enrich Backfill] Done — enriched: ${result.enriched}, failed/no-change: ${result.failed}`);
   return result;
 }

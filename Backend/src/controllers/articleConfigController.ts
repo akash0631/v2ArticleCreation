@@ -55,3 +55,62 @@ export async function getAttributeValues(req: Request, res: Response) {
     res.status(500).json({ success: false, message: 'Failed to fetch attribute values' });
   }
 }
+
+/**
+ * GET /api/article-config/category-attributes/:code
+ *
+ * Returns the enabled/required attribute keys for a given major category code.
+ * Used by article cards to decide which fields to show.
+ *
+ * Response: { configured: boolean, enabled: string[], required: string[] }
+ * - configured: false means no mappings exist yet → caller should show all fields (fallback)
+ * - enabled: array of schemaKey strings that are enabled for this category
+ * - required: subset of enabled that are also required
+ */
+export async function getCategoryAttributeConfig(req: Request, res: Response) {
+  const { code } = req.params;
+  if (!code) {
+    res.status(400).json({ success: false, message: 'category code is required' });
+    return;
+  }
+
+  try {
+    const category = await prisma.category.findUnique({
+      where: { code: code.trim() },
+      include: {
+        attributes: {
+          include: {
+            attribute: { select: { key: true } },
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      res.json({ success: true, configured: false, enabled: [], required: [] });
+      return;
+    }
+
+    const hasAnyEnabled = category.attributes.some(a => a.isEnabled);
+
+    if (!hasAnyEnabled) {
+      // No attributes enabled yet — tell frontend to use fallback
+      res.json({ success: true, configured: false, enabled: [], required: [] });
+      return;
+    }
+
+    const enabled: string[] = [];
+    const required: string[] = [];
+
+    for (const mapping of category.attributes) {
+      if (mapping.isEnabled) {
+        enabled.push(mapping.attribute.key);
+        if (mapping.isRequired) required.push(mapping.attribute.key);
+      }
+    }
+
+    res.json({ success: true, configured: true, enabled, required });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: 'Failed to fetch category attribute config' });
+  }
+}

@@ -1,3 +1,7 @@
+import majCatMandatory from './archived/maj-cat-mandatory.json';
+import { MAJOR_CATEGORY_ALLOWED_VALUES } from './majorCategoryMap';
+import { getCachedValues, getCachedCategoryAttributes } from '../services/articleConfigService';
+
 /**
  * Maps frontend schema keys to Excel CHILD_MAJ_CAT attribute names.
  * Used to filter allowed values per major category from maj-cat-attribute-values.json.
@@ -152,14 +156,10 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_ARTICLE_DIMENSION: 'article_dimension',
 };
 
-import majCatMandatory from './maj-cat-mandatory.json';
-import { MAJOR_CATEGORY_ALLOWED_VALUES } from './majorCategoryMap';
-import { getCachedValues } from '../services/articleConfigService';
-
 const mandatoryData = majCatMandatory as Record<string, string[]>;
 
 // Maps frontend schema keys → DB camelCase field names (used in SapFieldConfig/SapAttributeValue)
-const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
+export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   macro_mvgr:           'macroMvgr',
   main_mvgr:            'mainMvgr',
   yarn_01:              'yarn1',
@@ -289,9 +289,15 @@ export function getMajCatAllowedValues(
 
 /**
  * Returns the set of schema keys that are mandatory for the given major category.
- * Returns an empty Set if the category is not found.
+ * Prefers DB cache (CategoryAttribute.isRequired) if available,
+ * falls back to archived JSON only when DB data hasn't been loaded yet.
  */
 export function getMajCatMandatoryKeys(majorCategory: string): Set<string> {
+  // DB-first: use cached CategoryAttribute data if available
+  const dbConfig = getCachedCategoryAttributes(majorCategory);
+  if (dbConfig?.configured) return dbConfig.required;
+
+  // Fallback: archived JSON (used only before DB cache is warm)
   const sapNames = mandatoryData[majorCategory];
   if (!sapNames || sapNames.length === 0) return new Set();
 

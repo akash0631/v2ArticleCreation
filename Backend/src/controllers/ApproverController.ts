@@ -466,6 +466,22 @@ export class ApproverController {
         }
     }
 
+    // Backfill isGeneric=true for SRM records that were created before the fix.
+    // SRM articles are always standalone generics — they should never be variants.
+    private static async backfillSrmIsGeneric(): Promise<number> {
+        const result = await prisma.extractionResultFlat.updateMany({
+            where: {
+                source: 'SRM',
+                isGeneric: false
+            },
+            data: { isGeneric: true }
+        });
+        if (result.count > 0) {
+            console.log(`[Backfill] Set isGeneric=true for ${result.count} SRM records`);
+        }
+        return result.count;
+    }
+
     // Backfill variantColor (and colour) for existing size variants that are missing them.
     // Looks up each variant's generic article and copies its colour.
     private static async backfillVariantColors(): Promise<number> {
@@ -526,6 +542,7 @@ export class ApproverController {
 
         const run = async () => {
             try {
+                await ApproverController.backfillSrmIsGeneric();
                 await ApproverController.backfillMissingMcCodes({});
                 await ApproverController.backfillMissingHsnCodes({});
                 await ApproverController.backfillMissingSegments({});
@@ -672,7 +689,7 @@ export class ApproverController {
                 userId: role !== 'ADMIN' ? req.user?.id : undefined,
                 userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
                 userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
-                status, division, subDivision, startDate, endDate, search, page, limit, pathType, source,
+                status, division, subDivision, majorCategory, startDate, endDate, search, page, limit, pathType, source,
             });
             const cached = ApproverController.itemsCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
@@ -794,6 +811,23 @@ export class ApproverController {
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
+
+            // Exclude orphaned records with empty imageUrl (old import artifacts, source=null)
+            where.imageUrl = { not: '' };
+
+            // SRM extraction gate: hide SRM records while Gemini is still running.
+            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >4h (Gemini gave up).
+            // This prevents a race condition where an approver edits a field that Gemini later overwrites.
+            const srmGateTime = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            where.AND = where.AND || [];
+            where.AND.push({
+                OR: [
+                    { source: { not: 'SRM' } },
+                    { source: null },
+                    { source: 'SRM', extractionStatus: { not: 'SRM_IMPORT' } },
+                    { source: 'SRM', extractionStatus: 'SRM_IMPORT', createdAt: { lt: srmGateTime } },
+                ]
+            });
 
             const skip = (Number(page) - 1) * Number(limit);
 
@@ -1073,6 +1107,19 @@ export class ApproverController {
 
             // Only generic articles (variants are sub-rows, not top-level exports)
             where.isGeneric = true;
+            where.imageUrl = { not: '' };
+
+            // Same SRM extraction gate as getItems
+            const srmGateTimeExport = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            where.AND = where.AND || [];
+            where.AND.push({
+                OR: [
+                    { source: { not: 'SRM' } },
+                    { source: null },
+                    { source: 'SRM', extractionStatus: { not: 'SRM_IMPORT' } },
+                    { source: 'SRM', extractionStatus: 'SRM_IMPORT', createdAt: { lt: srmGateTimeExport } },
+                ]
+            });
 
             // Hard cap to prevent OOM: single DB fetch of unlimited rows can exhaust heap
             const EXPORT_MAX = 10_000;
@@ -1585,9 +1632,58 @@ export class ApproverController {
             }
 
             // ── Variant RFC sync ─────────────────────────────────────────────
-            // TODO: Re-enable when variant RFC (ZMM_VAR_ART_CREATION_RFC) is ready.
-            //       The full implementation is in zmmVarArtCreationService.ts.
-            //       Uncomment the block below to activate.
+            // For each successfully synced generic article, create its color/size
+            // variants in SAP via ZMM_VAR_ART_CREATION_RFC.
+            if (successfullyApprovedIds.length > 0) {
+                try {
+                    const allVariants = await prisma.extractionResultFlat.findMany({
+                        where: {
+                            genericArticleId: { in: successfullyApprovedIds },
+                            isGeneric: false
+                        }
+                    });
+
+                    if (allVariants.length > 0) {
+                        const variantsByGenericId = new Map<string, typeof allVariants>();
+                        for (const variant of allVariants) {
+                            const gId = variant.genericArticleId!;
+                            if (!variantsByGenericId.has(gId)) variantsByGenericId.set(gId, []);
+                            variantsByGenericId.get(gId)!.push(variant);
+                        }
+
+                        const genericSapArticleMap = new Map<string, string>();
+                        for (const syncResult of finalizedSyncResults) {
+                            if (syncResult.success && syncResult.sapArticleNumber) {
+                                genericSapArticleMap.set(syncResult.id, syncResult.sapArticleNumber);
+                            }
+                        }
+
+                        const variantSyncResults = await syncVariantsToSapViaRfc(variantsByGenericId, genericSapArticleMap);
+                        console.log(`[VARIANT_RFC] ${variantSyncResults.filter((r: any) => r.success).length}/${variantSyncResults.length} variant(s) synced to SAP`);
+
+                        const variantSyncUpdates = variantSyncResults.map((vResult: any) => {
+                            const data: any = {
+                                sapSyncStatus: vResult.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
+                                sapSyncMessage: vResult.message
+                            };
+                            if (vResult.sapArticleNumber) {
+                                data.sapArticleId = vResult.sapArticleNumber;
+                                data.articleNumber = vResult.sapArticleNumber;
+                            }
+                            return prisma.extractionResultFlat.update({
+                                where: { id: vResult.id },
+                                data
+                            });
+                        });
+
+                        if (variantSyncUpdates.length > 0) {
+                            await Promise.allSettled(variantSyncUpdates);
+                        }
+                    }
+                } catch (varErr: any) {
+                    console.error('[VARIANT_RFC] Variant sync failed (non-fatal):', varErr?.message);
+                }
+            }
             // ─────────────────────────────────────────────────────────────────
 
             // Build failure details so the caller knows exactly what SAP rejected
