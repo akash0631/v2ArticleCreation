@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "prisma generate && tsc --skipLibCheck && npm run postbuild",
-    "postbuild": "node -e \"const fs=require('fs'); fs.cpSync('src/generated', 'dist/generated', {recursive: true}); fs.cpSync('src/data', 'dist/data', {recursive: true}); if(fs.existsSync('data')) { const files=fs.readdirSync('data').filter(f=>f.endsWith('.json')); files.forEach(f=>fs.copyFileSync('data/'+f,'dist/data/'+f)); }\"",
+    "postbuild": "node -e \"const fs=require('fs'); fs.cpSync('src/generated', 'dist/generated', {recursive: true, filter: (s) => !s.endsWith('.tmp') && !s.endsWith('.tmp.old')}); fs.cpSync('src/data', 'dist/data', {recursive: true}); if(fs.existsSync('data')) { const files=fs.readdirSync('data').filter(f=>f.endsWith('.json')); files.forEach(f=>fs.copyFileSync('data/'+f,'dist/data/'+f)); }\"",
     "postinstall": "prisma generate",
-    "start": "node --max-old-space-size=1024 dist/index.js",
+    "start": "node --max-old-space-size=2048 dist/index.js",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
