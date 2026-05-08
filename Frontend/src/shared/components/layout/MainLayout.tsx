@@ -16,6 +16,7 @@ import {
   CloseCircleOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
+  CameraOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
@@ -86,6 +87,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Only show Extraction to creator-side roles
     if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
       menuItems.push({ key: '/extraction', icon: <FileSearchOutlined />, label: 'Extraction' });
+      menuItems.push({ key: '/model-generation', icon: <CameraOutlined />, label: 'Model Generation' });
     }
 
     const adminItems = [

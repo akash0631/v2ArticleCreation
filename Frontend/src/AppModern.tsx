@@ -19,6 +19,7 @@ import { HierarchyManagement, UsersManagement } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
+import ModelGenerationPage from './features/model-generation/pages/ModelGenerationPage';
 
 // Shared Components
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
@@ -269,6 +270,18 @@ const App: React.FC = () => {
                       <POPresentationPage />
                     </MainLayout>
                   </ApproverRoute>
+                }
+              />
+
+              {/* Model Generation */}
+              <Route
+                path="/model-generation"
+                element={
+                  <CreatorRoute>
+                    <MainLayout>
+                      <ModelGenerationPage />
+                    </MainLayout>
+                  </CreatorRoute>
                 }
               />
 

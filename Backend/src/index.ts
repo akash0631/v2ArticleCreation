@@ -21,6 +21,7 @@ import costRoutes from './routes/costs'; // NEW: Cost tracking routes
 import approverRoutes from './routes/approver'; // NEW: Approver workflow routes
 import watcherRoutes from './routes/watcher'; // Watcher service routes
 import articleConfigRoutes from './routes/articleConfig';
+import modelGenerationRoutes from './routes/modelGeneration';
 
 // Middleware
 import { errorHandler, notFound, requestTimeout } from './middleware/errorHandler';
@@ -246,6 +247,7 @@ app.use('/api/approver', authenticate, approverLimiter, auditLog, approverRoutes
 // ═══════════════════════════════════════════════════════
 app.use('/api/watcher', authenticateWatcher, watcherRoutes); // TODO: Add requireApprover middleware
 app.use('/api/article-config', authenticate, articleConfigRoutes);
+app.use('/api/model-generation', authenticate, requireUser, modelGenerationRoutes);
 
 // Health check endpoint (public)
 app.get('/api/health', (req, res) => {
