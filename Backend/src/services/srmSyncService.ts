@@ -72,6 +72,28 @@ export interface EnrichResult {
 // Minimum delay between consecutive VLM calls to avoid Gemini rate limits
 const VLM_ENRICH_DELAY_MS = 2000;
 
+// Module-level schema cache — masterAttribute rows rarely change, no need to re-query
+// for every single SRM record during a backfill run. Loaded once per process lifetime.
+let cachedEnrichSchema: Array<{ key: string; label: string; type: any; allowedValues: string[] }> | null = null;
+
+async function getEnrichSchema() {
+  if (cachedEnrichSchema) return cachedEnrichSchema;
+  const masterAttrs = await prisma.masterAttribute.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: 'asc' },
+    include: {
+      allowedValues: { where: { isActive: true }, orderBy: { displayOrder: 'asc' } }
+    }
+  });
+  cachedEnrichSchema = masterAttrs.map(attr => ({
+    key: attr.key,
+    label: attr.label || attr.key,
+    type: attr.type.toLowerCase() as any,
+    allowedValues: attr.allowedValues.map((av: any) => av.shortForm),
+  }));
+  return cachedEnrichSchema;
+}
+
 /**
  * Fetch one page from the SRM API.
  */
@@ -156,23 +178,10 @@ async function resolveCategoryId(majorCategory: string, division: string): Promi
  */
 const vlmService = new VLMService();
 
-async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCategory: string | null): Promise<void> {
+async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCategory: string | null): Promise<boolean> {
   try {
-    // Build schema from all active master attributes
-    const masterAttrs = await prisma.masterAttribute.findMany({
-      where: { isActive: true },
-      orderBy: { displayOrder: 'asc' },
-      include: {
-        allowedValues: { where: { isActive: true }, orderBy: { displayOrder: 'asc' } }
-      }
-    });
-
-    const schema = masterAttrs.map(attr => ({
-      key: attr.key,
-      label: attr.label || attr.key,
-      type: attr.type.toLowerCase() as any,
-      allowedValues: attr.allowedValues.map((av: any) => av.shortForm),
-    }));
+    // Use the module-level schema cache — avoids a full DB query for every record
+    const schema = await getEnrichSchema();
 
     const result = await vlmService.extractFashionAttributes({
       image: imageUrl,
@@ -281,13 +290,13 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
 
     if (Object.keys(updates).length <= 3) {
       // Only metadata fields set — VLM returned nothing useful
-      return;
+      return false;
     }
 
-    await prisma.extractionResultFlat.update({ where: { id: flatId }, data: updates });
+    // prisma.update returns the full updated record — no extra findUnique needed
+    const updatedRow = await prisma.extractionResultFlat.update({ where: { id: flatId }, data: updates });
 
     // Rebuild article description with the newly populated fields
-    const updatedRow = await prisma.extractionResultFlat.findUnique({ where: { id: flatId } });
     if (updatedRow) {
       const artDesc = buildArticleDescription(updatedRow as any);
       if (artDesc) {
@@ -301,9 +310,10 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
 
     void mirror360FlatUpdate(flatId, updates);
     console.log(`[SRM VLM] Enriched ${flatId} — ${Object.keys(updates).length} fields from VLM`);
+    return true;
   } catch (err: any) {
     console.error(`[SRM VLM] Enrichment failed for ${flatId}:`, err.message);
-    // Non-fatal — SRM record stays with basic data
+    return false;
   }
 }
 
@@ -508,13 +518,8 @@ export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
     const rec = records[i];
     if (!rec.imageUrl) continue;
     try {
-      await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
-      // Check if it was actually enriched (extractionStatus changed to COMPLETED)
-      const updated = await prisma.extractionResultFlat.findUnique({
-        where: { id: rec.id },
-        select: { extractionStatus: true },
-      });
-      if (updated?.extractionStatus === 'COMPLETED') {
+      const success = await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
+      if (success) {
         result.enriched++;
       } else {
         result.failed++;
