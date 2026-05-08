@@ -52,6 +52,11 @@ jobs:
             "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}" \
             "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}"
 
+      - name: Wait for Kudu to stabilize after config changes
+        run: |
+          echo "Sleeping 45s to let Kudu restart after config/appsettings changes..."
+          sleep 45
+
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
@@ -86,11 +91,27 @@ jobs:
       - name: Deploy zip to Azure
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
+          echo "Starting async deployment..."
           az webapp deploy --name v2-article-backend --resource-group dab-rg \
             --src-path /tmp/v2-backend.zip --type zip \
-            --subscription "$SUB"
-          echo "Deployment complete (synchronous). Waiting 60s for app to start..."
-          sleep 60
+            --subscription "$SUB" --async true
+          echo "Deployment pushed. Polling Kudu for completion (max 10 min)..."
+          for i in $(seq 1 40); do
+            sleep 15
+            STATUS=$(az webapp deployment list --name v2-article-backend --resource-group dab-rg \
+              --subscription "$SUB" --query "[0].status" -o tsv 2>/dev/null || echo "unknown")
+            echo "[$i/40] Kudu deployment status: $STATUS"
+            if [ "$STATUS" = "4" ]; then
+              echo "✅ Deployment succeeded!"
+              break
+            elif [ "$STATUS" = "3" ]; then
+              echo "❌ Kudu reported deployment failed."
+              exit 1
+            fi
+          done
+          echo "Waiting 30s for app to boot..."
+          sleep 30
 
       - name: Capture startup logs
         if: always()
