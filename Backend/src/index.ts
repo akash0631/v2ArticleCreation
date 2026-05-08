@@ -301,6 +301,30 @@ app.use(errorHandler);
 // Async initialization and server start
 (async () => {
   try {
+    // ── Environment variable audit ────────────────────────────────────────
+    const REQUIRED_VARS = ['DATABASE_URL', 'JWT_SECRET'];
+    const OPTIONAL_VARS = ['REDIS_URL', 'ENABLE_REDIS', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY', 'R2_ACCESS_KEY_ID', 'ZMM_RFC_URL'];
+    const missing = REQUIRED_VARS.filter(k => !process.env[k]);
+    const present = [...REQUIRED_VARS, ...OPTIONAL_VARS].filter(k => !!process.env[k]);
+    if (missing.length > 0) {
+      console.error(`❌ MISSING REQUIRED ENV VARS: ${missing.join(', ')}`);
+      console.error('   Set these in Azure Portal → Configuration → Application Settings');
+    } else {
+      console.log(`✅ Required env vars present: ${REQUIRED_VARS.join(', ')}`);
+    }
+    console.log(`ℹ️  Optional env vars present: ${present.filter(k => OPTIONAL_VARS.includes(k)).join(', ') || 'none'}`);
+
+    // ── Database connectivity test ────────────────────────────────────────
+    try {
+      const { getPrismaClient } = await import('./utils/prisma');
+      const dbClient = getPrismaClient();
+      await dbClient.$queryRaw`SELECT 1`;
+      console.log('✅ Database connection verified');
+    } catch (dbErr: any) {
+      console.error('❌ Database connection FAILED:', dbErr?.message);
+      console.error('   Check DATABASE_URL in Azure App Settings. App will start but all DB routes will fail.');
+    }
+
     // Initialize MVGR Mapping Service
     await mvgrMappingService.initialize();
     const mvgrStats = mvgrMappingService.getStats();

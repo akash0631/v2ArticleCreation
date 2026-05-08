@@ -17,9 +17,11 @@ router.get('/summary', async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId;
     const isAdmin = (req as any).user?.role === 'ADMIN';
 
-    // Query flat table for aggregated cost data
+    // Query flat table for aggregated cost data (cap at 5000 to avoid OOM)
     const results = await prisma.extractionResultFlat.findMany({
       where: isAdmin ? {} : { userId },
+      take: 5000,
+      orderBy: { createdAt: 'desc' },
       select: {
         inputTokens: true,
         outputTokens: true,
@@ -162,7 +164,8 @@ router.get('/export', async (req: Request, res: Response) => {
 
     const flatResults = await prisma.extractionResultFlat.findMany({
       where: isAdmin ? {} : { userId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 2000
     });
 
     const exportData = {
