@@ -31,26 +31,38 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp config set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" \
-            --startup-file "node --max-old-space-size=4096 dist/index.js" --linux-fx-version "NODE|22-lts"
+            --startup-file "node --max-old-space-size=1024 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
-            NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
+            NODE_ENV=production PORT=8080 \
             SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
             FRONTEND_URL=https://articlecreation.v2retail.net \
             STARTUP_BACKFILLS_ENABLED=false \
+            ENABLE_REDIS=true \
+            ENABLE_AUDIT_LOGGING=false \
+            VLM_FUSION_MODE=high-quality \
+            ZMM_RFC_URL=http://192.168.151.36:9005/api/ZMM_ART_CREATION_RFC \
+            ZMM_RFC_ENABLED=true \
+            WATCHER_API_KEY=watcher-fashion-2026 \
+            SRM_API_KEY=v2@123 \
             R2_PUBLIC_URL_BASE=https://pub-6d446c8877b540c49d306be2eedbf3b4.r2.dev \
             APPROVED_R2_PUBLIC_URL_BASE=https://pub-fef1ebc0d586419e95e342b7b73a655d.r2.dev \
             R2_BUCKET_NAME=articlecreation \
             R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
             APPROVED_R2_BUCKET_NAME=article-master \
+            APPROVED_R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "DIRECT_URL=${{ secrets.DIRECT_URL }}" \
+            "REDIS_URL=${{ secrets.REDIS_URL }}" \
             "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
+            "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
+            "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" \
+            "HUGGINGFACE_API_KEY=${{ secrets.HUGGINGFACE_API_KEY }}" \
             "R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}" \
             "R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" \
             "APPROVED_R2_ACCESS_KEY_ID=${{ secrets.APPROVED_R2_ACCESS_KEY_ID }}" \
             "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}" \
-            "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}"
+            "SRM_SUPABASE_ANON_KEY=${{ secrets.SRM_SUPABASE_ANON_KEY }}"
 
       - name: Wait for Kudu to stabilize after config changes
         run: |
