@@ -1114,7 +1114,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\Administrator\\Desktop\\Ram Sir Project\\project\\Backend\\src\\generated\\prisma",
+      "value": "C:\\Users\\Administrator\\Desktop\\article creation\\Backend\\src\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -1138,7 +1138,7 @@ const config = {
     "previewFeatures": [
       "fullTextSearchPostgres"
     ],
-    "sourceFilePath": "C:\\Users\\Administrator\\Desktop\\Ram Sir Project\\project\\Backend\\prisma\\schema.prisma",
+    "sourceFilePath": "C:\\Users\\Administrator\\Desktop\\article creation\\Backend\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

@@ -100,8 +100,8 @@ router.get('/extractions', h(adminController.getAllExtractions));
 // ═══════════════════════════════════════════════════════
 // SRM SYNC (ADMIN)
 // ═══════════════════════════════════════════════════════
-router.get('/srm/status', adminController.getSrmSyncStatus);
-router.post('/srm/sync', adminController.triggerSrmSync);
-router.post('/srm/enrich', adminController.triggerSrmEnrichment);
+router.get('/srm/status', h(adminController.getSrmSyncStatus));
+router.post('/srm/sync', h(adminController.triggerSrmSync));
+router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
 
 export default router;
