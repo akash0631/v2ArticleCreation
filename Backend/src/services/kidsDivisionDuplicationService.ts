@@ -42,7 +42,7 @@ let cachedMappings: KidsMappingRow[] | null = null;
 function loadKidsMappings(): KidsMappingRow[] {
   if (cachedMappings) return cachedMappings;
 
-  const excelPath = path.resolve(__dirname, '../../data/kids-division-mapping.xlsx');
+  const excelPath = path.resolve(__dirname, '../data/kids-division-mapping.xlsx');
 
   if (!fs.existsSync(excelPath)) {
     console.warn(`[KidsDuplication] Excel file not found at ${excelPath}`);

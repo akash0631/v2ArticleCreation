@@ -1852,7 +1852,7 @@ export class ApproverController {
     private static loadBomGridMap() {
         if (ApproverController.bomGridMap) return ApproverController.bomGridMap;
         try {
-            const filePath = path.resolve(__dirname, '../../data/majCatGridMap.json');
+            const filePath = path.resolve(__dirname, '../data/majCatGridMap.json');
             ApproverController.bomGridMap = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         } catch (err) {
             console.error('[BomGrid] Failed to load majCatGridMap.json:', err);
