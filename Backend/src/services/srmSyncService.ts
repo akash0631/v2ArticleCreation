@@ -370,7 +370,7 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
       // SRM-provided fields
       pptNumber:      row.presentation_no || null,
       designNumber:   row.design_number   || null,
-      vendorCode:     row.vendor_code ? row.vendor_code.slice(-6) : null,
+      vendorCode:     row.vendor_code     || null,
       division:       row.division        || null,
       subDivision:    row.sub_division    || null,
       majorCategory:  row.major_category  || null,

@@ -10,7 +10,7 @@ import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import { getMcCodeByMajorCategory, MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
 import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
-import { preloadAttributeValues, getCachedCategoryAttributes } from '../../../services/articleConfigService';
+import { preloadAttributeValues } from '../../../services/articleConfigService';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import type { Dayjs } from 'dayjs';
 import { exportToExcel } from '../../../shared/utils/export/extractionExport';
@@ -504,10 +504,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             const missing: string[] = [];
             const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
             const mandatoryKeys = getMajCatMandatoryKeys(majCat);
-            const dbConfig = getCachedCategoryAttributes(majCat);
             for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-                // Skip fields disabled in the DB-driven category config
-                if (dbConfig?.configured && !dbConfig.enabled.has(schemaKey)) continue;
                 // Only check fields that are mandatory per Excel AND have dropdown values
                 const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
                 if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
@@ -542,10 +539,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             // Only validate fields that are mandatory per Excel for this major category
             const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
             const mandatoryKeys = getMajCatMandatoryKeys(majCat);
-            const dbConfig = getCachedCategoryAttributes(majCat);
             for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-                // Skip fields disabled in the DB-driven category config
-                if (dbConfig?.configured && !dbConfig.enabled.has(schemaKey)) continue;
                 const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
                 if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
                     missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);

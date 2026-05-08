@@ -6,14 +6,8 @@ import { runBatchPipeline, ensureOutputFolder } from '../services/modelGeneratio
 
 const router = Router();
 
-const TMP_DIR = path.join(process.cwd(), 'uploads', 'model-gen-tmp');
-fs.mkdirSync(TMP_DIR, { recursive: true });
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, TMP_DIR),
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname}`),
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -60,37 +54,18 @@ router.post('/generate', uploadFields, async (req: Request, res: Response, next:
     const { todayStr, hitFolder, hitIndex } = ensureOutputFolder(uploadsBase);
     console.log('[ModelGen] Output folder:', hitFolder);
 
-    // Populate buffer from disk for each file so the service layer stays unchanged
-    const loadBuffer = (f: Express.Multer.File) => {
-      if (!f.buffer && f.path) f.buffer = fs.readFileSync(f.path);
-    };
-    designs.forEach(loadBuffer);
-    if (patternFile) loadBuffer(patternFile);
-    if (broachFile) loadBuffer(broachFile);
-
     console.log('[ModelGen] Starting batch pipeline for', designs.length, 'file(s), imagesCount:', imagesCount || '1');
-    let results;
-    try {
-      results = await runBatchPipeline(
-        designs,
-        gender,
-        bodytype,
-        imagesCount || '1',
-        patternFile,
-        broachFile,
-        broach_placement,
-        special_instructions,
-        color_name
-      );
-    } finally {
-      // Remove temp files from disk regardless of success/failure
-      const tmpFiles = [...designs, patternFile, broachFile].filter(Boolean) as Express.Multer.File[];
-      for (const f of tmpFiles) {
-        if (f.path) try { fs.unlinkSync(f.path); } catch { /* ignore */ }
-        // Free buffer reference immediately
-        (f as any).buffer = null;
-      }
-    }
+    const results = await runBatchPipeline(
+      designs,
+      gender,
+      bodytype,
+      imagesCount || '1',
+      patternFile,
+      broachFile,
+      broach_placement,
+      special_instructions,
+      color_name
+    );
     console.log('[ModelGen] Batch pipeline done, results count:', results.length);
 
     const outputUrls: Array<{ file: string; view: string; url: string }> = [];

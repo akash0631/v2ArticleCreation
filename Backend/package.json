@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "prisma generate && tsc --skipLibCheck && npm run postbuild",
-    "postbuild": "node -e \"const fs=require('fs'); fs.cpSync('src/generated', 'dist/generated', {recursive: true, filter: (s) => !s.endsWith('.tmp') && !s.endsWith('.tmp.old')}); fs.cpSync('src/data', 'dist/data', {recursive: true}); if(fs.existsSync('data')) { const files=fs.readdirSync('data').filter(f=>f.endsWith('.json')); files.forEach(f=>fs.copyFileSync('data/'+f,'dist/data/'+f)); }\"",
+    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true}); require('fs').cpSync('src/data', 'dist/data', {recursive: true})\"",
     "postinstall": "prisma generate",
-    "start": "node --max-old-space-size=2048 dist/index.js",
+    "start": "node --max-old-space-size=1024 dist/index.js",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
@@ -36,8 +36,7 @@
     "excel:map-to-extraction": "ts-node scripts/sync-excel-to-extraction-values.ts",
     "backfill:extraction:matched": "ts-node scripts/backfill-extraction-matched-values.ts",
     "fix:bottom-fold-format": "ts-node scripts/fix-bottom-fold-format.ts",
-    "normalize:attribute:value-formats": "ts-node scripts/normalize-attribute-value-formats.ts",
-    "db:backfill:vendor-code": "ts-node scripts/backfill-vendor-code.ts"
+    "normalize:attribute:value-formats": "ts-node scripts/normalize-attribute-value-formats.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed-fast.ts"

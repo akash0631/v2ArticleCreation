@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
-import { ImageModal } from '../../../shared/components/ui/ImageModal';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
 import { preloadAttributeValues, getCachedValues, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes } from '../../../services/articleConfigService';
@@ -205,7 +204,6 @@ const ArticleCard = React.memo(({
 }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
-    const [modalImgUrl, setModalImgUrl] = useState<string | null>(null);
 
     // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
     // drop any localValues entries whose value now matches the item prop — they're stale overrides.
@@ -455,7 +453,6 @@ const ArticleCard = React.memo(({
         : '#fff';
 
     return (
-        <>
         <div style={{
             display: 'flex',
             border: `1px solid ${borderColor}`,
@@ -491,7 +488,7 @@ const ArticleCard = React.memo(({
                             width={72} height={72}
                             style={{ objectFit: 'cover', cursor: 'pointer', display: 'block' }}
                             onError={handleImgError}
-                            onClick={() => setModalImgUrl(imgUrl)}
+                            onClick={() => window.open(imgUrl, '_blank')}
                         />
                     ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
@@ -1067,14 +1064,6 @@ const ArticleCard = React.memo(({
                 )}
             </div>
         </div>
-        {modalImgUrl && (
-            <ImageModal
-                visible={!!modalImgUrl}
-                imageUrl={modalImgUrl}
-                onClose={() => setModalImgUrl(null)}
-            />
-        )}
-        </>
     );
 });
 
