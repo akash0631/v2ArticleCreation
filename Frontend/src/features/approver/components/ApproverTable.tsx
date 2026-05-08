@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Table, Tag, Form, Input, Select, Button, Typography, Modal } from 'antd';
+import { ImageModal } from '../../../shared/components/ui/ImageModal';
 import { EditOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd/es/form';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
@@ -331,6 +332,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
     const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
     const refreshAttempted = useRef<Set<string>>(new Set());
     const [density, setDensity] = useState(getDensity);
+    const [modalImgUrl, setModalImgUrl] = useState<string | null>(null);
 
     // Re-evaluate density when browser zoom changes
     useEffect(() => {
@@ -419,7 +421,7 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                                 loading="lazy"
                                 style={{ objectFit: 'cover', cursor: 'pointer', display: 'block' }}
                                 onError={() => handleImageError(row.id)}
-                                onClick={() => window.open(url, '_blank')}
+                                onClick={() => setModalImgUrl(url)}
                             />
                         ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -820,6 +822,13 @@ export const ApproverTable: React.FC<ApproverTableProps> = ({
                     );
                 })()}
             </Modal>
+            {modalImgUrl && (
+                <ImageModal
+                    visible={!!modalImgUrl}
+                    imageUrl={modalImgUrl}
+                    onClose={() => setModalImgUrl(null)}
+                />
+            )}
         </>
     );
 };

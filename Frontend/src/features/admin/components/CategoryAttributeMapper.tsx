@@ -21,6 +21,7 @@ import {
   getHierarchyTree, getCategoryWithAllAttributes,
   updateCategoryAttributeMapping, updateCategory,
 } from '../../../services/adminApi';
+import { invalidateCategoryAttributeCache } from '../../../services/articleConfigService';
 import type { SelectedCategory } from './HierarchyTreeEditor';
 
 const { Text } = Typography;
@@ -139,6 +140,7 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     }
     message.success(`Saved ${ok}/${entries.length} changes`);
     setLocalChanges({});
+    invalidateCategoryAttributeCache(category.code); // flush article-card cache
     qc.invalidateQueries({ queryKey: ['category-all-attributes', category.id] });
     qc.invalidateQueries({ queryKey: ['hierarchy-tree'] });
     setSaving(false);
@@ -411,81 +413,81 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
         {/* Category list */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Spin spinning={isLoading} size="small" style={{ margin: 20 }}>
-            {Object.entries(grouped).map(([deptName, items]) => (
-              <div key={deptName}>
-                {/* Department section header */}
-                <div style={{
-                  padding: '6px 14px 4px',
-                  background: '#f0f0f0',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#555',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.6px',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 1,
-                }}>
-                  {deptName}
-                </div>
-
-                {/* Category rows */}
-                {items.map(({ cat, sub, enabledCount, totalCount }) => {
-                  const isSelected = selectedCat?.id === cat.id;
-                  return (
-                    <div
-                      key={cat.id}
-                      onClick={() => setSelectedCat({
-                        id: cat.id,
-                        name: cat.name,
-                        code: cat.code,
-                        garmentType: cat.garmentType ?? 'UPPER',
-                        departmentName: cat.dept ?? sub.dept?.name ?? '',
-                      })}
-                      style={{
-                        padding: '8px 14px',
-                        cursor: 'pointer',
-                        borderLeft: isSelected ? '3px solid #1890ff' : '3px solid transparent',
-                        background: isSelected ? '#e6f7ff' : 'transparent',
-                        transition: 'background 0.12s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                      }}
-                      className="cat-picker-row"
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Tag style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, flexShrink: 0 }}>
-                            {cat.code}
-                          </Tag>
-                          <Text
-                            style={{ fontSize: 12, lineHeight: 1.3 }}
-                            ellipsis={{ tooltip: cat.name }}
-                          >
-                            {cat.name}
-                          </Text>
-                        </div>
-                        <Text type="secondary" style={{ fontSize: 11 }}>{sub.name}</Text>
-                      </div>
-                      <Tag
-                        color={enabledCount > 0 ? 'green' : 'default'}
-                        style={{ fontSize: 10, margin: 0, flexShrink: 0 }}
-                      >
-                        {enabledCount}/{totalCount}
-                      </Tag>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-
-            {Object.keys(grouped).length === 0 && !isLoading && (
+            {Object.keys(grouped).length === 0 && !isLoading ? (
               <Empty
                 description={searchText ? `No results for "${searchText}"` : 'No categories found'}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 style={{ marginTop: 40 }}
+              />
+            ) : (
+              <Collapse
+                bordered={false}
+                defaultActiveKey={Object.keys(grouped)}
+                activeKey={searchText ? Object.keys(grouped) : undefined}
+                style={{ background: 'transparent' }}
+                expandIconPosition="end"
+                items={Object.entries(grouped).map(([deptName, items]) => ({
+                  key: deptName,
+                  label: (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                        {deptName}
+                      </span>
+                      <Tag style={{ fontSize: 10, margin: 0 }}>{items.length}</Tag>
+                    </div>
+                  ),
+                  style: { borderBottom: '1px solid #f0f0f0', borderRadius: 0 },
+                  children: items.map(({ cat, sub, enabledCount, totalCount }) => {
+                    const isSelected = selectedCat?.id === cat.id;
+                    return (
+                      <div
+                        key={cat.id}
+                        onClick={() => setSelectedCat({
+                          id: cat.id,
+                          name: cat.name,
+                          code: cat.code,
+                          garmentType: cat.garmentType ?? 'UPPER',
+                          departmentName: cat.dept ?? sub.dept?.name ?? '',
+                        })}
+                        style={{
+                          padding: '8px 14px',
+                          cursor: 'pointer',
+                          borderLeft: isSelected ? '3px solid #1890ff' : '3px solid transparent',
+                          background: isSelected ? '#e6f7ff' : 'transparent',
+                          transition: 'background 0.12s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 8,
+                          marginLeft: -16,
+                          marginRight: -16,
+                        }}
+                        className="cat-picker-row"
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Tag style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, flexShrink: 0 }}>
+                              {cat.code}
+                            </Tag>
+                            <Text
+                              style={{ fontSize: 12, lineHeight: 1.3 }}
+                              ellipsis={{ tooltip: cat.name }}
+                            >
+                              {cat.name}
+                            </Text>
+                          </div>
+                          <Text type="secondary" style={{ fontSize: 11 }}>{sub.name}</Text>
+                        </div>
+                        <Tag
+                          color={enabledCount > 0 ? 'green' : 'default'}
+                          style={{ fontSize: 10, margin: 0, flexShrink: 0 }}
+                        >
+                          {enabledCount}/{totalCount}
+                        </Tag>
+                      </div>
+                    );
+                  }),
+                }))}
               />
             )}
           </Spin>
