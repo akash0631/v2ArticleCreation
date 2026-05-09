@@ -234,7 +234,7 @@ export default function UsersManagement() {
       usersSheet.addRow(['Rita CategoryHead', 'rita.head@company.com', 'Temp@123', 'CATEGORY_HEAD', 'LADIES', '']);
 
       // Lists for dropdowns
-      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'ADMIN'];
+      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN'];
       const divisionOptions = divisionNames;
       const subDivisionOptions = Array.from(new Set(
         departments.flatMap((d) => (d.subDepartments || []).map((s) => s.code).filter(Boolean))
@@ -315,7 +315,7 @@ export default function UsersManagement() {
 
       const toRole = (roleRaw: string): AdminUser['role'] | null => {
         const role = roleRaw.toUpperCase();
-        if (role === 'CREATOR' || role === 'PO_COMMITTEE' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'ADMIN') return role;
+        if (role === 'CREATOR' || role === 'PO_COMMITTEE' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || role === 'ADMIN') return role;
         return null;
       };
 
@@ -348,7 +348,7 @@ export default function UsersManagement() {
           continue;
         }
 
-        if ((role === 'CREATOR' || role === 'APPROVER') && (!division || !subDivision)) {
+        if ((role === 'CREATOR' || role === 'APPROVER' || role === 'SUB_DIVISION_HEAD') && (!division || !subDivision)) {
           failed += 1;
           errors.push(`Row ${line}: division + subDivision required for ${role}`);
           continue;
@@ -360,7 +360,7 @@ export default function UsersManagement() {
           continue;
         }
 
-        if ((role === 'CREATOR' || role === 'APPROVER') && division && subDivisionValues.length > 0) {
+        if ((role === 'CREATOR' || role === 'APPROVER' || role === 'SUB_DIVISION_HEAD') && division && subDivisionValues.length > 0) {
           const allowed = divisionToSubDivision.get(formatDivisionLabel(division).toUpperCase());
           const invalidValues = subDivisionValues.filter((sd) => !allowed?.has(sd.toUpperCase()));
           if (allowed && allowed.size > 0 && invalidValues.length > 0) {
@@ -377,7 +377,7 @@ export default function UsersManagement() {
             password,
             role,
             division: role === 'PO_COMMITTEE' ? undefined : division,
-            subDivision: (role === 'CATEGORY_HEAD' || role === 'PO_COMMITTEE') ? undefined : subDivision,
+            subDivision: (role === 'CATEGORY_HEAD' || role === 'PO_COMMITTEE' || role === 'ADMIN') ? undefined : subDivision,
           });
           success += 1;
         } catch (error: any) {
@@ -595,12 +595,13 @@ export default function UsersManagement() {
                 { value: 'PO_COMMITTEE', label: 'PO_COMMITTEE' },
                 { value: 'APPROVER', label: 'APPROVER' },
                 { value: 'CATEGORY_HEAD', label: 'CATEGORY_HEAD' },
+                { value: 'SUB_DIVISION_HEAD', label: 'SUB_DIVISION_HEAD' },
                 { value: 'ADMIN', label: 'ADMIN' },
               ]}
             />
           </Form.Item>
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
+          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD' || selectedRole === 'SUB_DIVISION_HEAD') && (
             <>
               <Form.Item
                 name="departmentId"
@@ -618,7 +619,7 @@ export default function UsersManagement() {
                 </Select>
               </Form.Item>
 
-              {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER') && (
+              {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'SUB_DIVISION_HEAD') && (
                 <Form.Item
                   name="subDivision"
                   label="Sub-Division"

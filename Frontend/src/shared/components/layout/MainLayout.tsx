@@ -79,12 +79,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       { key: '/dashboard', icon: <HomeOutlined />, label: 'Home' },
     ];
 
-    // Only show Products to non-Approver roles
+    // Only show Products to non-Approver roles (SUB_DIVISION_HEAD can also see these)
     if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
       menuItems.push({ key: '/products', icon: <ShoppingOutlined />, label: 'Products' });
     }
 
-    // Only show Extraction to creator-side roles
+    // Only show Extraction to creator-side roles (SUB_DIVISION_HEAD can also extract)
     if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
       menuItems.push({ key: '/extraction', icon: <FileSearchOutlined />, label: 'Extraction' });
       menuItems.push({ key: '/model-generation', icon: <CameraOutlined />, label: 'Model Generation' });
@@ -122,11 +122,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Combine items based on role
     let items = [...menuItems];
 
-    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || isAdmin) {
+    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin) {
       items = [...items, ...approverItems];
     }
 
-    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || isAdmin) {
+    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin) {
       items = [...items, { key: '/po-presentation', icon: <FileTextOutlined />, label: 'PO Presentation' }];
     }
 

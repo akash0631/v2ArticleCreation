@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ApproverController } from '../controllers/ApproverController';
-import { authenticate, requireApprover } from '../middleware/auth';
+import { authenticate, requireApprover, requireApprovalRights } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
@@ -22,11 +22,11 @@ router.get('/items/export-all', h(ApproverController.exportAll));
 // Update specific item (edit extracted data)
 router.put('/items/:id', h(ApproverController.updateItem));
 
-// Approve selected items
-router.post('/approve', h(ApproverController.approveItems));
+// Approve selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
+router.post('/approve', requireApprovalRights, h(ApproverController.approveItems));
 
-// Reject selected items
-router.post('/reject', h(ApproverController.rejectItems));
+// Reject selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
+router.post('/reject', requireApprovalRights, h(ApproverController.rejectItems));
 
 // Refresh image URL (fixes expired signed URLs)
 router.get('/image/:id', h(ApproverController.getImageUrl));

@@ -160,7 +160,7 @@ export class ApproverController {
             });
         };
 
-        if (role === 'APPROVER') {
+        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD') {
             addDivisionScope(user?.division);
             addSubDivisionScope(user?.subDivision);
             return;
