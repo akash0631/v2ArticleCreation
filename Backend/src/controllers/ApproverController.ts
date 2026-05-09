@@ -1836,11 +1836,21 @@ export class ApproverController {
     static async addColor(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const { color } = req.body;
-            if (!color?.trim()) return res.status(400).json({ error: 'Color is required' });
+            const { color, colors } = req.body; 
+            // Accept either colors[] (new) or color string (legacy)
+            const colorList: string[] = Array.isArray(colors)
+                ? colors.map((c: string) => c.trim().toUpperCase()).filter(Boolean)
+                : color?.trim()
+                ? [color.trim().toUpperCase()]
+                : [];
 
-            const count = await addColorVariants(id, color.trim());
-            return res.json({ message: `Created ${count} color variants`, count });
+            if (colorList.length === 0) return res.status(400).json({ error: 'At least one color is required' });
+
+            let totalCreated = 0;
+            for (const c of colorList) {
+                totalCreated += await addColorVariants(id, c);
+            }
+            return res.json({ message: `Created ${totalCreated} color variants`, count: totalCreated });
         } catch (err: any) {
             return res.status(500).json({ error: err.message });
         }

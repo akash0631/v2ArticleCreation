@@ -21,6 +21,14 @@ import type { ApproverItem, MasterAttribute } from './ApproverTable';
 const { Text } = Typography;
 const { Option } = Select;
 
+const AVAILABLE_COLORS = [
+    'BLACK', 'WHITE', 'RED', 'NAVY', 'GREY', 'OLIVE', 'MAROON', 'BLUE',
+    'GREEN', 'YELLOW', 'ORANGE', 'PINK', 'PURPLE', 'BROWN', 'BEIGE',
+    'KHAKI', 'TEAL', 'BURGUNDY', 'CHARCOAL', 'OFF WHITE', 'LIGHT BLUE',
+    'DARK GREEN', 'MUSTARD', 'RUST', 'WINE', 'CORAL', 'IVORY', 'PEACH',
+    'TURQUOISE', 'INDIGO',
+];
+
 interface VariantSubTableProps {
     genericId: string;
     genericRecord: ApproverItem;
@@ -275,6 +283,7 @@ interface AddColorModalProps {
     open: boolean;
     genericId: string;
     existingColors: string[];
+    sizeCount: number;
     onClose: () => void;
     onAdded: () => void;
 }
@@ -283,21 +292,21 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
     open,
     genericId,
     existingColors,
+    sizeCount,
     onClose,
     onAdded,
 }) => {
     const { message } = App.useApp();
-    const [color, setColor] = useState('');
+    const [selectedColors, setSelectedColors] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        if (!open) setColor('');
+        if (!open) setSelectedColors([]);
     }, [open]);
 
     const handleOk = async () => {
-        const trimmed = color.trim().toUpperCase();
-        if (!trimmed) {
-            message.warning('Please enter a color');
+        if (selectedColors.length === 0) {
+            message.warning('Please select at least one color');
             return;
         }
         setSaving(true);
@@ -311,7 +320,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ color: trimmed }),
+                    body: JSON.stringify({ colors: selectedColors }),
                 }
             );
 
@@ -320,15 +329,27 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
                 throw new Error(payload?.error || 'Failed to add color variants');
             }
 
-            message.success(`Color variants added for "${trimmed}"`);
+            const result = await response.json();
+            message.success(`${result.count} variant${result.count !== 1 ? 's' : ''} created for ${selectedColors.length} color${selectedColors.length !== 1 ? 's' : ''}`);
             onAdded();
             onClose();
         } catch (err) {
-            message.error(err instanceof Error ? err.message : 'Failed to add color');
+            message.error(err instanceof Error ? err.message : 'Failed to add colors');
         } finally {
             setSaving(false);
         }
     };
+
+    // Options: all available colors; already-existing ones shown as disabled
+    const options = AVAILABLE_COLORS.map(c => ({
+        label: c,
+        value: c,
+        disabled: existingColors.includes(c),
+    }));
+
+    const variantPreview = selectedColors.length > 0 && sizeCount > 0
+        ? `${selectedColors.length} color${selectedColors.length > 1 ? 's' : ''} × ${sizeCount} sizes = ${selectedColors.length * sizeCount} variants`
+        : null;
 
     return (
         <Modal
@@ -336,40 +357,43 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
             open={open}
             onOk={handleOk}
             onCancel={onClose}
-            okText={saving ? 'Adding…' : 'Add Color'}
-            okButtonProps={{ loading: saving }}
+            okText={saving ? 'Adding…' : 'Add Colors'}
+            okButtonProps={{ loading: saving, disabled: selectedColors.length === 0 }}
             destroyOnHidden
+            width={480}
         >
-            <p style={{ marginBottom: 8, color: '#555' }}>
-                This will create one variant per size with the specified color.
+            <p style={{ marginBottom: 12, color: '#555' }}>
+                Select one or more colors. One variant will be created per size for each color.
             </p>
 
-            {existingColors.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                        Existing colors (click to pre-fill):
+            <Select
+                mode="multiple"
+                showSearch
+                allowClear
+                placeholder="Select colors…"
+                value={selectedColors}
+                onChange={setSelectedColors}
+                style={{ width: '100%' }}
+                options={options}
+                optionFilterProp="label"
+                autoFocus
+            />
+
+            {variantPreview && (
+                <div style={{ marginTop: 10, padding: '6px 10px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 13, color: '#389e0d' }}>
+                        Will create: <strong>{variantPreview}</strong>
                     </Text>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                        {existingColors.map(c => (
-                            <Tag
-                                key={c}
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => setColor(c)}
-                            >
-                                {c}
-                            </Tag>
-                        ))}
-                    </div>
                 </div>
             )}
 
-            <Input
-                placeholder="e.g. RED, NAVY BLUE, OLIVE GREEN"
-                value={color}
-                onChange={e => setColor(e.target.value)}
-                onPressEnter={handleOk}
-                autoFocus
-            />
+            {existingColors.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        Already added: {existingColors.map(c => <Tag key={c} style={{ marginLeft: 4 }}>{c}</Tag>)}
+                    </Text>
+                </div>
+            )}
         </Modal>
     );
 };
@@ -416,6 +440,11 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
             variants.map(v => v.variantColor).filter((c): c is string => Boolean(c))
         )
     );
+
+    // Distinct sizes — used to preview how many variants will be created
+    const sizeCount = Array.from(
+        new Set(variants.map(v => v.variantSize).filter(Boolean))
+    ).length;
 
     const handleVariantSaved = useCallback(() => {
         // Only re-fetch variants — no need to reload the full parent table
@@ -610,6 +639,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
                 open={addColorOpen}
                 genericId={genericId}
                 existingColors={existingColors}
+                sizeCount={sizeCount}
                 onClose={() => setAddColorOpen(false)}
                 onAdded={handleVariantSaved}
             />
