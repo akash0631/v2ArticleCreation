@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message } from 'antd';
+import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message, Modal } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
@@ -203,6 +203,7 @@ const ArticleCard = React.memo(({
     cardGroups: CardGroup[];
 }) => {
     const [showVariants, setShowVariants] = useState(false);
+    const [imgModalOpen, setImgModalOpen] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
 
     // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
@@ -466,6 +467,7 @@ const ArticleCard = React.memo(({
         : '#fff';
 
     return (
+        <>
         <div style={{
             display: 'flex',
             border: `1px solid ${borderColor}`,
@@ -501,7 +503,7 @@ const ArticleCard = React.memo(({
                             width={72} height={72}
                             style={{ objectFit: 'cover', cursor: 'pointer', display: 'block' }}
                             onError={handleImgError}
-                            onClick={() => window.open(imgUrl, '_blank')}
+                            onClick={() => setImgModalOpen(true)}
                         />
                     ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
@@ -1077,6 +1079,24 @@ const ArticleCard = React.memo(({
                 )}
             </div>
         </div>
+
+        {/* Image preview modal */}
+        <Modal
+            open={imgModalOpen}
+            onCancel={() => setImgModalOpen(false)}
+            footer={null}
+            centered
+            width="auto"
+            styles={{ body: { padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' } }}
+            title={item.imageName || 'Image Preview'}
+        >
+            <img
+                src={imgUrl || ''}
+                alt={item.imageName || 'preview'}
+                style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
+            />
+        </Modal>
+        </>
     );
 });
 
