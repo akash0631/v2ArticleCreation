@@ -15,6 +15,7 @@ import {
   Input, Typography, Space, Tag, Empty, Spin, Switch, Table,
   Button, Select, Badge, message, Collapse,
 } from 'antd';
+import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { SaveOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -341,6 +342,15 @@ interface CategoryAttributeMapperProps {
 export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = ({ initialCategory }) => {
   const [searchText, setSearchText] = useState('');
   const [selectedCat, setSelectedCat] = useState<SelectedCategory | null>(null);
+  const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
+
+  const toggleDept = (deptName: string) => {
+    setCollapsedDepts(prev => {
+      const next = new Set(prev);
+      next.has(deptName) ? next.delete(deptName) : next.add(deptName);
+      return next;
+    });
+  };
 
   // Jump to category when navigated from hierarchy tab
   useEffect(() => {
@@ -411,26 +421,41 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
         {/* Category list */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Spin spinning={isLoading} size="small" style={{ margin: 20 }}>
-            {Object.entries(grouped).map(([deptName, items]) => (
+            {Object.entries(grouped).map(([deptName, items]) => {
+              const isCollapsed = collapsedDepts.has(deptName);
+              return (
               <div key={deptName}>
-                {/* Department section header */}
-                <div style={{
-                  padding: '6px 14px 4px',
-                  background: '#f0f0f0',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#555',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.6px',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 1,
-                }}>
-                  {deptName}
+                {/* Department section header — click to collapse/expand */}
+                <div
+                  onClick={() => toggleDept(deptName)}
+                  style={{
+                    padding: '6px 14px 4px',
+                    background: '#f0f0f0',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#555',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.6px',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    userSelect: 'none',
+                  }}
+                >
+                  <span>{deptName}</span>
+                  <span style={{ fontSize: 10, color: '#888' }}>
+                    {isCollapsed
+                      ? <><RightOutlined /> {items.length}</>
+                      : <DownOutlined />}
+                  </span>
                 </div>
 
-                {/* Category rows */}
-                {items.map(({ cat, sub, enabledCount, totalCount }) => {
+                {/* Category rows — hidden when collapsed */}
+                {!isCollapsed && items.map(({ cat, sub, enabledCount, totalCount }) => {
                   const isSelected = selectedCat?.id === cat.id;
                   return (
                     <div
@@ -479,7 +504,8 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
                   );
                 })}
               </div>
-            ))}
+              );
+            })}
 
             {Object.keys(grouped).length === 0 && !isLoading && (
               <Empty

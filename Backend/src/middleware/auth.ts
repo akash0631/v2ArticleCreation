@@ -287,9 +287,9 @@ export const requireUser = (
     return;
   }
 
-  // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
+  // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD and ADMIN roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
+  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       error: 'User access required. Invalid role.',
@@ -321,9 +321,9 @@ export const requireApprover = (
     return;
   }
 
-  // APPROVER, CATEGORY_HEAD and ADMIN roles are allowed
+  // APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD and ADMIN roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'ADMIN') {
+  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       error: 'Approver access required. You do not have permission to access this resource.',
@@ -334,6 +334,33 @@ export const requireApprover = (
     return;
   }
 
+  next();
+};
+
+/**
+ * Require ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD role (approval rights)
+ * APPROVER can view/edit articles but cannot approve or reject.
+ * Must be used after authenticate middleware
+ */
+export const requireApprovalRights = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: 'Authentication required.', code: 'NOT_AUTHENTICATED' });
+    return;
+  }
+  const role = String(req.user.role || '');
+  if (role !== 'ADMIN' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD') {
+    res.status(403).json({
+      success: false,
+      error: 'You do not have permission to approve or reject articles.',
+      code: 'INSUFFICIENT_PERMISSIONS',
+      userRole: role
+    });
+    return;
+  }
   next();
 };
 

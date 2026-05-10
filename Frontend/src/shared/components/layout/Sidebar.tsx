@@ -40,13 +40,13 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       icon: <UploadOutlined />,
       label: <Link to="/products">Products</Link>,
     }] : []),
-    {
+    ...(userRole !== 'APPROVER' && userRole !== 'CATEGORY_HEAD' ? [{
       key: '/extraction',
       icon: <UploadOutlined />,
       label: <Link to="/extraction">Extraction</Link>,
-    },
-    // Approver Dashboard - Visible to ADMIN, APPROVER and CATEGORY_HEAD
-    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD') ? [{
+    }] : []),
+    // Approver Dashboard - Visible to ADMIN, APPROVER, CATEGORY_HEAD and SUB_DIVISION_HEAD
+    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD' || userRole === 'SUB_DIVISION_HEAD') ? [{
       key: 'approver-group',
       icon: <CheckSquareOutlined />,
       label: 'Approver',
@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
         },
       ],
     }] : []),
-    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD') ? [{
+    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD' || userRole === 'SUB_DIVISION_HEAD') ? [{
       key: '/po-presentation',
       icon: <FileTextOutlined />,
       label: <Link to="/po-presentation">PO Presentation</Link>,

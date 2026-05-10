@@ -370,6 +370,7 @@ app.use(errorHandler);
 
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🚀 Backend running on PORT: ${PORT}`);
       console.log(`   User:    POST /api/user/extract/*, GET /api/user/categories/*`);
       console.log(`   Admin:   /api/admin/* (requires ADMIN role)`);
       console.log(`\n⚠️  Note: Legacy routes /api/extract/*, /api/vlm/* require authentication`);

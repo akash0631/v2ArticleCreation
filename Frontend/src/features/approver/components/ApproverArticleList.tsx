@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip } from 'antd';
+import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message, Modal } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -203,6 +203,7 @@ const ArticleCard = React.memo(({
     cardGroups: CardGroup[];
 }) => {
     const [showVariants, setShowVariants] = useState(false);
+    const [imgModalOpen, setImgModalOpen] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
 
     // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
@@ -287,6 +288,11 @@ const ArticleCard = React.memo(({
 
     useEffect(() => {
         if (!item.division) return;
+        // If cache exists but is missing impAtrbt2, it was built from a stale backend
+        // response (before the imp_atrbt2→impAtrbt2 mapping fix). Invalidate and re-fetch.
+        if (isValuesCached(item.division) && getCachedValues(item.division, 'impAtrbt2') === null) {
+            invalidateValuesCache(item.division);
+        }
         preloadAttributeValues(item.division)
             .then(() => setCacheReady(true))
             .catch(() => setCacheReady(true));
@@ -429,6 +435,14 @@ const ArticleCard = React.memo(({
     };
 
     const handleSave = (field: string, value: string | null) => {
+        if (field === 'vendorCode' && value) {
+            const trimmed = value.trim();
+            if (!/^\d{6}$/.test(trimmed)) {
+                message.error('Vendor Code must be exactly 6 digits');
+                setEditingField(null);
+                return;
+            }
+        }
         const updates: Record<string, string | null> = { [field]: value };
         if (field === 'rate') {
             const rate = parseFloat(String(value ?? ''));
@@ -453,6 +467,7 @@ const ArticleCard = React.memo(({
         : '#fff';
 
     return (
+        <>
         <div style={{
             display: 'flex',
             border: `1px solid ${borderColor}`,
@@ -488,7 +503,7 @@ const ArticleCard = React.memo(({
                             width={72} height={72}
                             style={{ objectFit: 'cover', cursor: 'pointer', display: 'block' }}
                             onError={handleImgError}
-                            onClick={() => window.open(imgUrl, '_blank')}
+                            onClick={() => setImgModalOpen(true)}
                         />
                     ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
@@ -930,8 +945,10 @@ const ArticleCard = React.memo(({
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
                                             const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
-                                            const dropdownOptions = isDropdown
-                                                ? (getCachedValues(item.division ?? '', field) ?? [])
+                                            const dropdownOptions: string[] = isDropdown
+                                                ? field === 'impAtrbt2'
+                                                    ? (attributes.find(a => a.key === 'imp_atrbt2')?.allowedValues.map(v => v.shortForm) ?? getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
+                                                    : (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];
                                             return (
                                                 <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
@@ -1064,6 +1081,24 @@ const ArticleCard = React.memo(({
                 )}
             </div>
         </div>
+
+        {/* Image preview modal */}
+        <Modal
+            open={imgModalOpen}
+            onCancel={() => setImgModalOpen(false)}
+            footer={null}
+            centered
+            width="auto"
+            styles={{ body: { padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' } }}
+            title={item.imageName || 'Image Preview'}
+        >
+            <img
+                src={imgUrl || ''}
+                alt={item.imageName || 'preview'}
+                style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
+            />
+        </Modal>
+        </>
     );
 });
 
