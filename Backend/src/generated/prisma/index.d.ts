@@ -174,7 +174,8 @@ export const UserRole: {
   CREATOR: 'CREATOR',
   PO_COMMITTEE: 'PO_COMMITTEE',
   APPROVER: 'APPROVER',
-  CATEGORY_HEAD: 'CATEGORY_HEAD'
+  CATEGORY_HEAD: 'CATEGORY_HEAD',
+  SUB_DIVISION_HEAD: 'SUB_DIVISION_HEAD'
 };
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole]

@@ -91,6 +91,17 @@ export function isValuesCached(divisionOrCategory: string): boolean {
   return valuesCache.has(normaliseDivision(divisionOrCategory));
 }
 
+export function invalidateValuesCache(divisionOrCategory?: string): void {
+  if (divisionOrCategory) {
+    const division = normaliseDivision(divisionOrCategory);
+    valuesCache.delete(division);
+    pendingLoads.delete(division);
+  } else {
+    valuesCache.clear();
+    pendingLoads.clear();
+  }
+}
+
 export function getCachedFieldConfigs(): SapFieldConfig[] | null {
   return fieldsCache;
 }

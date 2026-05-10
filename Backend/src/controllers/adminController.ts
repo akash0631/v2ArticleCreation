@@ -60,7 +60,7 @@ const AdminCreateUserSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(6).max(128),
   name: z.string().min(1).max(100),
-  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD']).optional().default('USER'),
+  role: z.enum(['ADMIN', 'USER', 'CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD']).optional().default('USER'),
   division: z.string().optional().nullable(),
   subDivision: z.union([z.string(), z.array(z.string())]).optional().nullable(),
 });
@@ -1025,8 +1025,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     const validated = AdminCreateUserSchema.parse(req.body);
     const normalizedSubDivision = normalizeSubDivisionInput(validated.subDivision);
 
-    if ((validated.role === 'CREATOR' || validated.role === 'APPROVER') && (!validated.division || !normalizedSubDivision)) {
-      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for Creators and Approvers' });
+    if ((validated.role === 'CREATOR' || validated.role === 'APPROVER' || validated.role === 'SUB_DIVISION_HEAD') && (!validated.division || !normalizedSubDivision)) {
+      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for this role' });
       return;
     }
 
@@ -1056,7 +1056,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
           name: validated.name,
           role: validated.role as any,
           division: validated.role === 'PO_COMMITTEE' ? null : validated.division,
-          subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : normalizedSubDivision,
+          subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE' || validated.role === 'ADMIN') ? null : normalizedSubDivision,
           isActive: true,
         },
         select: {
@@ -1082,7 +1082,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         name: validated.name,
         role: validated.role as any,
         division: validated.role === 'PO_COMMITTEE' ? null : validated.division,
-        subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE') ? null : normalizedSubDivision,
+        subDivision: (validated.role === 'CATEGORY_HEAD' || validated.role === 'PO_COMMITTEE' || validated.role === 'ADMIN') ? null : normalizedSubDivision,
         isActive: true,
       },
       select: {
@@ -1130,8 +1130,8 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       ? normalizeSubDivisionInput(validated.subDivision)
       : existingUser.subDivision;
 
-    if ((finalRole === 'CREATOR' || finalRole === 'APPROVER') && (!finalDivision || !finalSubDivision)) {
-      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for Creators and Approvers' });
+    if ((finalRole === 'CREATOR' || finalRole === 'APPROVER' || finalRole === 'SUB_DIVISION_HEAD') && (!finalDivision || !finalSubDivision)) {
+      res.status(400).json({ success: false, error: 'Division and Sub-Division are required for this role' });
       return;
     }
 
@@ -1145,7 +1145,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       name: validated.name,
       role: validated.role as any,
       division: finalRole === 'PO_COMMITTEE' ? null : validated.division,
-      subDivision: (finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE') ? null : (validated.subDivision !== undefined ? normalizeSubDivisionInput(validated.subDivision) : undefined),
+      subDivision: (finalRole === 'CATEGORY_HEAD' || finalRole === 'PO_COMMITTEE' || finalRole === 'ADMIN') ? null : (validated.subDivision !== undefined ? normalizeSubDivisionInput(validated.subDivision) : undefined),
       email: validated.email ? validated.email.toLowerCase() : undefined,
     };
 

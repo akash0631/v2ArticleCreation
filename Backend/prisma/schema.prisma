@@ -542,6 +542,7 @@ enum UserRole {
   PO_COMMITTEE
   APPROVER
   CATEGORY_HEAD
+  SUB_DIVISION_HEAD
 
   @@map("user_role")
   @@schema("public")
