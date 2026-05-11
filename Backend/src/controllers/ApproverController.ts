@@ -1196,6 +1196,33 @@ export class ApproverController {
         }
     }
 
+    // Delete a variant (only PENDING variants may be deleted)
+    static async deleteItem(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+
+            const item = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: { approvalStatus: true }
+            });
+            if (!item) return res.status(404).json({ error: 'Variant not found' });
+
+            if (item.approvalStatus !== ApprovalStatus.PENDING) {
+                return res.status(400).json({ error: 'Only PENDING variants can be deleted' });
+            }
+
+            await prisma.extractionResultFlat.delete({ where: { id } });
+
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+
+            return res.json({ success: true });
+        } catch (error) {
+            console.error('Error deleting variant:', error);
+            return res.status(500).json({ error: 'Failed to delete variant' });
+        }
+    }
+
     // Update item details (Edit)
     static async updateItem(req: Request, res: Response) {
         ApproverController.itemsCache.clear();

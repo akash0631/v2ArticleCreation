@@ -6,6 +6,7 @@ import {
     Form,
     Input,
     Modal,
+    Popconfirm,
     Row,
     Select,
     Spin,
@@ -13,7 +14,7 @@ import {
     Tag,
     Typography,
 } from 'antd';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { APP_CONFIG } from '../../../constants/app/config';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
@@ -447,9 +448,27 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
     ).length;
 
     const handleVariantSaved = useCallback(() => {
-        // Only re-fetch variants — no need to reload the full parent table
         fetchVariants();
     }, [fetchVariants]);
+
+    const handleDeleteVariant = useCallback(async (variantId: string) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(
+                `${APP_CONFIG.api.baseURL}/approver/items/${variantId}`,
+                { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.error || 'Failed to delete variant');
+            }
+            message.success('Variant deleted');
+            fetchVariants();
+            onRefresh();
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : 'Failed to delete variant');
+        }
+    }, [fetchVariants, onRefresh]);
 
     const columns: ColumnsType<ApproverItem> = [
         {
@@ -549,15 +568,29 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         {
             title: '',
             key: 'actions',
-            width: 70,
+            width: 130,
             render: (_: unknown, record: ApproverItem) => (
-                <Button
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => setEditingVariant(record)}
-                >
-                    Edit
-                </Button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => setEditingVariant(record)}
+                    >
+                        Edit
+                    </Button>
+                    {(!record.approvalStatus || record.approvalStatus === 'PENDING') && (
+                        <Popconfirm
+                            title="Delete variant?"
+                            description="This cannot be undone."
+                            onConfirm={() => handleDeleteVariant(record.id)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                        >
+                            <Button size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                    )}
+                </div>
             ),
         },
     ];

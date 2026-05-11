@@ -19,8 +19,14 @@ router.get('/items', h(ApproverController.getItems));
 // Export ALL items matching current filters (capped at 10k rows)
 router.get('/items/export-all', h(ApproverController.exportAll));
 
-// Update specific item (edit extracted data)
-router.put('/items/:id', h(ApproverController.updateItem));
+// Update / Delete a specific item
+// router.all used because Express 5 DELETE registration has a matching quirk in this setup
+router.all('/items/:id', h(async (req, res, next) => {
+  if (req.method === 'PUT')    return ApproverController.updateItem(req, res);
+  if (req.method === 'DELETE') return ApproverController.deleteItem(req, res);
+  next();
+  return;
+}));
 
 // Approve selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
 router.post('/approve', requireApprovalRights, h(ApproverController.approveItems));
