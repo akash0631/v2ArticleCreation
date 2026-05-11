@@ -153,10 +153,12 @@ export const AttributeManager = () => {
   const handleEditAttribute = (attr: MasterAttribute) => {
     if (!isAdmin) { message.error('Only admin can edit attributes'); return; }
     setEditingAttribute(attr);
+    // Auto-set type to SELECT when the attribute already has allowed values
+    const hasValues = (attr.allowedValues?.length ?? 0) > 0;
     attrForm.setFieldsValue({
       key: attr.key,
       label: attr.label,
-      type: attr.type,
+      type: hasValues ? 'SELECT' : attr.type,
       group: attr.group ?? null,
       description: attr.description || '',
       displayOrder: attr.displayOrder,
