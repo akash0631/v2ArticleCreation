@@ -66,6 +66,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'VENDOR',                flat: 'vendorCode' },
     { rfc: 'DSG_NO',                flat: 'designNumber' },
     { rfc: 'MRP',                   flat: 'mrp' },
+    { rfc: 'PURCH_PRICE',          flat: 'rate' },
     { rfc: 'SEASON',                flat: 'season' },
     { rfc: 'ARTICLE_DES1',          flat: 'articleDescription' },
     { rfc: 'PRICE_BAND_CATEGORY',   flat: 'segment' },
@@ -139,8 +140,12 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 const RFC_ALWAYS_INCLUDE = new Set([
     'HSN_CODE', 'SUB_DIV', 'MC_CD', 'VENDOR', 'DSG_NO',
     'SEASON', 'ARTICLE_DES1',
-    // MRP is NOT always-include — only sent when a real value exists (null/empty → skip)
 ]);
+
+// Fields that bypass the mandatory-category check — sent whenever non-empty.
+// MRP and PURCH_PRICE must always reach SAP regardless of which major category
+// is configured in maj-cat-mandatory.json (the JSON uses human labels, not RFC keys).
+const RFC_INCLUDE_IF_PRESENT = new Set(['MRP', 'PURCH_PRICE']);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
 
@@ -295,6 +300,9 @@ function buildRfcPayload(item: FlatItem): Record<string, string> {
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
             // Always include header fields (even empty)
             payload[rfc] = val;
+        } else if (val && RFC_INCLUDE_IF_PRESENT.has(rfc)) {
+            // MRP / PURCH_PRICE: always send when non-empty (bypass category mandatory check)
+            payload[rfc] = val;
         } else if (val) {
             // Only include optional fields if:
             // - Category unknown (safe fallback: send everything non-empty)
@@ -410,6 +418,7 @@ export async function syncArticlesToSapViaRfc(
             DSG_NO:            payload.DSG_NO,
             SUB_DIV:           payload.SUB_DIV,
             MRP:               payload.MRP,
+            PURCH_PRICE:       payload.PURCH_PRICE,
             SEASON:            payload.SEASON,
             MVGR_BRAND_VENDOR: payload.MVGR_BRAND_VENDOR,
             G_WEIGHT:          payload.G_WEIGHT,
