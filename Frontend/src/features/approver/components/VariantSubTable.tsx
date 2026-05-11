@@ -22,13 +22,8 @@ import type { ApproverItem, MasterAttribute } from './ApproverTable';
 const { Text } = Typography;
 const { Option } = Select;
 
-const AVAILABLE_COLORS = [
-    'BLACK', 'WHITE', 'RED', 'NAVY', 'GREY', 'OLIVE', 'MAROON', 'BLUE',
-    'GREEN', 'YELLOW', 'ORANGE', 'PINK', 'PURPLE', 'BROWN', 'BEIGE',
-    'KHAKI', 'TEAL', 'BURGUNDY', 'CHARCOAL', 'OFF WHITE', 'LIGHT BLUE',
-    'DARK GREEN', 'MUSTARD', 'RUST', 'WINE', 'CORAL', 'IVORY', 'PEACH',
-    'TURQUOISE', 'INDIGO',
-];
+// Fallback used only when master attributes haven't loaded yet
+const FALLBACK_COLORS = ['BLACK', 'WHITE', 'RED', 'NAVY', 'GREY', 'BLUE', 'GREEN'];
 
 interface VariantSubTableProps {
     genericId: string;
@@ -285,6 +280,7 @@ interface AddColorModalProps {
     genericId: string;
     existingColors: string[];
     sizeCount: number;
+    attributes: MasterAttribute[];
     onClose: () => void;
     onAdded: () => void;
 }
@@ -294,15 +290,17 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
     genericId,
     existingColors,
     sizeCount,
+    attributes,
     onClose,
     onAdded,
 }) => {
     const { message } = App.useApp();
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     useEffect(() => {
-        if (!open) setSelectedColors([]);
+        if (!open) { setSelectedColors([]); setDropdownOpen(false); }
     }, [open]);
 
     const handleOk = async () => {
@@ -341,11 +339,23 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
         }
     };
 
-    // Options: all available colors; already-existing ones shown as disabled
-    const options = AVAILABLE_COLORS.map(c => ({
-        label: c,
-        value: c,
-        disabled: existingColors.includes(c),
+    // Build color list from master attributes; fall back to static list if not loaded yet
+    const colorAttr = attributes.find(a =>
+        a.key.toUpperCase() === 'COLOR' ||
+        a.key.toLowerCase() === 'colour' ||
+        a.label.toUpperCase() === 'COLOR' ||
+        a.label.toUpperCase() === 'COLOUR'
+    );
+    const colorList = colorAttr && colorAttr.allowedValues.length > 0
+        ? colorAttr.allowedValues.map(v => ({ code: v.shortForm, label: v.fullForm }))
+        : FALLBACK_COLORS.map(c => ({ code: c, label: c }));
+
+    const options = colorList.map(({ code, label }) => ({
+        label: label !== code ? `${code} — ${label}` : code,
+        value: code,
+        disabled: existingColors.some(
+            ec => ec.toUpperCase() === code.toUpperCase() || ec.toUpperCase() === label.toUpperCase()
+        ),
     }));
 
     const variantPreview = selectedColors.length > 0 && sizeCount > 0
@@ -374,6 +384,9 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
                 placeholder="Select colors…"
                 value={selectedColors}
                 onChange={setSelectedColors}
+                onSelect={() => setDropdownOpen(false)}
+                open={dropdownOpen}
+                onDropdownVisibleChange={setDropdownOpen}
                 style={{ width: '100%' }}
                 options={options}
                 optionFilterProp="label"
@@ -673,6 +686,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
                 genericId={genericId}
                 existingColors={existingColors}
                 sizeCount={sizeCount}
+                attributes={attributes}
                 onClose={() => setAddColorOpen(false)}
                 onAdded={handleVariantSaved}
             />

@@ -41,9 +41,26 @@ function loadSizeMappings(): SizeMappingRow[] {
   }
 }
 
+// Hardcoded size buckets for Kids categories (source: variantCreationService.ts constants)
+// Mens & Ladies sizes continue to come from: Backend/src/data/variant-sizes-mapping.xlsx
+const JUNIOR_SIZES  = ['22', '24', '26'];
+const YOUNGER_SIZES = ['28', '30', '32', '34', '36'];
+const INFANT_SIZES  = ['12', '14', '16', '18', '20'];
+
 function getSizesForMajCat(majCat: string): string[] {
-  const mappings = loadSizeMappings();
   const upper = majCat.trim().toUpperCase();
+
+  // Junior Boys/Girls (including Winter variants: JBW_, JGW_)
+  if (/^(JB|JG|JBW|JGW)_/.test(upper)) return JUNIOR_SIZES;
+
+  // Younger Boys/Girls (including Winter variants: YBW_, YGW_)
+  if (/^(YB|YG|YBW|YGW)_/.test(upper)) return YOUNGER_SIZES;
+
+  // Infant Boys/Girls and Kids Infant (including Winter variants)
+  if (/^(IB|IG|IBW|IGW|KI|KIW|KBW|KGW)_/.test(upper)) return INFANT_SIZES;
+
+  // Mens & Ladies → Excel lookup (variant-sizes-mapping.xlsx)
+  const mappings = loadSizeMappings();
   return Array.from(new Set(
     mappings
       .filter(r => String(r.MAJ_CAT ?? '').trim().toUpperCase() === upper)
@@ -141,17 +158,20 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
 }
 
 export async function addColorVariants(genericId: string, color: string): Promise<number> {
+  const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
+  if (!generic) return 0;
+
   // Find all existing variants for this generic (any color, size-only variants included)
   const existingVariants = await prisma.extractionResultFlat.findMany({
     where: { genericArticleId: genericId, isGeneric: false }
   });
 
-  // Get unique sizes from existing variants (to replicate with new color)
-  const sizes = [...new Set(existingVariants.map(v => v.variantSize).filter(Boolean))] as string[];
+  // Get sizes from existing variants; if none exist yet, fall back to the Excel size mapping
+  let sizes = [...new Set(existingVariants.map(v => v.variantSize).filter(Boolean))] as string[];
+  if (sizes.length === 0 && generic.majorCategory) {
+    sizes = getSizesForMajCat(generic.majorCategory);
+  }
   if (sizes.length === 0) return 0;
-
-  const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
-  if (!generic) return 0;
 
   const originalJob = await prisma.extractionJob.findUnique({
     where: { id: generic.jobId },

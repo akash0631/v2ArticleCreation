@@ -1107,7 +1107,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
     return (
         <div>
-            <div style={{ marginBottom: 6, flexShrink: 0 }}>
+            <div style={{ marginBottom: 6, flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
                 <div style={{
                     background: '#fff',
                     borderRadius: 12,
