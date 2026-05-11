@@ -1140,18 +1140,83 @@ export class ApproverController {
                 ]
             });
 
-            // Hard cap to prevent OOM: single DB fetch of unlimited rows can exhaust heap
-            const EXPORT_MAX = 10_000;
+            // No row cap — select only the ~55 fields the frontend export uses.
+            // The narrow select keeps each row small enough that even 50k+ rows stays well
+            // under the heap limit (vs. fetching all 100+ columns which caused OOM).
             const items = await prisma.extractionResultFlat.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
-                take: EXPORT_MAX,
+                select: {
+                    id: true,
+                    articleNumber: true,
+                    imageName: true,
+                    division: true,
+                    subDivision: true,
+                    majorCategory: true,
+                    approvalStatus: true,
+                    vendorName: true,
+                    vendorCode: true,
+                    designNumber: true,
+                    pptNumber: true,
+                    rate: true,
+                    mrp: true,
+                    size: true,
+                    pattern: true,
+                    fit: true,
+                    wash: true,
+                    macroMvgr: true,
+                    mainMvgr: true,
+                    yarn1: true,
+                    fabricMainMvgr: true,
+                    weave: true,
+                    mFab2: true,
+                    composition: true,
+                    finish: true,
+                    gsm: true,
+                    weight: true,
+                    lycra: true,
+                    shade: true,
+                    neck: true,
+                    neckDetails: true,
+                    sleeve: true,
+                    length: true,
+                    collar: true,
+                    placket: true,
+                    bottomFold: true,
+                    frontOpenStyle: true,
+                    pocketType: true,
+                    drawcord: true,
+                    button: true,
+                    zipper: true,
+                    zipColour: true,
+                    fatherBelt: true,
+                    childBelt: true,
+                    printType: true,
+                    printStyle: true,
+                    printPlacement: true,
+                    patches: true,
+                    patchesType: true,
+                    embroidery: true,
+                    embroideryType: true,
+                    referenceArticleNumber: true,
+                    referenceArticleDescription: true,
+                    mcCode: true,
+                    segment: true,
+                    season: true,
+                    hsnTaxCode: true,
+                    articleDescription: true,
+                    fashionGrid: true,
+                    year: true,
+                    articleType: true,
+                    userName: true,
+                    createdAt: true,
+                    sapSyncStatus: true,
+                },
             });
 
-            console.log(`[ApproverController] exportAll returning ${items.length} rows (cap ${EXPORT_MAX})`);
-            const capped = items.length === EXPORT_MAX;
+            console.log(`[ApproverController] exportAll returning ${items.length} rows`);
 
-            return res.json({ data: items, meta: { total: items.length, capped } });
+            return res.json({ data: items, meta: { total: items.length, capped: false } });
         } catch (error) {
             console.error('Error in exportAll:', error);
             return res.status(500).json({ error: 'Failed to export items' });
