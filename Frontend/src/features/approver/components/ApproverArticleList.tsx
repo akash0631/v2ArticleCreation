@@ -238,11 +238,21 @@ const ArticleCard = React.memo(({
     }, [item]);
 
     // Auto-persist MRP when it is null in DB but rate is present.
-    // Only runs for PENDING articles — APPROVED/REJECTED are locked and cannot be updated.
+    // Guards: PENDING only, user must own the article's division (prevents 403 division-mismatch loop).
     React.useEffect(() => {
         if (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') return;
+
+        // Only save if the current user can edit this article (division match or ADMIN)
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) {
+                const u = JSON.parse(raw);
+                if (u.role !== 'ADMIN' && u.division && item.division && u.division !== item.division) return;
+            }
+        } catch { /* ignore parse errors */ }
+
         const storedMrp = parseFloat(String((item as any).mrp ?? ''));
-        if (!isNaN(storedMrp) && storedMrp > 1) return; // already has a real MRP
+        if (!isNaN(storedMrp) && storedMrp > 1) return;
         const rate = parseFloat(String((item as any).rate ?? ''));
         if (isNaN(rate) || rate <= 0) return;
         const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
