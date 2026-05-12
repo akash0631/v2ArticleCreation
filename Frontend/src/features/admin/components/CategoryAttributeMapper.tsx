@@ -19,9 +19,10 @@ import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { SaveOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getHierarchyTree, getCategoryWithAllAttributes,
+  getHierarchyTreeLightweight, getCategoryWithAllAttributes,
   updateCategoryAttributeMapping, updateCategory,
 } from '../../../services/adminApi';
+import type { LightweightDepartment, LightweightCategory, LightweightSubDepartment } from '../../../services/adminApi';
 import type { SelectedCategory } from './HierarchyTreeEditor';
 
 const { Text } = Typography;
@@ -360,21 +361,22 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
   }, [initialCategory?.id]);
 
   const { data: hierarchyData, isLoading } = useQuery({
-    queryKey: ['hierarchy-tree'],
-    queryFn: getHierarchyTree,
+    queryKey: ['hierarchy-tree-lightweight'],
+    queryFn: getHierarchyTreeLightweight,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  // Flatten all categories with dept + sub info + enabled count
+  // Flatten all categories with dept + sub info — counts come pre-computed from backend
   const allCategories = useMemo(() => {
     if (!Array.isArray(hierarchyData)) return [];
-    return (hierarchyData as any[]).flatMap(dept =>
-      (dept.subDepartments ?? []).flatMap((sub: any) =>
-        (sub.categories ?? []).map((cat: any) => ({
+    return (hierarchyData as LightweightDepartment[]).flatMap(dept =>
+      (dept.subDepartments ?? []).flatMap((sub: LightweightSubDepartment) =>
+        (sub.categories ?? []).map((cat: LightweightCategory) => ({
           cat,
           dept,
           sub,
-          enabledCount: (cat.attributes ?? []).filter((a: any) => a.isEnabled).length,
-          totalCount: (cat.attributes ?? []).length,
+          enabledCount: cat.enabledCount,
+          totalCount: cat.totalCount,
         }))
       )
     );
@@ -465,7 +467,7 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
                         name: cat.name,
                         code: cat.code,
                         garmentType: cat.garmentType ?? 'UPPER',
-                        departmentName: cat.dept ?? sub.dept?.name ?? '',
+                        departmentName: dept.name ?? '',
                       })}
                       style={{
                         padding: '8px 14px',
