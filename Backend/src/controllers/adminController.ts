@@ -835,8 +835,16 @@ export const deleteAllowedValue = async (req: Request, res: Response): Promise<v
 // HIERARCHY API
 // ═══════════════════════════════════════════════════════
 
+let hierarchyTreeCache: { data: unknown; expiry: number } | null = null;
+const HIERARCHY_TREE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 export const getHierarchyTree = async (req: Request, res: Response): Promise<void> => {
   try {
+    if (hierarchyTreeCache && Date.now() < hierarchyTreeCache.expiry) {
+      res.json(hierarchyTreeCache.data);
+      return;
+    }
+
     const departments = await prisma.department.findMany({
       orderBy: { displayOrder: 'asc' },
       include: {
@@ -873,17 +881,26 @@ export const getHierarchyTree = async (req: Request, res: Response): Promise<voi
 
     const totalAttributes = await prisma.masterAttribute.count();
 
-    res.json({
+    const responseData = {
       success: true,
       data: {
         departments,
         totalCategories,
         totalAttributes
       }
-    });
+    };
+
+    hierarchyTreeCache = { data: responseData, expiry: Date.now() + HIERARCHY_TREE_TTL_MS };
+
+    res.json(responseData);
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
+};
+
+export const invalidateHierarchyCache = async (_req: Request, res: Response): Promise<void> => {
+  hierarchyTreeCache = null;
+  res.json({ success: true, message: 'Hierarchy tree cache cleared' });
 };
 
 export const exportHierarchy = async (req: Request, res: Response): Promise<void> => {

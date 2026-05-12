@@ -82,6 +82,7 @@ router.delete('/attributes/:id/values/:valueId', mut, h(adminController.deleteAl
 // HIERARCHY
 // ═══════════════════════════════════════════════════════
 router.get('/hierarchy/tree', h(adminController.getHierarchyTree));
+router.post('/hierarchy/tree/cache/clear', h(adminController.invalidateHierarchyCache));
 router.get('/hierarchy/export', h(adminController.exportHierarchy));
 
 // ═══════════════════════════════════════════════════════

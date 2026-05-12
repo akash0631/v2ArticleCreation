@@ -12,6 +12,7 @@ import {
     Spin,
     Table,
     Tag,
+    Tooltip,
     Typography,
 } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
@@ -30,6 +31,7 @@ interface VariantSubTableProps {
     genericRecord: ApproverItem;
     onRefresh: () => void;
     attributes: MasterAttribute[];
+    pathType?: 'old' | 'new' | 'rejected' | 'created';
 }
 
 // ── Edit variant modal ────────────────────────────────────────────────────────
@@ -419,10 +421,12 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
     genericRecord,
     attributes,
     onRefresh,
+    pathType,
 }) => {
     const { message } = App.useApp();
     const [variants, setVariants] = useState<ApproverItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [retrying, setRetrying] = useState(false);
     const [editingVariant, setEditingVariant] = useState<ApproverItem | null>(null);
     const [addColorOpen, setAddColorOpen] = useState(false);
 
@@ -483,6 +487,26 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         }
     }, [fetchVariants, onRefresh]);
 
+    const handleRetryVariants = useCallback(async () => {
+        setRetrying(true);
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(
+                `${APP_CONFIG.api.baseURL}/approver/items/${genericId}/retry-variants`,
+                { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+            );
+            const data = await response.json();
+            if (!response.ok) throw new Error(data?.error || 'Retry failed');
+            message.success(data.message || `${data.synced} synced, ${data.failed} failed`);
+            fetchVariants();
+            onRefresh();
+        } catch (err) {
+            message.error(err instanceof Error ? err.message : 'Retry failed');
+        } finally {
+            setRetrying(false);
+        }
+    }, [genericId, fetchVariants, onRefresh]);
+
     const columns: ColumnsType<ApproverItem> = [
         {
             title: 'Size',
@@ -532,10 +556,10 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         },
         {
             title: 'Vendor',
-            dataIndex: 'vendorName',
-            key: 'vendorName',
+            key: 'vendor',
             width: 140,
-            render: (v: string | null) => v || <Text type="secondary">—</Text>,
+            render: (_: unknown, record: ApproverItem) =>
+                record.vendorName || record.vendorCode || <Text type="secondary">—</Text>,
         },
         {
             title: 'Rate',
@@ -567,9 +591,11 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
                 const status = record.sapSyncStatus;
                 if (status === 'FAILED') {
                     return (
-                        <Tag color="red" style={{ fontSize: 11 }}>
-                            FAILED
-                        </Tag>
+                        <Tooltip title={record.sapSyncMessage || 'SAP returned an error'} placement="topLeft">
+                            <Tag color="red" style={{ fontSize: 11, cursor: 'help' }}>
+                                FAILED ⓘ
+                            </Tag>
+                        </Tooltip>
                     );
                 }
                 if (status === 'SYNCED') {
@@ -642,10 +668,30 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
                 <Text strong style={{ fontSize: 13 }}>
                     Variants ({variants.length})
                 </Text>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {genericRecord.colour && (
                         <Button size="small" onClick={handleSyncColor}>
                             Sync Color
+                        </Button>
+                    )}
+                    {/* Retry button — only on Created Articles page, only when variants need SAP sync */}
+                    {pathType === 'created' && variants.some(v =>
+                        v.sapSyncStatus === 'FAILED' ||
+                        (v.approvalStatus === 'APPROVED' && v.sapSyncStatus === 'NOT_SYNCED') ||
+                        v.approvalStatus === 'PENDING'
+                    ) && (
+                        <Button
+                            size="small"
+                            type="primary"
+                            danger
+                            loading={retrying}
+                            onClick={handleRetryVariants}
+                        >
+                            {retrying ? 'Retrying…' : `Retry Variants to SAP (${variants.filter(v =>
+                                v.sapSyncStatus === 'FAILED' ||
+                                (v.approvalStatus === 'APPROVED' && v.sapSyncStatus === 'NOT_SYNCED') ||
+                                v.approvalStatus === 'PENDING'
+                            ).length})`}
                         </Button>
                     )}
                     <Button
