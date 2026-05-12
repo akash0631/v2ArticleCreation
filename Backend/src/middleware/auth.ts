@@ -338,8 +338,7 @@ export const requireApprover = (
 };
 
 /**
- * Require ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD role (approval rights)
- * APPROVER can view/edit articles but cannot approve or reject.
+ * Require ADMIN, APPROVER, CATEGORY_HEAD or SUB_DIVISION_HEAD role (approval rights)
  * Must be used after authenticate middleware
  */
 export const requireApprovalRights = (
@@ -352,7 +351,7 @@ export const requireApprovalRights = (
     return;
   }
   const role = String(req.user.role || '');
-  if (role !== 'ADMIN' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD') {
+  if (role !== 'ADMIN' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD') {
     res.status(403).json({
       success: false,
       error: 'You do not have permission to approve or reject articles.',

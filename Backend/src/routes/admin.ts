@@ -15,7 +15,10 @@ const router = Router();
 const invalidateHierarchyCache = (_req: Request, res: Response, next: NextFunction) => {
   const orig = res.json.bind(res);
   res.json = (body: any) => {
-    if (res.statusCode < 400) hierarchyService.invalidate();
+    if (res.statusCode < 400) {
+      hierarchyService.invalidate();
+      adminController.clearAllHierarchyCaches();
+    }
     return orig(body);
   };
   next();
@@ -82,6 +85,7 @@ router.delete('/attributes/:id/values/:valueId', mut, h(adminController.deleteAl
 // HIERARCHY
 // ═══════════════════════════════════════════════════════
 router.get('/hierarchy/tree', h(adminController.getHierarchyTree));
+router.get('/hierarchy/tree/lightweight', h(adminController.getHierarchyTreeLightweight));
 router.post('/hierarchy/tree/cache/clear', h(adminController.invalidateHierarchyCache));
 router.get('/hierarchy/export', h(adminController.exportHierarchy));
 

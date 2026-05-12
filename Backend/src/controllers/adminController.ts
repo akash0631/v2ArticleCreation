@@ -838,6 +838,87 @@ export const deleteAllowedValue = async (req: Request, res: Response): Promise<v
 let hierarchyTreeCache: { data: unknown; expiry: number } | null = null;
 const HIERARCHY_TREE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+// Lightweight tree cache (no attributes — for Attribute Mapping left panel)
+let hierarchyLightweightCache: { data: unknown; expiry: number } | null = null;
+
+export const getHierarchyTreeLightweight = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    if (hierarchyLightweightCache && Date.now() < hierarchyLightweightCache.expiry) {
+      res.json(hierarchyLightweightCache.data);
+      return;
+    }
+
+    // Fetch departments + subDepartments + categories (NO attributes)
+    const departments = await prisma.department.findMany({
+      orderBy: { displayOrder: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        displayOrder: true,
+        subDepartments: {
+          orderBy: { displayOrder: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            displayOrder: true,
+            categories: {
+              orderBy: { displayOrder: 'asc' },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                garmentType: true,
+                displayOrder: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Compute per-category attribute counts via two lightweight groupBy queries
+    const [totalCounts, enabledCounts] = await Promise.all([
+      prisma.categoryAttribute.groupBy({
+        by: ['categoryId'],
+        _count: { categoryId: true },
+      }),
+      prisma.categoryAttribute.groupBy({
+        by: ['categoryId'],
+        where: { isEnabled: true },
+        _count: { categoryId: true },
+      }),
+    ]);
+
+    const totalMap = new Map(totalCounts.map(r => [r.categoryId, r._count.categoryId]));
+    const enabledMap = new Map(enabledCounts.map(r => [r.categoryId, r._count.categoryId]));
+
+    // Merge counts into the category objects
+    const departmentsWithCounts = departments.map(dept => ({
+      ...dept,
+      subDepartments: dept.subDepartments.map(sub => ({
+        ...sub,
+        categories: sub.categories.map(cat => ({
+          ...cat,
+          totalCount: totalMap.get(cat.id) ?? 0,
+          enabledCount: enabledMap.get(cat.id) ?? 0,
+        })),
+      })),
+    }));
+
+    const responseData = {
+      success: true,
+      data: { departments: departmentsWithCounts },
+    };
+
+    hierarchyLightweightCache = { data: responseData, expiry: Date.now() + HIERARCHY_TREE_TTL_MS };
+    res.json(responseData);
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const getHierarchyTree = async (req: Request, res: Response): Promise<void> => {
   try {
     if (hierarchyTreeCache && Date.now() < hierarchyTreeCache.expiry) {
@@ -898,8 +979,13 @@ export const getHierarchyTree = async (req: Request, res: Response): Promise<voi
   }
 };
 
-export const invalidateHierarchyCache = async (_req: Request, res: Response): Promise<void> => {
+export const clearAllHierarchyCaches = (): void => {
   hierarchyTreeCache = null;
+  hierarchyLightweightCache = null;
+};
+
+export const invalidateHierarchyCache = async (_req: Request, res: Response): Promise<void> => {
+  clearAllHierarchyCaches();
   res.json({ success: true, message: 'Hierarchy tree cache cleared' });
 };
 

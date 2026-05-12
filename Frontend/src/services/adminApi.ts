@@ -369,6 +369,37 @@ export const getHierarchyTree = async (): Promise<Department[]> => {
   return data.data.departments;
 };
 
+export interface LightweightCategory {
+  id: number;
+  name: string;
+  code: string;
+  garmentType?: string | null;
+  displayOrder: number;
+  enabledCount: number;
+  totalCount: number;
+}
+
+export interface LightweightSubDepartment {
+  id: number;
+  name: string;
+  code: string;
+  displayOrder: number;
+  categories: LightweightCategory[];
+}
+
+export interface LightweightDepartment {
+  id: number;
+  name: string;
+  code: string;
+  displayOrder: number;
+  subDepartments: LightweightSubDepartment[];
+}
+
+export const getHierarchyTreeLightweight = async (): Promise<LightweightDepartment[]> => {
+  const { data } = await adminApi.get<ApiResponse<{ departments: LightweightDepartment[] }>>('/hierarchy/tree/lightweight');
+  return data.data.departments;
+};
+
 /**
  * Get category with ALL master attributes (showing enabled/disabled status)
  * Used by admin matrix to show all 44 attributes with toggles
