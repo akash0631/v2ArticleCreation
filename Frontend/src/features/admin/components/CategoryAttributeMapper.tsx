@@ -467,7 +467,7 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
                         name: cat.name,
                         code: cat.code,
                         garmentType: cat.garmentType ?? 'UPPER',
-                        departmentName: dept.name ?? '',
+                        departmentName: deptName ?? '',
                       })}
                       style={{
                         padding: '8px 14px',
