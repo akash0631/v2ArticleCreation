@@ -23,6 +23,14 @@ const ZMM_VAR_RFC_URL =
 const ZMM_VAR_RFC_ENABLED =
     (process.env.ZMM_RFC_ENABLED ?? process.env.SAP_SYNC_ENABLED ?? 'true').toLowerCase() === 'true';
 
+// Fixed SAP org values — do not change per variant
+const SAP_SITE       = process.env.SAP_SITE        || 'DH24';
+const SAP_PUR_GRP    = process.env.SAP_PUR_GRP     || '124';
+const SAP_SALES_ORG  = process.env.SAP_SALES_ORG   || '1100';
+const SAP_SALES_UNIT = process.env.SAP_SALES_UNIT  || 'EA';
+const SAP_TO_DATE    = process.env.SAP_TO_DATE      || '31129999';
+const SAP_TAX_CODE   = process.env.SAP_TAX_CODE    || 'J2';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FlatVariant = {
@@ -54,13 +62,33 @@ function buildVariantPayload(
     genericSapArtNum: string,
     variant: FlatVariant
 ): Record<string, string> {
+    // FROM_DATE: today in DDMMYYYY format
+    const now = new Date();
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(now.getFullYear());
+    const fromDate = `${dd}${mm}${yyyy}`;
+
     return {
+        // ── Dynamic — from variant record ─────────────────
         GENERIC_ARTICLE: genericSapArtNum,
-        V2_SIZE:    toStr(variant.variantSize),
-        V2_COLOR:   toStr(variant.colour ?? variant.variantColor),
-        VENDOR:     toStr(variant.vendorCode),
-        NET_PRICE:  toStr(variant.rate),
-        MRP_TYPE:   toStr(variant.mrp),
+        VAR1VAL1:        toStr(variant.variantSize),            // actual size value e.g. "XL"
+        VAR1VAL2:        toStr(variant.colour ?? variant.variantColor), // actual color e.g. "Blue"
+        VENDOR:          toStr(variant.vendorCode),
+        NET_PRICE:       toStr(variant.rate),
+        MRP_TYPE:        toStr(variant.mrp),
+        FROM_DATE:       fromDate,
+        // ── Fixed SAP org values ──────────────────────────
+        VARIANT_ARTICLE: '',
+        VAR1CHAR1:       'V2_SIZE',
+        VAR1CHAR2:       'V2_COLOR',
+        SITE:            SAP_SITE,
+        PUR_GRP:         SAP_PUR_GRP,
+        SALES_ORG:       SAP_SALES_ORG,
+        SALES_UNIT:      SAP_SALES_UNIT,
+        TO_DATE:         SAP_TO_DATE,
+        OLD_MAT_NO:      '',
+        TAX_CODE:        SAP_TAX_CODE,
     };
 }
 
@@ -159,9 +187,9 @@ export async function syncVariantsToSapViaRfc(
 
             console.log(
                 `[ZMM_VAR_RFC] Creating variant → GENERIC_ARTICLE=${genericSapArt}` +
-                ` V2_SIZE=${payload.V2_SIZE} V2_COLOR=${payload.V2_COLOR}` +
+                ` VAR1VAL1=${payload.VAR1VAL1} VAR1VAL2=${payload.VAR1VAL2}` +
                 ` VENDOR=${payload.VENDOR} NET_PRICE=${payload.NET_PRICE} MRP_TYPE=${payload.MRP_TYPE}` +
-                ` variantDbId=${variant.id}`
+                ` FROM_DATE=${payload.FROM_DATE} variantDbId=${variant.id}`
             );
 
             try {
