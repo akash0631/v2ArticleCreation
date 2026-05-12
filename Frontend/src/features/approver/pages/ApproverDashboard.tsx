@@ -1303,6 +1303,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     onProceedFGArticle={handleProceedFGArticle}
                     attributes={attributes}
                     onRefresh={() => fetchItems(currentPage)}
+                    pathType={pathType}
                     serverPagination={{
                         total: totalCount,
                         current: currentPage,

@@ -1781,6 +1781,12 @@ export class ApproverController {
                                 data.sapArticleId = vResult.sapArticleNumber;
                                 data.articleNumber = vResult.sapArticleNumber;
                             }
+                            if (vResult.success && vResult.fabricArticleNumber) {
+                                data.fabricArticleNumber = vResult.fabricArticleNumber;
+                            }
+                            if (vResult.success && vResult.fabricArticleDescription) {
+                                data.fabricArticleDescription = vResult.fabricArticleDescription;
+                            }
                             return prisma.extractionResultFlat.update({
                                 where: { id: vResult.id },
                                 data
@@ -1920,6 +1926,103 @@ export class ApproverController {
             });
             return res.json({ data: variants });
         } catch (err: any) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Retry SAP sync for FAILED / NOT_SYNCED / PENDING variants of a generic article
+    static async retryVariants(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+
+            // 1. Load the generic article
+            const generic = await prisma.extractionResultFlat.findUnique({ where: { id } });
+            if (!generic || !generic.isGeneric) {
+                return res.status(404).json({ error: 'Generic article not found' });
+            }
+            if (!generic.sapArticleId) {
+                return res.status(400).json({ error: 'Generic article has no SAP article number. Approve the generic first.' });
+            }
+
+            // 2. Find all variants that need (re)syncing
+            const variants = await prisma.extractionResultFlat.findMany({
+                where: {
+                    genericArticleId: id,
+                    isGeneric: false,
+                    sapSyncStatus: { in: ['FAILED', 'NOT_SYNCED'] }
+                }
+            });
+
+            // Also include PENDING variants — auto-approve them first
+            const pendingVariants = await prisma.extractionResultFlat.findMany({
+                where: {
+                    genericArticleId: id,
+                    isGeneric: false,
+                    approvalStatus: 'PENDING'
+                }
+            });
+
+            if (pendingVariants.length > 0) {
+                const userId = (req as any).user?.id;
+                await prisma.extractionResultFlat.updateMany({
+                    where: { id: { in: pendingVariants.map(v => v.id) } },
+                    data: {
+                        approvalStatus: 'APPROVED',
+                        approvedBy: userId ? Number(userId) : null,
+                        approvedAt: new Date(),
+                        sapSyncStatus: 'NOT_SYNCED'
+                    }
+                });
+            }
+
+            // Merge both lists (dedup by id)
+            const allToSync = [
+                ...variants,
+                ...pendingVariants.filter(p => !variants.find(v => v.id === p.id))
+            ];
+
+            if (allToSync.length === 0) {
+                return res.json({ message: 'No variants need SAP sync', synced: 0, failed: 0 });
+            }
+
+            // 3. Build maps for syncVariantsToSapViaRfc
+            const variantsByGenericId = new Map([[id, allToSync]]);
+            const genericSapArticleMap = new Map([[id, generic.sapArticleId]]);
+
+            // 4. Call the existing RFC function
+            const results = await syncVariantsToSapViaRfc(variantsByGenericId, genericSapArticleMap);
+
+            // 5. Persist results back to DB
+            await Promise.allSettled(results.map(r => {
+                const data: Record<string, unknown> = {
+                    sapSyncStatus: r.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
+                    sapSyncMessage: r.message
+                };
+                if (r.sapArticleNumber) {
+                    data.sapArticleId = r.sapArticleNumber;
+                    data.articleNumber = r.sapArticleNumber;
+                }
+                if (r.success && r.fabricArticleNumber) {
+                    data.fabricArticleNumber = r.fabricArticleNumber;
+                }
+                if (r.success && r.fabricArticleDescription) {
+                    data.fabricArticleDescription = r.fabricArticleDescription;
+                }
+                return prisma.extractionResultFlat.update({ where: { id: r.id }, data });
+            }));
+
+            const synced = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+
+            console.log(`[RETRY_VARIANTS] generic=${id} synced=${synced} failed=${failed}`);
+            return res.json({
+                message: `Retry complete: ${synced} synced, ${failed} failed`,
+                synced,
+                failed,
+                results: results.map(r => ({ id: r.id, success: r.success, message: r.message, sapArticleNumber: r.sapArticleNumber }))
+            });
+        } catch (err: any) {
+            console.error('[RETRY_VARIANTS] Error:', err.message);
             return res.status(500).json({ error: err.message });
         }
     }

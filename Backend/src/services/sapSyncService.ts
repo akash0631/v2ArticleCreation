@@ -23,6 +23,8 @@ export type SapSyncItemResult = {
   message: string;
   statusCode?: number;
   sapArticleNumber?: string;
+  fabricArticleNumber?: string;
+  fabricArticleDescription?: string;
 };
 
 const SAP_SYNC_URL =

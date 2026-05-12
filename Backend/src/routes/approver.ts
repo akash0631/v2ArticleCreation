@@ -41,6 +41,7 @@ router.get('/image/:id', h(ApproverController.getImageUrl));
 router.get('/items/:id/variants', h(ApproverController.getVariants));
 router.post('/items/:id/add-color', h(ApproverController.addColor));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
+router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
 
 // BOM grid Art # lookup — returns { attrName: { mvgrValue: sapCd } } for a major category
 router.get('/bom-art-numbers/:majCat', h(ApproverController.getBomArtNumbers));

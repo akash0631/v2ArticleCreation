@@ -23,12 +23,6 @@ const ZMM_VAR_RFC_URL =
 const ZMM_VAR_RFC_ENABLED =
     (process.env.ZMM_RFC_ENABLED ?? process.env.SAP_SYNC_ENABLED ?? 'true').toLowerCase() === 'true';
 
-// Static org fields — override via env vars if needed
-const SITE      = process.env.SAP_VARIANT_SITE      || 'DH24';
-const PUR_GRP   = process.env.SAP_VARIANT_PUR_GRP   || '124';
-const SALES_ORG = process.env.SAP_VARIANT_SALES_ORG || '1100';
-const TO_DATE   = '31129999';
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FlatVariant = {
@@ -36,10 +30,10 @@ type FlatVariant = {
     genericArticleId?: string | null;
     variantSize?: string | null;
     variantColor?: string | null;
+    colour?: string | null;
     vendorCode?: string | null;
     rate?: unknown;       // NET_PRICE
     mrp?: unknown;        // MRP_TYPE
-    hsnTaxCode?: string | null;
     [key: string]: unknown;
 };
 
@@ -55,15 +49,6 @@ const toStr = (v: unknown): string => {
     return String(v).trim();
 };
 
-/** Returns today's date formatted as DDMMYYYY (e.g. "30042026") */
-const getTodayDDMMYYYY = (): string => {
-    const d = new Date();
-    const dd   = String(d.getDate()).padStart(2, '0');
-    const mm   = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = String(d.getFullYear());
-    return `${dd}${mm}${yyyy}`;
-};
-
 /** Build the JSON payload for one variant RFC call */
 function buildVariantPayload(
     genericSapArtNum: string,
@@ -71,22 +56,11 @@ function buildVariantPayload(
 ): Record<string, string> {
     return {
         GENERIC_ARTICLE: genericSapArtNum,
-        VARIANT_ARTICLE: '',            // SAP generates this
-        VAR1CHAR1:  'V2_SIZE',
-        VAR1VAL1:   toStr(variant.variantSize),
-        VAR1CHAR2:  'V2_COLOR',
-        VAR1VAL2:   toStr(variant.variantColor),
+        V2_SIZE:    toStr(variant.variantSize),
+        V2_COLOR:   toStr(variant.colour ?? variant.variantColor),
         VENDOR:     toStr(variant.vendorCode),
-        SITE,
-        PUR_GRP,
         NET_PRICE:  toStr(variant.rate),
-        SALES_ORG,
-        SALES_UNIT: 'EA',
         MRP_TYPE:   toStr(variant.mrp),
-        FROM_DATE:  getTodayDDMMYYYY(),
-        TO_DATE,
-        OLD_MAT_NO: '',
-        TAX_CODE:   toStr(variant.hsnTaxCode),
     };
 }
 
@@ -94,7 +68,7 @@ function buildVariantPayload(
 function parseVariantRfcResponse(
     statusCode: number,
     body: string
-): { ok: boolean; sapArticleNumber?: string; message: string } {
+): { ok: boolean; sapArticleNumber?: string; fabricArticleNumber?: string; fabricArticleDescription?: string; message: string } {
     let parsed: Record<string, unknown> | undefined;
 
     try {
@@ -106,32 +80,41 @@ function parseVariantRfcResponse(
         };
     }
 
-    // SAP may return the variant article number under different keys
+    // SAP returns article number in FIELD (primary), fall back to legacy keys
     const sapArt = toStr(
+        parsed?.FIELD ??
         parsed?.SAP_ART ??
         parsed?.VARIANT_ARTICLE ??
         parsed?.ArticleNumber ??
         parsed?.ARTICLE_NUMBER ??
         ''
     );
+
+    // sapMessage is the human-readable success/error text from SAP
+    const sapMessageText = toStr(parsed?.sapMessage ?? parsed?.Message ?? parsed?.MESSAGE ?? parsed?.message ?? parsed?.MSG ?? '');
     const msgTyp  = toStr(parsed?.MSG_TYP ?? '').toUpperCase();
-    const msgText = toStr(parsed?.MESSAGE ?? parsed?.Message ?? parsed?.message ?? parsed?.MSG ?? '');
+    // sapType "S" = success, "E" = error (SAP standard)
+    const sapType = toStr(parsed?.sapType ?? parsed?.SAPTYPE ?? '').toUpperCase();
     const statusFlag = parsed?.Status ?? parsed?.status;
 
-    // Build human-readable message
-    const parts: string[] = [];
-    if (msgTyp)  parts.push(`[${msgTyp}]`);
-    if (msgText) parts.push(msgText);
-    const message = parts.join(' ') ||
+    // Build human-readable message — prefer sapMessage, fall back to MSG
+    const message = sapMessageText ||
         (sapArt ? `Variant created: ${sapArt}` : `SAP response HTTP ${statusCode} — ${JSON.stringify(parsed)}`);
 
     const isHttpOk     = statusCode >= 200 && statusCode < 300;
     const isStatusOk   = statusFlag !== false && statusFlag !== 'false' && statusFlag !== 0 && statusFlag !== '0';
-    const isBusinessOk = isStatusOk && msgTyp !== 'E' && msgTyp !== 'ERROR';
-    // If SAP returned an article number treat as success regardless of MSG_TYP
+    const isSapTypeOk  = !sapType || sapType === 'S' || sapType === 'SUCCESS';
+    const isBusinessOk = isStatusOk && isSapTypeOk && msgTyp !== 'E' && msgTyp !== 'ERROR';
+    // If FIELD/article number is present treat as success regardless
     const ok = isHttpOk && (sapArt ? true : isBusinessOk);
 
-    return { ok, sapArticleNumber: sapArt || undefined, message };
+    return {
+        ok,
+        sapArticleNumber:       sapArt || undefined,
+        fabricArticleNumber:    sapArt || undefined,       // FIELD value = variant SAP article
+        fabricArticleDescription: sapMessageText || undefined,
+        message,
+    };
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -176,9 +159,9 @@ export async function syncVariantsToSapViaRfc(
 
             console.log(
                 `[ZMM_VAR_RFC] Creating variant → GENERIC_ARTICLE=${genericSapArt}` +
-                ` SIZE=${payload.VAR1VAL1} COLOR=${payload.VAR1VAL2}` +
-                ` VENDOR=${payload.VENDOR} NET_PRICE=${payload.NET_PRICE} MRP=${payload.MRP_TYPE}` +
-                ` TAX_CODE=${payload.TAX_CODE} variantDbId=${variant.id}`
+                ` V2_SIZE=${payload.V2_SIZE} V2_COLOR=${payload.V2_COLOR}` +
+                ` VENDOR=${payload.VENDOR} NET_PRICE=${payload.NET_PRICE} MRP_TYPE=${payload.MRP_TYPE}` +
+                ` variantDbId=${variant.id}`
             );
 
             try {
@@ -199,6 +182,7 @@ export async function syncVariantsToSapViaRfc(
                 if (outcome.ok) {
                     console.log(
                         `[ZMM_VAR_RFC] ✅ Variant created: ${outcome.sapArticleNumber ?? 'no art num'}` +
+                        ` fabricArticleNumber=${outcome.fabricArticleNumber ?? '-'}` +
                         ` for variantId=${variant.id}`
                     );
                     results.push({
@@ -207,6 +191,8 @@ export async function syncVariantsToSapViaRfc(
                         statusCode: response.status,
                         message: outcome.message,
                         sapArticleNumber: outcome.sapArticleNumber,
+                        fabricArticleNumber: outcome.fabricArticleNumber,
+                        fabricArticleDescription: outcome.fabricArticleDescription,
                     });
                 } else {
                     console.warn(`[ZMM_VAR_RFC] ❌ SAP rejected variantId=${variant.id}: ${outcome.message}`);

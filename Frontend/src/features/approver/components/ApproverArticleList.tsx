@@ -163,6 +163,7 @@ export interface ApproverArticleListProps {
     onProceedFGArticle: (item: ApproverItem) => void;
     attributes: MasterAttribute[];
     onRefresh: () => void;
+    pathType?: 'old' | 'new' | 'rejected' | 'created';
     serverPagination: {
         total: number;
         current: number;
@@ -190,6 +191,7 @@ const ArticleCard = React.memo(({
     attributes,
     onRefresh,
     cardGroups,
+    pathType,
 }: {
     item: ApproverItem;
     isSelected: boolean;
@@ -201,6 +203,7 @@ const ArticleCard = React.memo(({
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
+    pathType?: 'old' | 'new' | 'rejected' | 'created';
 }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
@@ -233,6 +236,20 @@ const ArticleCard = React.memo(({
     // Only run when item identity changes (reference change from setItems in parent)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item]);
+
+    // Auto-persist MRP when it is null in DB but rate is present.
+    // Only runs for PENDING articles — APPROVED/REJECTED are locked and cannot be updated.
+    React.useEffect(() => {
+        if (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') return;
+        const storedMrp = parseFloat(String((item as any).mrp ?? ''));
+        if (!isNaN(storedMrp) && storedMrp > 1) return; // already has a real MRP
+        const rate = parseFloat(String((item as any).rate ?? ''));
+        if (isNaN(rate) || rate <= 0) return;
+        const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
+        setLocalValues(prev => ({ ...prev, mrp: calculated }));
+        onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item.id]);
 
     // Normalize majorCategory: use local edit when available, otherwise fall back to item prop
     const effectiveMajCat = useMemo(() => {
@@ -1075,6 +1092,7 @@ const ArticleCard = React.memo(({
                                 genericRecord={item}
                                 attributes={attributes}
                                 onRefresh={onRefresh}
+                                pathType={pathType}
                             />
                         )}
                     </div>
@@ -1116,6 +1134,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
     onProceedFGArticle,
     attributes,
     onRefresh,
+    pathType,
     serverPagination,
 }) => {
     // Load attribute groups from DB once; fall back to hardcoded ATTRIBUTE_GROUPS.
@@ -1185,6 +1204,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
                     attributes={attributes}
                     onRefresh={onRefresh}
                     cardGroups={cardGroups}
+                    pathType={pathType}
                 />
             ))}
 
