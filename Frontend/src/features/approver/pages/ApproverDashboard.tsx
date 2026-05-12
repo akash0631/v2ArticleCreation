@@ -187,7 +187,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     const [loading, setLoading] = useState(false);
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [user, setUser] = useState<any>(null);
-    const canApprove = user?.role === 'ADMIN' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD';
+    const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD';
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
 
@@ -1248,7 +1248,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                     style={{ background: 'linear-gradient(90deg,#6366f1,#818cf8)', color: '#fff', border: 'none', fontWeight: 600 }}>
                                     Export All ({totalCount})
                                 </Button>
-                                <Tooltip title={!canApprove ? 'Only Sub-Division Head, Category Head or Admin can reject articles' : ''}>
+                                <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : ''}>
                                     <Button size="small" danger icon={<CloseCircleOutlined />} onClick={handleReject} disabled={!canApprove || pendingSelectedKeys.length === 0}>
                                         Reject ({pendingSelectedKeys.length})
                                     </Button>
@@ -1257,7 +1257,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                     placement="bottomRight"
                                     color="#fff"
                                     styles={{ root: { maxWidth: 500 }, body: { background: '#fff7f7', border: '1px solid #ffccc7', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 16px rgba(255,77,79,0.15)' } }}
-                                    title={!canApprove ? 'Only Sub-Division Head, Category Head or Admin can approve articles' : approveBlockedReasons.length > 0 ? (
+                                    title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can approve articles' : approveBlockedReasons.length > 0 ? (
                                         <div style={{ color: '#434343', fontSize: 12, lineHeight: '1.6' }}>
                                             <div style={{ fontWeight: 700, marginBottom: 6, color: '#cf1322', fontSize: 13 }}>⚠ Fill required fields first:</div>
                                             {approveBlockedReasons.slice(0, 5).map(({ articleId, missing }) => (
