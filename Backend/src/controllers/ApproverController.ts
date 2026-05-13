@@ -34,10 +34,12 @@ export class ApproverController {
     // Short-lived cache for getItems responses (8s TTL). Eliminates redundant DB hits
     // when multiple users load the same page simultaneously or filters haven't changed.
     private static readonly ITEMS_CACHE_TTL_MS = 8_000;
+    private static readonly ITEMS_CACHE_MAX = 100;
     private static itemsCache = new Map<string, { data: any; expiresAt: number }>();
     // Count cache (60s TTL). COUNT(*) is a full-table scan — cache it so only the
     // very first request per filter combination pays the cost.
     private static readonly COUNT_CACHE_TTL_MS = 60_000;
+    private static readonly COUNT_CACHE_MAX = 200;
     private static countCache = new Map<string, { value: number; expiresAt: number }>();
 
     private static extractNumericWeight(value: unknown): string | null {
@@ -714,12 +716,10 @@ export class ApproverController {
             if (cached && cached.expiresAt > Date.now()) {
                 return res.json(cached.data);
             }
-            // Evict expired entries periodically (keep map small)
-            if (ApproverController.itemsCache.size > 200) {
-                const now = Date.now();
-                for (const [k, v] of ApproverController.itemsCache) {
-                    if (v.expiresAt <= now) ApproverController.itemsCache.delete(k);
-                }
+            // Evict oldest entries when cache is full (hard cap prevents unbounded growth)
+            if (ApproverController.itemsCache.size >= ApproverController.ITEMS_CACHE_MAX) {
+                const firstKey = ApproverController.itemsCache.keys().next().value;
+                if (firstKey !== undefined) ApproverController.itemsCache.delete(firstKey);
             }
 
             const where: any = {};
@@ -985,12 +985,10 @@ export class ApproverController {
                     value: total,
                     expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
                 });
-                // Evict expired count cache entries periodically
-                if (ApproverController.countCache.size > 500) {
-                    const now = Date.now();
-                    for (const [k, v] of ApproverController.countCache) {
-                        if (v.expiresAt <= now) ApproverController.countCache.delete(k);
-                    }
+                // Hard cap — evict oldest entry when full
+                if (ApproverController.countCache.size >= ApproverController.COUNT_CACHE_MAX) {
+                    const firstKey = ApproverController.countCache.keys().next().value;
+                    if (firstKey !== undefined) ApproverController.countCache.delete(firstKey);
                 }
             }
 
@@ -1610,13 +1608,37 @@ export class ApproverController {
                 where: {
                     ...whereClause,
                     approvalStatus: 'APPROVED'
+                },
+                select: {
+                    id: true, articleNumber: true, majorCategory: true, division: true,
+                    subDivision: true, vendorCode: true, vendorName: true, designNumber: true,
+                    pptNumber: true, rate: true, mrp: true, macroMvgr: true, mainMvgr: true,
+                    yarn1: true, fabricMainMvgr: true, weave: true, mFab2: true, composition: true,
+                    finish: true, gsm: true, weight: true, lycra: true, shade: true, neck: true,
+                    neckDetails: true, sleeve: true, length: true, collar: true, collarStyle: true,
+                    placket: true, sleeveFold: true, bottomFold: true, frontOpenStyle: true,
+                    pocketType: true, noOfPocket: true, extraPocket: true, drawcord: true,
+                    dcShape: true, button: true, btnColour: true, zipper: true, zipColour: true,
+                    fatherBelt: true, childBelt: true, printType: true, printStyle: true,
+                    printPlacement: true, patches: true, patchesType: true, embroidery: true,
+                    embroideryType: true, embPlacement: true, htrfType: true, htrfStyle: true,
+                    wash: true, fit: true, segment: true, ageGroup: true,
+                    articleFashionType: true, mvgrBrandVendor: true, fCount: true,
+                    fConstruction: true, fOunce: true, fWidth: true, impAtrbt2: true,
+                    mcCode: true, hsnTaxCode: true, articleDescription: true, fashionGrid: true,
+                    season: true, year: true, articleType: true, referenceArticleNumber: true,
+                    referenceArticleDescription: true, imageUrl: true, imageName: true,
+                    sapArticleId: true, isGeneric: true, genericArticleId: true,
+                    colour: true, variantSize: true, variantColor: true,
+                    attrArticleNums: true, source: true, createdAt: true,
                 }
             });
 
             console.log(`[APPROVE_DEBUG] approvedItems=${approvedItems.length}, ids=${approvedItems.map(i => i.id).join(',')}`);
             approvedItems.forEach(i => console.log(`[APPROVE_DEBUG] id=${i.id} majorCategory="${i.majorCategory}" finish="${i.finish}"`));
             const syncResults = await syncArticlesToSapViaRfc(approvedItems);
-            console.log(`[APPROVE_DEBUG] syncResults=${JSON.stringify(syncResults)}`);
+            const syncOk = syncResults.filter((r: any) => r.success).length;
+            console.log(`[APPROVE_DEBUG] syncResults: ${syncOk}/${syncResults.length} succeeded`);
             const approvedItemById = new Map(approvedItems.map((item) => [item.id, item]));
 
             // Phase 1: Persist SAP article creation/sync outcome first.
@@ -1751,6 +1773,12 @@ export class ApproverController {
                         where: {
                             genericArticleId: { in: successfullyApprovedIds },
                             isGeneric: false
+                        },
+                        select: {
+                            id: true, genericArticleId: true, variantSize: true,
+                            variantColor: true, colour: true, vendorCode: true,
+                            rate: true, mrp: true, sapArticleId: true,
+                            approvalStatus: true, sapSyncStatus: true,
                         }
                     });
 
@@ -1922,7 +1950,8 @@ export class ApproverController {
             const { id } = req.params;
             const variants = await prisma.extractionResultFlat.findMany({
                 where: { genericArticleId: id, isGeneric: false },
-                orderBy: [{ variantColor: 'asc' }, { variantSize: 'asc' }]
+                orderBy: [{ variantColor: 'asc' }, { variantSize: 'asc' }],
+                take: 5000,
             });
             return res.json({ data: variants });
         } catch (err: any) {
