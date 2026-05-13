@@ -321,9 +321,9 @@ export const requireApprover = (
     return;
   }
 
-  // APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD and ADMIN roles are allowed
+  // APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, ADMIN and CREATOR (read-only) roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN') {
+  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'CREATOR') {
     res.status(403).json({
       success: false,
       error: 'Approver access required. You do not have permission to access this resource.',
