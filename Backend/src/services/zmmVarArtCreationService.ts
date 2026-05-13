@@ -186,10 +186,9 @@ export async function syncVariantsToSapViaRfc(
             const payload = buildVariantPayload(genericSapArt, variant);
 
             console.log(
-                `[ZMM_VAR_RFC] Creating variant → GENERIC_ARTICLE=${genericSapArt}` +
-                ` VAR1VAL1=${payload.VAR1VAL1} VAR1VAL2=${payload.VAR1VAL2}` +
-                ` VENDOR=${payload.VENDOR} NET_PRICE=${payload.NET_PRICE} MRP_TYPE=${payload.MRP_TYPE}` +
-                ` FROM_DATE=${payload.FROM_DATE} variantDbId=${variant.id}`
+                `[ZMM_VAR_RFC] Creating variant → variantDbId=${variant.id}\n` +
+                `  Full payload: ${JSON.stringify(payload, null, 2)}\n` +
+                `  Variant DB fields: variantSize=${variant.variantSize} colour=${variant.colour} variantColor=${variant.variantColor} vendorCode=${variant.vendorCode} rate=${variant.rate} mrp=${variant.mrp}`
             );
 
             try {
