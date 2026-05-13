@@ -939,11 +939,13 @@ export const getHierarchyTree = async (req: Request, res: Response): Promise<voi
                   orderBy: { displayOrder: 'asc' },
                   include: {
                     attribute: {
-                      include: {
-                        allowedValues: {
-                          where: { isActive: true },
-                          orderBy: { displayOrder: 'asc' },
-                        },
+                      select: {
+                        id: true,
+                        key: true,
+                        label: true,
+                        group: true,
+                        displayOrder: true,
+                        isActive: true,
                       },
                     },
                   },
