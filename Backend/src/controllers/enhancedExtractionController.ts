@@ -446,11 +446,10 @@ export class EnhancedExtractionController {
       }
 
       // ── Variant Creation ─────────────────────────────────────────────────
-      // Fire-and-forget: create size variants from the variant-sizes-mapping.xlsx
-      // for the new generic article. Never blocks the main response.
-      if (flatId) {
-        void createVariantsForGeneric(flatId);
-      }
+      // Disabled: auto variant creation on extraction is turned off.
+      // if (flatId) {
+      //   void createVariantsForGeneric(flatId);
+      // }
 
       return {
         jobId: job.id,

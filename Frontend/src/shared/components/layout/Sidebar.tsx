@@ -45,8 +45,8 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       icon: <UploadOutlined />,
       label: <Link to="/extraction">Extraction</Link>,
     }] : []),
-    // Approver Dashboard - Visible to ADMIN, APPROVER, CATEGORY_HEAD and SUB_DIVISION_HEAD
-    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD' || userRole === 'SUB_DIVISION_HEAD') ? [{
+    // Approver Dashboard - Visible to ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD and CREATOR (read-only)
+    ...((userRole === 'ADMIN' || userRole === 'APPROVER' || userRole === 'CATEGORY_HEAD' || userRole === 'SUB_DIVISION_HEAD' || userRole === 'CREATOR') ? [{
       key: 'approver-group',
       icon: <CheckSquareOutlined />,
       label: 'Approver',

@@ -1767,6 +1767,7 @@ export class ApproverController {
             // ── Variant RFC sync ─────────────────────────────────────────────
             // For each successfully synced generic article, create its color/size
             // variants in SAP via ZMM_VAR_ART_CREATION_RFC.
+            console.log(`[VARIANT_RFC] successfullyApprovedIds=${JSON.stringify(successfullyApprovedIds)}`);
             if (successfullyApprovedIds.length > 0) {
                 try {
                     const allVariants = await prisma.extractionResultFlat.findMany({
@@ -1782,6 +1783,9 @@ export class ApproverController {
                         }
                     });
 
+                    console.log(`[VARIANT_RFC] allVariants fetched=${allVariants.length} for genericIds=${JSON.stringify(successfullyApprovedIds)}`);
+                    allVariants.forEach(v => console.log(`[VARIANT_RFC] variant id=${v.id} genericArticleId=${v.genericArticleId} size=${v.variantSize} colour=${v.colour} variantColor=${v.variantColor}`));
+
                     if (allVariants.length > 0) {
                         const variantsByGenericId = new Map<string, typeof allVariants>();
                         for (const variant of allVariants) {
@@ -1796,6 +1800,7 @@ export class ApproverController {
                                 genericSapArticleMap.set(syncResult.id, syncResult.sapArticleNumber);
                             }
                         }
+                        console.log(`[VARIANT_RFC] genericSapArticleMap=${JSON.stringify(Object.fromEntries(genericSapArticleMap))}`);
 
                         const variantSyncResults = await syncVariantsToSapViaRfc(variantsByGenericId, genericSapArticleMap);
                         console.log(`[VARIANT_RFC] ${variantSyncResults.filter((r: any) => r.success).length}/${variantSyncResults.length} variant(s) synced to SAP`);

@@ -412,18 +412,9 @@ export async function syncArticlesToSapViaRfc(
         // ── 2. Build payload ─────────────────────────────────────────────────
         const payload = buildRfcPayload(item);
 
-        console.log(`[ZMM_RFC] Sending article creation request for flat_id=${item.id}`, {
-            MC_CD:             payload.MC_CD,
-            VENDOR:            payload.VENDOR,
-            DSG_NO:            payload.DSG_NO,
-            SUB_DIV:           payload.SUB_DIV,
-            MRP:               payload.MRP,
-            PURCH_PRICE:       payload.PURCH_PRICE,
-            SEASON:            payload.SEASON,
-            MVGR_BRAND_VENDOR: payload.MVGR_BRAND_VENDOR,
-            G_WEIGHT:          payload.G_WEIGHT,
-            M_AGE_GROUP:       payload.M_AGE_GROUP,
-        });
+        console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
+        console.log(JSON.stringify(payload, null, 2));
+        console.log(`====================================================================\n`);
 
         // ── 3. Pre-validate field values against allowed values ───────────────
         const majorCat = toStr(item.majorCategory as string | null);
