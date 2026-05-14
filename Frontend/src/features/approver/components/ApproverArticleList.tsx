@@ -286,7 +286,7 @@ const ArticleCard = React.memo(({
 
         // DB-driven config (set via Attribute Mapping in Admin Panel)
         const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
-        const mandatoryKeys: Set<string> = dbConfig?.configured ? dbConfig.required : new Set();
+        const mandatoryKeys: Set<string> = dbConfig?.required ?? new Set();
 
         const visible = attributeFields
             .map(af => {
