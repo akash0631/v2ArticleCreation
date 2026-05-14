@@ -137,6 +137,14 @@ export async function getCategoryAttributeConfig(req: Request, res: Response) {
       }
     }
 
+    // If fab_div is the only enabled attribute, treat as unconfigured so the card
+    // shows all attributes (fallback), but still surface fab_div as required.
+    const nonFabDivEnabled = enabled.filter(k => k !== 'fab_div');
+    if (nonFabDivEnabled.length === 0) {
+      res.json({ success: true, configured: false, enabled: [], required: required.filter(k => k === 'fab_div') });
+      return;
+    }
+
     res.json({ success: true, configured: true, enabled, required });
   } catch (err: any) {
     res.status(500).json({ success: false, message: 'Failed to fetch category attribute config' });
