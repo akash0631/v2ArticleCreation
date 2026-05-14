@@ -109,6 +109,7 @@ export interface ApproverItem {
     fConstruction: string | null;
     fOunce: string | null;
     fWidth: string | null;
+    fabDiv: string | null;
     sleeveFold: string | null;
     noOfPocket: string | null;
     extraPocket: string | null;
