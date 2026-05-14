@@ -283,10 +283,21 @@ export const updateSubDepartment = async (req: Request, res: Response): Promise<
 export const deleteSubDepartment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const subDeptId = parseInt(id);
 
-    await prisma.subDepartment.delete({
-      where: { id: parseInt(id) },
+    // Collect all category IDs under this sub-department
+    const categories = await prisma.category.findMany({
+      where: { subDepartmentId: subDeptId },
+      select: { id: true },
     });
+    const categoryIds = categories.map(c => c.id);
+
+    await prisma.$transaction([
+      prisma.extractionJob.deleteMany({ where: { categoryId: { in: categoryIds } } }),
+      prisma.categoryAttribute.deleteMany({ where: { categoryId: { in: categoryIds } } }),
+      prisma.category.deleteMany({ where: { subDepartmentId: subDeptId } }),
+      prisma.subDepartment.delete({ where: { id: subDeptId } }),
+    ]);
 
     res.json({ success: true, message: 'Sub-department deleted successfully' });
   } catch (error: any) {
@@ -568,10 +579,13 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
 export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const catId = parseInt(id);
 
-    await prisma.category.delete({
-      where: { id: parseInt(id) },
-    });
+    await prisma.$transaction([
+      prisma.extractionJob.deleteMany({ where: { categoryId: catId } }),
+      prisma.categoryAttribute.deleteMany({ where: { categoryId: catId } }),
+      prisma.category.delete({ where: { id: catId } }),
+    ]);
 
     res.json({ success: true, message: 'Category deleted successfully' });
   } catch (error: any) {
