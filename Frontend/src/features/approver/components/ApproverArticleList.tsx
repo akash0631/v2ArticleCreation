@@ -53,6 +53,7 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
             { field: 'gsm',            schemaKey: 'gsm' },
             { field: 'fOunce',         schemaKey: 'f_ounce' },
             { field: 'fWidth',         schemaKey: 'f_width' },
+            { field: 'fabDiv',         schemaKey: 'fab_div' },
             { field: 'shade',          schemaKey: 'shade',           freeText: true },
             { field: 'weight',         schemaKey: 'weight',          freeText: true },
         ],
