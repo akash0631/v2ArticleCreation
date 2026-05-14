@@ -65,6 +65,7 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
   f_construction:    'M_CONSTRUCTION',
   f_ounce:           'M_OUNZ',
   f_width:           'M_WIDTH',
+  fab_div:           'M_FAB_DIV',
   extra_pocket:      'M_EXTRA_POCKET',
 };
 
@@ -87,6 +88,7 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_GSM:               'gsm',
   M_OUNZ:              'f_ounce',
   M_WIDTH:             'f_width',
+  M_FAB_DIV:           'fab_div',
   M_UOM:               'f_uom',
   // Collar / Neck — new SAP codes + legacy aliases
   M_COLLAR_TYPE:       'collar',
@@ -181,7 +183,7 @@ export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   neck_detail:          'neckDetails',
   fit:                  'fit',
   length:               'length',
-  body_style:           'bodyStyle',
+  body_style:           'pattern',
   pocket_type:          'pocketType',
   no_of_pocket:         'noOfPocket',
   print_type:           'printType',
@@ -216,6 +218,7 @@ export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   f_construction:       'fConstruction',
   f_ounce:              'fOunce',
   f_width:              'fWidth',
+  fab_div:              'fabDiv',
   extra_pocket:         'extraPocket',
 };
 

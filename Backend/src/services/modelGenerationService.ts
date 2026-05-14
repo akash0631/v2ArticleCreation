@@ -40,8 +40,8 @@ function buildPrompt(
   let framingDesc: string;
   switch (bodytype) {
     case 'Full-Body': framingDesc = 'full body fashion photoshoot, head to toe'; break;
-    case 'Upper-Body': framingDesc = 'upper body fashion photoshoot, waist up'; break;
-    default: framingDesc = 'lower body fashion photoshoot';
+    case 'Upper-Body': framingDesc = 'upper body fashion photoshoot, waist up, do NOT show below the waist'; break;
+    default: framingDesc = 'lower body fashion photoshoot, waist down to feet, do NOT show above the waist, crop tightly at the waist';
   }
 
   const colorInstr = colorName
@@ -78,7 +78,7 @@ MODEL DETAILS (STRICT):
 FRAMING & CAMERA:
 - Framing: ${framingDesc}
 - View: ${viewInstr}
-- Full garment must be visible (no cropping unless specified)
+- ${bodytype === 'Lower-Body' ? 'Show ONLY from waist down to feet. Upper body must NOT appear in the frame.' : bodytype === 'Upper-Body' ? 'Show ONLY from waist up. Lower body must NOT appear in the frame.' : 'Full garment must be visible, head to toe, no cropping.'}
 
 IMAGE SIZE (STRICT):
 - Final output: 2:3 aspect ratio
@@ -257,7 +257,7 @@ export async function runBatchPipeline(
   const views =
     imageCount === '1'
       ? ['front']
-      : ['front', 'back', 'left side', 'closeup'];
+      : ['front', 'back', 'left_side', 'closeup'];
 
   const tasks: Array<{ file: Express.Multer.File; view: string }> = [];
   for (const f of files) {

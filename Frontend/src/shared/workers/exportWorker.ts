@@ -1,6 +1,66 @@
 // Web Worker for XLSX export with image embedding - eliminates UI blocking
 import ExcelJS from 'exceljs';
 
+const KEY_TO_LABEL: Record<string, string> = {
+  imp_atrbt_2:       'IMP_ATRBT-2',
+  macro_mvgr:        'IMP ATBT-1',
+  yarn_01:           'M_YARN',
+  main_mvgr:         'FAB_MAIN_MVGR-1',
+  fabric_main_mvgr:  'FAB-MAIN-MVGR-2',
+  weave:             'WEAVE 01',
+  m_fab2:            'WEAVE 02',
+  composition:       'M_COMPOSITION',
+  f_count:           'M_COUNT',
+  f_construction:    'M_CONSTRUCTION',
+  lycra_non_lycra:   'M_LYCRA',
+  finish:            'M_FINISH',
+  gsm:               'M_GSM',
+  f_ounce:           'M_OUNZ',
+  f_width:           'M_WIDTH',
+  fab_div:           'M_FAB_DIV',
+  collar:            'M_COLLAR_TYPE',
+  collar_style:      'M_COLLAR_STYLE',
+  neck_details:      'M_NECK_STYLE',
+  neck:              'M_NECK_TYPE',
+  placket:           'M_PLACKET',
+  father_belt:       'M_BLT_TYPE',
+  sleeve:            'M_SLEEVES_MAIN_STYLE',
+  sleeve_fold:       'M_SLEEVE_FOLD',
+  bottom_fold:       'M_BTM_FOLD',
+  no_of_pocket:      'M_NO_OF_POCKET',
+  pocket_type:       'M_POCKET',
+  extra_pocket:      'M_EXTRA_POCKET',
+  fit:               'M_FIT',
+  body_style:        'BODY STYLE',
+  length:            'M_LENGTH',
+  drawcord:          'M_DC_STYLE',
+  dc_shape:          'M_DC_SHAPE',
+  button:            'M_BTN_TYPE',
+  btn_colour:        'M_BTN_CLR',
+  zipper:            'M_ZIP_TYPE',
+  zip_colour:        'M_ZIP_COL',
+  patches_type:      'M_PATCH_STYLE',
+  patches:           'M_PATCHE_TYPE',
+  print_type:        'M_PRINT_TYPE',
+  print_style:       'M_PRINT_STYLE',
+  print_placement:   'M_PRINT_PLACEMENT',
+  embroidery:        'M_EMB_TYPE',
+  embroidery_type:   'M_EMBROIDERY_STYLE',
+  wash:              'M_WASH',
+  shade:             'SHADE',
+  weight:            'WEIGHT',
+  drawcord_shape:    'M_DC_SHAPE',
+  emb_placement:     'M_EMB_PLACEMENT',
+  htrf_type:         'M_HTRF_TYPE',
+  htrf_style:        'M_HTRF_STYLE',
+  age_group:         'M_AGE_GROUP',
+  segment:           'SEGMENT',
+  article_fashion_type: 'ARTICLE FASHION TYPE',
+  mvgr_brand_vendor: 'MVGR_BRAND_VENDOR',
+  child_belt:        'M_BLT_STYLE',
+  front_open_style:  'FO BTN STYLE',
+};
+
 interface ExtractedRow {
   status: string;
   attributes: Record<string, { value: string; confidence: number; schemaValue?: unknown }>;
@@ -82,12 +142,13 @@ self.onmessage = async (event: MessageEvent<ExportMessage>) => {
           'Confidence': row.confidence || 0,
         };
 
-        // Add schema attributes
+        // Add schema attributes using Excel label names as column headers
         if (row.attributes) {
           Object.entries(row.attributes).forEach(([key, attribute]: [string, { value: string; confidence: number; schemaValue?: unknown }]) => {
             if (attribute && attribute.schemaValue !== null && attribute.schemaValue !== undefined) {
               const value = attribute.schemaValue;
-              exportRow[key] = typeof value === 'string' || typeof value === 'number' ? value : String(value);
+              const label = KEY_TO_LABEL[key] ?? key;
+              exportRow[label] = typeof value === 'string' || typeof value === 'number' ? value : String(value);
             }
           });
         }

@@ -11,7 +11,7 @@ const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   placket: 'placket', sleeve: 'sleeve', sleeve_fold: 'sleeveFold',
   bottom_fold: 'bottomFold', neck: 'neck', neck_details: 'neckDetails',
   neck_detail: 'neckDetails', fit: 'fit', length: 'length',
-  body_style: 'bodyStyle', pocket_type: 'pocketType', no_of_pocket: 'noOfPocket',
+  body_style: 'pattern', pocket_type: 'pocketType', no_of_pocket: 'noOfPocket',
   print_type: 'printType', print_style: 'printStyle', print_placement: 'printPlacement',
   patches: 'patches', patch_type: 'patchesType', patches_type: 'patches',
   embroidery: 'embroidery', embroidery_type: 'embroideryType',
@@ -23,6 +23,7 @@ const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   segment: 'segment', age_group: 'ageGroup', article_fashion_type: 'articleFashionType',
   mvgr_brand_vendor: 'mvgrBrandVendor', f_count: 'fCount',
   f_construction: 'fConstruction', f_ounce: 'fOunce', f_width: 'fWidth',
+  fab_div: 'fabDiv',
   extra_pocket: 'extraPocket', imp_atrbt2: 'impAtrbt2',
 };
 

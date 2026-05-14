@@ -1282,6 +1282,13 @@
       "SPARKY",
       "DYED",
       "DNM"
+    ],
+    "fabDiv": [
+      "K",
+      "W",
+      "DNM",
+      "RFD_K",
+      "RFD_W"
     ]
   },
   "LADIES": {
@@ -2561,6 +2568,13 @@
       "AOP_DGTL",
       "E_STP",
       "RFD"
+    ],
+    "fabDiv": [
+      "K",
+      "W",
+      "DNM",
+      "RFD_K",
+      "RFD_W"
     ]
   },
   "KIDS": {
@@ -3917,6 +3931,13 @@
       "2PC_PRT",
       "BK_PRT",
       "E_STP"
+    ],
+    "fabDiv": [
+      "K",
+      "W",
+      "DNM",
+      "RFD_K",
+      "RFD_W"
     ]
   }
 }

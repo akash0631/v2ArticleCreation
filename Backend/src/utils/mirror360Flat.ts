@@ -70,6 +70,7 @@ export const FIELD_TO_360_COL: Record<string, string> = {
     gsm:                         'gsm',
     fOunce:                      'f_ounce',
     fWidth:                      'f_width',
+    fabDiv:                      'fab_div',
     shade:                       'shade',
     weight:                      'weight',
     size:                        'size',

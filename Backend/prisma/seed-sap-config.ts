@@ -40,6 +40,7 @@ const FIELD_CONFIGS: Array<{
   { section: 'FAB',     uiLabel: 'F_WIDTH',                 dbField: 'fWidth',             sapField: 'M_WIDTH',              displayOrder: 14 },
   { section: 'FAB',     uiLabel: 'SHADE',                   dbField: 'shade',              sapField: 'M_SHADE',              displayOrder: 15 },
   { section: 'FAB',     uiLabel: 'WEIGHT',                  dbField: 'weight',             sapField: 'G_WEIGHT',             displayOrder: 16 },
+  { section: 'FAB',     uiLabel: 'M_FAB_DIV',               dbField: 'fabDiv',             sapField: 'M_FAB_DIV',            displayOrder: 17 },
   // BODY
   { section: 'BODY',    uiLabel: 'COLLAR TYPE',             dbField: 'collar',             sapField: 'M_COLLAR',             displayOrder: 17 },
   { section: 'BODY',    uiLabel: 'COLLAR STYLE',            dbField: 'collarStyle',        sapField: 'M_COLLAR_STYLE',       displayOrder: 18 },
@@ -57,7 +58,7 @@ const FIELD_CONFIGS: Array<{
   { section: 'BODY',    uiLabel: 'EXTRA POCKET',            dbField: 'extraPocket',        sapField: 'M_EXTRA_POCKET',       displayOrder: 30 },
   // VA ACC
   { section: 'VA_ACC',  uiLabel: 'FIT',                     dbField: 'fit',                sapField: 'M_FIT',                displayOrder: 31 },
-  { section: 'VA_ACC',  uiLabel: 'BODY STYLE',              dbField: 'bodyStyle',          sapField: 'M_PATTERN',            displayOrder: 32 },
+  { section: 'VA_ACC',  uiLabel: 'BODY STYLE',              dbField: 'pattern',            sapField: 'M_PATTERN',            displayOrder: 32 },
   { section: 'VA_ACC',  uiLabel: 'LENGTH',                  dbField: 'length',             sapField: 'M_LENGTH',             displayOrder: 33 },
   { section: 'VA_ACC',  uiLabel: 'DC_TYPE',                 dbField: 'drawcord',           sapField: 'M_DC_SUB_STYLE',       displayOrder: 34 },
   { section: 'VA_ACC',  uiLabel: 'DC_SHAPE',                dbField: 'dcShape',            sapField: 'M_DC_SHAPE',           displayOrder: 35 },
@@ -104,6 +105,7 @@ const UI_LABEL_TO_DB_FIELD: Record<string, string> = {
   'F_GSM_GLM':             'gsm',
   'F_OUNCE':               'fOunce',
   'F_WIDTH':               'fWidth',
+  'M_FAB_DIV':             'fabDiv',
   'SHADE':                 'shade',
   'WEIGHT':                'weight',
   'COLLAR TYPE':           'collar',
@@ -121,7 +123,7 @@ const UI_LABEL_TO_DB_FIELD: Record<string, string> = {
   'POCKET TYPE':           'pocketType',
   'EXTRA POCKET':          'extraPocket',
   'FIT':                   'fit',
-  'BODY STYLE':            'bodyStyle',
+  'BODY STYLE':            'pattern',
   'LENGTH':                'length',
   'DC_TYPE':               'drawcord',
   'DC_SHAPE':              'dcShape',
