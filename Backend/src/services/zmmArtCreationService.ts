@@ -88,6 +88,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'M_COUNT',               flat: 'fCount' },
     { rfc: 'M_OUNZ',                flat: 'fOunce' },
     { rfc: 'M_WIDTH',               flat: 'fWidth' },
+    { rfc: 'M_FAB_DIV',             flat: 'fabDiv' },
 
     // Body
     { rfc: 'M_COLLAR',              flat: 'collar' },
@@ -205,7 +206,7 @@ const RFC_TO_DB_FIELD: Record<string, string> = {
     M_SLEEVES_MAIN_STYLE: 'sleeve',
     M_SLEEVE_FOLD:        'sleeveFold',
     M_FIT:                'fit',
-    M_PATTERN:            'bodyStyle',
+    M_PATTERN:            'pattern',
     M_LENGTH:             'length',
     M_DC_SUB_STYLE:       'drawcord',
     M_DC_STYLE:           'drawcord',
@@ -231,6 +232,7 @@ const RFC_TO_DB_FIELD: Record<string, string> = {
     M_WASH:               'wash',
     M_AGE_GROUP:          'ageGroup',
     PRICE_BAND_CATEGORY:  'segment',
+    M_FAB_DIV:            'fabDiv',
 };
 
 /**

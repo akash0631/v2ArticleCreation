@@ -335,6 +335,7 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   fConstruction: 'fConstruction',
   fOunce: 'fOunce',
   fWidth: 'fWidth',
+  fabDiv: 'fabDiv',
   htrfType: 'htrfType',
   htrfStyle: 'htrfStyle',
   embPlacement: 'embPlacement',
@@ -492,6 +493,7 @@ exports.Prisma.ArticleFabScalarFieldEnum = {
   gsm: 'gsm',
   fOunce: 'fOunce',
   fWidth: 'fWidth',
+  fabDiv: 'fabDiv',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -612,6 +614,7 @@ exports.Prisma.Article360FlatScalarFieldEnum = {
   gsm: 'gsm',
   fOunce: 'fOunce',
   fWidth: 'fWidth',
+  fabDiv: 'fabDiv',
   collar: 'collar',
   collarStyle: 'collarStyle',
   neck: 'neck',
@@ -816,6 +819,7 @@ exports.Prisma.ExtractionResultFlatOrderByRelevanceFieldEnum = {
   fConstruction: 'fConstruction',
   fOunce: 'fOunce',
   fWidth: 'fWidth',
+  fabDiv: 'fabDiv',
   htrfType: 'htrfType',
   htrfStyle: 'htrfStyle',
   embPlacement: 'embPlacement',
@@ -923,7 +927,8 @@ exports.Prisma.ArticleFabOrderByRelevanceFieldEnum = {
   finish: 'finish',
   gsm: 'gsm',
   fOunce: 'fOunce',
-  fWidth: 'fWidth'
+  fWidth: 'fWidth',
+  fabDiv: 'fabDiv'
 };
 
 exports.Prisma.ArticleBodyOrderByRelevanceFieldEnum = {
@@ -1020,6 +1025,7 @@ exports.Prisma.Article360FlatOrderByRelevanceFieldEnum = {
   gsm: 'gsm',
   fOunce: 'fOunce',
   fWidth: 'fWidth',
+  fabDiv: 'fabDiv',
   collar: 'collar',
   collarStyle: 'collarStyle',
   neck: 'neck',

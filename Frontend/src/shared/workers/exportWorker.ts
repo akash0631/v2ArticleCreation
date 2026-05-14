@@ -17,6 +17,7 @@ const KEY_TO_LABEL: Record<string, string> = {
   gsm:               'M_GSM',
   f_ounce:           'M_OUNZ',
   f_width:           'M_WIDTH',
+  fab_div:           'M_FAB_DIV',
   collar:            'M_COLLAR_TYPE',
   collar_style:      'M_COLLAR_STYLE',
   neck_details:      'M_NECK_STYLE',

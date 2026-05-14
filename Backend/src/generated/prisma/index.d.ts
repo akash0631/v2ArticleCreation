@@ -13527,6 +13527,7 @@ export namespace Prisma {
     fConstruction: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     htrfType: string | null
     htrfStyle: string | null
     embPlacement: string | null
@@ -13648,6 +13649,7 @@ export namespace Prisma {
     fConstruction: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     htrfType: string | null
     htrfStyle: string | null
     embPlacement: string | null
@@ -13769,6 +13771,7 @@ export namespace Prisma {
     fConstruction: number
     fOunce: number
     fWidth: number
+    fabDiv: number
     htrfType: number
     htrfStyle: number
     embPlacement: number
@@ -13922,6 +13925,7 @@ export namespace Prisma {
     fConstruction?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     htrfType?: true
     htrfStyle?: true
     embPlacement?: true
@@ -14043,6 +14047,7 @@ export namespace Prisma {
     fConstruction?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     htrfType?: true
     htrfStyle?: true
     embPlacement?: true
@@ -14164,6 +14169,7 @@ export namespace Prisma {
     fConstruction?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     htrfType?: true
     htrfStyle?: true
     embPlacement?: true
@@ -14372,6 +14378,7 @@ export namespace Prisma {
     fConstruction: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     htrfType: string | null
     htrfStyle: string | null
     embPlacement: string | null
@@ -14512,6 +14519,7 @@ export namespace Prisma {
     fConstruction?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     htrfType?: boolean
     htrfStyle?: boolean
     embPlacement?: boolean
@@ -14635,6 +14643,7 @@ export namespace Prisma {
     fConstruction?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     htrfType?: boolean
     htrfStyle?: boolean
     embPlacement?: boolean
@@ -14758,6 +14767,7 @@ export namespace Prisma {
     fConstruction?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     htrfType?: boolean
     htrfStyle?: boolean
     embPlacement?: boolean
@@ -14881,6 +14891,7 @@ export namespace Prisma {
     fConstruction?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     htrfType?: boolean
     htrfStyle?: boolean
     embPlacement?: boolean
@@ -14918,7 +14929,7 @@ export namespace Prisma {
     sapSyncMessage?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
@@ -15022,6 +15033,7 @@ export namespace Prisma {
       fConstruction: string | null
       fOunce: string | null
       fWidth: string | null
+      fabDiv: string | null
       htrfType: string | null
       htrfStyle: string | null
       embPlacement: string | null
@@ -15565,6 +15577,7 @@ export namespace Prisma {
     readonly fConstruction: FieldRef<"ExtractionResultFlat", 'String'>
     readonly fOunce: FieldRef<"ExtractionResultFlat", 'String'>
     readonly fWidth: FieldRef<"ExtractionResultFlat", 'String'>
+    readonly fabDiv: FieldRef<"ExtractionResultFlat", 'String'>
     readonly htrfType: FieldRef<"ExtractionResultFlat", 'String'>
     readonly htrfStyle: FieldRef<"ExtractionResultFlat", 'String'>
     readonly embPlacement: FieldRef<"ExtractionResultFlat", 'String'>
@@ -24393,6 +24406,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -24414,6 +24428,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -24435,6 +24450,7 @@ export namespace Prisma {
     gsm: number
     fOunce: number
     fWidth: number
+    fabDiv: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -24458,6 +24474,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -24479,6 +24496,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -24500,6 +24518,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -24594,6 +24613,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     createdAt: Date
     updatedAt: Date
     _count: ArticleFabCountAggregateOutputType | null
@@ -24632,6 +24652,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     article?: boolean | Article360DefaultArgs<ExtArgs>
@@ -24654,6 +24675,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     article?: boolean | Article360DefaultArgs<ExtArgs>
@@ -24676,6 +24698,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     article?: boolean | Article360DefaultArgs<ExtArgs>
@@ -24698,11 +24721,12 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type ArticleFabOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "articleId" | "macroMvgr" | "yarn1" | "mainMvgr" | "fabricMainMvgr" | "weave" | "mFab2" | "composition" | "fCount" | "fConstruction" | "lycra" | "finish" | "gsm" | "fOunce" | "fWidth" | "createdAt" | "updatedAt", ExtArgs["result"]["articleFab"]>
+  export type ArticleFabOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "articleId" | "macroMvgr" | "yarn1" | "mainMvgr" | "fabricMainMvgr" | "weave" | "mFab2" | "composition" | "fCount" | "fConstruction" | "lycra" | "finish" | "gsm" | "fOunce" | "fWidth" | "fabDiv" | "createdAt" | "updatedAt", ExtArgs["result"]["articleFab"]>
   export type ArticleFabInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     article?: boolean | Article360DefaultArgs<ExtArgs>
   }
@@ -24735,6 +24759,7 @@ export namespace Prisma {
       gsm: string | null
       fOunce: string | null
       fWidth: string | null
+      fabDiv: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["articleFab"]>
@@ -25177,6 +25202,7 @@ export namespace Prisma {
     readonly gsm: FieldRef<"ArticleFab", 'String'>
     readonly fOunce: FieldRef<"ArticleFab", 'String'>
     readonly fWidth: FieldRef<"ArticleFab", 'String'>
+    readonly fabDiv: FieldRef<"ArticleFab", 'String'>
     readonly createdAt: FieldRef<"ArticleFab", 'DateTime'>
     readonly updatedAt: FieldRef<"ArticleFab", 'DateTime'>
   }
@@ -32573,6 +32599,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     collar: string | null
     collarStyle: string | null
     neck: string | null
@@ -32649,6 +32676,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     collar: string | null
     collarStyle: string | null
     neck: string | null
@@ -32725,6 +32753,7 @@ export namespace Prisma {
     gsm: number
     fOunce: number
     fWidth: number
+    fabDiv: number
     collar: number
     collarStyle: number
     neck: number
@@ -32817,6 +32846,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     collar?: true
     collarStyle?: true
     neck?: true
@@ -32893,6 +32923,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     collar?: true
     collarStyle?: true
     neck?: true
@@ -32969,6 +33000,7 @@ export namespace Prisma {
     gsm?: true
     fOunce?: true
     fWidth?: true
+    fabDiv?: true
     collar?: true
     collarStyle?: true
     neck?: true
@@ -33132,6 +33164,7 @@ export namespace Prisma {
     gsm: string | null
     fOunce: string | null
     fWidth: string | null
+    fabDiv: string | null
     collar: string | null
     collarStyle: string | null
     neck: string | null
@@ -33227,6 +33260,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     collar?: boolean
     collarStyle?: boolean
     neck?: boolean
@@ -33303,6 +33337,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     collar?: boolean
     collarStyle?: boolean
     neck?: boolean
@@ -33379,6 +33414,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     collar?: boolean
     collarStyle?: boolean
     neck?: boolean
@@ -33455,6 +33491,7 @@ export namespace Prisma {
     gsm?: boolean
     fOunce?: boolean
     fWidth?: boolean
+    fabDiv?: boolean
     collar?: boolean
     collarStyle?: boolean
     neck?: boolean
@@ -33497,7 +33534,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type Article360FlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "flatId" | "imageName" | "imageUrl" | "division" | "subDivision" | "majorCategory" | "designNumber" | "vendorName" | "vendorCode" | "referenceArticleNumber" | "referenceArticleDescription" | "articleNumber" | "sapArticleId" | "mcCode" | "rate" | "mrp" | "impAtrbt2" | "macroMvgr" | "yarn1" | "mainMvgr" | "fabricMainMvgr" | "weave" | "mFab2" | "composition" | "fCount" | "fConstruction" | "lycra" | "finish" | "gsm" | "fOunce" | "fWidth" | "collar" | "collarStyle" | "neck" | "neckDetails" | "placket" | "fatherBelt" | "sleeve" | "sleeveFold" | "bottomFold" | "noOfPocket" | "pocketType" | "extraPocket" | "fit" | "bodyStyle" | "length" | "drawcord" | "dcShape" | "button" | "btnColour" | "zipper" | "zipColour" | "patches" | "patchesType" | "printType" | "printStyle" | "printPlacement" | "embroidery" | "embroideryType" | "wash" | "extractionStatus" | "approvalStatus" | "approvedBy" | "approvedAt" | "sapSyncStatus" | "sapSyncMessage" | "userId" | "userName" | "userEmail" | "createdAt" | "updatedAt", ExtArgs["result"]["article360Flat"]>
+  export type Article360FlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "flatId" | "imageName" | "imageUrl" | "division" | "subDivision" | "majorCategory" | "designNumber" | "vendorName" | "vendorCode" | "referenceArticleNumber" | "referenceArticleDescription" | "articleNumber" | "sapArticleId" | "mcCode" | "rate" | "mrp" | "impAtrbt2" | "macroMvgr" | "yarn1" | "mainMvgr" | "fabricMainMvgr" | "weave" | "mFab2" | "composition" | "fCount" | "fConstruction" | "lycra" | "finish" | "gsm" | "fOunce" | "fWidth" | "fabDiv" | "collar" | "collarStyle" | "neck" | "neckDetails" | "placket" | "fatherBelt" | "sleeve" | "sleeveFold" | "bottomFold" | "noOfPocket" | "pocketType" | "extraPocket" | "fit" | "bodyStyle" | "length" | "drawcord" | "dcShape" | "button" | "btnColour" | "zipper" | "zipColour" | "patches" | "patchesType" | "printType" | "printStyle" | "printPlacement" | "embroidery" | "embroideryType" | "wash" | "extractionStatus" | "approvalStatus" | "approvedBy" | "approvedAt" | "sapSyncStatus" | "sapSyncMessage" | "userId" | "userName" | "userEmail" | "createdAt" | "updatedAt", ExtArgs["result"]["article360Flat"]>
 
   export type $Article360FlatPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Article360Flat"
@@ -33536,6 +33573,7 @@ export namespace Prisma {
       gsm: string | null
       fOunce: string | null
       fWidth: string | null
+      fabDiv: string | null
       collar: string | null
       collarStyle: string | null
       neck: string | null
@@ -34032,6 +34070,7 @@ export namespace Prisma {
     readonly gsm: FieldRef<"Article360Flat", 'String'>
     readonly fOunce: FieldRef<"Article360Flat", 'String'>
     readonly fWidth: FieldRef<"Article360Flat", 'String'>
+    readonly fabDiv: FieldRef<"Article360Flat", 'String'>
     readonly collar: FieldRef<"Article360Flat", 'String'>
     readonly collarStyle: FieldRef<"Article360Flat", 'String'>
     readonly neck: FieldRef<"Article360Flat", 'String'>
@@ -34691,6 +34730,7 @@ export namespace Prisma {
     fConstruction: 'fConstruction',
     fOunce: 'fOunce',
     fWidth: 'fWidth',
+    fabDiv: 'fabDiv',
     htrfType: 'htrfType',
     htrfStyle: 'htrfStyle',
     embPlacement: 'embPlacement',
@@ -34872,6 +34912,7 @@ export namespace Prisma {
     gsm: 'gsm',
     fOunce: 'fOunce',
     fWidth: 'fWidth',
+    fabDiv: 'fabDiv',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -35013,6 +35054,7 @@ export namespace Prisma {
     gsm: 'gsm',
     fOunce: 'fOunce',
     fWidth: 'fWidth',
+    fabDiv: 'fabDiv',
     collar: 'collar',
     collarStyle: 'collarStyle',
     neck: 'neck',
@@ -35262,6 +35304,7 @@ export namespace Prisma {
     fConstruction: 'fConstruction',
     fOunce: 'fOunce',
     fWidth: 'fWidth',
+    fabDiv: 'fabDiv',
     htrfType: 'htrfType',
     htrfStyle: 'htrfStyle',
     embPlacement: 'embPlacement',
@@ -35393,7 +35436,8 @@ export namespace Prisma {
     finish: 'finish',
     gsm: 'gsm',
     fOunce: 'fOunce',
-    fWidth: 'fWidth'
+    fWidth: 'fWidth',
+    fabDiv: 'fabDiv'
   };
 
   export type ArticleFabOrderByRelevanceFieldEnum = (typeof ArticleFabOrderByRelevanceFieldEnum)[keyof typeof ArticleFabOrderByRelevanceFieldEnum]
@@ -35511,6 +35555,7 @@ export namespace Prisma {
     gsm: 'gsm',
     fOunce: 'fOunce',
     fWidth: 'fWidth',
+    fabDiv: 'fabDiv',
     collar: 'collar',
     collarStyle: 'collarStyle',
     neck: 'neck',
@@ -36676,6 +36721,7 @@ export namespace Prisma {
     fConstruction?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fOunce?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fWidth?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    fabDiv?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfStyle?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     embPlacement?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -36799,6 +36845,7 @@ export namespace Prisma {
     fConstruction?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     htrfType?: SortOrderInput | SortOrder
     htrfStyle?: SortOrderInput | SortOrder
     embPlacement?: SortOrderInput | SortOrder
@@ -36927,6 +36974,7 @@ export namespace Prisma {
     fConstruction?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fOunce?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fWidth?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    fabDiv?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfStyle?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     embPlacement?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -37049,6 +37097,7 @@ export namespace Prisma {
     fConstruction?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     htrfType?: SortOrderInput | SortOrder
     htrfStyle?: SortOrderInput | SortOrder
     embPlacement?: SortOrderInput | SortOrder
@@ -37178,6 +37227,7 @@ export namespace Prisma {
     fConstruction?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     fOunce?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     fWidth?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
+    fabDiv?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     htrfType?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     htrfStyle?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     embPlacement?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
@@ -37892,6 +37942,7 @@ export namespace Prisma {
     gsm?: StringNullableFilter<"ArticleFab"> | string | null
     fOunce?: StringNullableFilter<"ArticleFab"> | string | null
     fWidth?: StringNullableFilter<"ArticleFab"> | string | null
+    fabDiv?: StringNullableFilter<"ArticleFab"> | string | null
     createdAt?: DateTimeFilter<"ArticleFab"> | Date | string
     updatedAt?: DateTimeFilter<"ArticleFab"> | Date | string
     article?: XOR<Article360ScalarRelationFilter, Article360WhereInput>
@@ -37914,6 +37965,7 @@ export namespace Prisma {
     gsm?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     article?: Article360OrderByWithRelationInput
@@ -37940,6 +37992,7 @@ export namespace Prisma {
     gsm?: StringNullableFilter<"ArticleFab"> | string | null
     fOunce?: StringNullableFilter<"ArticleFab"> | string | null
     fWidth?: StringNullableFilter<"ArticleFab"> | string | null
+    fabDiv?: StringNullableFilter<"ArticleFab"> | string | null
     createdAt?: DateTimeFilter<"ArticleFab"> | Date | string
     updatedAt?: DateTimeFilter<"ArticleFab"> | Date | string
     article?: XOR<Article360ScalarRelationFilter, Article360WhereInput>
@@ -37962,6 +38015,7 @@ export namespace Prisma {
     gsm?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: ArticleFabCountOrderByAggregateInput
@@ -37989,6 +38043,7 @@ export namespace Prisma {
     gsm?: StringNullableWithAggregatesFilter<"ArticleFab"> | string | null
     fOunce?: StringNullableWithAggregatesFilter<"ArticleFab"> | string | null
     fWidth?: StringNullableWithAggregatesFilter<"ArticleFab"> | string | null
+    fabDiv?: StringNullableWithAggregatesFilter<"ArticleFab"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"ArticleFab"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"ArticleFab"> | Date | string
   }
@@ -38543,6 +38598,7 @@ export namespace Prisma {
     gsm?: StringNullableFilter<"Article360Flat"> | string | null
     fOunce?: StringNullableFilter<"Article360Flat"> | string | null
     fWidth?: StringNullableFilter<"Article360Flat"> | string | null
+    fabDiv?: StringNullableFilter<"Article360Flat"> | string | null
     collar?: StringNullableFilter<"Article360Flat"> | string | null
     collarStyle?: StringNullableFilter<"Article360Flat"> | string | null
     neck?: StringNullableFilter<"Article360Flat"> | string | null
@@ -38619,6 +38675,7 @@ export namespace Prisma {
     gsm?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     collar?: SortOrderInput | SortOrder
     collarStyle?: SortOrderInput | SortOrder
     neck?: SortOrderInput | SortOrder
@@ -38699,6 +38756,7 @@ export namespace Prisma {
     gsm?: StringNullableFilter<"Article360Flat"> | string | null
     fOunce?: StringNullableFilter<"Article360Flat"> | string | null
     fWidth?: StringNullableFilter<"Article360Flat"> | string | null
+    fabDiv?: StringNullableFilter<"Article360Flat"> | string | null
     collar?: StringNullableFilter<"Article360Flat"> | string | null
     collarStyle?: StringNullableFilter<"Article360Flat"> | string | null
     neck?: StringNullableFilter<"Article360Flat"> | string | null
@@ -38775,6 +38833,7 @@ export namespace Prisma {
     gsm?: SortOrderInput | SortOrder
     fOunce?: SortOrderInput | SortOrder
     fWidth?: SortOrderInput | SortOrder
+    fabDiv?: SortOrderInput | SortOrder
     collar?: SortOrderInput | SortOrder
     collarStyle?: SortOrderInput | SortOrder
     neck?: SortOrderInput | SortOrder
@@ -38859,6 +38918,7 @@ export namespace Prisma {
     gsm?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     fOunce?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     fWidth?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
+    fabDiv?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     collar?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     collarStyle?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     neck?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
@@ -39912,6 +39972,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -40034,6 +40095,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -40154,6 +40216,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40276,6 +40339,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40397,6 +40461,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -40517,6 +40582,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -40637,6 +40703,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -41434,6 +41501,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     article: Article360CreateNestedOneWithoutFabInput
@@ -41456,6 +41524,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -41476,6 +41545,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     article?: Article360UpdateOneRequiredWithoutFabNestedInput
@@ -41498,6 +41568,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41519,6 +41590,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -41539,6 +41611,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -41560,6 +41633,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -42165,6 +42239,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     collar?: string | null
     collarStyle?: string | null
     neck?: string | null
@@ -42241,6 +42316,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     collar?: string | null
     collarStyle?: string | null
     neck?: string | null
@@ -42317,6 +42393,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     collar?: NullableStringFieldUpdateOperationsInput | string | null
     collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
     neck?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42393,6 +42470,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     collar?: NullableStringFieldUpdateOperationsInput | string | null
     collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
     neck?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42469,6 +42547,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     collar?: string | null
     collarStyle?: string | null
     neck?: string | null
@@ -42545,6 +42624,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     collar?: NullableStringFieldUpdateOperationsInput | string | null
     collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
     neck?: NullableStringFieldUpdateOperationsInput | string | null
@@ -42621,6 +42701,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     collar?: NullableStringFieldUpdateOperationsInput | string | null
     collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
     neck?: NullableStringFieldUpdateOperationsInput | string | null
@@ -43787,6 +43868,7 @@ export namespace Prisma {
     fConstruction?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     htrfType?: SortOrder
     htrfStyle?: SortOrder
     embPlacement?: SortOrder
@@ -43923,6 +44005,7 @@ export namespace Prisma {
     fConstruction?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     htrfType?: SortOrder
     htrfStyle?: SortOrder
     embPlacement?: SortOrder
@@ -44044,6 +44127,7 @@ export namespace Prisma {
     fConstruction?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     htrfType?: SortOrder
     htrfStyle?: SortOrder
     embPlacement?: SortOrder
@@ -44710,6 +44794,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -44731,6 +44816,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -44752,6 +44838,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -45131,6 +45218,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     collar?: SortOrder
     collarStyle?: SortOrder
     neck?: SortOrder
@@ -45214,6 +45302,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     collar?: SortOrder
     collarStyle?: SortOrder
     neck?: SortOrder
@@ -45290,6 +45379,7 @@ export namespace Prisma {
     gsm?: SortOrder
     fOunce?: SortOrder
     fWidth?: SortOrder
+    fabDiv?: SortOrder
     collar?: SortOrder
     collarStyle?: SortOrder
     neck?: SortOrder
@@ -48174,6 +48264,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -48294,6 +48385,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -48538,6 +48630,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -48658,6 +48751,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -49556,6 +49650,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -49677,6 +49772,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -49927,6 +50023,7 @@ export namespace Prisma {
     fConstruction?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fOunce?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     fWidth?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    fabDiv?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     htrfStyle?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     embPlacement?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -50152,6 +50249,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -50172,6 +50270,7 @@ export namespace Prisma {
     gsm?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -50340,6 +50439,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -50360,6 +50460,7 @@ export namespace Prisma {
     gsm?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -51966,6 +52067,7 @@ export namespace Prisma {
     fConstruction?: string | null
     fOunce?: string | null
     fWidth?: string | null
+    fabDiv?: string | null
     htrfType?: string | null
     htrfStyle?: string | null
     embPlacement?: string | null
@@ -52247,6 +52349,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52368,6 +52471,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
@@ -52488,6 +52592,7 @@ export namespace Prisma {
     fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
     fOunce?: NullableStringFieldUpdateOperationsInput | string | null
     fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
     htrfType?: NullableStringFieldUpdateOperationsInput | string | null
     htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
     embPlacement?: NullableStringFieldUpdateOperationsInput | string | null

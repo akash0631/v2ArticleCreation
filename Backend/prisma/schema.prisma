@@ -305,6 +305,7 @@ model ExtractionResultFlat {
   fConstruction               String?       @map("f_construction") @db.VarChar(100)
   fOunce                      String?       @map("f_ounce") @db.VarChar(100)
   fWidth                      String?       @map("f_width") @db.VarChar(100)
+  fabDiv                      String?       @map("fab_div") @db.VarChar(100)
   htrfType                    String?       @map("htrf_type") @db.VarChar(100)
   htrfStyle                   String?       @map("htrf_style") @db.VarChar(100)
   embPlacement                String?       @map("emb_placement") @db.VarChar(100)
@@ -648,6 +649,7 @@ model ArticleFab {
   gsm           String?    @db.VarChar(50)
   fOunce        String?    @map("f_ounce") @db.VarChar(100)
   fWidth        String?    @map("f_width") @db.VarChar(100)
+  fabDiv        String?    @map("fab_div") @db.VarChar(100)
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
   article       Article360 @relation(fields: [articleId], references: [id], onDelete: Cascade)
@@ -817,6 +819,7 @@ model Article360Flat {
   gsm                           String?   @db.VarChar(50)
   fOunce                        String?   @map("f_ounce") @db.VarChar(100)
   fWidth                        String?   @map("f_width") @db.VarChar(100)
+  fabDiv                        String?   @map("fab_div") @db.VarChar(100)
 
   // BODY
   collar                        String?   @db.VarChar(100)

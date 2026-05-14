@@ -1791,15 +1791,17 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
  * Returns inserted / skipped / errors counts. VLM enrichment runs sequentially in background.
  */
 export const triggerSrmSync = async (req: Request, res: Response): Promise<void> => {
+  // SRM sync can take 2+ minutes — respond immediately and run in background
+  // to avoid the request timeout firing and causing "headers already sent" errors
+  res.status(202).json({ success: true, message: 'SRM sync started in background. Check server logs for results.' });
+
   try {
     const { syncFromSrm } = await import('../services/srmSyncService');
     console.log('[Admin] Manual SRM sync triggered');
     const result = await syncFromSrm();
     console.log(`[Admin] Manual SRM sync complete — inserted:${result.inserted} skipped:${result.skipped} errors:${result.errors}`);
-    res.json({ success: true, ...result });
   } catch (error: any) {
     console.error('Error in triggerSrmSync:', error);
-    res.status(500).json({ success: false, error: error.message });
   }
 };
 

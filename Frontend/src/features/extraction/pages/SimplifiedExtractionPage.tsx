@@ -125,6 +125,7 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'gsm',              label: 'M_GSM',                type: 'select' },
   { key: 'f_ounce',          label: 'M_OUNZ',               type: 'select' },
   { key: 'f_width',          label: 'M_WIDTH',              type: 'select' },
+  { key: 'fab_div',          label: 'M_FAB_DIV',            type: 'select' },
 
   // ── BODY ─────────────────────────────────────────────────────────────────
   { key: 'collar',        label: 'M_COLLAR_TYPE',        type: 'select' },
