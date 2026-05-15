@@ -2,16 +2,17 @@
  * Kids Division Duplication Service
  *
  * After an ExtractionResultFlat record is saved for the KIDS division,
- * this service looks up the record's MAJ_CAT in the Excel mapping file
- * (Backend/data/kids-division-mapping.xlsx) to find its NAME group.
- * For every OTHER MAJ_CAT that shares the same NAME, it creates a copy
- * of the original record with the new MAJ_CAT and SUB-DIV, and re-uploads
- * the image to Cloudflare R2 so each copy has its own independent URL/key.
+ * this service creates exactly 2 copies of the original record so that
+ * 3 total articles exist (1 original + 2 copies), all with the same
+ * majorCategory and subDivision.
+ *
+ * Each copy gets its own new UUID, a freshly re-uploaded R2 image, and
+ * a new synthetic ExtractionJob.
  */
 
 import path from 'path';
-import fs from 'fs';
-import * as XLSX from 'xlsx';
+// import fs from 'fs';
+// import * as XLSX from 'xlsx';
 import { randomUUID } from 'crypto';
 import { prismaClient as prisma } from '../utils/prisma';
 import { storageService } from './storageService';
@@ -21,49 +22,51 @@ import { upsert360ArticleFlatRow } from '../utils/mirror360Flat';
 // Types
 // ---------------------------------------------------------------------------
 
-interface KidsMappingRow {
-  'SUB-DIV': string;
-  MAJ_CAT: string;
-  NAME: string;
-}
+// ── OLD: Excel-based sibling mapping (kept for reference) ──────────────────
+// interface KidsMappingRow {
+//   'SUB-DIV': string;
+//   MAJ_CAT: string;
+//   NAME: string;
+// }
 
-interface SiblingMapping {
-  subDiv: string;
-  majCat: string;
-  name: string;
-}
+// interface SiblingMapping {
+//   subDiv: string;
+//   majCat: string;
+//   name: string;
+// }
+// ── END OLD ────────────────────────────────────────────────────────────────
 
 // ---------------------------------------------------------------------------
-// Excel loading (cached after first read so we don't hit disk on every call)
+// OLD: Excel loading (cached after first read so we don't hit disk on every call)
 // ---------------------------------------------------------------------------
 
-let cachedMappings: KidsMappingRow[] | null = null;
+// let cachedMappings: KidsMappingRow[] | null = null;
 
-function loadKidsMappings(): KidsMappingRow[] {
-  if (cachedMappings) return cachedMappings;
-
-  const excelPath = path.resolve(__dirname, '../data/kids-division-mapping.xlsx');
-
-  if (!fs.existsSync(excelPath)) {
-    console.warn(`[KidsDuplication] Excel file not found at ${excelPath}`);
-    cachedMappings = [];
-    return cachedMappings;
-  }
-
-  try {
-    const workbook = XLSX.readFile(excelPath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<KidsMappingRow>(worksheet);
-    cachedMappings = rows;
-    console.log(`[KidsDuplication] Loaded ${rows.length} rows from kids-division-mapping.xlsx`);
-    return cachedMappings;
-  } catch (err) {
-    console.error('[KidsDuplication] Failed to load Excel mapping file:', err);
-    cachedMappings = [];
-    return cachedMappings;
-  }
-}
+// function loadKidsMappings(): KidsMappingRow[] {
+//   if (cachedMappings) return cachedMappings;
+//
+//   const excelPath = path.resolve(__dirname, '../data/kids-division-mapping.xlsx');
+//
+//   if (!fs.existsSync(excelPath)) {
+//     console.warn(`[KidsDuplication] Excel file not found at ${excelPath}`);
+//     cachedMappings = [];
+//     return cachedMappings;
+//   }
+//
+//   try {
+//     const workbook = XLSX.readFile(excelPath);
+//     const sheetName = workbook.SheetNames[0];
+//     const worksheet = workbook.Sheets[sheetName];
+//     const rows = XLSX.utils.sheet_to_json<KidsMappingRow>(worksheet);
+//     cachedMappings = rows;
+//     console.log(`[KidsDuplication] Loaded ${rows.length} rows from kids-division-mapping.xlsx`);
+//     return cachedMappings;
+//   } catch (err) {
+//     console.error('[KidsDuplication] Failed to load Excel mapping file:', err);
+//     cachedMappings = [];
+//     return cachedMappings;
+//   }
+// }
 
 // ---------------------------------------------------------------------------
 // Helper: normalise the division string so KIDS / KID / kids all match
@@ -76,44 +79,44 @@ function isKidsDivision(division: string | null | undefined): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: find siblings for a given MAJ_CAT
+// OLD: Helper: find siblings for a given MAJ_CAT
 // Returns all mapping rows that share the same NAME but have a different MAJ_CAT
 // ---------------------------------------------------------------------------
 
-function findSiblings(majCat: string, mappings: KidsMappingRow[]): SiblingMapping[] {
-  const sourceMajCat = (majCat || '').trim().toUpperCase();
-
-  // Find the NAME for the source MAJ_CAT
-  const sourceRow = mappings.find(
-    (r) => (r.MAJ_CAT || '').trim().toUpperCase() === sourceMajCat
-  );
-
-  if (!sourceRow) {
-    console.log(`[KidsDuplication] MAJ_CAT '${majCat}' not found in Excel mapping — skipping duplication`);
-    return [];
-  }
-
-  const sourceName = (sourceRow.NAME || '').trim().toUpperCase();
-
-  // All rows with same NAME but different MAJ_CAT
-  const siblings = mappings
-    .filter(
-      (r) =>
-        (r.NAME || '').trim().toUpperCase() === sourceName &&
-        (r.MAJ_CAT || '').trim().toUpperCase() !== sourceMajCat
-    )
-    .map((r) => ({
-      subDiv: r['SUB-DIV'],
-      majCat: r.MAJ_CAT,
-      name: r.NAME,
-    }));
-
-  console.log(
-    `[KidsDuplication] Found ${siblings.length} sibling(s) for MAJ_CAT='${majCat}' (NAME='${sourceRow.NAME}')`
-  );
-
-  return siblings;
-}
+// function findSiblings(majCat: string, mappings: KidsMappingRow[]): SiblingMapping[] {
+//   const sourceMajCat = (majCat || '').trim().toUpperCase();
+//
+//   // Find the NAME for the source MAJ_CAT
+//   const sourceRow = mappings.find(
+//     (r) => (r.MAJ_CAT || '').trim().toUpperCase() === sourceMajCat
+//   );
+//
+//   if (!sourceRow) {
+//     console.log(`[KidsDuplication] MAJ_CAT '${majCat}' not found in Excel mapping — skipping duplication`);
+//     return [];
+//   }
+//
+//   const sourceName = (sourceRow.NAME || '').trim().toUpperCase();
+//
+//   // All rows with same NAME but different MAJ_CAT
+//   const siblings = mappings
+//     .filter(
+//       (r) =>
+//         (r.NAME || '').trim().toUpperCase() === sourceName &&
+//         (r.MAJ_CAT || '').trim().toUpperCase() !== sourceMajCat
+//     )
+//     .map((r) => ({
+//       subDiv: r['SUB-DIV'],
+//       majCat: r.MAJ_CAT,
+//       name: r.NAME,
+//     }));
+//
+//   console.log(
+//     `[KidsDuplication] Found ${siblings.length} sibling(s) for MAJ_CAT='${majCat}' (NAME='${sourceRow.NAME}')`
+//   );
+//
+//   return siblings;
+// }
 
 // ---------------------------------------------------------------------------
 // Helper: re-upload image from URL to R2 with a new unique key
@@ -165,13 +168,16 @@ async function reuseOrCopyImageToR2(sourceImageUrl: string): Promise<string> {
 // Main export: duplicateForKidsDivision
 // ---------------------------------------------------------------------------
 
+const KIDS_COPY_COUNT = 2; // total articles = 1 original + KIDS_COPY_COUNT copies
+
 /**
  * Given a freshly-saved ExtractionResultFlat record (identified by its DB id),
  * this function:
  *  1. Checks if the record's division is KIDS/KID.
- *  2. Looks up siblings in the Excel mapping.
- *  3. For each sibling, clones the record with a new MAJ_CAT + SUB-DIV and
- *     a newly-uploaded copy of the image in R2.
+ *  2. Creates exactly KIDS_COPY_COUNT copies of the record, each with the
+ *     same majorCategory and subDivision as the original.
+ *  3. Each copy gets a new UUID, a freshly re-uploaded R2 image, and a new
+ *     synthetic ExtractionJob.
  *
  * The function is designed to be called fire-and-forget (no await at call site)
  * so it wraps itself in a top-level try/catch and logs instead of throwing.
@@ -190,34 +196,33 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
 
     // ── 2. Check division ───────────────────────────────────────────────────
     if (!isKidsDivision(original.division)) {
-      // Not a kids record — nothing to do
       return;
     }
 
     console.log(
-      `[KidsDuplication] Kids record detected (id=${flatId}, division=${original.division}, majCat=${original.majorCategory})`
+      `[KidsDuplication] Kids record detected (id=${flatId}, division=${original.division}, majCat=${original.majorCategory}) — creating ${KIDS_COPY_COUNT} copies`
     );
 
-    // ── 3. Must have a MAJ_CAT to look up ──────────────────────────────────
+    // ── 3. Must have a MAJ_CAT ──────────────────────────────────────────────
     if (!original.majorCategory) {
       console.warn(`[KidsDuplication] Record ${flatId} has no majorCategory — skipping duplication`);
       return;
     }
 
-    // ── 4. Load Excel and find siblings ────────────────────────────────────
-    const mappings = loadKidsMappings();
-    const siblings = findSiblings(original.majorCategory, mappings);
+    // ── OLD: Excel load + sibling lookup ────────────────────────────────────
+    // const mappings = loadKidsMappings();
+    // const siblings = findSiblings(original.majorCategory, mappings);
+    // if (siblings.length === 0) {
+    //   console.log(`[KidsDuplication] No siblings found for '${original.majorCategory}' — nothing to duplicate`);
+    //   return;
+    // }
+    // ── END OLD ─────────────────────────────────────────────────────────────
 
-    if (siblings.length === 0) {
-      console.log(`[KidsDuplication] No siblings found for '${original.majorCategory}' — nothing to duplicate`);
-      return;
-    }
-
-    // ── 5. For each sibling create a copy ──────────────────────────────────
-    for (const sibling of siblings) {
+    // ── 4. Create KIDS_COPY_COUNT identical copies ──────────────────────────
+    for (let i = 0; i < KIDS_COPY_COUNT; i++) {
       try {
         console.log(
-          `[KidsDuplication] Creating copy for sibling MAJ_CAT='${sibling.majCat}' SUB-DIV='${sibling.subDiv}'`
+          `[KidsDuplication] Creating copy ${i + 1}/${KIDS_COPY_COUNT} for MAJ_CAT='${original.majorCategory}' SUB-DIV='${original.subDivision}'`
         );
 
         // Re-upload image to R2 so each copy has its own independent URL
@@ -227,18 +232,11 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
             newImageUrl = await reuseOrCopyImageToR2(original.imageUrl);
           } catch (imgErr: any) {
             console.error(
-              `[KidsDuplication] Image re-upload failed for sibling '${sibling.majCat}': ${imgErr.message} — using original URL as fallback`
+              `[KidsDuplication] Image re-upload failed for copy ${i + 1}: ${imgErr.message} — using original URL as fallback`
             );
-            // Fallback: reuse original URL (not ideal but better than failing the whole record)
             newImageUrl = original.imageUrl;
           }
         }
-
-        // Build the data for the new record.
-        // We need to create a new ExtractionJob first because ExtractionResultFlat
-        // has a unique FK to ExtractionJob (jobId is @unique).
-        // Strategy: create a synthetic ExtractionJob that mirrors the original job's
-        // key fields, then create the flat row pointing to it.
 
         // Fetch the original job to get its category
         const originalJob = await prisma.extractionJob.findUnique({
@@ -247,7 +245,7 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
         });
 
         if (!originalJob) {
-          console.warn(`[KidsDuplication] Original job ${original.jobId} not found — skipping sibling '${sibling.majCat}'`);
+          console.warn(`[KidsDuplication] Original job ${original.jobId} not found — skipping copy ${i + 1}`);
           continue;
         }
 
@@ -272,16 +270,11 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
           },
         });
 
-        // Create the flat record as a clone with overridden fields
-        // Destructure to omit the PK (id), jobId, imageUrl, majorCategory, subDivision,
-        // imageUncPath (must be unique or null), createdAt, updatedAt (auto-managed),
-        // and approval/SAP fields (reset to defaults).
+        // Clone the flat record — same majorCategory and subDivision as original
         const {
           id: _id,
           jobId: _jobId,
           imageUrl: _imageUrl,
-          majorCategory: _majorCategory,
-          subDivision: _subDivision,
           imageUncPath: _imageUncPath,
           createdAt: _createdAt,
           updatedAt: _updatedAt,
@@ -300,9 +293,6 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
           id: kidsId,
           jobId: newJob.id,
           imageUrl: newImageUrl,
-          division: 'KIDS',
-          majorCategory: sibling.majCat,
-          subDivision: sibling.subDiv,
           approvalStatus: 'PENDING' as const,
           approvedBy: null,
           approvedAt: null,
@@ -311,26 +301,25 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
           sapSyncMessage: null,
           imageUncPath: null,
         };
+
         await prisma.extractionResultFlat.create({ data: kidsData });
 
         // Mirror to 360article (fire-and-forget)
         void upsert360ArticleFlatRow(kidsId, kidsData as Record<string, unknown>);
 
         console.log(
-          `[KidsDuplication] Created duplicate for MAJ_CAT='${sibling.majCat}' SUB-DIV='${sibling.subDiv}' (jobId=${newJob.id})`
+          `[KidsDuplication] Created copy ${i + 1}/${KIDS_COPY_COUNT} (id=${kidsId}, jobId=${newJob.id})`
         );
-      } catch (siblingErr: any) {
-        // Don't let one sibling failure stop the others
+      } catch (copyErr: any) {
         console.error(
-          `[KidsDuplication] Error creating duplicate for sibling '${sibling.majCat}':`,
-          siblingErr?.message || siblingErr
+          `[KidsDuplication] Error creating copy ${i + 1}:`,
+          copyErr?.message || copyErr
         );
       }
     }
 
-    console.log(`[KidsDuplication] Duplication complete for flatId=${flatId}`);
+    console.log(`[KidsDuplication] Duplication complete for flatId=${flatId} — ${KIDS_COPY_COUNT} copies created`);
   } catch (err: any) {
-    // Top-level guard — never propagate errors to the caller
     console.error('[KidsDuplication] Unexpected error in duplicateForKidsDivision:', err?.message || err);
   }
 }

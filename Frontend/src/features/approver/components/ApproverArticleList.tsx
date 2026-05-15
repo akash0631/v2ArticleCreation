@@ -116,7 +116,7 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
         fields: [
             { field: 'ageGroup',           schemaKey: 'age_group' },
             { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
-            { field: 'segment',            schemaKey: 'segment' },
+            { field: 'segment',            schemaKey: 'segment',           freeText: true },
             { field: 'mvgrBrandVendor',    schemaKey: 'mvgr_brand_vendor', freeText: true },
         ],
     },
