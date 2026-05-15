@@ -12,59 +12,51 @@ import { randomUUID } from 'crypto';
 import { prismaClient as prisma } from '../utils/prisma';
 import { upsert360ArticleFlatRow, mirror360FlatUpdate } from '../utils/mirror360Flat';
 
-interface SizeMappingRow {
-  'SUB-DIV': unknown;
-  MAJ_CAT: unknown;
-  SZ: unknown;
-}
+type ActiveSizeMappingRow = Record<string, unknown>;
 
-let cachedSizeMappings: SizeMappingRow[] | null = null;
+let cachedActiveSizeMappings: ActiveSizeMappingRow[] | null = null;
 
-function loadSizeMappings(): SizeMappingRow[] {
-  if (cachedSizeMappings) return cachedSizeMappings;
-  const excelPath = path.resolve(__dirname, '../data/variant-sizes-mapping.xlsx');
+function loadActiveSizeMappings(): ActiveSizeMappingRow[] {
+  if (cachedActiveSizeMappings) return cachedActiveSizeMappings;
+  const excelPath = path.resolve(__dirname, '../data/active-size-mapping.xlsx');
   if (!fs.existsSync(excelPath)) {
-    console.warn('[VariantCreation] Excel not found at', excelPath);
-    cachedSizeMappings = [];
-    return cachedSizeMappings;
+    console.warn('[VariantCreation] active-size-mapping.xlsx not found at', excelPath);
+    cachedActiveSizeMappings = [];
+    return cachedActiveSizeMappings;
   }
   try {
     const wb = XLSX.readFile(excelPath);
     const ws = wb.Sheets[wb.SheetNames[0]];
-    cachedSizeMappings = XLSX.utils.sheet_to_json<SizeMappingRow>(ws);
-    console.log(`[VariantCreation] Loaded ${cachedSizeMappings.length} size mapping rows`);
-    return cachedSizeMappings;
+    // range:2 skips the title row and blank row; row 3 (index 2) has the real headers: DIV, MAJCAT, SIZE
+    cachedActiveSizeMappings = XLSX.utils.sheet_to_json<ActiveSizeMappingRow>(ws, { range: 2 });
+    console.log(`[VariantCreation] Loaded ${cachedActiveSizeMappings.length} active size mapping rows`);
+    return cachedActiveSizeMappings;
   } catch (err) {
-    console.error('[VariantCreation] Failed to load Excel:', err);
-    cachedSizeMappings = [];
-    return cachedSizeMappings;
+    console.error('[VariantCreation] Failed to load active-size-mapping.xlsx:', err);
+    cachedActiveSizeMappings = [];
+    return cachedActiveSizeMappings;
   }
 }
 
-// Hardcoded size buckets for Kids categories (source: variantCreationService.ts constants)
-// Mens & Ladies sizes continue to come from: Backend/src/data/variant-sizes-mapping.xlsx
-const JUNIOR_SIZES  = ['22', '24', '26'];
-const YOUNGER_SIZES = ['28', '30', '32', '34', '36'];
-const INFANT_SIZES  = ['12', '14', '16', '18', '20'];
+// Extract MAJ_CAT value — column is named MAJCAT in active-size-mapping.xlsx
+function getMajCatFromRow(row: ActiveSizeMappingRow): string {
+  const val = row['MAJCAT'] ?? row['MAJ_CAT'] ?? row['MajCat'];
+  return String(val ?? '').trim().toUpperCase();
+}
 
-function getSizesForMajCat(majCat: string): string[] {
+// Extract size value — column is named SIZE in active-size-mapping.xlsx
+function getSizeFromRow(row: ActiveSizeMappingRow): string {
+  const val = row['SIZE'] ?? row['SZ'] ?? row['Size'];
+  return String(val ?? '').trim();
+}
+
+export function getSizesForMajCat(majCat: string): string[] {
   const upper = majCat.trim().toUpperCase();
-
-  // Junior Boys/Girls (including Winter variants: JBW_, JGW_)
-  if (/^(JB|JG|JBW|JGW)_/.test(upper)) return JUNIOR_SIZES;
-
-  // Younger Boys/Girls (including Winter variants: YBW_, YGW_)
-  if (/^(YB|YG|YBW|YGW)_/.test(upper)) return YOUNGER_SIZES;
-
-  // Infant Boys/Girls and Kids Infant (including Winter variants)
-  if (/^(IB|IG|IBW|IGW|KI|KIW|KBW|KGW)_/.test(upper)) return INFANT_SIZES;
-
-  // Mens & Ladies → Excel lookup (variant-sizes-mapping.xlsx)
-  const mappings = loadSizeMappings();
+  const activeMappings = loadActiveSizeMappings();
   return Array.from(new Set(
-    mappings
-      .filter(r => String(r.MAJ_CAT ?? '').trim().toUpperCase() === upper)
-      .map(r => String(r.SZ ?? '').trim())
+    activeMappings
+      .filter(r => getMajCatFromRow(r) === upper)
+      .map(r => getSizeFromRow(r))
       .filter(Boolean)
   ));
 }
@@ -161,17 +153,9 @@ export async function addColorVariants(genericId: string, color: string): Promis
   const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
   if (!generic) return 0;
 
-  // Find all existing variants for this generic (any color, size-only variants included)
-  const existingVariants = await prisma.extractionResultFlat.findMany({
-    where: { genericArticleId: genericId, isGeneric: false }
-  });
-
-  // Get sizes from existing variants; if none exist yet, fall back to the Excel size mapping
-  let sizes = [...new Set(existingVariants.map(v => v.variantSize).filter(Boolean))] as string[];
-  if (sizes.length === 0 && generic.majorCategory) {
-    sizes = getSizesForMajCat(generic.majorCategory);
-  }
-  if (sizes.length === 0) return 0;
+  if (!generic.majorCategory) throw new Error('No Major Category found on this article — cannot create variants.');
+  const sizes = getSizesForMajCat(generic.majorCategory);
+  if (sizes.length === 0) throw new Error(`No sizes are defined for Major Category "${generic.majorCategory}" in the active size mapping. Please update the active-size-mapping.xlsx file.`);
 
   const originalJob = await prisma.extractionJob.findUnique({
     where: { id: generic.jobId },
