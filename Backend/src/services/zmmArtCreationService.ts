@@ -10,6 +10,7 @@
 
 import { SapSyncItemResult } from './sapSyncService';
 import majCatMandatory from '../data/maj-cat-mandatory.json';
+import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { PrismaClient } from '../generated/prisma';
 
 const prisma = new PrismaClient();
@@ -313,6 +314,13 @@ function buildRfcPayload(item: FlatItem): Record<string, string> {
                 payload[rfc] = val;
             }
         }
+    }
+
+    // Always re-derive MC_CD from majorCategory using the JSON source of truth.
+    // The DB mcCode field can be stale (set at extraction time from an older mapping).
+    const freshMcCode = getMcCodeByMajorCategory(item.majorCategory as string | null);
+    if (freshMcCode) {
+        payload['MC_CD'] = freshMcCode;
     }
 
     return payload;
