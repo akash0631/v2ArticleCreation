@@ -471,6 +471,11 @@ const ArticleCard = React.memo(({
                 return;
             }
         }
+        if (field === 'vendorName' && !value?.trim()) {
+            message.error('Vendor Name is required');
+            setEditingField(null);
+            return;
+        }
         const updates: Record<string, string | null> = { [field]: value };
         if (field === 'rate') {
             const rate = parseFloat(String(value ?? ''));
@@ -598,6 +603,7 @@ const ArticleCard = React.memo(({
                             { label: 'MAJOR CATEGORY',        field: 'majorCategory',              bold: true,  color: '#2f54eb',  editable: true,  required: false },
                             { label: 'ARTICLE NUMBER',        field: 'articleNumber',               bold: true,  color: item.sapArticleId ? '#389e0d' : '#1d39c4', editable: !item.sapArticleId, required: false },
                             { label: 'VENDOR CODE',           field: 'vendorCode',                  bold: false, color: '#1a1a1a', editable: true,  required: true  },
+                            { label: 'VENDOR NAME',           field: 'vendorName',                  bold: false, color: '#1a1a1a', editable: true,  required: true  },
                             { label: 'ARTICLE DESC',          field: 'articleDescription',          bold: false, color: '#595959', editable: true,  required: false },
                             { label: 'REFERENCE ARTICLE',     field: 'referenceArticleNumber',      bold: false, color: '#1a1a1a', editable: true,  required: false },
                             { label: 'REFERENCE ARTICLE DESC',field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true,  required: false },
@@ -614,9 +620,9 @@ const ArticleCard = React.memo(({
                             const showRequiredError = required && isEmpty && !isLocked;
                             return (
                                 <div key={i} style={{
-                                    flex: i >= 3 ? 2 : 1,
+                                    flex: i >= 4 ? 2 : 1,
                                     padding: '5px 10px',
-                                    borderRight: i < 5 ? '1px solid #f0f0f0' : 'none',
+                                    borderRight: i < 6 ? '1px solid #f0f0f0' : 'none',
                                     minWidth: 0,
                                     cursor: canEdit ? 'pointer' : 'default',
                                     background: isEditingThis ? '#e6f7ff' : 'transparent',

@@ -623,13 +623,15 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
             width: 130,
             render: (_: unknown, record: ApproverItem) => (
                 <div style={{ display: 'flex', gap: 6 }}>
-                    <Button
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => setEditingVariant(record)}
-                    >
-                        Edit
-                    </Button>
+                    {!record.fabricArticleNumber && (
+                        <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setEditingVariant(record)}
+                        >
+                            Edit
+                        </Button>
+                    )}
                     {(!record.approvalStatus || record.approvalStatus === 'PENDING') && (
                         <Popconfirm
                             title="Delete variant?"
