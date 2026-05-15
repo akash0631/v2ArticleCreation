@@ -415,26 +415,11 @@ export async function syncArticlesToSapViaRfc(
         const payload = buildRfcPayload(item);
 
         console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
+        console.log(`API URL : ${ZMM_RFC_URL}`);
         console.log(JSON.stringify(payload, null, 2));
         console.log(`====================================================================\n`);
 
-        // ── 3. Pre-validate field values against allowed values ───────────────
-        const majorCat = toStr(item.majorCategory as string | null);
-        const division = toStr(item.division as string | null) || 'MENS';
-        if (majorCat) {
-            const valErrors = await validatePayloadValues(division, payload);
-            if (valErrors.length > 0) {
-                console.warn(`[ZMM_RFC] ❌ Pre-validation failed for flat_id=${item.id}:`, valErrors);
-                results.push({
-                    id: item.id,
-                    success: false,
-                    message: `Validation failed (${valErrors.length} issue${valErrors.length > 1 ? 's' : ''})\n${valErrors.join('\n')}`,
-                });
-                continue;
-            }
-        }
-
-        // ── 4. Call SAP RFC ──────────────────────────────────────────────────
+        // ── 3. Call SAP RFC ──────────────────────────────────────────────────
         try {
             const response = await fetch(ZMM_RFC_URL, {
                 method: 'POST',
