@@ -429,6 +429,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
     const [retrying, setRetrying] = useState(false);
     const [editingVariant, setEditingVariant] = useState<ApproverItem | null>(null);
     const [addColorOpen, setAddColorOpen] = useState(false);
+    const [majCatSizeCount, setMajCatSizeCount] = useState<number | null>(null);
 
     const fetchVariants = useCallback(async () => {
         setLoading(true);
@@ -452,6 +453,19 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         fetchVariants();
     }, [fetchVariants]);
 
+    // Fetch size count from backend (accurate per ACTIVE SIZE.xlsx)
+    useEffect(() => {
+        const majCat = genericRecord.majorCategory;
+        if (!majCat) return;
+        const token = localStorage.getItem('authToken');
+        fetch(`${APP_CONFIG.api.baseURL}/approver/sizes-for-majcat/${encodeURIComponent(majCat)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(r => r.json())
+            .then(d => setMajCatSizeCount(d.count ?? null))
+            .catch(() => setMajCatSizeCount(null));
+    }, [genericRecord.majorCategory]);
+
     // Collect distinct colors already in the variant list
     const existingColors = Array.from(
         new Set(
@@ -459,8 +473,8 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         )
     );
 
-    // Distinct sizes — used to preview how many variants will be created
-    const sizeCount = Array.from(
+    // Distinct sizes — prefer backend count (accurate per ACTIVE SIZE.xlsx); fall back to existing variants
+    const sizeCount = majCatSizeCount ?? Array.from(
         new Set(variants.map(v => v.variantSize).filter(Boolean))
     ).length;
 
@@ -481,7 +495,6 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
             }
             message.success('Variant deleted');
             fetchVariants();
-            onRefresh();
         } catch (err) {
             message.error(err instanceof Error ? err.message : 'Failed to delete variant');
         }

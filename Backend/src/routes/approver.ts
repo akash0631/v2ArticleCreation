@@ -43,6 +43,9 @@ router.post('/items/:id/add-color', h(ApproverController.addColor));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
 
+// Sizes for a given major category (from ACTIVE SIZE.xlsx)
+router.get('/sizes-for-majcat/:majCat', h(ApproverController.getSizesForMajCat));
+
 // BOM grid Art # lookup — returns { attrName: { mvgrValue: sapCd } } for a major category
 router.get('/bom-art-numbers/:majCat', h(ApproverController.getBomArtNumbers));
 

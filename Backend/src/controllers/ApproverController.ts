@@ -11,7 +11,7 @@ import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
 import { storageService } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { prismaClient as prisma } from '../utils/prisma';
-import { syncGenericToVariants, addColorVariants } from '../services/variantCreationService';
+import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 
@@ -2100,6 +2100,14 @@ export class ApproverController {
             ApproverController.bomGridMap = {};
         }
         return ApproverController.bomGridMap!;
+    }
+
+    // GET /api/approver/sizes-for-majcat/:majCat
+    // Returns sizes array for the given major category (from active-size-mapping.xlsx)
+    static async getSizesForMajCat(req: Request, res: Response) {
+        const { majCat } = req.params;
+        const sizes = getSizesForMajCat(majCat || '');
+        return res.json({ majCat, sizes, count: sizes.length });
     }
 
     // GET /api/approver/bom-art-numbers/:majCat
