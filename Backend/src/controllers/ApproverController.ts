@@ -1468,7 +1468,8 @@ export class ApproverController {
                 if (userDivisionVariants.length > 0 && !userDivisionVariants.includes(existingDivision)) {
                     return res.status(403).json({ error: 'Access denied: Division mismatch' });
                 }
-                if (role === 'APPROVER' && userSubDivisionVariants.length > 0 && !userSubDivisionVariants.includes(existingSubDivision)) {
+                // Allow update when article has no subDivision yet (null/empty) — same as list query logic
+                if (role === 'APPROVER' && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
                     return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
                 }
             }
