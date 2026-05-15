@@ -38,6 +38,7 @@ const PAGE_SIZE = 100;
 interface SrmRow {
   presentation_no: string;
   vendor_code: string;
+  vendor_name?: string | null;
   division: string;
   sub_division: string;
   major_category: string;
@@ -47,6 +48,13 @@ interface SrmRow {
   no_of_colors: number;
   price: number;
   image_url?: string | null;
+}
+
+/** Normalise vendor code to last 6 digits (e.g. "0000200251" → "200251") */
+function normaliseVendorCode(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  return digits.length > 6 ? digits.slice(-6) : digits || null;
 }
 
 interface SrmApiResponse {
@@ -130,14 +138,14 @@ async function fetchAllRows(): Promise<SrmRow[]> {
  * Find an existing SRM record for this presentation_no + design_number pair.
  * Returns the record id and current imageUrl so we can patch the image if needed.
  */
-async function findExisting(presentationNo: string, designNumber: string): Promise<{ id: string; imageUrl: string | null } | null> {
+async function findExisting(presentationNo: string, designNumber: string): Promise<{ id: string; imageUrl: string | null; vendorCode: string | null; vendorName: string | null } | null> {
   return prisma.extractionResultFlat.findFirst({
     where: {
       pptNumber: presentationNo,
       designNumber: designNumber,
       source: 'SRM',
     },
-    select: { id: true, imageUrl: true },
+    select: { id: true, imageUrl: true, vendorCode: true, vendorName: true },
   });
 }
 
@@ -370,7 +378,8 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
       // SRM-provided fields
       pptNumber:      row.presentation_no || null,
       designNumber:   row.design_number   || null,
-      vendorCode:     row.vendor_code     || null,
+      vendorCode:     normaliseVendorCode(row.vendor_code),
+      vendorName:     row.vendor_name     || null,
       division:       row.division        || null,
       subDivision:    row.sub_division    || null,
       majorCategory:  row.major_category  || null,
@@ -406,7 +415,7 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
   void mirror360FlatUpdate(flat.id, {
     source: 'SRM', extractionStatus: 'SRM_IMPORT',
     pptNumber: flat.pptNumber, designNumber: flat.designNumber,
-    vendorCode: flat.vendorCode, division: flat.division,
+    vendorCode: flat.vendorCode, vendorName: flat.vendorName, division: flat.division,
     subDivision: flat.subDivision, majorCategory: flat.majorCategory,
     macroMvgr: flat.macroMvgr, rate: flat.rate,
     year: flat.year, season: flat.season, mcCode: flat.mcCode,
@@ -447,15 +456,23 @@ export async function syncFromSrm(): Promise<SyncResult> {
     try {
       const existing = await findExisting(row.presentation_no, row.design_number);
       if (existing) {
-        // Record exists — patch imageUrl if the API now provides one and we don't have it yet
-        if (row.image_url && !existing.imageUrl) {
-          await prisma.extractionResultFlat.update({
-            where: { id: existing.id },
-            data: { imageUrl: row.image_url },
-          });
-          void mirror360FlatUpdate(existing.id, { imageUrl: row.image_url });
-          toEnrich.push({ id: existing.id, imageUrl: row.image_url, majorCategory: row.major_category || null });
-          console.log(`[SRM Sync] Patched image for: ${row.presentation_no} / ${row.design_number}`);
+        // Record exists — patch any fields the API now provides that we didn't have before
+        const patch: Record<string, any> = {};
+        if (row.image_url && !existing.imageUrl)
+          patch.imageUrl = row.image_url;
+        const normCode = normaliseVendorCode(row.vendor_code);
+        if (normCode && existing.vendorCode !== normCode)
+          patch.vendorCode = normCode;
+        if (row.vendor_name && !existing.vendorName)
+          patch.vendorName = row.vendor_name;
+
+        if (Object.keys(patch).length > 0) {
+          await prisma.extractionResultFlat.update({ where: { id: existing.id }, data: patch });
+          void mirror360FlatUpdate(existing.id, patch);
+          if (patch.imageUrl) {
+            toEnrich.push({ id: existing.id, imageUrl: patch.imageUrl, majorCategory: row.major_category || null });
+          }
+          console.log(`[SRM Sync] Patched fields [${Object.keys(patch).join(', ')}] for: ${row.presentation_no} / ${row.design_number}`);
           result.inserted++;
         } else {
           result.skipped++;
