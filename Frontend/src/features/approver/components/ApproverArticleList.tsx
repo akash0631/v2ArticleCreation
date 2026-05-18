@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message, Modal } from 'antd';
-import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined } from '@ant-design/icons';
+import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
@@ -162,6 +162,7 @@ export interface ApproverArticleListProps {
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
+    onDuplicate: (item: ApproverItem) => Promise<void>;
     attributes: MasterAttribute[];
     onRefresh: () => void;
     pathType?: 'old' | 'new' | 'rejected' | 'created';
@@ -189,6 +190,7 @@ const ArticleCard = React.memo(({
     onCreateFabricArticle,
     onCreateBodyArticle,
     onProceedFGArticle,
+    onDuplicate,
     attributes,
     onRefresh,
     cardGroups,
@@ -201,6 +203,7 @@ const ArticleCard = React.memo(({
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
+    onDuplicate: (item: ApproverItem) => Promise<void>;
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
@@ -209,6 +212,8 @@ const ArticleCard = React.memo(({
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
+    const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
+    const [duplicating, setDuplicating] = useState(false);
 
     // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
     // drop any localValues entries whose value now matches the item prop — they're stale overrides.
@@ -589,11 +594,29 @@ const ArticleCard = React.memo(({
                             {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
                             {item.rate != null && `  ·  ₹${item.rate}`}
                             {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
+                            {item.createdAt && (
+                                <span style={{ marginLeft: 8, color: '#8c8c8c' }}>
+                                    · {new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                            )}
                         </span>
                         {item.pptNumber && (
                             <span style={{ fontSize: 10, color: '#fff', background: '#6366f1', borderRadius: 4, padding: '1px 6px', marginLeft: 6, fontWeight: 600, letterSpacing: '0.3px', flexShrink: 0 }}>
                                 {item.pptNumber}
                             </span>
+                        )}
+                        {/* Duplicate button — only for KIDS division, PENDING status, New Articles page */}
+                        {pathType === 'new' &&
+                            item.approvalStatus === 'PENDING' &&
+                            item.division?.toUpperCase() === 'KIDS' && (
+                            <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => setDupConfirmOpen(true)}
+                                style={{ marginLeft: 8, fontSize: 11, height: 22, padding: '0 8px', flexShrink: 0, background: '#e6f7ff', color: '#0958d9', border: '1px solid #91caff' }}
+                            >
+                                Duplicate
+                            </Button>
                         )}
                     </div>
 
@@ -1133,6 +1156,46 @@ const ArticleCard = React.memo(({
                 style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
             />
         </Modal>
+
+        {/* Duplicate confirmation modal */}
+        <Modal
+            open={dupConfirmOpen}
+            onCancel={() => { if (!duplicating) setDupConfirmOpen(false); }}
+            title="Confirm Duplicate"
+            centered
+            destroyOnHidden
+            footer={[
+                <Button
+                    key="cancel"
+                    onClick={() => setDupConfirmOpen(false)}
+                    disabled={duplicating}
+                >
+                    Cancel
+                </Button>,
+                <Button
+                    key="continue"
+                    type="primary"
+                    loading={duplicating}
+                    onClick={async () => {
+                        setDuplicating(true);
+                        try {
+                            await onDuplicate(item);
+                        } catch (err) {
+                            message.error(err instanceof Error ? err.message : 'Failed to duplicate article');
+                        } finally {
+                            setDuplicating(false);
+                            setDupConfirmOpen(false);
+                        }
+                    }}
+                >
+                    Continue
+                </Button>,
+            ]}
+        >
+            <p style={{ margin: 0 }}>
+                A new copy of this article will be created with all the same values. Do you want to continue?
+            </p>
+        </Modal>
         </>
     );
 });
@@ -1149,6 +1212,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
     onCreateFabricArticle,
     onCreateBodyArticle,
     onProceedFGArticle,
+    onDuplicate,
     attributes,
     onRefresh,
     pathType,
@@ -1179,6 +1243,20 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
         const allOn = ids.every(id => selectedRowKeys.includes(id));
         onSelectionChange(allOn ? [] : ids);
     }, [items, selectedRowKeys, onSelectionChange]);
+
+    const handleDuplicate = useCallback(async (item: ApproverItem): Promise<void> => {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${item.id}/duplicate`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            throw new Error(data?.error || 'Failed to duplicate article');
+        }
+        message.success('Article duplicated successfully');
+        onRefresh();
+    }, [onRefresh]);
 
     if (loading) {
         return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
@@ -1218,6 +1296,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
                     onCreateFabricArticle={onCreateFabricArticle}
                     onCreateBodyArticle={onCreateBodyArticle}
                     onProceedFGArticle={onProceedFGArticle}
+                    onDuplicate={handleDuplicate}
                     attributes={attributes}
                     onRefresh={onRefresh}
                     cardGroups={cardGroups}

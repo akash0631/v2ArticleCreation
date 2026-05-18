@@ -2063,6 +2063,89 @@ export class ApproverController {
         }
     }
 
+    // Duplicate an existing article — creates a new PENDING copy with all fields copied
+    static async duplicateItem(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const source = await prisma.extractionResultFlat.findUnique({ where: { id } });
+            if (!source) return res.status(404).json({ error: 'Article not found' });
+
+            // Fetch original job for metadata
+            const originalJob = await prisma.extractionJob.findUnique({
+                where: { id: source.jobId },
+                select: { categoryId: true, userId: true, aiModel: true },
+            });
+            if (!originalJob) return res.status(404).json({ error: 'Source job not found' });
+
+            // Create a new ExtractionJob for the duplicate
+            const newJob = await prisma.extractionJob.create({
+                data: {
+                    userId: originalJob.userId,
+                    categoryId: originalJob.categoryId,
+                    imageUrl: source.imageUrl || '',
+                    status: 'COMPLETED',
+                    aiModel: originalJob.aiModel,
+                    processingTimeMs: source.processingTimeMs,
+                    tokensUsed: source.totalTokens,
+                    inputTokens: source.inputTokens,
+                    outputTokens: source.outputTokens,
+                    apiCost: source.apiCost,
+                    totalAttributes: source.totalAttributes,
+                    extractedCount: source.extractedCount,
+                    avgConfidence: source.avgConfidence,
+                    completedAt: new Date(),
+                    designNumber: source.articleNumber,
+                },
+            });
+
+            // Strip identity / status fields — copy everything else
+            const {
+                id: _id,
+                jobId: _jobId,
+                createdAt: _createdAt,
+                updatedAt: _updatedAt,
+                imageUncPath: _imageUncPath,
+                approvalStatus: _approvalStatus,
+                approvedBy: _approvedBy,
+                approvedAt: _approvedAt,
+                sapSyncStatus: _sapSyncStatus,
+                sapArticleId: _sapArticleId,
+                sapSyncMessage: _sapSyncMessage,
+                articleNumber: _articleNumber,
+                fabricArticleNumber: _fabricArticleNumber,
+                fabricArticleDescription: _fabricArticleDescription,
+                ...rest
+            } = source;
+
+            const { randomUUID } = await import('crypto');
+            const newId = randomUUID();
+
+            const newRecord = await prisma.extractionResultFlat.create({
+                data: {
+                    ...rest,
+                    id: newId,
+                    jobId: newJob.id,
+                    imageUncPath: null,
+                    approvalStatus: 'PENDING',
+                    approvedBy: null,
+                    approvedAt: null,
+                    sapSyncStatus: 'NOT_SYNCED',
+                    sapArticleId: null,
+                    sapSyncMessage: null,
+                    articleNumber: null,
+                    fabricArticleNumber: null,
+                    fabricArticleDescription: null,
+                },
+            });
+
+            console.log(`[Duplicate] Created duplicate id=${newId} from source id=${id}`);
+            return res.json({ success: true, id: newRecord.id });
+        } catch (err: any) {
+            console.error('[Duplicate] Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
     // Add color variants to an existing generic article
     static async addColor(req: Request, res: Response) {
         try {

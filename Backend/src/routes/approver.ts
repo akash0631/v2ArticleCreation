@@ -40,6 +40,7 @@ router.get('/image/:id', h(ApproverController.getImageUrl));
 // Variant routes
 router.get('/items/:id/variants', h(ApproverController.getVariants));
 router.post('/items/:id/add-color', h(ApproverController.addColor));
+router.post('/items/:id/duplicate', h(ApproverController.duplicateItem));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
 

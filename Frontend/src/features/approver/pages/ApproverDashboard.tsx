@@ -1304,6 +1304,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     onCreateFabricArticle={handleCreateFabricArticle}
                     onCreateBodyArticle={handleCreateBodyArticle}
                     onProceedFGArticle={handleProceedFGArticle}
+                    onDuplicate={() => {/* handled inside ApproverArticleList */}}
                     attributes={attributes}
                     onRefresh={() => fetchItems(currentPage)}
                     pathType={pathType}
