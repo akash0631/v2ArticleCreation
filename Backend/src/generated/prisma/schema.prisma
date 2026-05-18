@@ -395,6 +395,24 @@ model MvgrLookup {
   @@schema("public")
 }
 
+/// Vendor Master: Synced from DAB API (ET_Supplier_Master)
+model MasterVendorDetail {
+  id                Int      @id @default(autoincrement())
+  vendorCode        String   @unique @map("vendor_code") @db.VarChar(20)
+  vendorName        String?  @map("vendor_name") @db.VarChar(200)
+  vendorCity        String?  @map("vendor_city") @db.VarChar(100)
+  vendorRegion      String?  @map("vendor_region") @db.VarChar(50)
+  mergeVendorCode   String?  @map("merge_vendor_code") @db.VarChar(20)
+  mergeVendorName   String?  @map("merge_vendor_name") @db.VarChar(200)
+  mergeVendorCity   String?  @map("merge_vendor_city") @db.VarChar(100)
+  mergeVendorRegion String?  @map("merge_vendor_region") @db.VarChar(50)
+  syncedAt          DateTime @default(now()) @updatedAt @map("synced_at")
+
+  @@index([vendorName])
+  @@map("master_vendor_details")
+  @@schema("public")
+}
+
 /// User: Admin and regular users
 model User {
   id             Int                    @id @default(autoincrement())

@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
+import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
 
 // ═══════════════════════════════════════════════════════
 // VALIDATION SCHEMAS
@@ -1845,3 +1846,48 @@ export const triggerSrmEnrichment = async (req: Request, res: Response): Promise
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// ═══════════════════════════════════════════════════════
+// VENDOR MASTER SYNC (ADMIN)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/vendor-master/status
+ * Returns current record count and last sync timestamp.
+ */
+export const getVendorMasterSyncStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const status = await getVendorMasterStatus();
+    res.json({ success: true, data: status });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/vendor-master/sync
+ * Triggers an immediate full sync from the DAB API.
+ * Runs in the background — responds immediately with 202 Accepted.
+ */
+export const triggerVendorMasterSync = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Acknowledge immediately so the HTTP request doesn't time out mid-sync
+    res.status(202).json({
+      success: true,
+      message: 'Vendor master sync started in background. Check server logs for progress.',
+    });
+
+    // Fire-and-forget
+    syncVendorMaster()
+      .then(r =>
+        console.log(`[Admin] Vendor master sync complete — upserted:${r.upserted} pages:${r.pages} duration:${r.durationMs}ms`)
+      )
+      .catch(err =>
+        console.error('[Admin] Vendor master sync failed:', err?.message)
+      );
+  } catch (error: any) {
+    console.error('Error in triggerVendorMasterSync:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+

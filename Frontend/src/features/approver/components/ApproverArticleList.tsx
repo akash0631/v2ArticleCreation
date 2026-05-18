@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Checkbox, Tag, Select, Input, Spin, Button, Tooltip, message, Modal } from 'antd';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Checkbox, Tag, Select, Input, AutoComplete, Spin, Button, Tooltip, message, Modal } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
@@ -312,6 +312,12 @@ const ArticleCard = React.memo(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effectiveMajCat, cacheReady, catConfigReady, attributeFields]);
     const [editingField, setEditingField] = useState<string | null>(null);
+
+    // Vendor name autocomplete state
+    const [vendorOptions, setVendorOptions] = useState<{ value: string; label: React.ReactNode; vendorCode: string }[]>([]);
+    const [vendorSearching, setVendorSearching] = useState(false);
+    const vendorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Per-attribute manual overrides for Art # (user-editable)
     const [attrArticleNums, setAttrArticleNums] = useState<Record<string, string>>(() => {
         try { return JSON.parse((item as any).attrArticleNums || '{}'); } catch { return {}; }
@@ -465,6 +471,37 @@ const ArticleCard = React.memo(({
             }
         }
         return (item as any)[field] ?? null;
+    };
+
+    const searchVendors = (q: string) => {
+        if (vendorDebounceRef.current) clearTimeout(vendorDebounceRef.current);
+        if (!q || q.trim().length < 2) { setVendorOptions([]); return; }
+        vendorDebounceRef.current = setTimeout(async () => {
+            setVendorSearching(true);
+            try {
+                const token = localStorage.getItem('authToken');
+                const res = await fetch(
+                    `${APP_CONFIG.api.baseURL}/approver/vendor-search?q=${encodeURIComponent(q.trim())}`,
+                    { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+                );
+                const json = await res.json();
+                const opts = (json.data ?? []).map((v: { vendorCode: string; vendorName: string; vendorCity?: string }) => ({
+                    value: v.vendorName,
+                    vendorCode: v.vendorCode,
+                    label: (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <span style={{ fontWeight: 500 }}>{v.vendorName}</span>
+                            <span style={{ color: '#8c8c8c', fontSize: 11 }}>{v.vendorCity ?? ''}</span>
+                        </div>
+                    ),
+                }));
+                setVendorOptions(opts);
+            } catch {
+                setVendorOptions([]);
+            } finally {
+                setVendorSearching(false);
+            }
+        }, 300);
     };
 
     const handleSave = (field: string, value: string | null) => {
@@ -671,6 +708,36 @@ const ArticleCard = React.memo(({
                                                 <Option key={cat} value={cat}>{cat}</Option>
                                             ))}
                                         </Select>
+                                    ) : isEditingThis && field === 'vendorName' ? (
+                                        <AutoComplete
+                                            autoFocus
+                                            defaultOpen
+                                            size="small"
+                                            defaultValue={displayVal || ''}
+                                            options={vendorOptions}
+                                            style={{ width: '100%', fontSize: 12 }}
+                                            notFoundContent={vendorSearching ? <Spin size="small" /> : null}
+                                            onChange={(val) => searchVendors(val)}
+                                            onSelect={(val: string, option: any) => {
+                                                // Save vendor name
+                                                handleSave('vendorName', val || null);
+                                                // Auto-fill vendor code
+                                                if (option.vendorCode) {
+                                                    setLocalValues(prev => ({ ...prev, vendorCode: option.vendorCode }));
+                                                    onSave(
+                                                        { ...item, vendorCode: option.vendorCode } as ApproverItem,
+                                                        { vendorCode: option.vendorCode } as Record<string, unknown>
+                                                    );
+                                                }
+                                                setVendorOptions([]);
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = (e.target as HTMLInputElement).value;
+                                                if (val) handleSave('vendorName', val);
+                                                else setEditingField(null);
+                                                setVendorOptions([]);
+                                            }}
+                                        />
                                     ) : isEditingThis ? (
                                         <Input
                                             autoFocus

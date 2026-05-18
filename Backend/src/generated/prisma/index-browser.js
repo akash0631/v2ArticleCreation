@@ -381,6 +381,19 @@ exports.Prisma.MvgrLookupScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.MasterVendorDetailScalarFieldEnum = {
+  id: 'id',
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  vendorCity: 'vendorCity',
+  vendorRegion: 'vendorRegion',
+  mergeVendorCode: 'mergeVendorCode',
+  mergeVendorName: 'mergeVendorName',
+  mergeVendorCity: 'mergeVendorCity',
+  mergeVendorRegion: 'mergeVendorRegion',
+  syncedAt: 'syncedAt'
+};
+
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
@@ -857,6 +870,17 @@ exports.Prisma.MvgrLookupOrderByRelevanceFieldEnum = {
   fullForm: 'fullForm'
 };
 
+exports.Prisma.MasterVendorDetailOrderByRelevanceFieldEnum = {
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  vendorCity: 'vendorCity',
+  vendorRegion: 'vendorRegion',
+  mergeVendorCode: 'mergeVendorCode',
+  mergeVendorName: 'mergeVendorName',
+  mergeVendorCity: 'mergeVendorCity',
+  mergeVendorRegion: 'mergeVendorRegion'
+};
+
 exports.Prisma.UserOrderByRelevanceFieldEnum = {
   email: 'email',
   password: 'password',
@@ -1123,6 +1147,7 @@ exports.Prisma.ModelName = {
   ExtractionResult: 'ExtractionResult',
   ExtractionResultFlat: 'ExtractionResultFlat',
   MvgrLookup: 'MvgrLookup',
+  MasterVendorDetail: 'MasterVendorDetail',
   User: 'User',
   AuditLog: 'AuditLog',
   ApiKey: 'ApiKey',
