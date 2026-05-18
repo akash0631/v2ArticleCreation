@@ -936,9 +936,11 @@ GOAL: Achieve 90%+ accuracy. Take your time. Be thorough. Be precise.`;
     if (usage) {
       // Use actual token counts from API response
       inputTokens = usage.promptTokenCount || 0;
-      // candidatesTokenCount may be 0 for thinking models (2.5-pro); fall back to totalTokenCount - promptTokenCount
-      outputTokens = usage.candidatesTokenCount
-        || ((usage as any).thoughtsTokenCount ? ((usage as any).thoughtsTokenCount + (usage.candidatesTokenCount || 0)) : 0)
+      // For thinking models (gemini-2.5-pro), thinking tokens are billed as output tokens.
+      // Always include thoughtsTokenCount in the output count so cost is accurate.
+      const thinkingTokens = (usage as any).thoughtsTokenCount || 0;
+      const candidateTokens = usage.candidatesTokenCount || 0;
+      outputTokens = thinkingTokens + candidateTokens
         || Math.max(0, (usage.totalTokenCount || 0) - inputTokens);
       tokensUsed = usage.totalTokenCount || (inputTokens + outputTokens);
     } else {
