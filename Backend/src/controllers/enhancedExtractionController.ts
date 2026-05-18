@@ -437,13 +437,10 @@ export class EnhancedExtractionController {
       }
 
       // ── Kids Division Duplication ────────────────────────────────────────
-      // Fire-and-forget: if the saved record belongs to KIDS division, create
-      // sibling copies for all other MAJ_CATs that share the same NAME in the
-      // kids-division-mapping.xlsx file. Wrapped in a void call so it never
-      // blocks the main response or propagates errors.
-      if (flatId) {
-        void duplicateForKidsDivision(flatId);
-      }
+      // Disabled: only 1 article is created per extraction (no copies).
+      // if (flatId) {
+      //   void duplicateForKidsDivision(flatId);
+      // }
 
       // ── Variant Creation ─────────────────────────────────────────────────
       // Disabled: auto variant creation on extraction is turned off.
