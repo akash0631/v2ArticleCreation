@@ -2304,4 +2304,31 @@ export class ApproverController {
             return res.status(500).json({ error: 'Failed to refresh image URL' });
         }
     }
+
+    /**
+     * GET /api/approver/vendor-search?q=<query>
+     * Returns up to 15 vendor records matching the typed name (case-insensitive).
+     * Requires at least 2 characters to avoid returning the full 8k list.
+     */
+    static async vendorSearch(req: Request, res: Response) {
+        const q = String(req.query.q ?? '').trim();
+        if (q.length < 2) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const results = await prisma.masterVendorDetail.findMany({
+            where: {
+                vendorName: { contains: q, mode: 'insensitive' },
+            },
+            select: {
+                vendorCode: true,
+                vendorName: true,
+                vendorCity: true,
+            },
+            orderBy: { vendorName: 'asc' },
+            take: 15,
+        });
+
+        return res.json({ success: true, data: results });
+    }
 }

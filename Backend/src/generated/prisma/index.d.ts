@@ -64,6 +64,11 @@ export type ExtractionResultFlat = $Result.DefaultSelection<Prisma.$ExtractionRe
  */
 export type MvgrLookup = $Result.DefaultSelection<Prisma.$MvgrLookupPayload>
 /**
+ * Model MasterVendorDetail
+ * Vendor Master: Synced from DAB API (ET_Supplier_Master)
+ */
+export type MasterVendorDetail = $Result.DefaultSelection<Prisma.$MasterVendorDetailPayload>
+/**
  * Model User
  * User: Admin and regular users
  */
@@ -455,6 +460,16 @@ export class PrismaClient<
     * ```
     */
   get mvgrLookup(): Prisma.MvgrLookupDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.masterVendorDetail`: Exposes CRUD operations for the **MasterVendorDetail** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more MasterVendorDetails
+    * const masterVendorDetails = await prisma.masterVendorDetail.findMany()
+    * ```
+    */
+  get masterVendorDetail(): Prisma.MasterVendorDetailDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.user`: Exposes CRUD operations for the **User** model.
@@ -1045,6 +1060,7 @@ export namespace Prisma {
     ExtractionResult: 'ExtractionResult',
     ExtractionResultFlat: 'ExtractionResultFlat',
     MvgrLookup: 'MvgrLookup',
+    MasterVendorDetail: 'MasterVendorDetail',
     User: 'User',
     AuditLog: 'AuditLog',
     ApiKey: 'ApiKey',
@@ -1077,7 +1093,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat"
+      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "masterVendorDetail" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1818,6 +1834,80 @@ export namespace Prisma {
           count: {
             args: Prisma.MvgrLookupCountArgs<ExtArgs>
             result: $Utils.Optional<MvgrLookupCountAggregateOutputType> | number
+          }
+        }
+      }
+      MasterVendorDetail: {
+        payload: Prisma.$MasterVendorDetailPayload<ExtArgs>
+        fields: Prisma.MasterVendorDetailFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.MasterVendorDetailFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.MasterVendorDetailFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          findFirst: {
+            args: Prisma.MasterVendorDetailFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.MasterVendorDetailFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          findMany: {
+            args: Prisma.MasterVendorDetailFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>[]
+          }
+          create: {
+            args: Prisma.MasterVendorDetailCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          createMany: {
+            args: Prisma.MasterVendorDetailCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.MasterVendorDetailCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>[]
+          }
+          delete: {
+            args: Prisma.MasterVendorDetailDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          update: {
+            args: Prisma.MasterVendorDetailUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          deleteMany: {
+            args: Prisma.MasterVendorDetailDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.MasterVendorDetailUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.MasterVendorDetailUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>[]
+          }
+          upsert: {
+            args: Prisma.MasterVendorDetailUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MasterVendorDetailPayload>
+          }
+          aggregate: {
+            args: Prisma.MasterVendorDetailAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateMasterVendorDetail>
+          }
+          groupBy: {
+            args: Prisma.MasterVendorDetailGroupByArgs<ExtArgs>
+            result: $Utils.Optional<MasterVendorDetailGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.MasterVendorDetailCountArgs<ExtArgs>
+            result: $Utils.Optional<MasterVendorDetailCountAggregateOutputType> | number
           }
         }
       }
@@ -2959,6 +3049,7 @@ export namespace Prisma {
     extractionResult?: ExtractionResultOmit
     extractionResultFlat?: ExtractionResultFlatOmit
     mvgrLookup?: MvgrLookupOmit
+    masterVendorDetail?: MasterVendorDetailOmit
     user?: UserOmit
     auditLog?: AuditLogOmit
     apiKey?: ApiKeyOmit
@@ -17072,6 +17163,1100 @@ export namespace Prisma {
      * Omit specific fields from the MvgrLookup
      */
     omit?: MvgrLookupOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model MasterVendorDetail
+   */
+
+  export type AggregateMasterVendorDetail = {
+    _count: MasterVendorDetailCountAggregateOutputType | null
+    _avg: MasterVendorDetailAvgAggregateOutputType | null
+    _sum: MasterVendorDetailSumAggregateOutputType | null
+    _min: MasterVendorDetailMinAggregateOutputType | null
+    _max: MasterVendorDetailMaxAggregateOutputType | null
+  }
+
+  export type MasterVendorDetailAvgAggregateOutputType = {
+    id: number | null
+  }
+
+  export type MasterVendorDetailSumAggregateOutputType = {
+    id: number | null
+  }
+
+  export type MasterVendorDetailMinAggregateOutputType = {
+    id: number | null
+    vendorCode: string | null
+    vendorName: string | null
+    vendorCity: string | null
+    vendorRegion: string | null
+    mergeVendorCode: string | null
+    mergeVendorName: string | null
+    mergeVendorCity: string | null
+    mergeVendorRegion: string | null
+    syncedAt: Date | null
+  }
+
+  export type MasterVendorDetailMaxAggregateOutputType = {
+    id: number | null
+    vendorCode: string | null
+    vendorName: string | null
+    vendorCity: string | null
+    vendorRegion: string | null
+    mergeVendorCode: string | null
+    mergeVendorName: string | null
+    mergeVendorCity: string | null
+    mergeVendorRegion: string | null
+    syncedAt: Date | null
+  }
+
+  export type MasterVendorDetailCountAggregateOutputType = {
+    id: number
+    vendorCode: number
+    vendorName: number
+    vendorCity: number
+    vendorRegion: number
+    mergeVendorCode: number
+    mergeVendorName: number
+    mergeVendorCity: number
+    mergeVendorRegion: number
+    syncedAt: number
+    _all: number
+  }
+
+
+  export type MasterVendorDetailAvgAggregateInputType = {
+    id?: true
+  }
+
+  export type MasterVendorDetailSumAggregateInputType = {
+    id?: true
+  }
+
+  export type MasterVendorDetailMinAggregateInputType = {
+    id?: true
+    vendorCode?: true
+    vendorName?: true
+    vendorCity?: true
+    vendorRegion?: true
+    mergeVendorCode?: true
+    mergeVendorName?: true
+    mergeVendorCity?: true
+    mergeVendorRegion?: true
+    syncedAt?: true
+  }
+
+  export type MasterVendorDetailMaxAggregateInputType = {
+    id?: true
+    vendorCode?: true
+    vendorName?: true
+    vendorCity?: true
+    vendorRegion?: true
+    mergeVendorCode?: true
+    mergeVendorName?: true
+    mergeVendorCity?: true
+    mergeVendorRegion?: true
+    syncedAt?: true
+  }
+
+  export type MasterVendorDetailCountAggregateInputType = {
+    id?: true
+    vendorCode?: true
+    vendorName?: true
+    vendorCity?: true
+    vendorRegion?: true
+    mergeVendorCode?: true
+    mergeVendorName?: true
+    mergeVendorCity?: true
+    mergeVendorRegion?: true
+    syncedAt?: true
+    _all?: true
+  }
+
+  export type MasterVendorDetailAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which MasterVendorDetail to aggregate.
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MasterVendorDetails to fetch.
+     */
+    orderBy?: MasterVendorDetailOrderByWithRelationInput | MasterVendorDetailOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: MasterVendorDetailWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MasterVendorDetails from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MasterVendorDetails.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned MasterVendorDetails
+    **/
+    _count?: true | MasterVendorDetailCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: MasterVendorDetailAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: MasterVendorDetailSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: MasterVendorDetailMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: MasterVendorDetailMaxAggregateInputType
+  }
+
+  export type GetMasterVendorDetailAggregateType<T extends MasterVendorDetailAggregateArgs> = {
+        [P in keyof T & keyof AggregateMasterVendorDetail]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateMasterVendorDetail[P]>
+      : GetScalarType<T[P], AggregateMasterVendorDetail[P]>
+  }
+
+
+
+
+  export type MasterVendorDetailGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: MasterVendorDetailWhereInput
+    orderBy?: MasterVendorDetailOrderByWithAggregationInput | MasterVendorDetailOrderByWithAggregationInput[]
+    by: MasterVendorDetailScalarFieldEnum[] | MasterVendorDetailScalarFieldEnum
+    having?: MasterVendorDetailScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: MasterVendorDetailCountAggregateInputType | true
+    _avg?: MasterVendorDetailAvgAggregateInputType
+    _sum?: MasterVendorDetailSumAggregateInputType
+    _min?: MasterVendorDetailMinAggregateInputType
+    _max?: MasterVendorDetailMaxAggregateInputType
+  }
+
+  export type MasterVendorDetailGroupByOutputType = {
+    id: number
+    vendorCode: string
+    vendorName: string | null
+    vendorCity: string | null
+    vendorRegion: string | null
+    mergeVendorCode: string | null
+    mergeVendorName: string | null
+    mergeVendorCity: string | null
+    mergeVendorRegion: string | null
+    syncedAt: Date
+    _count: MasterVendorDetailCountAggregateOutputType | null
+    _avg: MasterVendorDetailAvgAggregateOutputType | null
+    _sum: MasterVendorDetailSumAggregateOutputType | null
+    _min: MasterVendorDetailMinAggregateOutputType | null
+    _max: MasterVendorDetailMaxAggregateOutputType | null
+  }
+
+  type GetMasterVendorDetailGroupByPayload<T extends MasterVendorDetailGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<MasterVendorDetailGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof MasterVendorDetailGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], MasterVendorDetailGroupByOutputType[P]>
+            : GetScalarType<T[P], MasterVendorDetailGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type MasterVendorDetailSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    vendorCity?: boolean
+    vendorRegion?: boolean
+    mergeVendorCode?: boolean
+    mergeVendorName?: boolean
+    mergeVendorCity?: boolean
+    mergeVendorRegion?: boolean
+    syncedAt?: boolean
+  }, ExtArgs["result"]["masterVendorDetail"]>
+
+  export type MasterVendorDetailSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    vendorCity?: boolean
+    vendorRegion?: boolean
+    mergeVendorCode?: boolean
+    mergeVendorName?: boolean
+    mergeVendorCity?: boolean
+    mergeVendorRegion?: boolean
+    syncedAt?: boolean
+  }, ExtArgs["result"]["masterVendorDetail"]>
+
+  export type MasterVendorDetailSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    vendorCity?: boolean
+    vendorRegion?: boolean
+    mergeVendorCode?: boolean
+    mergeVendorName?: boolean
+    mergeVendorCity?: boolean
+    mergeVendorRegion?: boolean
+    syncedAt?: boolean
+  }, ExtArgs["result"]["masterVendorDetail"]>
+
+  export type MasterVendorDetailSelectScalar = {
+    id?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    vendorCity?: boolean
+    vendorRegion?: boolean
+    mergeVendorCode?: boolean
+    mergeVendorName?: boolean
+    mergeVendorCity?: boolean
+    mergeVendorRegion?: boolean
+    syncedAt?: boolean
+  }
+
+  export type MasterVendorDetailOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "vendorCode" | "vendorName" | "vendorCity" | "vendorRegion" | "mergeVendorCode" | "mergeVendorName" | "mergeVendorCity" | "mergeVendorRegion" | "syncedAt", ExtArgs["result"]["masterVendorDetail"]>
+
+  export type $MasterVendorDetailPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "MasterVendorDetail"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      vendorCode: string
+      vendorName: string | null
+      vendorCity: string | null
+      vendorRegion: string | null
+      mergeVendorCode: string | null
+      mergeVendorName: string | null
+      mergeVendorCity: string | null
+      mergeVendorRegion: string | null
+      syncedAt: Date
+    }, ExtArgs["result"]["masterVendorDetail"]>
+    composites: {}
+  }
+
+  type MasterVendorDetailGetPayload<S extends boolean | null | undefined | MasterVendorDetailDefaultArgs> = $Result.GetResult<Prisma.$MasterVendorDetailPayload, S>
+
+  type MasterVendorDetailCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<MasterVendorDetailFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: MasterVendorDetailCountAggregateInputType | true
+    }
+
+  export interface MasterVendorDetailDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['MasterVendorDetail'], meta: { name: 'MasterVendorDetail' } }
+    /**
+     * Find zero or one MasterVendorDetail that matches the filter.
+     * @param {MasterVendorDetailFindUniqueArgs} args - Arguments to find a MasterVendorDetail
+     * @example
+     * // Get one MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends MasterVendorDetailFindUniqueArgs>(args: SelectSubset<T, MasterVendorDetailFindUniqueArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one MasterVendorDetail that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {MasterVendorDetailFindUniqueOrThrowArgs} args - Arguments to find a MasterVendorDetail
+     * @example
+     * // Get one MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends MasterVendorDetailFindUniqueOrThrowArgs>(args: SelectSubset<T, MasterVendorDetailFindUniqueOrThrowArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first MasterVendorDetail that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailFindFirstArgs} args - Arguments to find a MasterVendorDetail
+     * @example
+     * // Get one MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends MasterVendorDetailFindFirstArgs>(args?: SelectSubset<T, MasterVendorDetailFindFirstArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first MasterVendorDetail that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailFindFirstOrThrowArgs} args - Arguments to find a MasterVendorDetail
+     * @example
+     * // Get one MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends MasterVendorDetailFindFirstOrThrowArgs>(args?: SelectSubset<T, MasterVendorDetailFindFirstOrThrowArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more MasterVendorDetails that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all MasterVendorDetails
+     * const masterVendorDetails = await prisma.masterVendorDetail.findMany()
+     * 
+     * // Get first 10 MasterVendorDetails
+     * const masterVendorDetails = await prisma.masterVendorDetail.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const masterVendorDetailWithIdOnly = await prisma.masterVendorDetail.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends MasterVendorDetailFindManyArgs>(args?: SelectSubset<T, MasterVendorDetailFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a MasterVendorDetail.
+     * @param {MasterVendorDetailCreateArgs} args - Arguments to create a MasterVendorDetail.
+     * @example
+     * // Create one MasterVendorDetail
+     * const MasterVendorDetail = await prisma.masterVendorDetail.create({
+     *   data: {
+     *     // ... data to create a MasterVendorDetail
+     *   }
+     * })
+     * 
+     */
+    create<T extends MasterVendorDetailCreateArgs>(args: SelectSubset<T, MasterVendorDetailCreateArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many MasterVendorDetails.
+     * @param {MasterVendorDetailCreateManyArgs} args - Arguments to create many MasterVendorDetails.
+     * @example
+     * // Create many MasterVendorDetails
+     * const masterVendorDetail = await prisma.masterVendorDetail.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends MasterVendorDetailCreateManyArgs>(args?: SelectSubset<T, MasterVendorDetailCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many MasterVendorDetails and returns the data saved in the database.
+     * @param {MasterVendorDetailCreateManyAndReturnArgs} args - Arguments to create many MasterVendorDetails.
+     * @example
+     * // Create many MasterVendorDetails
+     * const masterVendorDetail = await prisma.masterVendorDetail.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many MasterVendorDetails and only return the `id`
+     * const masterVendorDetailWithIdOnly = await prisma.masterVendorDetail.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends MasterVendorDetailCreateManyAndReturnArgs>(args?: SelectSubset<T, MasterVendorDetailCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a MasterVendorDetail.
+     * @param {MasterVendorDetailDeleteArgs} args - Arguments to delete one MasterVendorDetail.
+     * @example
+     * // Delete one MasterVendorDetail
+     * const MasterVendorDetail = await prisma.masterVendorDetail.delete({
+     *   where: {
+     *     // ... filter to delete one MasterVendorDetail
+     *   }
+     * })
+     * 
+     */
+    delete<T extends MasterVendorDetailDeleteArgs>(args: SelectSubset<T, MasterVendorDetailDeleteArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one MasterVendorDetail.
+     * @param {MasterVendorDetailUpdateArgs} args - Arguments to update one MasterVendorDetail.
+     * @example
+     * // Update one MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends MasterVendorDetailUpdateArgs>(args: SelectSubset<T, MasterVendorDetailUpdateArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more MasterVendorDetails.
+     * @param {MasterVendorDetailDeleteManyArgs} args - Arguments to filter MasterVendorDetails to delete.
+     * @example
+     * // Delete a few MasterVendorDetails
+     * const { count } = await prisma.masterVendorDetail.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends MasterVendorDetailDeleteManyArgs>(args?: SelectSubset<T, MasterVendorDetailDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more MasterVendorDetails.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many MasterVendorDetails
+     * const masterVendorDetail = await prisma.masterVendorDetail.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends MasterVendorDetailUpdateManyArgs>(args: SelectSubset<T, MasterVendorDetailUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more MasterVendorDetails and returns the data updated in the database.
+     * @param {MasterVendorDetailUpdateManyAndReturnArgs} args - Arguments to update many MasterVendorDetails.
+     * @example
+     * // Update many MasterVendorDetails
+     * const masterVendorDetail = await prisma.masterVendorDetail.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more MasterVendorDetails and only return the `id`
+     * const masterVendorDetailWithIdOnly = await prisma.masterVendorDetail.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends MasterVendorDetailUpdateManyAndReturnArgs>(args: SelectSubset<T, MasterVendorDetailUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one MasterVendorDetail.
+     * @param {MasterVendorDetailUpsertArgs} args - Arguments to update or create a MasterVendorDetail.
+     * @example
+     * // Update or create a MasterVendorDetail
+     * const masterVendorDetail = await prisma.masterVendorDetail.upsert({
+     *   create: {
+     *     // ... data to create a MasterVendorDetail
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the MasterVendorDetail we want to update
+     *   }
+     * })
+     */
+    upsert<T extends MasterVendorDetailUpsertArgs>(args: SelectSubset<T, MasterVendorDetailUpsertArgs<ExtArgs>>): Prisma__MasterVendorDetailClient<$Result.GetResult<Prisma.$MasterVendorDetailPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of MasterVendorDetails.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailCountArgs} args - Arguments to filter MasterVendorDetails to count.
+     * @example
+     * // Count the number of MasterVendorDetails
+     * const count = await prisma.masterVendorDetail.count({
+     *   where: {
+     *     // ... the filter for the MasterVendorDetails we want to count
+     *   }
+     * })
+    **/
+    count<T extends MasterVendorDetailCountArgs>(
+      args?: Subset<T, MasterVendorDetailCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], MasterVendorDetailCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a MasterVendorDetail.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends MasterVendorDetailAggregateArgs>(args: Subset<T, MasterVendorDetailAggregateArgs>): Prisma.PrismaPromise<GetMasterVendorDetailAggregateType<T>>
+
+    /**
+     * Group by MasterVendorDetail.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MasterVendorDetailGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends MasterVendorDetailGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: MasterVendorDetailGroupByArgs['orderBy'] }
+        : { orderBy?: MasterVendorDetailGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, MasterVendorDetailGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetMasterVendorDetailGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the MasterVendorDetail model
+   */
+  readonly fields: MasterVendorDetailFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for MasterVendorDetail.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__MasterVendorDetailClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the MasterVendorDetail model
+   */
+  interface MasterVendorDetailFieldRefs {
+    readonly id: FieldRef<"MasterVendorDetail", 'Int'>
+    readonly vendorCode: FieldRef<"MasterVendorDetail", 'String'>
+    readonly vendorName: FieldRef<"MasterVendorDetail", 'String'>
+    readonly vendorCity: FieldRef<"MasterVendorDetail", 'String'>
+    readonly vendorRegion: FieldRef<"MasterVendorDetail", 'String'>
+    readonly mergeVendorCode: FieldRef<"MasterVendorDetail", 'String'>
+    readonly mergeVendorName: FieldRef<"MasterVendorDetail", 'String'>
+    readonly mergeVendorCity: FieldRef<"MasterVendorDetail", 'String'>
+    readonly mergeVendorRegion: FieldRef<"MasterVendorDetail", 'String'>
+    readonly syncedAt: FieldRef<"MasterVendorDetail", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * MasterVendorDetail findUnique
+   */
+  export type MasterVendorDetailFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter, which MasterVendorDetail to fetch.
+     */
+    where: MasterVendorDetailWhereUniqueInput
+  }
+
+  /**
+   * MasterVendorDetail findUniqueOrThrow
+   */
+  export type MasterVendorDetailFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter, which MasterVendorDetail to fetch.
+     */
+    where: MasterVendorDetailWhereUniqueInput
+  }
+
+  /**
+   * MasterVendorDetail findFirst
+   */
+  export type MasterVendorDetailFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter, which MasterVendorDetail to fetch.
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MasterVendorDetails to fetch.
+     */
+    orderBy?: MasterVendorDetailOrderByWithRelationInput | MasterVendorDetailOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for MasterVendorDetails.
+     */
+    cursor?: MasterVendorDetailWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MasterVendorDetails from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MasterVendorDetails.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of MasterVendorDetails.
+     */
+    distinct?: MasterVendorDetailScalarFieldEnum | MasterVendorDetailScalarFieldEnum[]
+  }
+
+  /**
+   * MasterVendorDetail findFirstOrThrow
+   */
+  export type MasterVendorDetailFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter, which MasterVendorDetail to fetch.
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MasterVendorDetails to fetch.
+     */
+    orderBy?: MasterVendorDetailOrderByWithRelationInput | MasterVendorDetailOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for MasterVendorDetails.
+     */
+    cursor?: MasterVendorDetailWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MasterVendorDetails from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MasterVendorDetails.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of MasterVendorDetails.
+     */
+    distinct?: MasterVendorDetailScalarFieldEnum | MasterVendorDetailScalarFieldEnum[]
+  }
+
+  /**
+   * MasterVendorDetail findMany
+   */
+  export type MasterVendorDetailFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter, which MasterVendorDetails to fetch.
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MasterVendorDetails to fetch.
+     */
+    orderBy?: MasterVendorDetailOrderByWithRelationInput | MasterVendorDetailOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing MasterVendorDetails.
+     */
+    cursor?: MasterVendorDetailWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MasterVendorDetails from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MasterVendorDetails.
+     */
+    skip?: number
+    distinct?: MasterVendorDetailScalarFieldEnum | MasterVendorDetailScalarFieldEnum[]
+  }
+
+  /**
+   * MasterVendorDetail create
+   */
+  export type MasterVendorDetailCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * The data needed to create a MasterVendorDetail.
+     */
+    data: XOR<MasterVendorDetailCreateInput, MasterVendorDetailUncheckedCreateInput>
+  }
+
+  /**
+   * MasterVendorDetail createMany
+   */
+  export type MasterVendorDetailCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many MasterVendorDetails.
+     */
+    data: MasterVendorDetailCreateManyInput | MasterVendorDetailCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * MasterVendorDetail createManyAndReturn
+   */
+  export type MasterVendorDetailCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * The data used to create many MasterVendorDetails.
+     */
+    data: MasterVendorDetailCreateManyInput | MasterVendorDetailCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * MasterVendorDetail update
+   */
+  export type MasterVendorDetailUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * The data needed to update a MasterVendorDetail.
+     */
+    data: XOR<MasterVendorDetailUpdateInput, MasterVendorDetailUncheckedUpdateInput>
+    /**
+     * Choose, which MasterVendorDetail to update.
+     */
+    where: MasterVendorDetailWhereUniqueInput
+  }
+
+  /**
+   * MasterVendorDetail updateMany
+   */
+  export type MasterVendorDetailUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update MasterVendorDetails.
+     */
+    data: XOR<MasterVendorDetailUpdateManyMutationInput, MasterVendorDetailUncheckedUpdateManyInput>
+    /**
+     * Filter which MasterVendorDetails to update
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * Limit how many MasterVendorDetails to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * MasterVendorDetail updateManyAndReturn
+   */
+  export type MasterVendorDetailUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * The data used to update MasterVendorDetails.
+     */
+    data: XOR<MasterVendorDetailUpdateManyMutationInput, MasterVendorDetailUncheckedUpdateManyInput>
+    /**
+     * Filter which MasterVendorDetails to update
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * Limit how many MasterVendorDetails to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * MasterVendorDetail upsert
+   */
+  export type MasterVendorDetailUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * The filter to search for the MasterVendorDetail to update in case it exists.
+     */
+    where: MasterVendorDetailWhereUniqueInput
+    /**
+     * In case the MasterVendorDetail found by the `where` argument doesn't exist, create a new MasterVendorDetail with this data.
+     */
+    create: XOR<MasterVendorDetailCreateInput, MasterVendorDetailUncheckedCreateInput>
+    /**
+     * In case the MasterVendorDetail was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<MasterVendorDetailUpdateInput, MasterVendorDetailUncheckedUpdateInput>
+  }
+
+  /**
+   * MasterVendorDetail delete
+   */
+  export type MasterVendorDetailDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
+    /**
+     * Filter which MasterVendorDetail to delete.
+     */
+    where: MasterVendorDetailWhereUniqueInput
+  }
+
+  /**
+   * MasterVendorDetail deleteMany
+   */
+  export type MasterVendorDetailDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which MasterVendorDetails to delete
+     */
+    where?: MasterVendorDetailWhereInput
+    /**
+     * Limit how many MasterVendorDetails to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * MasterVendorDetail without action
+   */
+  export type MasterVendorDetailDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MasterVendorDetail
+     */
+    select?: MasterVendorDetailSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MasterVendorDetail
+     */
+    omit?: MasterVendorDetailOmit<ExtArgs> | null
   }
 
 
@@ -34782,6 +35967,22 @@ export namespace Prisma {
   export type MvgrLookupScalarFieldEnum = (typeof MvgrLookupScalarFieldEnum)[keyof typeof MvgrLookupScalarFieldEnum]
 
 
+  export const MasterVendorDetailScalarFieldEnum: {
+    id: 'id',
+    vendorCode: 'vendorCode',
+    vendorName: 'vendorName',
+    vendorCity: 'vendorCity',
+    vendorRegion: 'vendorRegion',
+    mergeVendorCode: 'mergeVendorCode',
+    mergeVendorName: 'mergeVendorName',
+    mergeVendorCity: 'mergeVendorCity',
+    mergeVendorRegion: 'mergeVendorRegion',
+    syncedAt: 'syncedAt'
+  };
+
+  export type MasterVendorDetailScalarFieldEnum = (typeof MasterVendorDetailScalarFieldEnum)[keyof typeof MasterVendorDetailScalarFieldEnum]
+
+
   export const UserScalarFieldEnum: {
     id: 'id',
     email: 'email',
@@ -35346,6 +36547,20 @@ export namespace Prisma {
   };
 
   export type MvgrLookupOrderByRelevanceFieldEnum = (typeof MvgrLookupOrderByRelevanceFieldEnum)[keyof typeof MvgrLookupOrderByRelevanceFieldEnum]
+
+
+  export const MasterVendorDetailOrderByRelevanceFieldEnum: {
+    vendorCode: 'vendorCode',
+    vendorName: 'vendorName',
+    vendorCity: 'vendorCity',
+    vendorRegion: 'vendorRegion',
+    mergeVendorCode: 'mergeVendorCode',
+    mergeVendorName: 'mergeVendorName',
+    mergeVendorCity: 'mergeVendorCity',
+    mergeVendorRegion: 'mergeVendorRegion'
+  };
+
+  export type MasterVendorDetailOrderByRelevanceFieldEnum = (typeof MasterVendorDetailOrderByRelevanceFieldEnum)[keyof typeof MasterVendorDetailOrderByRelevanceFieldEnum]
 
 
   export const UserOrderByRelevanceFieldEnum: {
@@ -37319,6 +38534,86 @@ export namespace Prisma {
     code?: StringWithAggregatesFilter<"MvgrLookup"> | string
     fullForm?: StringWithAggregatesFilter<"MvgrLookup"> | string
     createdAt?: DateTimeWithAggregatesFilter<"MvgrLookup"> | Date | string
+  }
+
+  export type MasterVendorDetailWhereInput = {
+    AND?: MasterVendorDetailWhereInput | MasterVendorDetailWhereInput[]
+    OR?: MasterVendorDetailWhereInput[]
+    NOT?: MasterVendorDetailWhereInput | MasterVendorDetailWhereInput[]
+    id?: IntFilter<"MasterVendorDetail"> | number
+    vendorCode?: StringFilter<"MasterVendorDetail"> | string
+    vendorName?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    vendorCity?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    vendorRegion?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCode?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorName?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCity?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorRegion?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    syncedAt?: DateTimeFilter<"MasterVendorDetail"> | Date | string
+  }
+
+  export type MasterVendorDetailOrderByWithRelationInput = {
+    id?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrderInput | SortOrder
+    vendorCity?: SortOrderInput | SortOrder
+    vendorRegion?: SortOrderInput | SortOrder
+    mergeVendorCode?: SortOrderInput | SortOrder
+    mergeVendorName?: SortOrderInput | SortOrder
+    mergeVendorCity?: SortOrderInput | SortOrder
+    mergeVendorRegion?: SortOrderInput | SortOrder
+    syncedAt?: SortOrder
+    _relevance?: MasterVendorDetailOrderByRelevanceInput
+  }
+
+  export type MasterVendorDetailWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    vendorCode?: string
+    AND?: MasterVendorDetailWhereInput | MasterVendorDetailWhereInput[]
+    OR?: MasterVendorDetailWhereInput[]
+    NOT?: MasterVendorDetailWhereInput | MasterVendorDetailWhereInput[]
+    vendorName?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    vendorCity?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    vendorRegion?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCode?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorName?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCity?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    mergeVendorRegion?: StringNullableFilter<"MasterVendorDetail"> | string | null
+    syncedAt?: DateTimeFilter<"MasterVendorDetail"> | Date | string
+  }, "id" | "vendorCode">
+
+  export type MasterVendorDetailOrderByWithAggregationInput = {
+    id?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrderInput | SortOrder
+    vendorCity?: SortOrderInput | SortOrder
+    vendorRegion?: SortOrderInput | SortOrder
+    mergeVendorCode?: SortOrderInput | SortOrder
+    mergeVendorName?: SortOrderInput | SortOrder
+    mergeVendorCity?: SortOrderInput | SortOrder
+    mergeVendorRegion?: SortOrderInput | SortOrder
+    syncedAt?: SortOrder
+    _count?: MasterVendorDetailCountOrderByAggregateInput
+    _avg?: MasterVendorDetailAvgOrderByAggregateInput
+    _max?: MasterVendorDetailMaxOrderByAggregateInput
+    _min?: MasterVendorDetailMinOrderByAggregateInput
+    _sum?: MasterVendorDetailSumOrderByAggregateInput
+  }
+
+  export type MasterVendorDetailScalarWhereWithAggregatesInput = {
+    AND?: MasterVendorDetailScalarWhereWithAggregatesInput | MasterVendorDetailScalarWhereWithAggregatesInput[]
+    OR?: MasterVendorDetailScalarWhereWithAggregatesInput[]
+    NOT?: MasterVendorDetailScalarWhereWithAggregatesInput | MasterVendorDetailScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"MasterVendorDetail"> | number
+    vendorCode?: StringWithAggregatesFilter<"MasterVendorDetail"> | string
+    vendorName?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    vendorCity?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    vendorRegion?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCode?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    mergeVendorName?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    mergeVendorCity?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    mergeVendorRegion?: StringNullableWithAggregatesFilter<"MasterVendorDetail"> | string | null
+    syncedAt?: DateTimeWithAggregatesFilter<"MasterVendorDetail"> | Date | string
   }
 
   export type UserWhereInput = {
@@ -40794,6 +42089,94 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type MasterVendorDetailCreateInput = {
+    vendorCode: string
+    vendorName?: string | null
+    vendorCity?: string | null
+    vendorRegion?: string | null
+    mergeVendorCode?: string | null
+    mergeVendorName?: string | null
+    mergeVendorCity?: string | null
+    mergeVendorRegion?: string | null
+    syncedAt?: Date | string
+  }
+
+  export type MasterVendorDetailUncheckedCreateInput = {
+    id?: number
+    vendorCode: string
+    vendorName?: string | null
+    vendorCity?: string | null
+    vendorRegion?: string | null
+    mergeVendorCode?: string | null
+    mergeVendorName?: string | null
+    mergeVendorCity?: string | null
+    mergeVendorRegion?: string | null
+    syncedAt?: Date | string
+  }
+
+  export type MasterVendorDetailUpdateInput = {
+    vendorCode?: StringFieldUpdateOperationsInput | string
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    syncedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MasterVendorDetailUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    vendorCode?: StringFieldUpdateOperationsInput | string
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    syncedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MasterVendorDetailCreateManyInput = {
+    id?: number
+    vendorCode: string
+    vendorName?: string | null
+    vendorCity?: string | null
+    vendorRegion?: string | null
+    mergeVendorCode?: string | null
+    mergeVendorName?: string | null
+    mergeVendorCity?: string | null
+    mergeVendorRegion?: string | null
+    syncedAt?: Date | string
+  }
+
+  export type MasterVendorDetailUpdateManyMutationInput = {
+    vendorCode?: StringFieldUpdateOperationsInput | string
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    syncedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MasterVendorDetailUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    vendorCode?: StringFieldUpdateOperationsInput | string
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorCity?: NullableStringFieldUpdateOperationsInput | string | null
+    mergeVendorRegion?: NullableStringFieldUpdateOperationsInput | string | null
+    syncedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UserCreateInput = {
     email: string
     password: string
@@ -44240,6 +45623,59 @@ export namespace Prisma {
   }
 
   export type MvgrLookupSumOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type MasterVendorDetailOrderByRelevanceInput = {
+    fields: MasterVendorDetailOrderByRelevanceFieldEnum | MasterVendorDetailOrderByRelevanceFieldEnum[]
+    sort: SortOrder
+    search: string
+  }
+
+  export type MasterVendorDetailCountOrderByAggregateInput = {
+    id?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    vendorCity?: SortOrder
+    vendorRegion?: SortOrder
+    mergeVendorCode?: SortOrder
+    mergeVendorName?: SortOrder
+    mergeVendorCity?: SortOrder
+    mergeVendorRegion?: SortOrder
+    syncedAt?: SortOrder
+  }
+
+  export type MasterVendorDetailAvgOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type MasterVendorDetailMaxOrderByAggregateInput = {
+    id?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    vendorCity?: SortOrder
+    vendorRegion?: SortOrder
+    mergeVendorCode?: SortOrder
+    mergeVendorName?: SortOrder
+    mergeVendorCity?: SortOrder
+    mergeVendorRegion?: SortOrder
+    syncedAt?: SortOrder
+  }
+
+  export type MasterVendorDetailMinOrderByAggregateInput = {
+    id?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    vendorCity?: SortOrder
+    vendorRegion?: SortOrder
+    mergeVendorCode?: SortOrder
+    mergeVendorName?: SortOrder
+    mergeVendorCity?: SortOrder
+    mergeVendorRegion?: SortOrder
+    syncedAt?: SortOrder
+  }
+
+  export type MasterVendorDetailSumOrderByAggregateInput = {
     id?: SortOrder
   }
 

@@ -44,6 +44,9 @@ router.post('/items/:id/duplicate', h(ApproverController.duplicateItem));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
 
+// Vendor name search — returns up to 15 matching vendors from master_vendor_details
+router.get('/vendor-search', h(ApproverController.vendorSearch));
+
 // Sizes for a given major category (from ACTIVE SIZE.xlsx)
 router.get('/sizes-for-majcat/:majCat', h(ApproverController.getSizesForMajCat));
 

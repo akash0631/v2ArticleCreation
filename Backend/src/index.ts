@@ -36,6 +36,7 @@ import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
 import { syncFromSrm } from './services/srmSyncService';
+import { syncVendorMaster } from './services/vendorMasterSyncService';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -364,6 +365,24 @@ app.use(errorHandler);
           syncFromSrm()
             .then(r => console.log(`[SRM Cron] Sync complete — inserted:${r.inserted} skipped:${r.skipped} errors:${r.errors}`))
             .catch(err => console.error('[SRM Cron] Sync failed:', err?.message));
+        }
+      }
+    }, 60_000);
+
+    // Vendor Master Sync Scheduler — fires once daily at 2:00 AM IST (UTC+5:30).
+    let lastVendorSyncKey = '';
+    setInterval(() => {
+      const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+      const h = istNow.getUTCHours();
+      const m = istNow.getUTCMinutes();
+      if (m === 0 && h === 2) {
+        const key = istNow.toISOString().slice(0, 10); // one run per calendar day
+        if (key !== lastVendorSyncKey) {
+          lastVendorSyncKey = key;
+          console.log('[VendorMaster Cron] Starting scheduled sync at IST 02:00');
+          syncVendorMaster()
+            .then(r => console.log(`[VendorMaster Cron] Sync complete — upserted:${r.upserted} pages:${r.pages} duration:${r.durationMs}ms`))
+            .catch(err => console.error('[VendorMaster Cron] Sync failed:', err?.message));
         }
       }
     }, 60_000);

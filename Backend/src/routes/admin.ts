@@ -109,4 +109,10 @@ router.get('/srm/status', h(adminController.getSrmSyncStatus));
 router.post('/srm/sync', h(adminController.triggerSrmSync));
 router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
 
+// ═══════════════════════════════════════════════════════
+// VENDOR MASTER SYNC (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/vendor-master/status', h(adminController.getVendorMasterSyncStatus));
+router.post('/vendor-master/sync', h(adminController.triggerVendorMasterSync));
+
 export default router;
