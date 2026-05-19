@@ -8,6 +8,8 @@ import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
+import path from 'path';
+import fs from 'fs';
 
 // ═══════════════════════════════════════════════════════
 // VALIDATION SCHEMAS
@@ -1887,6 +1889,299 @@ export const triggerVendorMasterSync = async (req: Request, res: Response): Prom
       );
   } catch (error: any) {
     console.error('Error in triggerVendorMasterSync:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// MAJ-CAT GRID — Excel Upload, Serve & Template
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/majcat-grid/template
+ * Streams a ready-to-fill Excel template with headers + sample rows.
+ */
+export const downloadMajCatGridTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Article Creation System';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('MAJ_CAT_GRID');
+
+    // Row 1 — Title
+    ws.mergeCells('A1:J1');
+    const title = ws.getCell('A1');
+    title.value = '300 MAJOR CATEGORY WISE ACTIVE GRID MASTER';
+    title.font = { bold: true, size: 13, color: { argb: 'FF1D3557' } };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+    title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
+    ws.getRow(1).height = 28;
+
+    // Row 2 — blank
+    ws.addRow([]);
+
+    // Row 3 — Headers
+    const HEADERS = [
+      'FG_MAJ_CAT', 'F.GRD SR NO', 'FATHER COMP DIV', 'CHILD GRID SR NO',
+      'FATHER COMP MAJ_CAT', 'MVGR GRID SR NO', 'MAIN MVGR',
+      'FULL FORM', 'GRID STATUS', 'RECEIVED/AUTO',
+    ];
+    const REQUIRED_COLS = [0, 4, 6]; // A, E, G — used by the uploader
+
+    const headerRow = ws.addRow(HEADERS);
+    headerRow.eachCell((cell, colNum) => {
+      const isRequired = REQUIRED_COLS.includes(colNum - 1);
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: isRequired ? 'FF1D6F42' : 'FF2F5496' },
+      };
+      cell.border = {
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' },
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    });
+    ws.getRow(3).height = 32;
+
+    // Row 4 — blank (data starts at row 5 to match original format)
+    ws.addRow([]);
+
+    // Sample rows
+    const SAMPLES = [
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'WEAVE-01',        '1.05.54',  'B_EYE',     'BIRD EYE',        'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'WEAVE-01',        '1.05.150', 'CNVS',      'CANVAS',          'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'M_YARN',          '1.01.10',  'COTTON',    'COTTON',          'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'M_YARN',          '1.01.20',  'POLYESTER', 'POLYESTER',       'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.01',  'K',         'KNIT',            'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.02',  'W',         'WOVEN',           'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.03',  'DNM',       'DENIM',           'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'WEAVE-01',        '3.01.01',  'SJ',        'SINGLE JERSEY',   'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'WEAVE-01',        '3.01.02',  'PIQ',       'PIQUE',           'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'FAB_MAIN_MVGR-1', '3.02.01',  'SLD',       'SOLID',           'ACT', 'AUTO'],
+    ];
+
+    SAMPLES.forEach((row, i) => {
+      const r = ws.addRow(row);
+      r.eachCell((cell, colNum) => {
+        const isRequired = REQUIRED_COLS.includes(colNum - 1);
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' },
+        };
+        cell.fill = {
+          type: 'pattern', pattern: 'solid',
+          fgColor: { argb: i % 2 === 0 ? 'FFF2F7FF' : 'FFFFFFFF' },
+        };
+        if (isRequired) cell.font = { bold: true };
+      });
+    });
+
+    // Column widths
+    [18, 12, 16, 16, 22, 16, 14, 22, 14, 16].forEach((w, i) => {
+      ws.getColumn(i + 1).width = w;
+    });
+
+    // Note row
+    ws.addRow([]);
+    const noteRowNum = ws.rowCount + 1;
+    ws.addRow([
+      '⚠ NOTE: Data must start from Row 5. ' +
+      'Columns A (FG_MAJ_CAT ✱), E (FATHER COMP MAJ_CAT ✱), G (MAIN MVGR ✱) are REQUIRED. ' +
+      'Green headers = required by uploader. Blue headers = optional (can be left blank).',
+    ]);
+    ws.mergeCells(`A${noteRowNum}:J${noteRowNum}`);
+    const noteCell = ws.getCell(`A${noteRowNum}`);
+    noteCell.font = { italic: true, size: 10, color: { argb: 'FF595959' } };
+    noteCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+    noteCell.alignment = { wrapText: true };
+    ws.getRow(noteRowNum).height = 36;
+
+    // Stream to response
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MAJ_CAT_GRID_TEMPLATE.xlsx"');
+
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[MajCatGrid] Template generation error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Meta file only stores upload info (filename, date) — actual values live in Supabase
+const MAJ_CAT_META_FILE = path.join(process.cwd(), 'data', 'majCatGridMeta.json');
+
+/**
+ * GET /api/admin/majcat-grid/status
+ * Returns metadata about the last uploaded grid + live row counts from Supabase.
+ */
+export const getMajCatGridStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Live counts from DB
+    const countResult = await prisma.$queryRaw<{ total: bigint; categories: bigint; attributes: bigint }[]>`
+      SELECT
+        COUNT(*)                                         AS total,
+        COUNT(DISTINCT major_category)                   AS categories,
+        COUNT(DISTINCT (major_category || '||' || attribute_name)) AS attributes
+      FROM maj_cat_grid_values
+    `;
+    const { total, categories, attributes } = countResult[0];
+
+    // Upload metadata from file (lightweight)
+    let fileMeta: Record<string, any> = {};
+    if (fs.existsSync(MAJ_CAT_META_FILE)) {
+      try { fileMeta = JSON.parse(fs.readFileSync(MAJ_CAT_META_FILE, 'utf-8')); } catch {}
+    }
+
+    if (Number(total) === 0 && !fileMeta.uploadedAt) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...fileMeta,
+        totalValues:      Number(total),
+        categoriesCount:  Number(categories),
+        attributesCount:  Number(attributes),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/majcat-grid/values
+ * Reads all rows from Supabase and returns grouped JSON for frontend caching.
+ * Format: { [majorCategory]: { [attributeName]: string[] } }
+ */
+export const getMajCatGridValues = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ major_category: string; attribute_name: string; value: string }[]>`
+      SELECT major_category, attribute_name, value
+      FROM maj_cat_grid_values
+      ORDER BY major_category, attribute_name, value
+    `;
+
+    // Group into nested object
+    const grouped: Record<string, Record<string, string[]>> = {};
+    for (const row of rows) {
+      if (!grouped[row.major_category]) grouped[row.major_category] = {};
+      if (!grouped[row.major_category][row.attribute_name]) grouped[row.major_category][row.attribute_name] = [];
+      grouped[row.major_category][row.attribute_name].push(row.value);
+    }
+
+    res.json({ success: true, data: grouped });
+  } catch (error: any) {
+    console.error('[MajCatGrid] Values fetch error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/majcat-grid/upload
+ * Accepts a multipart Excel file, parses cols A (FG_MAJ_CAT), E (attr name), G (value),
+ * truncates the maj_cat_grid_values table, then batch-inserts into Supabase.
+ */
+export const uploadMajCatGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Send a .xlsx file as "file" field.' });
+      return;
+    }
+
+    // ── 1. Parse Excel ──────────────────────────────────────────────────────────
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await wb.xlsx.load(req.file.buffer as any);
+
+    const ws = wb.worksheets[0];
+    if (!ws) {
+      res.status(400).json({ success: false, error: 'No worksheets found in the uploaded Excel file.' });
+      return;
+    }
+
+    const COL_MAJ_CAT = 1; // A — FG_MAJ_CAT
+    const COL_ATTR    = 5; // E — FATHER COMP MAJ_CAT
+    const COL_VALUE   = 7; // G — MAIN MVGR
+    const COL_STATUS  = 9; // I — GRID STATUS  (only import "ACT" rows)
+
+    // Deduplicate with a Set keyed by "mc||at||v"
+    const seen = new Set<string>();
+    type GridRow = { major_category: string; attribute_name: string; value: string };
+    const flatRows: GridRow[] = [];
+    let skipped = 0;
+    let inactiveSkipped = 0;
+
+    for (let r = 5; r <= ws.rowCount; r++) {
+      const row    = ws.getRow(r);
+      const mc     = String(row.getCell(COL_MAJ_CAT).value ?? '').trim();
+      const at     = String(row.getCell(COL_ATTR).value    ?? '').trim();
+      const v      = String(row.getCell(COL_VALUE).value   ?? '').trim();
+      const status = String(row.getCell(COL_STATUS).value  ?? '').trim().toUpperCase();
+
+      if (!mc || !at || !v) { skipped++; continue; }
+
+      // Skip inactive rows — only import ACT (active) values
+      if (status && status !== 'ACT') { inactiveSkipped++; continue; }
+
+      const key = `${mc}||${at}||${v}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      flatRows.push({ major_category: mc, attribute_name: at, value: v });
+    }
+
+    const totalRows       = flatRows.length;
+    const categoriesCount = new Set(flatRows.map(r => r.major_category)).size;
+    const attributesCount = new Set(flatRows.map(r => `${r.major_category}||${r.attribute_name}`)).size;
+
+    // ── 2. Replace all rows in Supabase ────────────────────────────────────────
+    console.log(`[MajCatGrid] Truncating existing rows...`);
+    await prisma.$executeRaw`TRUNCATE TABLE maj_cat_grid_values RESTART IDENTITY`;
+
+    const BATCH = 500;
+    console.log(`[MajCatGrid] Inserting ${totalRows} rows in batches of ${BATCH}...`);
+
+    for (let i = 0; i < flatRows.length; i += BATCH) {
+      const batch = flatRows.slice(i, i + BATCH);
+      await prisma.$executeRaw`
+        INSERT INTO maj_cat_grid_values (major_category, attribute_name, value, uploaded_at)
+        SELECT v.major_category, v.attribute_name, v.value, NOW()
+        FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
+          AS v(major_category text, attribute_name text, value text)
+        ON CONFLICT (major_category, attribute_name, value) DO NOTHING
+      `;
+    }
+
+    // ── 3. Save lightweight metadata file ──────────────────────────────────────
+    const meta = {
+      uploadedAt:       new Date().toISOString(),
+      fileName:         req.file.originalname,
+      totalRows,
+      skippedRows:      skipped,
+      inactiveSkipped,
+      categoriesCount,
+      attributesCount,
+    };
+    const metaDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(MAJ_CAT_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    console.log(`[MajCatGrid] Done — ${totalRows} ACT rows inserted, ${inactiveSkipped} IN-ACT skipped, ${categoriesCount} major categories, ${attributesCount} attr slots`);
+
+    res.json({
+      success: true,
+      message: `Grid uploaded successfully. Inserted ${totalRows} rows across ${categoriesCount} major categories into Supabase.`,
+      data: meta,
+    });
+  } catch (error: any) {
+    console.error('[MajCatGrid] Upload error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

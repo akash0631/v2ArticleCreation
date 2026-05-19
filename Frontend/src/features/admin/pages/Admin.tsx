@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert } from 'antd';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert, Upload, Progress } from 'antd';
 import {
   UserOutlined,
   CloudUploadOutlined,
@@ -12,6 +12,9 @@ import {
   FileTextOutlined,
   SyncOutlined,
   InfoCircleOutlined,
+  TableOutlined,
+  InboxOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { BackendApiService } from '../../../services/api/backendApi';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -58,6 +61,21 @@ export default function Admin() {
   const [vendorStatus, setVendorStatus] = useState<VendorMasterStatus | null>(null);
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
   const [vendorSyncing, setVendorSyncing] = useState(false);
+
+  // Maj-Cat Grid
+  interface MajCatGridMeta {
+    uploadedAt: string;
+    fileName: string;
+    totalRows: number;
+    skippedRows: number;
+    categoriesCount: number;
+    attributesCount: number;
+  }
+  const [majCatGridMeta, setMajCatGridMeta] = useState<MajCatGridMeta | null>(null);
+  const [majCatGridStatusLoading, setMajCatGridStatusLoading] = useState(false);
+  const [majCatGridUploading, setMajCatGridUploading] = useState(false);
+  const [majCatGridProgress, setMajCatGridProgress] = useState<number>(0);
+  const majCatFileRef = useRef<HTMLInputElement | null>(null);
 
   const loadSrmStatus = useCallback(async () => {
     setSrmStatusLoading(true);
@@ -155,11 +173,85 @@ export default function Admin() {
     }
   };
 
+  const downloadMajCatTemplate = () => {
+    const token = localStorage.getItem('authToken');
+    const url = `${APP_CONFIG.api.baseURL}/admin/majcat-grid/template`;
+    // Use a hidden anchor so the browser triggers a file download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MAJ_CAT_GRID_TEMPLATE.xlsx';
+    // Attach auth token via a short-lived fetch → blob → object URL
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(res => res.blob())
+      .then(blob => {
+        const objectUrl = URL.createObjectURL(blob);
+        a.href = objectUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objectUrl);
+      })
+      .catch(() => message.error('Failed to download template'));
+  };
+
+  const loadMajCatGridStatus = useCallback(async () => {
+    setMajCatGridStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/majcat-grid/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load grid status');
+      setMajCatGridMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load maj-cat grid status');
+    } finally {
+      setMajCatGridStatusLoading(false);
+    }
+  }, []);
+
+  const handleMajCatGridUpload = async (file: File) => {
+    setMajCatGridUploading(true);
+    setMajCatGridProgress(0);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Simulate progress while upload is in flight
+      const progressInterval = setInterval(() => {
+        setMajCatGridProgress(prev => Math.min(prev + 3, 90));
+      }, 800);
+
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/majcat-grid/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setMajCatGridProgress(100);
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      message.success(data.message);
+      setMajCatGridMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Upload failed');
+    } finally {
+      setMajCatGridUploading(false);
+      setTimeout(() => setMajCatGridProgress(0), 1500);
+      if (majCatFileRef.current) majCatFileRef.current.value = '';
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadSrmStatus();
     loadVendorStatus();
-  }, [loadSrmStatus, loadVendorStatus]);
+    loadMajCatGridStatus();
+  }, [loadSrmStatus, loadVendorStatus, loadMajCatGridStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -637,6 +729,129 @@ export default function Admin() {
             ) : (
               <Empty description="Could not load vendor master status" />
             )}
+          </Spin>
+        </Card>
+
+        {/* Maj-Cat Grid Upload */}
+        <Card
+          title={<span><TableOutlined style={{ marginRight: 8 }} />Major Category Grid (Dropdown Values)</span>}
+          style={{ marginBottom: 24 }}
+          extra={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                icon={<DownloadOutlined />}
+                size="small"
+                onClick={downloadMajCatTemplate}
+              >
+                Download Template
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                size="small"
+                onClick={loadMajCatGridStatus}
+                loading={majCatGridStatusLoading}
+              >
+                Refresh Status
+              </Button>
+            </div>
+          }
+        >
+          <Spin spinning={majCatGridStatusLoading}>
+            <Row gutter={[16, 16]}>
+              {/* Status panel */}
+              <Col xs={24} md={14}>
+                {majCatGridMeta ? (
+                  <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
+                    <Descriptions.Item label="Last Upload">
+                      {new Date(majCatGridMeta.uploadedAt).toLocaleString('en-IN', {
+                        timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+                      })} IST
+                    </Descriptions.Item>
+                    <Descriptions.Item label="File">
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{majCatGridMeta.fileName}</span>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Major Categories">
+                      <Tag color="blue">{majCatGridMeta.categoriesCount.toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Attribute Slots">
+                      <Tag color="purple">{majCatGridMeta.attributesCount.toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Data Rows Parsed">
+                      <Tag color="green">{majCatGridMeta.totalRows.toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Rows Skipped">
+                      <Tag color={majCatGridMeta.skippedRows > 0 ? 'orange' : 'default'}>
+                        {majCatGridMeta.skippedRows.toLocaleString()}
+                      </Tag>
+                    </Descriptions.Item>
+                  </Descriptions>
+                ) : (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="No grid uploaded yet"
+                    description="Upload ALL_300_GRIDS_SEQUENCED.xlsx to enable major-category-scoped dropdown filtering in the Approver page."
+                  />
+                )}
+              </Col>
+
+              {/* Upload panel */}
+              <Col xs={24} md={10}>
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '16px' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Upload Grid Excel</div>
+                  <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 12 }}>
+                    Upload <strong>ALL_300_GRIDS_SEQUENCED.xlsx</strong> — columns A (Major Category), E (Attribute), G (Allowed Value).
+                    Parsing ~318k rows may take 30–60 seconds.
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={majCatFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleMajCatGridUpload(file);
+                    }}
+                  />
+
+                  {majCatGridUploading ? (
+                    <div>
+                      <div style={{ color: '#1890ff', marginBottom: 8, fontSize: 13 }}>
+                        <SyncOutlined spin style={{ marginRight: 6 }} />
+                        Parsing Excel... this may take up to a minute
+                      </div>
+                      <Progress
+                        percent={majCatGridProgress}
+                        status={majCatGridProgress === 100 ? 'success' : 'active'}
+                        strokeColor={{ from: '#108ee9', to: '#87d068' }}
+                      />
+                    </div>
+                  ) : (
+                    <Upload.Dragger
+                      accept=".xlsx,.xls"
+                      showUploadList={false}
+                      beforeUpload={file => {
+                        handleMajCatGridUpload(file as unknown as File);
+                        return false; // prevent default upload
+                      }}
+                      style={{ padding: '12px 0' }}
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                      </p>
+                      <p className="ant-upload-text" style={{ fontSize: 13 }}>
+                        Click or drag <strong>.xlsx</strong> file here
+                      </p>
+                      <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                        Only Excel files. Max 50 MB.
+                      </p>
+                    </Upload.Dragger>
+                  )}
+                </div>
+              </Col>
+            </Row>
           </Spin>
         </Card>
 

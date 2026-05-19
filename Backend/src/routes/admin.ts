@@ -6,6 +6,25 @@ import { Router, Request, Response, NextFunction } from 'express';
 import * as adminController from '../controllers/adminController';
 import { hierarchyService } from '../services/hierarchyService';
 import { asyncHandler } from '../middleware/asyncHandler';
+import multer from 'multer';
+
+// Memory storage multer instance for Excel uploads (max 50 MB)
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (
+      file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.mimetype === 'application/vnd.ms-excel' ||
+      file.originalname.endsWith('.xlsx') ||
+      file.originalname.endsWith('.xls')
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx / .xls) are allowed'));
+    }
+  },
+});
 
 const h = asyncHandler;
 
@@ -114,5 +133,13 @@ router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
 // ═══════════════════════════════════════════════════════
 router.get('/vendor-master/status', h(adminController.getVendorMasterSyncStatus));
 router.post('/vendor-master/sync', h(adminController.triggerVendorMasterSync));
+
+// ═══════════════════════════════════════════════════════
+// MAJ-CAT GRID (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/majcat-grid/status', h(adminController.getMajCatGridStatus));
+router.get('/majcat-grid/values', h(adminController.getMajCatGridValues));
+router.get('/majcat-grid/template', h(adminController.downloadMajCatGridTemplate));
+router.post('/majcat-grid/upload', excelUpload.single('file'), h(adminController.uploadMajCatGrid));
 
 export default router;

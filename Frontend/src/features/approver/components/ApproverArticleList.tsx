@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -278,6 +278,8 @@ const ArticleCard = React.memo(({
     const [cacheReady, setCacheReady] = useState(false);
     // Tracks when per-category enabled/required config has loaded
     const [catConfigReady, setCatConfigReady] = useState(false);
+    // Tracks when the major-category grid JSON (uploaded Excel) has loaded
+    const [gridReady, setGridReady] = useState(() => isMajCatGridLoaded());
 
     // Flat attribute list derived from the active card groups
     const attributeFields = useMemo(() =>
@@ -299,18 +301,18 @@ const ArticleCard = React.memo(({
                 // If DB config exists, only show enabled attributes
                 if (dbConfig?.configured) {
                     if (!dbConfig.enabled.has(af.schemaKey)) return null;
-                    const values = getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
+                    const values = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
                     return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
                 }
                 // No DB config yet — show all fields
-                const values = af.freeText ? [] : (getMajCatAllowedValues(item.division || '', af.schemaKey) ?? []);
+                const values = af.freeText ? [] : (getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? []);
                 return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
             })
             .filter((af): af is NonNullable<typeof af> => af !== null);
 
         return { visibleAttrs: visible, mandatoryKeys };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveMajCat, cacheReady, catConfigReady, attributeFields]);
+    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, attributeFields]);
     const [editingField, setEditingField] = useState<string | null>(null);
 
     // Vendor name autocomplete state
@@ -336,6 +338,15 @@ const ArticleCard = React.memo(({
             .then(() => setCacheReady(true))
             .catch(() => setCacheReady(true));
     }, [item.division]);
+
+    // Preload major-category grid (uploaded Excel JSON) once per session
+    useEffect(() => {
+        if (isMajCatGridLoaded()) { setGridReady(true); return; }
+        preloadMajCatGrid()
+            .then(() => setGridReady(true))
+            .catch(() => setGridReady(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!effectiveMajCat) return;
