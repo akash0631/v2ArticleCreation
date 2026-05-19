@@ -64,12 +64,14 @@ export default function Admin() {
 
   // Maj-Cat Grid
   interface MajCatGridMeta {
-    uploadedAt: string;
-    fileName: string;
-    totalRows: number;
-    skippedRows: number;
-    categoriesCount: number;
-    attributesCount: number;
+    uploadedAt?: string;
+    fileName?: string;
+    totalRows?: number;
+    skippedRows?: number;
+    inactiveSkipped?: number;
+    categoriesCount?: number;
+    attributesCount?: number;
+    totalValues?: number;   // live count from Supabase (fallback when meta file is absent)
   }
   const [majCatGridMeta, setMajCatGridMeta] = useState<MajCatGridMeta | null>(null);
   const [majCatGridStatusLoading, setMajCatGridStatusLoading] = useState(false);
