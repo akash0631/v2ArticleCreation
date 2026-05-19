@@ -26,7 +26,8 @@ function buildPrompt(
   viewDirection: string = 'front',
   broachPlacement?: string,
   specialInstructions?: string,
-  colorName?: string
+  colorName?: string,
+  hasColorImage?: boolean
 ): string {
   const genderLower = (gender || '').toLowerCase();
   let modelDesc: string;
@@ -44,9 +45,11 @@ function buildPrompt(
     default: framingDesc = 'lower body fashion photoshoot, waist down to feet, do NOT show above the waist, crop tightly at the waist';
   }
 
-  const colorInstr = colorName
-    ? `The garment MUST be recolored to ${colorName}. Every view (front, back, side, closeup) must show the garment in ${colorName}. This is mandatory.`
-    : `The garment color MUST be IDENTICAL to the SOURCE_IMAGE. Do not change or shift the color in any view.`;
+  const colorInstr = hasColorImage
+    ? `The garment MUST be recolored to match the dominant color of the COLOR_REFERENCE image included in this request. Sample the color from COLOR_REFERENCE and apply it uniformly to the entire garment in every view. Ignore the shape, pattern, texture, or content of COLOR_REFERENCE — use it ONLY as a color swatch. This overrides the source image color.`
+    : colorName
+      ? `The garment MUST be recolored to ${colorName}. Every view (front, back, side, closeup) must show the garment in ${colorName}. This is mandatory.`
+      : `The garment color MUST be IDENTICAL to the SOURCE_IMAGE. Do not change or shift the color in any view.`;
 
   const viewMap: Record<string, string> = imageCount === '1'
     ? { front: 'Front-facing model pose showing the front of the garment clearly.' }
@@ -101,7 +104,7 @@ QUALITY STANDARD:
 - Clean, sharp, commercial-ready output`;
 }
 
-async function runSingleGeneration(
+export async function runSingleGeneration(
   imageBuffer: Buffer,
   mimeType: string,
   gender: string,
@@ -114,13 +117,18 @@ async function runSingleGeneration(
   accessoryMime?: string,
   broachPlacement?: string,
   specialInstructions?: string,
-  colorName?: string
+  colorName?: string,
+  colorImageBuffer?: Buffer,
+  colorImageMime?: string
 ): Promise<Buffer> {
-  const colorLockInstruction = colorName
-    ? `MANDATORY COLOR: The garment in the output MUST be ${colorName}. Apply ${colorName} color to the entire garment. This overrides the source image color. Do NOT generate gray, beige, or any other color — only ${colorName}.`
-    : `COLOR PRESERVE: Keep the garment color exactly as shown in the source image. Do not change, shift, or neutralize the color.`;
+  const hasColorImage = !!(colorImageBuffer && colorImageMime);
+  const colorLockInstruction = hasColorImage
+    ? `MANDATORY COLOR (FROM IMAGE): The garment in the output MUST be recolored to match the dominant color of the COLOR_REFERENCE image that follows. Use COLOR_REFERENCE ONLY as a color swatch — ignore its shape, pattern, and content. This overrides the source image color and any text color name.`
+    : colorName
+      ? `MANDATORY COLOR: The garment in the output MUST be ${colorName}. Apply ${colorName} color to the entire garment. This overrides the source image color. Do NOT generate gray, beige, or any other color — only ${colorName}.`
+      : `COLOR PRESERVE: Keep the garment color exactly as shown in the source image. Do not change, shift, or neutralize the color.`;
 
-  const promptText = buildPrompt(gender, bodytype, imageCount, viewDirection, broachPlacement, specialInstructions, colorName);
+  const promptText = buildPrompt(gender, bodytype, imageCount, viewDirection, broachPlacement, specialInstructions, colorName, hasColorImage);
 
   const parts: any[] = [
     { text: colorLockInstruction },
@@ -134,6 +142,13 @@ async function runSingleGeneration(
     parts.push({ text: 'Render the garment on a professional fashion model.' });
   }
 
+  // Color reference image: provide right before the accessory so Gemini reads the
+  // explicit "this is a color swatch, ignore content" instruction adjacent to the bytes.
+  if (hasColorImage) {
+    parts.push({ text: 'COLOR_REFERENCE follows. Use ONLY the dominant color from this image for the garment. Ignore its shape, pattern, and any objects depicted — treat it strictly as a color swatch.' });
+    parts.push({ inlineData: { mimeType: colorImageMime as string, data: (colorImageBuffer as Buffer).toString('base64') } });
+  }
+
   if (accessoryBuffer && accessoryMime) {
     parts.push({ inlineData: { mimeType: accessoryMime, data: accessoryBuffer.toString('base64') } });
   }
@@ -144,7 +159,7 @@ async function runSingleGeneration(
   const imageSizeKB = Math.round(imageBuffer.length / 1024);
   const base64SizeKB = Math.round((imageBuffer.length * 4 / 3) / 1024);
   console.log(`[ModelGen] Calling Gemini model: ${GEMINI_IMAGE_MODEL}, view: ${viewDirection}, gender: ${gender}, bodytype: ${bodytype}`);
-  console.log(`[ModelGen] colorName from frontend: "${colorName}" | type: ${typeof colorName} | has value: ${!!colorName}`);
+  console.log(`[ModelGen] color mode: ${hasColorImage ? 'IMAGE' : colorName ? `NAME(${colorName})` : 'SOURCE'}`);
   console.log(`[ModelGen] Image size: ${imageSizeKB} KB | base64 payload: ~${base64SizeKB} KB | Parts count: ${parts.length}`);
 
   let response: any;
@@ -205,7 +220,8 @@ async function safeGenerate(
   accessoryFile?: Express.Multer.File,
   broachPlacement?: string,
   specialInstructions?: string,
-  colorName?: string
+  colorName?: string,
+  colorImageFile?: Express.Multer.File
 ): Promise<Buffer> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -224,7 +240,9 @@ async function safeGenerate(
         accessoryFile?.mimetype,
         broachPlacement,
         specialInstructions,
-        colorName
+        colorName,
+        colorImageFile?.buffer,
+        colorImageFile?.mimetype
       );
       console.log(`[ModelGen] safeGenerate SUCCESS on attempt ${attempt + 1} — file: ${file.originalname}, view: ${view}`);
       return buf;
@@ -252,7 +270,8 @@ export async function runBatchPipeline(
   accessoryFile?: Express.Multer.File,
   broachPlacement?: string,
   specialInstructions?: string,
-  colorName?: string
+  colorName?: string,
+  colorImageFile?: Express.Multer.File
 ): Promise<GenerationResult[]> {
   const views =
     imageCount === '1'
@@ -273,7 +292,7 @@ export async function runBatchPipeline(
     const batch = tasks.slice(i, i + MAX_WORKERS);
     const settled = await Promise.allSettled(
       batch.map(({ file, view }) =>
-        safeGenerate(file, view, gender, bodytype, imageCount, patternFile, accessoryFile, broachPlacement, specialInstructions, colorName)
+        safeGenerate(file, view, gender, bodytype, imageCount, patternFile, accessoryFile, broachPlacement, specialInstructions, colorName, colorImageFile)
           .then(buf => ({ fileName: file.originalname, view, output: buf }))
       )
     );

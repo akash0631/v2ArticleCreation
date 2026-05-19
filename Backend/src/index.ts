@@ -163,9 +163,15 @@ app.use('/api/', (req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Global request timeout — 90s for normal routes, 4min for watcher (processes images)
+// Global request timeout — 90s for normal routes, 4min for watcher (processes images).
+// /api/model-generation/bulk gets 20min because the upload itself can carry hundreds of
+// images; the background worker is unaffected by the request timer.
 app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
-app.use('/api/', requestTimeout(90 * 1000));
+app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/model-generation/bulk/')) return next();
+  return requestTimeout(90 * 1000)(req, res, next);
+});
 
 app.use((req, res, next) => {
   if (!isAppShuttingDown()) {
