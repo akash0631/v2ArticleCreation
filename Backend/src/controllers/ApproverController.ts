@@ -336,103 +336,70 @@ export class ApproverController {
     }
 
     private static async refreshArticleDescriptions(baseWhere: any): Promise<number> {
-        const rows = await prisma.extractionResultFlat.findMany({
-            where: {
-                ...baseWhere
-            },
-            select: {
-                id: true,
-                articleDescription: true,
-                // All fields used by buildArticleDescription
-                yarn1: true,
-                weave: true,
-                mFab2: true,
-                fabricMainMvgr: true,
-                lycra: true,
-                neck: true,
-                sleeve: true,
-                fatherBelt: true,
-                fit: true,
-                pattern: true,
-                length: true,
-                printType: true,
-                printPlacement: true,
-                printStyle: true,
-                embroidery: true,
-                pocketType: true,
-                vendorCode: true,
-                designNumber: true,
-                size: true,
-                // Extra fields fetched but not part of description formula
-                yarn2: true,
-                composition: true,
-                finish: true,
-                gsm: true,
-                shade: true,
-                neckDetails: true,
-                collar: true,
-                placket: true,
-                bottomFold: true,
-                frontOpenStyle: true,
-                drawcord: true,
-                button: true,
-                zipper: true,
-                zipColour: true,
-                patches: true,
-                patchesType: true,
-                embroideryType: true,
-                wash: true,
-                childBelt: true
-            },
-            take: ApproverController.STARTUP_BACKFILL_BATCH_SIZE
-        });
-
-        if (rows.length === 0) return 0;
-
-        const idsByDescription = new Map<string, string[]>();
-        const idsToNull: string[] = [];
-
-        for (const row of rows) {
-            const computedDescription = buildArticleDescription(row as any);
-            const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
-
-            if ((computedDescription || null) === (currentDescription || null)) {
-                continue;
-            }
-
-            if (!computedDescription) {
-                idsToNull.push(row.id);
-                continue;
-            }
-
-            const ids = idsByDescription.get(computedDescription) || [];
-            ids.push(row.id);
-            idsByDescription.set(computedDescription, ids);
-        }
-
-        const updates = Array.from(idsByDescription.entries()).map(([articleDescription, ids]) =>
-            prisma.extractionResultFlat.updateMany({
-                where: { id: { in: ids } },
-                data: { articleDescription }
-            })
-        );
-
-        if (idsToNull.length > 0) {
-            updates.push(
-                prisma.extractionResultFlat.updateMany({
-                    where: { id: { in: idsToNull } },
-                    data: { articleDescription: null }
-                })
-            );
-        }
-
-        if (updates.length === 0) return 0;
+        const BATCH = 500;
+        const DESC_FIELDS = {
+            id: true,
+            articleDescription: true,
+            fabDiv: true, yarn1: true, mFab2: true, weave: true, macroMvgr: true,
+            lycra: true, neck: true, collar: true, sleeve: true, sleeveFold: true,
+            placket: true, fatherBelt: true, pocketType: true, length: true,
+            fit: true, pattern: true, printType: true, embroideryType: true,
+            embroidery: true, wash: true,
+        } as const;
 
         let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
+        let cursor: string | undefined;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const rows = await prisma.extractionResultFlat.findMany({
+                where: { ...baseWhere },
+                select: DESC_FIELDS,
+                orderBy: { id: 'asc' },
+                take: BATCH,
+                ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            });
+
+            if (rows.length === 0) break;
+            cursor = rows[rows.length - 1].id;
+
+            const idsByDescription = new Map<string, string[]>();
+            const idsToNull: string[] = [];
+
+            for (const row of rows) {
+                const computedDescription = buildArticleDescription(row as any);
+                const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
+
+                if ((computedDescription || null) === (currentDescription || null)) continue;
+
+                if (!computedDescription) {
+                    idsToNull.push(row.id);
+                    continue;
+                }
+
+                const ids = idsByDescription.get(computedDescription) || [];
+                ids.push(row.id);
+                idsByDescription.set(computedDescription, ids);
+            }
+
+            const updates = Array.from(idsByDescription.entries()).map(([articleDescription, ids]) =>
+                prisma.extractionResultFlat.updateMany({ where: { id: { in: ids } }, data: { articleDescription } })
+            );
+
+            if (idsToNull.length > 0) {
+                updates.push(
+                    prisma.extractionResultFlat.updateMany({ where: { id: { in: idsToNull } }, data: { articleDescription: null } })
+                );
+            }
+
+            for (const update of updates) {
+                const result = await update;
+                total += result.count;
+            }
+
+            if (rows.length < BATCH) break; // last page
         }
+
         return total;
     }
 
@@ -569,7 +536,8 @@ export class ApproverController {
                 await ApproverController.backfillMissingSegments({}); await pause();
                 await ApproverController.backfillMissingYears({}); await pause();
                 await ApproverController.backfillMissingSeasonCodes({}); await pause();
-                await ApproverController.refreshArticleDescriptions({}); await pause();
+                // Article description backfill disabled — new formula applied to new articles only
+                // await ApproverController.refreshArticleDescriptions({}); await pause();
                 await ApproverController.backfillVariantColors();
                 console.log('✅ Startup backfills completed');
             } catch (err: any) {
@@ -1407,41 +1375,62 @@ export class ApproverController {
                     subDivision: true,
                     majorCategory: true,
                     mrp: true,
+                    // Article description fields (47-field sequence)
+                    fabDiv: true,
                     yarn1: true,
-                    yarn2: true,
+                    mainMvgr: true,
                     fabricMainMvgr: true,
                     weave: true,
-                    composition: true,
-                    finish: true,
+                    mFab2: true,
+                    fCount: true,
                     gsm: true,
-                    shade: true,
-                    weight: true,
+                    fOunce: true,
+                    fConstruction: true,
+                    finish: true,
+                    fWidth: true,
                     lycra: true,
                     neck: true,
                     neckDetails: true,
                     collar: true,
-                    placket: true,
+                    collarStyle: true,
                     sleeve: true,
+                    sleeveFold: true,
+                    placket: true,
+                    childBelt: true,
                     bottomFold: true,
-                    frontOpenStyle: true,
                     pocketType: true,
+                    noOfPocket: true,
+                    extraPocket: true,
+                    length: true,
                     fit: true,
                     pattern: true,
-                    length: true,
                     drawcord: true,
-                    button: true,
+                    dcShape: true,
                     zipper: true,
                     zipColour: true,
-                    printType: true,
-                    printStyle: true,
-                    printPlacement: true,
-                    patches: true,
+                    button: true,
+                    btnColour: true,
                     patchesType: true,
+                    patches: true,
+                    htrfStyle: true,
+                    htrfType: true,
+                    printPlacement: true,
+                    printStyle: true,
+                    printType: true,
                     embroidery: true,
                     embroideryType: true,
+                    embPlacement: true,
                     wash: true,
+                    ageGroup: true,
+                    impAtrbt2: true,
+                    // Other fields used for logic/display
+                    macroMvgr: true,
                     fatherBelt: true,
-                    childBelt: true,
+                    yarn2: true,
+                    composition: true,
+                    shade: true,
+                    weight: true,
+                    frontOpenStyle: true,
                     vendorCode: true,
                     season: true,
                     year: true,
