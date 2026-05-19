@@ -54,6 +54,8 @@ export class FlatExtractionController {
         pocket_type: 'pocketType',
         fit: 'fit',
         pattern: 'pattern',
+        body_style: 'pattern',
+        bodystyle: 'pattern',
         length: 'length',
         colour: 'colour',
         color: 'colour',
@@ -299,15 +301,7 @@ export class FlatExtractionController {
             const normalizedKey = this.normalizeAttributeKey(attributeKey);
             const fieldName = this.attributeKeyToFieldMap[normalizedKey];
 
-            // Keys that are recognised product attributes but don't have a column in
-            // ExtractionResultFlat (they live in a different schema / model).
-            // Silently succeed so the UI isn't blocked when users edit these fields.
-            const silentlyIgnoredKeys = new Set(['body_style', 'bodystyle']);
             if (!fieldName) {
-                if (silentlyIgnoredKeys.has(normalizedKey)) {
-                    res.status(200).json({ success: true, skipped: true });
-                    return;
-                }
                 res.status(400).json({ success: false, error: `Unsupported attributeKey: ${attributeKey}` });
                 return;
             }
