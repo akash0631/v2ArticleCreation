@@ -78,7 +78,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'M_FAB',                 flat: 'weave' },             // F_WEAVE_01
     { rfc: 'M_FAB2',                flat: 'mFab2' },             // F_WEAVE_02
     { rfc: 'M_YARN',                flat: 'yarn1' },             // F_YARN
-    { rfc: 'M_YARN_02',             flat: 'mainMvgr' },          // same as M_MAIN_MVGR
+    { rfc: 'M_YARN-02',             flat: 'mainMvgr' },          // FAB_MAIN_MVGR-1
     { rfc: 'M_WEAVE_2',             flat: 'fabricMainMvgr' },    // F_FABRIC MAIN MVGR-02
     { rfc: 'M_COMPOSITION',         flat: 'composition' },
     { rfc: 'M_FINISH',              flat: 'finish' },
