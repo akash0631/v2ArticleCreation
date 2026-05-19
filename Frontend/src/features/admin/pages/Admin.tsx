@@ -763,25 +763,27 @@ export default function Admin() {
                 {majCatGridMeta ? (
                   <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
                     <Descriptions.Item label="Last Upload">
-                      {new Date(majCatGridMeta.uploadedAt).toLocaleString('en-IN', {
-                        timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
-                      })} IST
+                      {majCatGridMeta.uploadedAt
+                        ? new Date(majCatGridMeta.uploadedAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+                          }) + ' IST'
+                        : <span style={{ color: '#999' }}>Unknown</span>}
                     </Descriptions.Item>
                     <Descriptions.Item label="File">
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{majCatGridMeta.fileName}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{majCatGridMeta.fileName || '—'}</span>
                     </Descriptions.Item>
                     <Descriptions.Item label="Major Categories">
-                      <Tag color="blue">{majCatGridMeta.categoriesCount.toLocaleString()}</Tag>
+                      <Tag color="blue">{(majCatGridMeta.categoriesCount ?? 0).toLocaleString()}</Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Attribute Slots">
-                      <Tag color="purple">{majCatGridMeta.attributesCount.toLocaleString()}</Tag>
+                      <Tag color="purple">{(majCatGridMeta.attributesCount ?? 0).toLocaleString()}</Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Data Rows Parsed">
-                      <Tag color="green">{majCatGridMeta.totalRows.toLocaleString()}</Tag>
+                      <Tag color="green">{(majCatGridMeta.totalRows ?? majCatGridMeta.totalValues ?? 0).toLocaleString()}</Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Rows Skipped">
-                      <Tag color={majCatGridMeta.skippedRows > 0 ? 'orange' : 'default'}>
-                        {majCatGridMeta.skippedRows.toLocaleString()}
+                      <Tag color={(majCatGridMeta.skippedRows ?? 0) > 0 ? 'orange' : 'default'}>
+                        {(majCatGridMeta.skippedRows ?? 0).toLocaleString()}
                       </Tag>
                     </Descriptions.Item>
                   </Descriptions>
