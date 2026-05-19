@@ -210,3 +210,61 @@ export function invalidateCategoryAttributeCache(categoryCode?: string) {
   if (categoryCode) categoryAttrCache.delete(categoryCode);
   else categoryAttrCache.clear();
 }
+
+// ─── Major-Category Grid Values (from uploaded Excel) ─────────────────────────
+// Structure: { [majorCategory]: { [excelAttrName]: string[] } }
+// e.g.  { "L_PLAZO": { "M_FAB_DIV": ["K","W","DNM"], ... }, ... }
+
+type MajCatGrid = Record<string, Record<string, string[]>>;
+
+let majCatGrid: MajCatGrid | null = null;
+let majCatGridPromise: Promise<MajCatGrid> | null = null;
+
+/**
+ * Fetch the full major-category grid from the backend (once per session).
+ * Returns an empty object if not yet uploaded.
+ */
+export async function preloadMajCatGrid(): Promise<MajCatGrid> {
+  if (majCatGrid !== null) return majCatGrid;
+  if (majCatGridPromise) return majCatGridPromise;
+
+  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+  majCatGridPromise = fetch(`${baseURL}/admin/majcat-grid/values`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then(r => r.ok ? r.json() : { data: {} })
+    .then(json => {
+      majCatGrid = (json?.data as MajCatGrid) ?? {};
+      return majCatGrid;
+    })
+    .catch(() => {
+      majCatGrid = {};
+      return majCatGrid as MajCatGrid;
+    })
+    .finally(() => { majCatGridPromise = null; });
+
+  return majCatGridPromise;
+}
+
+/**
+ * Synchronous lookup — returns allowed values for a major category + Excel attribute name.
+ * Returns null if grid not loaded or no entry found.
+ * Call preloadMajCatGrid() first.
+ */
+export function getMajCatGridEntry(majorCategory: string, excelAttrName: string): string[] | null {
+  if (!majCatGrid) return null;
+  const catData = majCatGrid[majorCategory];
+  if (!catData) return null;
+  return catData[excelAttrName] ?? null;
+}
+
+export function isMajCatGridLoaded(): boolean {
+  return majCatGrid !== null;
+}
+
+export function invalidateMajCatGrid(): void {
+  majCatGrid = null;
+  majCatGridPromise = null;
+}
