@@ -65,7 +65,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "adm-zip": "^0.5.16",
-    "@types/adm-zip": "^0.5.7",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -83,6 +82,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/compression": "^1.8.1",
     "@types/node": "^24.10.0",
     "nodemon": "^3.1.10",
