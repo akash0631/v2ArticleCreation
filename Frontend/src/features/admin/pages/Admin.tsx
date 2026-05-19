@@ -36,6 +36,11 @@ interface SrmSyncResult {
   total: number;
 }
 
+interface VendorMasterStatus {
+  count: number;
+  lastSyncedAt: string | null;
+}
+
 export default function Admin() {
   const [stats, setStats] = useState({ totalUploads: 0, completed: 0, failed: 0, pending: 0 });
   const [expenseData, setExpenseData] = useState<any>(null);
@@ -49,6 +54,10 @@ export default function Admin() {
   const [srmEnriching, setSrmEnriching] = useState(false);
   const [srmLastResult, setSrmLastResult] = useState<SrmSyncResult | null>(null);
   const [srmEnrichMessage, setSrmEnrichMessage] = useState<string | null>(null);
+
+  const [vendorStatus, setVendorStatus] = useState<VendorMasterStatus | null>(null);
+  const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
+  const [vendorSyncing, setVendorSyncing] = useState(false);
 
   const loadSrmStatus = useCallback(async () => {
     setSrmStatusLoading(true);
@@ -110,10 +119,47 @@ export default function Admin() {
     }
   };
 
+  const loadVendorStatus = useCallback(async () => {
+    setVendorStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/vendor-master/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load vendor master status');
+      setVendorStatus(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load vendor master status');
+    } finally {
+      setVendorStatusLoading(false);
+    }
+  }, []);
+
+  const runVendorSync = async () => {
+    setVendorSyncing(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/vendor-master/sync`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Vendor master sync failed');
+      message.success('Vendor master sync started in background. Records will update shortly.');
+      setTimeout(() => loadVendorStatus(), 5000);
+    } catch (err: any) {
+      message.error(err?.message || 'Vendor master sync failed');
+    } finally {
+      setVendorSyncing(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadSrmStatus();
-  }, [loadSrmStatus]);
+    loadVendorStatus();
+  }, [loadSrmStatus, loadVendorStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -520,6 +566,76 @@ export default function Admin() {
               </>
             ) : (
               <Empty description="Could not load SRM sync status" />
+            )}
+          </Spin>
+        </Card>
+
+        {/* Vendor Master Sync */}
+        <Card
+          title={<span><SyncOutlined style={{ marginRight: 8 }} />Vendor Master Sync</span>}
+          style={{ marginBottom: 24 }}
+          extra={
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadVendorStatus}
+              loading={vendorStatusLoading}
+            >
+              Refresh Status
+            </Button>
+          }
+        >
+          <Spin spinning={vendorStatusLoading}>
+            {vendorStatus ? (
+              <>
+                <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }}>
+                  <Descriptions.Item label="Records in DB">
+                    <strong style={{ fontSize: 18 }}>{vendorStatus.count.toLocaleString()}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Last Sync">
+                    {vendorStatus.lastSyncedAt
+                      ? new Date(vendorStatus.lastSyncedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' IST'
+                      : <span style={{ color: '#999' }}>Never</span>}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Schedule">
+                    Daily at 2:00 AM IST
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Source API" span={3}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#595959' }}>
+                      https://my-dab-app.azurewebsites.net/api/ET_Supplier_Master
+                    </span>
+                  </Descriptions.Item>
+                </Descriptions>
+
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} sm={12}>
+                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Sync Vendor Master</div>
+                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                        Fetches all vendor records from the DAB API and upserts into the local database. Runs in background — page will auto-refresh status after 5s.
+                      </div>
+                      <Popconfirm
+                        title="Trigger Vendor Master Sync?"
+                        description="Fetch all vendors from the DAB API and upsert into master_vendor_details. This may take a minute."
+                        onConfirm={runVendorSync}
+                        okText="Yes, sync now"
+                        cancelText="Cancel"
+                      >
+                        <Button
+                          type="primary"
+                          icon={<SyncOutlined spin={vendorSyncing} />}
+                          loading={vendorSyncing}
+                          block
+                        >
+                          {vendorSyncing ? 'Syncing...' : 'Sync Now'}
+                        </Button>
+                      </Popconfirm>
+                    </div>
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <Empty description="Could not load vendor master status" />
             )}
           </Spin>
         </Card>
