@@ -26,6 +26,19 @@ type MandatoryGridCache = {
 };
 let _mandatoryGridCache: MandatoryGridCache | null = null;
 
+// The mandatory-grid Excel template uses some human-readable column names in Row 3
+// that differ from the RFC parameter names used in FLAT_TO_RFC.
+// This map normalises grid SAP keys → RFC keys so the filter works correctly.
+const GRID_KEY_TO_RFC: Record<string, string> = {
+    'AGE GROUP':           'M_AGE_GROUP',
+    'SEGMENT':             'PRICE_BAND_CATEGORY',
+    'COST':                'PURCH_PRICE',
+    'ARTICLE FASHION TYPE':'FASHION_GRADE',
+    'ARTICLE WEIGHT':      'G_WEIGHT',
+    'BODY STYLE':          'M_PATTERN',   // Excel uses "BODY STYLE", RFC uses "M_PATTERN"
+    // M_* keys already match FLAT_TO_RFC exactly — no entry needed
+};
+
 async function loadMandatoryGridForRfc(): Promise<MandatoryGridCache> {
     if (_mandatoryGridCache) return _mandatoryGridCache;
 
@@ -39,8 +52,10 @@ async function loadMandatoryGridForRfc(): Promise<MandatoryGridCache> {
     for (const row of rows) {
         configured.add(row.major_category);
         if (row.is_active) {
+            // Normalise grid key → RFC key (handles display-name mismatches)
+            const rfcKey = GRID_KEY_TO_RFC[row.sap_key] ?? row.sap_key;
             if (!active.has(row.major_category)) active.set(row.major_category, new Set());
-            active.get(row.major_category)!.add(row.sap_key);
+            active.get(row.major_category)!.add(rfcKey);
         }
     }
 
@@ -110,7 +125,6 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 
     // Fabric – macro / main MVGR
     { rfc: 'M_MAIN_MVGR',           flat: 'impAtrbt2' },         // IMPORTANT ATTRIBUTE
-    { rfc: 'M_MACRO_MVGR',          flat: 'macroMvgr' },
     { rfc: 'M_FAB',                 flat: 'weave' },             // F_WEAVE_01
     { rfc: 'M_FAB2',                flat: 'mFab2' },             // F_WEAVE_02
     { rfc: 'M_YARN',                flat: 'yarn1' },             // F_YARN
@@ -170,6 +184,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 
     // Business / segment
     { rfc: 'M_AGE_GROUP',           flat: 'ageGroup' },
+    { rfc: 'FASHION_GRADE',         flat: 'articleFashionType' },
     { rfc: 'MVGR_BRAND_VENDOR',     flat: 'mvgrBrandVendor' },
     { rfc: 'G_WEIGHT',              flat: 'weight' },
 ];
@@ -180,7 +195,13 @@ const RFC_ALWAYS_INCLUDE = new Set([
     'SEASON', 'ARTICLE_DES1',
 ]);
 
-const RFC_INCLUDE_IF_PRESENT = new Set(['MRP', 'PURCH_PRICE']);
+// These fields always go to SAP if non-empty, bypassing the mandatory-grid filter.
+// Used for BOM/business fields that are not (or inconsistently) tracked in the grid.
+const RFC_INCLUDE_IF_PRESENT = new Set([
+    'MRP',
+    'PURCH_PRICE',
+    'M_MAIN_MVGR',    // IMP_ATBT — BOM field, not in the mandatory-grid Excel
+]);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
 
@@ -188,10 +209,9 @@ const MANDATORY: Array<{ flat: string; label: string }> = [
     { flat: 'vendorCode',    label: 'Vendor Code' },
     { flat: 'mcCode',        label: 'MC Code' },
     { flat: 'designNumber',  label: 'Design Number' },
-    { flat: 'macroMvgr',     label: 'Macro MVGR' },
     { flat: 'mainMvgr',      label: 'Main MVGR' },
     { flat: 'mrp',           label: 'MRP' },
-    { flat: 'impAtrbt2',     label: 'Important Attribute (M_MAIN_MVGR)' },
+    { flat: 'impAtrbt2',     label: 'IMP_ATBT (M_MAIN_MVGR)' },
 ];
 
 // ─── Value validation against allowed values ──────────────────────────────────
@@ -317,17 +337,20 @@ function buildRfcPayload(item: FlatItem, mandatoryGrid: MandatoryGridCache): Rec
         const val = toStr(item[flat]);
 
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
-            // Rule 1: header fields always go through
+            // Rule 1: header/identity fields — always present (even empty)
             payload[rfc] = val;
         } else if (val) {
-            if (!isCategoryConfigured) {
+            if (RFC_INCLUDE_IF_PRESENT.has(rfc)) {
+                // Rule 2: BOM/business fields that bypass the mandatory-grid filter
+                payload[rfc] = val;
+            } else if (!isCategoryConfigured) {
                 // Rule 3: major category not in mandatory grid → send all non-empty (fallback)
                 payload[rfc] = val;
             } else if (activeKeys?.has(rfc)) {
-                // Rule 2: category configured AND this SAP key is active (is_active=true)
+                // Rule 4: category configured AND this SAP key is active (is_active=true)
                 payload[rfc] = val;
             }
-            // else: category configured but this SAP key is inactive (0/empty in Excel) → skip
+            // else: category configured, SAP key inactive (0/empty in Excel) → skip
         }
     }
 
