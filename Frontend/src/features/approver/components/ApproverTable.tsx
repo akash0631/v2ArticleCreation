@@ -116,6 +116,12 @@ export interface ApproverItem {
     dcShape: string | null;
     btnColour: string | null;
     collarStyle: string | null;
+    htrfType: string | null;
+    htrfStyle: string | null;
+    embPlacement: string | null;
+    ageGroup: string | null;
+    articleFashionType: string | null;
+    mvgrBrandVendor: string | null;
     // BOM fields
     impAtrbt2: string | null;
     // Variant system fields
