@@ -2291,8 +2291,8 @@ export const downloadMandatoryGridTemplate = async (_req: Request, res: Response
       'M_ZIP', 'M_ZIP_COL', 'M_PATCH_TYPE', 'M_PATCHES', 'M_HTRF_STYLE',
       'M_HTRF_TYPE', 'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT',
       'M_EMBROIDERY', 'M_EMB_TYPE', 'M_EMB_PLACEMENT', 'M_WASH',
-      'AGE GROUP', 'SEGMENT', 'ARTICLE FASHION TYPE', 'COST', 'MRP',
-      'VENDOR-NM', 'ARTICLE WEIGHT', 'ARTICLE DIMENSION',
+      'M_AGE_GROUP', 'PRICE_BAND_CATEGORY', 'FASHION_GRADE', 'PURCH_PRICE', 'MRP',
+      'VENDOR-NM', 'G_WEIGHT', 'ARTICLE DIMENSION',
     ];
 
     const row3 = ws.addRow(sapKeys);

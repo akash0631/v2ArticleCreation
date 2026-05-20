@@ -139,9 +139,17 @@ const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 
 type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 
+// Schema keys that live in the BOM section only — never shown in attribute card groups
+// even if they appear in the DB admin attribute list with a group assigned.
+const BOM_ONLY_SCHEMA_KEYS = new Set([
+    'macro_mvgr',   // IMP_ATBT-1 / macroMvgr  → BOM field
+    'imp_atrbt2',   // IMP_ATBT   / impAtrbt2   → BOM field
+]);
+
 function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
     const map = new Map<string, CardGroup['fields']>();
     for (const e of entries) {
+        if (BOM_ONLY_SCHEMA_KEYS.has(e.key)) continue; // belongs to BOM, not attribute groups
         const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
         if (!dbField) continue;
         if (!map.has(e.group)) map.set(e.group, []);
@@ -308,6 +316,9 @@ const ArticleCard = React.memo(({
 
         const visible = attributeFields
             .map(af => {
+                // Skip BOM-only fields — they belong to the BOM section, not attribute groups
+                if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) return null;
+
                 // ── Mandatory Grid filter (field visibility per major category) ──
                 // Look up the primary SAP key for this schema key, then check the
                 // mandatory grid (uploaded Excel).  null = not configured → show.
@@ -1101,8 +1112,7 @@ const ArticleCard = React.memo(({
                                             { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: false },
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
-                                            { label: 'IMP_ATBT-1',  field: 'macroMvgr',  editable: true,  mandatory: true  },
-                                            { label: 'IMP_ATRBT-2', field: 'impAtrbt2',  editable: true,  mandatory: true  },
+                                            { label: 'IMP_ATBT',     field: 'impAtrbt2',  editable: true,  mandatory: true  },
                                         ].map(({ label, field, editable, mandatory }) => {
                                             const isEditingBom = editingField === `bom_${field}`;
                                             const val = field === '_markdown' ? markdown
