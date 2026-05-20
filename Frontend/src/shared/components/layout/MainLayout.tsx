@@ -79,8 +79,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       { key: '/dashboard', icon: <HomeOutlined />, label: 'Home' },
     ];
 
-    // Only show Products to non-Approver roles (SUB_DIVISION_HEAD can also see these)
-    if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
+    // Only show Products to ADMIN
+    if (userData?.role === 'ADMIN') {
       menuItems.push({ key: '/products', icon: <ShoppingOutlined />, label: 'Products' });
     }
 
