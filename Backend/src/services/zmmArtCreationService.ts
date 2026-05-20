@@ -9,7 +9,6 @@
  */
 
 import { SapSyncItemResult } from './sapSyncService';
-import majCatMandatory from '../data/maj-cat-mandatory.json';
 import { getMcCodeByMajorCategory, getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { PrismaClient } from '../generated/prisma';
 
@@ -144,9 +143,6 @@ const RFC_ALWAYS_INCLUDE = new Set([
     'SEASON', 'ARTICLE_DES1',
 ]);
 
-// Fields that bypass the mandatory-category check — sent whenever non-empty.
-// MRP and PURCH_PRICE must always reach SAP regardless of which major category
-// is configured in maj-cat-mandatory.json (the JSON uses human labels, not RFC keys).
 const RFC_INCLUDE_IF_PRESENT = new Set(['MRP', 'PURCH_PRICE']);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
@@ -160,27 +156,6 @@ const MANDATORY: Array<{ flat: string; label: string }> = [
     { flat: 'mrp',           label: 'MRP' },
     { flat: 'impAtrbt2',     label: 'Important Attribute (M_MAIN_MVGR)' },
 ];
-
-// ─── Mandatory-field lookup by major category ─────────────────────────────────
-
-const mandatoryData = majCatMandatory as Record<string, string[]>;
-
-/**
- * Returns the set of RFC field names that are mandatory for a given major category.
- * Tries exact match first, then case-insensitive. Returns null if category unknown
- * (caller should fall back to sending all non-empty fields).
- */
-function getMandatoryRfcFields(majorCategory: string | null | undefined): Set<string> | null {
-    if (!majorCategory) return null;
-    const exact = mandatoryData[majorCategory];
-    if (exact) return new Set(exact);
-    // Case-insensitive fallback
-    const upper = majorCategory.trim().toUpperCase();
-    for (const [key, fields] of Object.entries(mandatoryData)) {
-        if (key.toUpperCase() === upper) return new Set(fields);
-    }
-    return null;
-}
 
 // ─── Value validation against allowed values ──────────────────────────────────
 
@@ -294,8 +269,6 @@ const toStr = (v: unknown): string => {
  */
 function buildRfcPayload(item: FlatItem): Record<string, string> {
     const payload: Record<string, string> = {};
-    const mandatoryRfcFields = getMandatoryRfcFields(item.majorCategory as string | null);
-    const categoryKnown = mandatoryRfcFields !== null;
 
     for (const { rfc, flat } of FLAT_TO_RFC) {
         const val = toStr(item[flat]);
@@ -303,16 +276,9 @@ function buildRfcPayload(item: FlatItem): Record<string, string> {
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
             // Always include header fields (even empty)
             payload[rfc] = val;
-        } else if (val && RFC_INCLUDE_IF_PRESENT.has(rfc)) {
-            // MRP / PURCH_PRICE: always send when non-empty (bypass category mandatory check)
-            payload[rfc] = val;
         } else if (val) {
-            // Only include optional fields if:
-            // - Category unknown (safe fallback: send everything non-empty)
-            // - OR field is explicitly mandatory for this category
-            if (!categoryKnown || mandatoryRfcFields!.has(rfc)) {
-                payload[rfc] = val;
-            }
+            // Send all non-empty fields — no mandatory-category filter
+            payload[rfc] = val;
         }
     }
 
