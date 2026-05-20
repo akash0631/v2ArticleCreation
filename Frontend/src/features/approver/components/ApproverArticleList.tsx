@@ -683,12 +683,35 @@ const ArticleCard = React.memo(({
                         <span style={{ fontSize: 11, color: '#8c8c8c' }}>
                             {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
                         </span>
-                        <span style={{ fontSize: 11, color: '#595959', marginLeft: 'auto' }}>
-                            {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
+                        <span style={{ fontSize: 11, color: '#595959', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            {/* Editable Design No inline */}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <span style={{ color: '#8c8c8c', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Design:</span>
+                                {editingField === 'topbar_designNumber' ? (
+                                    <Input
+                                        autoFocus
+                                        size="small"
+                                        defaultValue={(localValues['designNumber'] ?? item.designNumber) || ''}
+                                        style={{ fontSize: 11, width: 100, padding: '0 4px', height: 20 }}
+                                        onPressEnter={(e) => handleSave('designNumber', (e.target as HTMLInputElement).value || null)}
+                                        onBlur={(e) => handleSave('designNumber', e.target.value || null)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <span
+                                        style={{ color: '#8c8c8c', fontWeight: 500, cursor: isLocked ? 'default' : 'pointer', borderBottom: isLocked ? 'none' : '1px dashed #d9d9d9' }}
+                                        onClick={() => { if (!isLocked) setEditingField('topbar_designNumber'); }}
+                                    >
+                                        {(localValues['designNumber'] ?? item.designNumber) || (isLocked ? '—' : 'Click to fill')}
+                                    </span>
+                                )}
+                            </span>
+                            <span style={{ color: '#d9d9d9' }}>·</span>
+                            {item.vendorName}
                             {item.rate != null && `  ·  ₹${item.rate}`}
                             {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
                             {item.createdAt && (
-                                <span style={{ marginLeft: 8, color: '#8c8c8c' }}>
+                                <span style={{ marginLeft: 4, color: '#8c8c8c' }}>
                                     · {new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </span>
                             )}
