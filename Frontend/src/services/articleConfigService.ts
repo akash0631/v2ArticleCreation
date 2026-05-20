@@ -268,3 +268,62 @@ export function invalidateMajCatGrid(): void {
   majCatGrid = null;
   majCatGridPromise = null;
 }
+
+// ─── Mandatory Grid (from uploaded mandatory Excel) ────────────────────────────
+// Structure: { [majorCategory]: { [sapKey]: { isActive: boolean; label: string | null } } }
+// e.g.  { "MW_TEES_FS": { "M_FAB": { isActive: true, label: "WEAVE-01" }, ... }, ... }
+
+type MandatoryGridEntry = { isActive: boolean; label: string | null };
+type MandatoryGrid = Record<string, Record<string, MandatoryGridEntry>>;
+
+let mandatoryGrid: MandatoryGrid | null = null;
+let mandatoryGridPromise: Promise<MandatoryGrid> | null = null;
+
+/**
+ * Fetch the full mandatory grid from the backend (once per session).
+ */
+export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
+  if (mandatoryGrid !== null) return mandatoryGrid;
+  if (mandatoryGridPromise) return mandatoryGridPromise;
+
+  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+  mandatoryGridPromise = fetch(`${baseURL}/admin/mandatory-grid/values`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then(r => r.ok ? r.json() : { data: {} })
+    .then(json => {
+      mandatoryGrid = (json?.data as MandatoryGrid) ?? {};
+      return mandatoryGrid;
+    })
+    .catch(() => {
+      mandatoryGrid = {};
+      return mandatoryGrid as MandatoryGrid;
+    })
+    .finally(() => { mandatoryGridPromise = null; });
+
+  return mandatoryGridPromise;
+}
+
+/**
+ * Synchronous check — is a SAP key active (visible) for a major category?
+ * Returns true if active, false if inactive, null if grid not loaded or category not found.
+ */
+export function isMandatoryGridFieldActive(majorCategory: string, sapKey: string): boolean | null {
+  if (!mandatoryGrid) return null;
+  const catData = mandatoryGrid[majorCategory];
+  if (!catData) return null;
+  const entry = catData[sapKey];
+  if (!entry) return null;
+  return entry.isActive;
+}
+
+export function isMandatoryGridLoaded(): boolean {
+  return mandatoryGrid !== null;
+}
+
+export function invalidateMandatoryGrid(): void {
+  mandatoryGrid = null;
+  mandatoryGridPromise = null;
+}

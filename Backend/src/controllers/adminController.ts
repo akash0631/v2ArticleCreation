@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
+import { invalidateMandatoryGridCache } from '../services/zmmArtCreationService';
 import path from 'path';
 import fs from 'fs';
 
@@ -2182,6 +2183,305 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
     });
   } catch (error: any) {
     console.error('[MajCatGrid] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANDATORY GRID (maj_cat_mandatory_grid)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MAJ_CAT_MANDATORY_META_FILE = path.join(process.cwd(), 'data', 'majCatMandatoryMeta.json');
+
+/**
+ * GET /api/admin/mandatory-grid/status
+ */
+export const getMandatoryGridStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const countResult = await prisma.$queryRaw<{ total: bigint; categories: bigint; active: bigint }[]>`
+      SELECT
+        COUNT(*)                             AS total,
+        COUNT(DISTINCT major_category)       AS categories,
+        SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active
+      FROM maj_cat_mandatory_grid
+    `;
+    const { total, categories, active } = countResult[0];
+
+    let fileMeta: Record<string, any> = {};
+    if (fs.existsSync(MAJ_CAT_MANDATORY_META_FILE)) {
+      try { fileMeta = JSON.parse(fs.readFileSync(MAJ_CAT_MANDATORY_META_FILE, 'utf-8')); } catch {}
+    }
+
+    if (Number(total) === 0 && !fileMeta.uploadedAt) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...fileMeta,                              // includes totalRows (Excel row count), attributesCount
+        categoriesCount: Number(categories),      // authoritative from DB (distinct major categories)
+        activeMappings:  Number(active),          // active (major_category, sap_key) pairs in DB
+        totalMappings:   Number(total),           // total (major_category, sap_key) pairs in DB
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/mandatory-grid/values
+ * Returns: { [majorCategory]: { sapKey: boolean } }
+ */
+export const getMandatoryGridValues = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ major_category: string; sap_key: string; label: string | null; is_active: boolean }[]>`
+      SELECT major_category, sap_key, label, is_active
+      FROM maj_cat_mandatory_grid
+      ORDER BY major_category, sap_key
+    `;
+
+    const grouped: Record<string, Record<string, { isActive: boolean; label: string | null }>> = {};
+    for (const row of rows) {
+      if (!grouped[row.major_category]) grouped[row.major_category] = {};
+      grouped[row.major_category][row.sap_key] = {
+        isActive: row.is_active,
+        label: row.label ?? null,
+      };
+    }
+
+    res.json({ success: true, data: grouped });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/mandatory-grid/template
+ */
+export const downloadMandatoryGridTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('MANDATORY-GRID-TEMPLATE');
+
+    // Title
+    ws.mergeCells('A1:F1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'MAJOR CATEGORY WISE MANDATORY GRID DATA';
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center' };
+    ws.getRow(1).height = 22;
+
+    // Row 2 empty
+    ws.addRow([]);
+
+    // Row 3 — SAP Keys header
+    const sapKeys = [
+      'DIV', 'SUB-DIV', 'MAJOR_CATEGORY',
+      'M_FAB_DIV', 'M_YARN', 'M_YARN-02', 'M_WEAVE_2', 'M_FAB', 'M_FAB2',
+      'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH',
+      'M_GSM', 'M_OUNZ', 'M_WIDTH', 'M_COLLAR', 'M_COLLAR_STYLE',
+      'M_NECK_BAND_STYLE', 'M_NECK_BAND', 'M_PLACKET', 'M_BLT_MAIN_STYLE',
+      'M_SUB_STYLE_BLT', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD', 'M_BTM_FOLD',
+      'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'M_PATTERN',
+      'M_LENGTH', 'M_DC_SUB_STYLE', 'M_DC_SHAPE', 'M_BTN_MAIN_MVGR', 'M_BTN_CLR',
+      'M_ZIP', 'M_ZIP_COL', 'M_PATCH_TYPE', 'M_PATCHES', 'M_HTRF_STYLE',
+      'M_HTRF_TYPE', 'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT',
+      'M_EMBROIDERY', 'M_EMB_TYPE', 'M_EMB_PLACEMENT', 'M_WASH',
+      'AGE GROUP', 'SEGMENT', 'ARTICLE FASHION TYPE', 'COST', 'MRP',
+      'VENDOR-NM', 'ARTICLE WEIGHT', 'ARTICLE DIMENSION',
+    ];
+
+    const row3 = ws.addRow(sapKeys);
+    row3.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 4 — Labels header
+    const labels = [
+      'DIV', 'SUB-DIV', 'MAJOR_CATEGORY',
+      'M_FAB_DIV', 'M_YARN', 'FAB_MAIN_MVGR-1', 'FAB-MAIN-MVGR-2', 'WEAVE-01', 'WEAVE 02',
+      'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH',
+      'M_GSM', 'M_OUNZ', 'M_WIDTH', 'M_COLLAR_TYPE', 'M_COLLAR_STYLE',
+      'M_NECK_STYLE', 'M_NECK_TYPE', 'M_PLACKET', 'M_BLT_TYPE',
+      'M_BLT_STYLE', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD', 'M_BTM_FOLD',
+      'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'BODY STYLE',
+      'M_LENGTH', 'M_DC_STYLE', 'M_DC_SHAPE', 'M_BTN_TYPE', 'M_BTN_CLR',
+      'M_ZIP_TYPE', 'M_ZIP_COL', 'M_PATCH_STYLE', 'M_PATCHE_TYPE', 'M_HTRF_STYLE',
+      'M_HTRF_TYPE', 'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT',
+      'M_EMBROIDERY_STYLE', 'M_EMB_TYPE', 'M_EMB_PLACEMENT', 'M_WASH',
+      'AGE GROUP', 'SEGMENT', 'ARTICLE FASHION TYPE', 'COST', 'MRP',
+      'VENDOR-NM', 'ARTICLE WEIGHT', 'ARTICLE DIMENSION',
+    ];
+
+    const row4 = ws.addRow(labels);
+    row4.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FF000000' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBBDEFB' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 5 empty + sample row 6
+    ws.addRow([]);
+    ws.addRow(['MENS', 'MW', 'MW_TEES_FS', 1, 1, 1, 1, 1, 1, 1, null, null, 1, null, 1, null, null, null, null, 1, 1, null, null, null, 1, 1, 1, 1, 1, null, 1, null, 1, null, null, null, null, null, null, null, null, null, null, 1, 1, 1, null, null, null, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+    // Note
+    ws.addRow([]);
+    const noteRow = ws.addRow(['⚠ NOTE: Row 3 = SAP Keys, Row 4 = Labels, Row 5 = empty, Row 6+ = data. Use 1 for active/visible, leave blank for inactive/hidden.']);
+    ws.mergeCells(`A${noteRow.number}:BF${noteRow.number}`);
+    noteRow.getCell(1).font = { italic: true, size: 10 };
+    noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MANDATORY_GRID_TEMPLATE.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[MandatoryGrid] Template error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/mandatory-grid/upload
+ */
+export const uploadMandatoryGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded' });
+      return;
+    }
+
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer as any);
+    const ws = wb.worksheets[0];
+
+    // Row 3 = SAP keys, Row 4 = labels, Row 5 = empty, Row 6+ = data
+    const sapKeyRow = ws.getRow(3);
+    const labelRow  = ws.getRow(4);
+
+    // Build column index → { sapKey, label }
+    const colMeta: Record<number, { sapKey: string; label: string }> = {};
+    sapKeyRow.eachCell({ includeEmpty: false }, (cell: any, col: number) => {
+      if (col <= 3) return; // skip DIV, SUB-DIV, MAJOR_CATEGORY
+      const rawSap = cell.value;
+      // Handle formula cells
+      const sapKey = typeof rawSap === 'object' && rawSap !== null && 'result' in rawSap
+        ? String(rawSap.result).trim()
+        : String(rawSap ?? '').trim();
+      if (!sapKey) return;
+
+      const rawLabel = labelRow.getCell(col).value;
+      const label = typeof rawLabel === 'object' && rawLabel !== null && 'result' in rawLabel
+        ? String(rawLabel.result).trim()
+        : String(rawLabel ?? '').trim();
+
+      colMeta[col] = { sapKey, label };
+    });
+
+    console.log(`[MandatoryGrid] Detected ${Object.keys(colMeta).length} attribute columns`);
+
+    // Parse data rows (row 6+)
+    type FlatRecord = {
+      major_category: string;
+      div: string | null;
+      sub_div: string | null;
+      sap_key: string;
+      label: string | null;
+      is_active: boolean;
+    };
+
+    const flatRows: FlatRecord[] = [];
+    let skipped = 0;
+
+    ws.eachRow({ includeEmpty: false }, (row: any, rowNum: number) => {
+      if (rowNum <= 5) return; // skip header rows
+
+      const rawMajCat = row.getCell(3).value;
+      const majorCategory = String(rawMajCat ?? '').trim();
+      if (!majorCategory) { skipped++; return; }
+
+      const div    = String(row.getCell(1).value ?? '').trim() || null;
+      const subDiv = String(row.getCell(2).value ?? '').trim() || null;
+
+      for (const [colStr, { sapKey, label }] of Object.entries(colMeta)) {
+        const col = Number(colStr);
+        const cellVal = row.getCell(col).value;
+        const isActive = cellVal === 1 || cellVal === '1' || cellVal === true;
+        flatRows.push({ major_category: majorCategory, div, sub_div: subDiv, sap_key: sapKey, label, is_active: isActive });
+      }
+    });
+
+    const totalRows = flatRows.length;
+    const categoriesCount = new Set(flatRows.map(r => r.major_category)).size;
+    const activeCount = flatRows.filter(r => r.is_active).length;
+
+    console.log(`[MandatoryGrid] Parsed ${totalRows} records, ${categoriesCount} categories, ${activeCount} active`);
+
+    // TRUNCATE + batch INSERT
+    await prisma.$executeRaw`TRUNCATE TABLE maj_cat_mandatory_grid RESTART IDENTITY`;
+
+    const BATCH = 500;
+    for (let i = 0; i < flatRows.length; i += BATCH) {
+      const batch = flatRows.slice(i, i + BATCH);
+      const values = batch.map(r =>
+        `(${[
+          `'${r.major_category.replace(/'/g, "''")}'`,
+          r.div    ? `'${r.div.replace(/'/g, "''")}'`    : 'NULL',
+          r.sub_div ? `'${r.sub_div.replace(/'/g, "''")}'` : 'NULL',
+          `'${r.sap_key.replace(/'/g, "''")}'`,
+          r.label  ? `'${r.label.replace(/'/g, "''")}'`  : 'NULL',
+          r.is_active ? 'true' : 'false',
+          'NOW()',
+        ].join(',')})`
+      ).join(',');
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO maj_cat_mandatory_grid
+          (major_category, div, sub_div, sap_key, label, is_active, uploaded_at)
+        VALUES ${values}
+        ON CONFLICT (major_category, sap_key) DO UPDATE SET
+          div        = EXCLUDED.div,
+          sub_div    = EXCLUDED.sub_div,
+          label      = EXCLUDED.label,
+          is_active  = EXCLUDED.is_active,
+          uploaded_at = NOW()
+      `);
+    }
+
+    // Save meta
+    const meta = {
+      uploadedAt:      new Date().toISOString(),
+      fileName:        req.file.originalname,
+      totalRows:       categoriesCount,                  // Excel data rows = distinct major categories
+      attributesCount: Object.keys(colMeta).length,     // number of SAP key columns in Excel
+      activeMappings:  activeCount,                     // active (major_category, sap_key) pairs
+      totalMappings:   totalRows,                       // total (major_category, sap_key) pairs
+      categoriesCount,
+      skippedRows:     skipped,
+    };
+    const metaDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(MAJ_CAT_MANDATORY_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
+    invalidateMandatoryGridCache();
+
+    console.log(`[MandatoryGrid] Done — ${categoriesCount} major categories, ${Object.keys(colMeta).length} SAP columns, ${activeCount} active mappings`);
+
+    res.json({
+      success: true,
+      message: `Mandatory grid uploaded. ${categoriesCount} major categories × ${Object.keys(colMeta).length} attribute columns = ${activeCount} active field mappings.`,
+      data: meta,
+    });
+  } catch (error: any) {
+    console.error('[MandatoryGrid] Upload error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -142,4 +142,12 @@ router.get('/majcat-grid/values', h(adminController.getMajCatGridValues));
 router.get('/majcat-grid/template', h(adminController.downloadMajCatGridTemplate));
 router.post('/majcat-grid/upload', excelUpload.single('file'), h(adminController.uploadMajCatGrid));
 
+// ═══════════════════════════════════════════════════════
+// MANDATORY GRID (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/mandatory-grid/status', h(adminController.getMandatoryGridStatus));
+router.get('/mandatory-grid/values', h(adminController.getMandatoryGridValues));
+router.get('/mandatory-grid/template', h(adminController.downloadMandatoryGridTemplate));
+router.post('/mandatory-grid/upload', excelUpload.single('file'), h(adminController.uploadMandatoryGrid));
+
 export default router;

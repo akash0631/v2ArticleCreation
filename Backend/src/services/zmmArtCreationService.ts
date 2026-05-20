@@ -17,6 +17,43 @@ const prisma = new PrismaClient();
 // Division-scoped cache: 'MENS' | 'LADIES' | 'KIDS' → { dbField → string[] }
 const _dbValuesCache = new Map<string, Record<string, string[]>>();
 
+// ─── Mandatory Grid cache (loaded once from DB per process lifetime) ──────────
+// configured: all major categories that have ANY row in maj_cat_mandatory_grid
+// active:     majorCategory → Set<rfcSapKey> that are is_active=true
+type MandatoryGridCache = {
+    configured: Set<string>;
+    active: Map<string, Set<string>>;
+};
+let _mandatoryGridCache: MandatoryGridCache | null = null;
+
+async function loadMandatoryGridForRfc(): Promise<MandatoryGridCache> {
+    if (_mandatoryGridCache) return _mandatoryGridCache;
+
+    const rows = await prisma.$queryRaw<
+        { major_category: string; sap_key: string; is_active: boolean }[]
+    >`SELECT major_category, sap_key, is_active FROM maj_cat_mandatory_grid`;
+
+    const configured = new Set<string>();
+    const active = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        configured.add(row.major_category);
+        if (row.is_active) {
+            if (!active.has(row.major_category)) active.set(row.major_category, new Set());
+            active.get(row.major_category)!.add(row.sap_key);
+        }
+    }
+
+    _mandatoryGridCache = { configured, active };
+    console.log(`[ZMM_RFC] Mandatory grid loaded: ${configured.size} major categories configured`);
+    return _mandatoryGridCache;
+}
+
+/** Call this after an Admin mandatory-grid upload to force a reload on next RFC call. */
+export function invalidateMandatoryGridCache(): void {
+    _mandatoryGridCache = null;
+}
+
 async function getDbValues(division: string): Promise<Record<string, string[]>> {
     const div = division.trim().toUpperCase();
     if (_dbValuesCache.has(div)) return _dbValuesCache.get(div)!;
@@ -259,26 +296,38 @@ const toStr = (v: unknown): string => {
 
 /**
  * Build the JSON body for ZMM_ART_CREATION_RFC.
- * - RFC_ALWAYS_INCLUDE fields are always present (even empty).
- * - Optional fields are only included when they are BOTH non-empty AND listed
- *   as mandatory for the article's major category. This prevents AI-extracted
- *   values for irrelevant attributes (e.g. M_FINISH for a category where finish
- *   is not applicable) from being sent to SAP and causing validation errors.
- * - If the major category is unknown (not in the mandatory map), all non-empty
- *   fields are included as before (safe fallback).
+ *
+ * Field inclusion rules (in priority order):
+ *  1. RFC_ALWAYS_INCLUDE fields → always sent (even empty) — header/identity fields.
+ *  2. Major category IS configured in the mandatory grid:
+ *       → Only send optional fields whose SAP key has is_active=true in the grid
+ *         AND the value is non-empty.
+ *       → Fields with is_active=false (or not listed) are excluded even if filled.
+ *  3. Major category NOT in the mandatory grid (no rows uploaded yet):
+ *       → Send all non-empty fields (safe fallback — same as before the grid upload).
  */
-function buildRfcPayload(item: FlatItem): Record<string, string> {
+function buildRfcPayload(item: FlatItem, mandatoryGrid: MandatoryGridCache): Record<string, string> {
+    const majorCategory = toStr(item.majorCategory);
+    const isCategoryConfigured = mandatoryGrid.configured.has(majorCategory);
+    const activeKeys = mandatoryGrid.active.get(majorCategory);
+
     const payload: Record<string, string> = {};
 
     for (const { rfc, flat } of FLAT_TO_RFC) {
         const val = toStr(item[flat]);
 
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
-            // Always include header fields (even empty)
+            // Rule 1: header fields always go through
             payload[rfc] = val;
         } else if (val) {
-            // Send all non-empty fields — no mandatory-category filter
-            payload[rfc] = val;
+            if (!isCategoryConfigured) {
+                // Rule 3: major category not in mandatory grid → send all non-empty (fallback)
+                payload[rfc] = val;
+            } else if (activeKeys?.has(rfc)) {
+                // Rule 2: category configured AND this SAP key is active (is_active=true)
+                payload[rfc] = val;
+            }
+            // else: category configured but this SAP key is inactive (0/empty in Excel) → skip
         }
     }
 
@@ -372,6 +421,9 @@ export async function syncArticlesToSapViaRfc(
 
     const results: SapSyncItemResult[] = [];
 
+    // Load mandatory grid once for the entire batch (cached after first call)
+    const mandatoryGrid = await loadMandatoryGridForRfc();
+
     for (const item of items) {
         // ── 1. Mandatory field check ──────────────────────────────────────────
         const missing = MANDATORY.filter((f) => {
@@ -389,8 +441,8 @@ export async function syncArticlesToSapViaRfc(
             continue;
         }
 
-        // ── 2. Build payload ─────────────────────────────────────────────────
-        const payload = buildRfcPayload(item);
+        // ── 2. Build payload (filtered by mandatory grid) ─────────────────────
+        const payload = buildRfcPayload(item, mandatoryGrid);
 
         console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
         console.log(`API URL : ${ZMM_RFC_URL}`);

@@ -79,6 +79,24 @@ export default function Admin() {
   const [majCatGridProgress, setMajCatGridProgress] = useState<number>(0);
   const majCatFileRef = useRef<HTMLInputElement | null>(null);
 
+  // Mandatory Grid
+  interface MandatoryGridMeta {
+    uploadedAt?: string;
+    fileName?: string;
+    totalRows?: number;        // Excel data rows = distinct major categories (317)
+    skippedRows?: number;
+    categoriesCount?: number;  // authoritative from DB
+    attributesCount?: number;  // SAP key columns in the Excel
+    activeMappings?: number;   // active (major_category, sap_key) pairs
+    totalMappings?: number;    // total (major_category, sap_key) pairs
+    totalValues?: number;      // legacy fallback
+  }
+  const [mandatoryGridMeta, setMandatoryGridMeta] = useState<MandatoryGridMeta | null>(null);
+  const [mandatoryGridStatusLoading, setMandatoryGridStatusLoading] = useState(false);
+  const [mandatoryGridUploading, setMandatoryGridUploading] = useState(false);
+  const [mandatoryGridProgress, setMandatoryGridProgress] = useState<number>(0);
+  const mandatoryFileRef = useRef<HTMLInputElement | null>(null);
+
   const loadSrmStatus = useCallback(async () => {
     setSrmStatusLoading(true);
     try {
@@ -248,12 +266,78 @@ export default function Admin() {
     }
   };
 
+  const loadMandatoryGridStatus = useCallback(async () => {
+    setMandatoryGridStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/mandatory-grid/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load mandatory grid status');
+      setMandatoryGridMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load mandatory grid status');
+    } finally {
+      setMandatoryGridStatusLoading(false);
+    }
+  }, []);
+
+  const downloadMandatoryTemplate = () => {
+    const token = localStorage.getItem('authToken');
+    const url = `${APP_CONFIG.api.baseURL}/admin/mandatory-grid/template`;
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'mandatory-grid-template.xlsx';
+        a.click();
+      })
+      .catch(() => message.error('Failed to download template'));
+  };
+
+  const handleMandatoryGridUpload = async (file: File) => {
+    setMandatoryGridUploading(true);
+    setMandatoryGridProgress(0);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const progressInterval = setInterval(() => {
+        setMandatoryGridProgress(prev => Math.min(prev + 3, 90));
+      }, 800);
+
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/mandatory-grid/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setMandatoryGridProgress(100);
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      message.success(data.message);
+      setMandatoryGridMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Upload failed');
+    } finally {
+      setMandatoryGridUploading(false);
+      setTimeout(() => setMandatoryGridProgress(0), 1500);
+      if (mandatoryFileRef.current) mandatoryFileRef.current.value = '';
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadSrmStatus();
     loadVendorStatus();
     loadMajCatGridStatus();
-  }, [loadSrmStatus, loadVendorStatus, loadMajCatGridStatus]);
+    loadMandatoryGridStatus();
+  }, [loadSrmStatus, loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -839,6 +923,130 @@ export default function Admin() {
                       beforeUpload={file => {
                         handleMajCatGridUpload(file as unknown as File);
                         return false; // prevent default upload
+                      }}
+                      style={{ padding: '12px 0' }}
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                      </p>
+                      <p className="ant-upload-text" style={{ fontSize: 13 }}>
+                        Click or drag <strong>.xlsx</strong> file here
+                      </p>
+                      <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                        Only Excel files. Max 50 MB.
+                      </p>
+                    </Upload.Dragger>
+                  )}
+                </div>
+              </Col>
+            </Row>
+          </Spin>
+        </Card>
+
+        {/* Mandatory Grid Upload */}
+        <Card
+          title={<span><TableOutlined style={{ marginRight: 8 }} />Mandatory Grid (Field Visibility per Major Category)</span>}
+          style={{ marginBottom: 24 }}
+          extra={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                icon={<DownloadOutlined />}
+                size="small"
+                onClick={downloadMandatoryTemplate}
+              >
+                Download Template
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                size="small"
+                onClick={loadMandatoryGridStatus}
+                loading={mandatoryGridStatusLoading}
+              >
+                Refresh Status
+              </Button>
+            </div>
+          }
+        >
+          <Spin spinning={mandatoryGridStatusLoading}>
+            <Row gutter={[16, 16]}>
+              {/* Status panel */}
+              <Col xs={24} md={14}>
+                {mandatoryGridMeta ? (
+                  <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }}>
+                    <Descriptions.Item label="Last Upload">
+                      {mandatoryGridMeta.uploadedAt
+                        ? new Date(mandatoryGridMeta.uploadedAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+                          }) + ' IST'
+                        : <span style={{ color: '#999' }}>Unknown</span>}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="File">
+                      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{mandatoryGridMeta.fileName || '—'}</span>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Excel Rows (Major Cat.)">
+                      <Tag color="blue">{(mandatoryGridMeta.categoriesCount ?? mandatoryGridMeta.totalRows ?? 0).toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="SAP Key Columns">
+                      <Tag color="purple">{(mandatoryGridMeta.attributesCount ?? 0).toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Visible Fields (1s in Excel)">
+                      <Tag color="green" title="Count of (major_category × SAP_key) cells marked 1 = visible in article card">{(mandatoryGridMeta.activeMappings ?? mandatoryGridMeta.totalValues ?? 0).toLocaleString()}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Rows Skipped">
+                      <Tag color={(mandatoryGridMeta.skippedRows ?? 0) > 0 ? 'orange' : 'default'}>
+                        {(mandatoryGridMeta.skippedRows ?? 0).toLocaleString()}
+                      </Tag>
+                    </Descriptions.Item>
+                  </Descriptions>
+                ) : (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="No mandatory grid uploaded yet"
+                    description="Upload MANDATORY GRID DATA.xlsx — Row 3: SAP keys, Row 4: labels, Row 6+: data rows (1 = visible, 0/empty = hidden)."
+                  />
+                )}
+              </Col>
+
+              {/* Upload panel */}
+              <Col xs={24} md={10}>
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '16px' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Upload Mandatory Grid Excel</div>
+                  <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 12 }}>
+                    Upload <strong>MANDATORY GRID DATA.xlsx</strong> — Row 3 has SAP keys, Row 4 has labels, Row 5 is empty, Row 6+ are data rows (1 = active/visible, 0 or empty = hidden).
+                  </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={mandatoryFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleMandatoryGridUpload(file);
+                    }}
+                  />
+
+                  {mandatoryGridUploading ? (
+                    <div>
+                      <div style={{ color: '#1890ff', marginBottom: 8, fontSize: 13 }}>
+                        <SyncOutlined spin style={{ marginRight: 6 }} />
+                        Parsing Excel... please wait
+                      </div>
+                      <Progress
+                        percent={mandatoryGridProgress}
+                        status={mandatoryGridProgress === 100 ? 'success' : 'active'}
+                        strokeColor={{ from: '#108ee9', to: '#87d068' }}
+                      />
+                    </div>
+                  ) : (
+                    <Upload.Dragger
+                      accept=".xlsx,.xls"
+                      showUploadList={false}
+                      beforeUpload={file => {
+                        handleMandatoryGridUpload(file as unknown as File);
+                        return false;
                       }}
                       style={{ padding: '12px 0' }}
                     >

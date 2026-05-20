@@ -2,9 +2,9 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Checkbox, Tag, Select, Input, AutoComplete, Spin, Button, Tooltip, message, Modal } from 'antd';
 import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
-import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
+import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, SAP_NAME_TO_SCHEMA_KEY, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -32,6 +32,14 @@ const { Option } = Select;
 
 // Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
+
+// Reverse map: schemaKey → primary SAP key (first non-alias entry in SAP_NAME_TO_SCHEMA_KEY).
+// Used to look up mandatory-grid visibility per field.
+const SCHEMA_KEY_TO_PRIMARY_SAP_KEY: Record<string, string> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
+    .reduce((acc, [sapKey, schemaKey]) => {
+        if (!acc[schemaKey]) acc[schemaKey] = sapKey;
+        return acc;
+    }, {} as Record<string, string>);
 
 // Attributes grouped exactly as in the Excel mandatory grid (4 groups)
 // freeText: true → renders as text input and is always visible (no dropdown/allowedValues check)
@@ -280,6 +288,8 @@ const ArticleCard = React.memo(({
     const [catConfigReady, setCatConfigReady] = useState(false);
     // Tracks when the major-category grid JSON (uploaded Excel) has loaded
     const [gridReady, setGridReady] = useState(() => isMajCatGridLoaded());
+    // Tracks when the mandatory grid (visibility config) has loaded
+    const [mandatoryGridReady, setMandatoryGridReady] = useState(() => isMandatoryGridLoaded());
 
     // Flat attribute list derived from the active card groups
     const attributeFields = useMemo(() =>
@@ -298,13 +308,23 @@ const ArticleCard = React.memo(({
 
         const visible = attributeFields
             .map(af => {
-                // If DB config exists, only show enabled attributes
+                // ── Mandatory Grid filter (field visibility per major category) ──
+                // Look up the primary SAP key for this schema key, then check the
+                // mandatory grid (uploaded Excel).  null = not configured → show.
+                // false = explicitly inactive → hide.
+                const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
+                if (sapKey && mandatoryGridReady) {
+                    const active = isMandatoryGridFieldActive(effectiveMajCat, sapKey);
+                    if (active === false) return null; // explicitly hidden for this major category
+                }
+
+                // ── DB Attribute config filter ──
                 if (dbConfig?.configured) {
                     if (!dbConfig.enabled.has(af.schemaKey)) return null;
                     const values = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
                     return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
                 }
-                // No DB config yet — show all fields
+                // No DB config yet — show all non-hidden fields
                 const values = af.freeText ? [] : (getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? []);
                 return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
             })
@@ -312,7 +332,7 @@ const ArticleCard = React.memo(({
 
         return { visibleAttrs: visible, mandatoryKeys };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, attributeFields]);
+    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, mandatoryGridReady, attributeFields]);
     const [editingField, setEditingField] = useState<string | null>(null);
 
     // Vendor name autocomplete state
@@ -339,12 +359,21 @@ const ArticleCard = React.memo(({
             .catch(() => setCacheReady(true));
     }, [item.division]);
 
-    // Preload major-category grid (uploaded Excel JSON) once per session
+    // Preload major-category grid (dropdown values Excel) once per session
     useEffect(() => {
         if (isMajCatGridLoaded()) { setGridReady(true); return; }
         preloadMajCatGrid()
             .then(() => setGridReady(true))
             .catch(() => setGridReady(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Preload mandatory grid (field visibility Excel) once per session
+    useEffect(() => {
+        if (isMandatoryGridLoaded()) { setMandatoryGridReady(true); return; }
+        preloadMandatoryGrid()
+            .then(() => setMandatoryGridReady(true))
+            .catch(() => setMandatoryGridReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
