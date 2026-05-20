@@ -347,7 +347,7 @@ const ArticleCard = React.memo(({
     const [editingField, setEditingField] = useState<string | null>(null);
 
     // Vendor name autocomplete state
-    const [vendorOptions, setVendorOptions] = useState<{ value: string; label: React.ReactNode; vendorCode: string }[]>([]);
+    const [vendorOptions, setVendorOptions] = useState<{ value: string; label: React.ReactNode; vendorCode: string; vendorName: string }[]>([]);
     const [vendorSearching, setVendorSearching] = useState(false);
     const vendorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -537,12 +537,17 @@ const ArticleCard = React.memo(({
                 );
                 const json = await res.json();
                 const opts = (json.data ?? []).map((v: { vendorCode: string; vendorName: string; vendorCity?: string }) => ({
-                    value: v.vendorName,
+                    // Use "NAME||CODE" as value so duplicates with same name are distinguishable.
+                    // onSelect strips the code suffix before saving the actual vendor name.
+                    value: `${v.vendorName}||${v.vendorCode}`,
                     vendorCode: v.vendorCode,
+                    vendorName: v.vendorName,
                     label: (
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span style={{ fontWeight: 500 }}>{v.vendorName}</span>
-                            <span style={{ color: '#8c8c8c', fontSize: 11 }}>{v.vendorCity ?? ''}</span>
+                            <span style={{ color: '#8c8c8c', fontSize: 11 }}>
+                                {v.vendorCode}{v.vendorCity ? ` · ${v.vendorCity}` : ''}
+                            </span>
                         </div>
                     ),
                 }));
@@ -769,17 +774,18 @@ const ArticleCard = React.memo(({
                                             style={{ width: '100%', fontSize: 12 }}
                                             notFoundContent={vendorSearching ? <Spin size="small" /> : null}
                                             onChange={(val) => searchVendors(val)}
-                                            onSelect={(val: string, option: any) => {
-                                                // Save vendor name
-                                                handleSave('vendorName', val || null);
-                                                // Auto-fill vendor code
-                                                if (option.vendorCode) {
-                                                    setLocalValues(prev => ({ ...prev, vendorCode: option.vendorCode }));
-                                                    onSave(
-                                                        { ...item, vendorCode: option.vendorCode } as ApproverItem,
-                                                        { vendorCode: option.vendorCode } as Record<string, unknown>
-                                                    );
-                                                }
+                                            onSelect={(_val: string, option: any) => {
+                                                // option.vendorName is the clean name (no code suffix)
+                                                const cleanName = option.vendorName || _val.split('||')[0];
+                                                // Save vendor name + auto-fill vendor code together
+                                                const updates: Record<string, string | null> = { vendorName: cleanName };
+                                                if (option.vendorCode) updates.vendorCode = option.vendorCode;
+                                                setLocalValues(prev => ({ ...prev, ...updates }));
+                                                onSave(
+                                                    { ...item, ...updates } as ApproverItem,
+                                                    updates as Record<string, unknown>
+                                                );
+                                                setEditingField(null);
                                                 setVendorOptions([]);
                                             }}
                                             onBlur={(e) => {

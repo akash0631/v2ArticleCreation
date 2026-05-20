@@ -340,9 +340,9 @@ export class ApproverController {
         const DESC_FIELDS = {
             id: true,
             articleDescription: true,
-            fabDiv: true, yarn1: true, mFab2: true, weave: true, macroMvgr: true,
+            fabDiv: true, yarn1: true, fabricMainMvgr: true, weave: true, mFab2: true,
             lycra: true, neck: true, collar: true, sleeve: true, sleeveFold: true,
-            placket: true, fatherBelt: true, pocketType: true, length: true,
+            pocketType: true, childBelt: true, length: true,
             fit: true, pattern: true, printType: true, embroideryType: true,
             embroidery: true, wash: true,
         } as const;
