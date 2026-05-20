@@ -35,7 +35,7 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       icon: <DashboardOutlined />,
       label: <Link to="/dashboard">Dashboard</Link>,
     },
-    ...(userRole !== 'APPROVER' && userRole !== 'CATEGORY_HEAD' ? [{
+    ...(userRole === 'ADMIN' ? [{
       key: '/products',
       icon: <UploadOutlined />,
       label: <Link to="/products">Products</Link>,
