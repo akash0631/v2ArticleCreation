@@ -699,9 +699,18 @@ export class ApproverController {
             // RBAC: Enforce scope by role
             if (!bypassScope) {
                 if (role === 'ADMIN') {
-                    // Admins can filter freely
-                    if (division && division !== 'ALL') where.division = division as string;
-                    if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+                    // Admins can filter freely — use case-insensitive variant matching
+                    // so "MEN" matches both "MEN" and "MENS" stored values.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
                 } else {
                     ApproverController.applyApproverScope(where, req.user);
                 }
@@ -1000,8 +1009,16 @@ export class ApproverController {
             // RBAC
             const role = String(req.user?.role || '');
             if (role === 'ADMIN') {
-                if (division && division !== 'ALL') where.division = division as string;
-                if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
             } else {
                 ApproverController.applyApproverScope(where, req.user);
             }

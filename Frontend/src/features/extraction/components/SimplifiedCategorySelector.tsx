@@ -64,13 +64,26 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data?.data?.departments?.length) return;
-        const map: Record<string, string[]> = {};
+        const apiMap: Record<string, string[]> = {};
         for (const dept of data.data.departments) {
-          if (dept.categories?.length) {
-            map[dept.name] = dept.categories.map((c: any) => c.code);
-          }
+          if (!dept.categories?.length) continue;
+          const key = normalizeDivision(dept.name) || dept.name;
+          const incoming = (dept.categories as any[])
+            .map((c: any) => String(c.code).trim())
+            // Skip major-category-style codes (e.g. M_TEES_HS, M_BLAZER)
+            // Sub-division codes are short identifiers like MU, MS-U, MO, ML, KB-L
+            .filter((code: string) => !code.startsWith('M_'));
+          if (incoming.length === 0) continue;
+          const existing = apiMap[key] || [];
+          apiMap[key] = [...new Set([...existing, ...incoming])];
         }
-        if (Object.keys(map).length) setHierarchy(map);
+        // Always merge API result with hardcoded fallback:
+        // fallback guarantees the known sub-divisions are present even if DB is incomplete
+        const merged: Record<string, string[]> = { ...SIMPLIFIED_HIERARCHY };
+        for (const [key, codes] of Object.entries(apiMap)) {
+          merged[key] = [...new Set([...(SIMPLIFIED_HIERARCHY[key] || []), ...codes])];
+        }
+        setHierarchy(merged);
       })
       .catch(() => {/* keep fallback */})
       .finally(() => setHierarchyLoading(false));
