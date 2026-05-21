@@ -174,7 +174,7 @@ export interface ApproverArticleListProps {
     selectedRowKeys: React.Key[];
     onSelectionChange: (keys: React.Key[]) => void;
     onEdit: (item: ApproverItem) => void;
-    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>, options?: { silent?: boolean }) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -215,7 +215,7 @@ const ArticleCard = React.memo(({
     item: ApproverItem;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
-    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>, options?: { silent?: boolean }) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
@@ -274,12 +274,16 @@ const ArticleCard = React.memo(({
         } catch { /* ignore parse errors */ }
 
         const storedMrp = parseFloat(String((item as any).mrp ?? ''));
-        if (!isNaN(storedMrp) && storedMrp > 1) return;
         const rate = parseFloat(String((item as any).rate ?? ''));
         if (isNaN(rate) || rate <= 0) return;
-        const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
+        const calculatedMrp = Math.ceil((rate * 1.47) / 25) * 25;
+        // Skip if MRP is already saved and matches what we'd calculate — no API call needed
+        if (!isNaN(storedMrp) && storedMrp > 0 && storedMrp === calculatedMrp) return;
+        // Skip if MRP is already saved as any valid positive number (user may have set it manually)
+        if (!isNaN(storedMrp) && storedMrp > 0) return;
+        const calculated = String(calculatedMrp);
         setLocalValues(prev => ({ ...prev, mrp: calculated }));
-        onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated });
+        onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated }, { silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id]);
 

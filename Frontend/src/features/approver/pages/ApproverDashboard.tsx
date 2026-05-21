@@ -1359,7 +1359,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         pageSize: PAGE_SIZE,
                         onChange: (page) => { setSelectedRowKeys([]); fetchItems(page); }
                     }}
-                    onSave={async (row, directUpdates) => {
+                    onSave={async (row, directUpdates, options) => {
+                        // Snapshot items BEFORE optimistic update so we can revert in-place on error
+                        const prevItems = [...items];
+
                         const newData = [...items];
                         const index = newData.findIndex((item) => item.id === row.id);
                         let updatePayload: Record<string, unknown> = {};
@@ -1399,9 +1402,16 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 body: JSON.stringify(updatePayload)
                             });
                             if (!response.ok) {
-                                const errText = await response.text();
-                                console.error('[onSave] Save failed:', response.status, errText);
-                                throw new Error('Update failed');
+                                // Parse the real error message from the backend response
+                                let errorMsg = 'Failed to save';
+                                try {
+                                    const payload = await response.json();
+                                    if (payload?.error) errorMsg = payload.error;
+                                } catch { /* keep default */ }
+                                // Revert optimistic update in-place — no full page reload
+                                setItems(prevItems);
+                                message.error(errorMsg);
+                                return;
                             }
                             // Sync server's authoritative values (articleDescription, segment,
                             // mcCode, hsnTaxCode, year, season) back into items state so the
@@ -1419,11 +1429,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 };
                                 return copy;
                             });
-                            message.success('Saved');
+                            if (!options?.silent) message.success('Saved');
                         } catch {
-                            message.error('Failed to save');
-                            // On error, resync from server to undo the optimistic update
-                            fetchItems(currentPage);
+                            // Network / unexpected error — revert in-place, no reload
+                            setItems(prevItems);
+                            message.error('Failed to save. Please check your connection.');
                         }
                     }}
                 />

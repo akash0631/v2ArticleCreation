@@ -1195,6 +1195,30 @@ export class ApproverController {
                     userName: true,
                     createdAt: true,
                     sapSyncStatus: true,
+                    // BOM
+                    impAtrbt2: true,
+                    // FAB extras
+                    fCount: true,
+                    fConstruction: true,
+                    fOunce: true,
+                    fWidth: true,
+                    fabDiv: true,
+                    // BODY extras
+                    collarStyle: true,
+                    sleeveFold: true,
+                    noOfPocket: true,
+                    extraPocket: true,
+                    // VA ACC extras
+                    dcShape: true,
+                    btnColour: true,
+                    htrfType: true,
+                    htrfStyle: true,
+                    // VA PRCS extras
+                    embPlacement: true,
+                    // BUSINESS extras
+                    ageGroup: true,
+                    articleFashionType: true,
+                    mvgrBrandVendor: true,
                 },
             });
 
