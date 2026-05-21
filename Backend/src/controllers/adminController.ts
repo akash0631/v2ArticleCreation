@@ -2143,22 +2143,26 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
     const attributesCount = new Set(flatRows.map(r => `${r.major_category}||${r.attribute_name}`)).size;
 
     // ── 2. Replace all rows in Supabase ────────────────────────────────────────
-    console.log(`[MajCatGrid] Truncating existing rows...`);
-    await prisma.$executeRaw`TRUNCATE TABLE maj_cat_grid_values RESTART IDENTITY`;
+    // Use a larger batch size (5000) to cut DB round-trips from ~637 → ~64 for
+    // a 318k-row file. Wrapped in a single transaction so either all rows land
+    // or none do (no partial state on failure).
+    const BATCH = 5000;
+    console.log(`[MajCatGrid] Replacing table — ${totalRows} rows in batches of ${BATCH}...`);
 
-    const BATCH = 500;
-    console.log(`[MajCatGrid] Inserting ${totalRows} rows in batches of ${BATCH}...`);
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`TRUNCATE TABLE maj_cat_grid_values RESTART IDENTITY`;
 
-    for (let i = 0; i < flatRows.length; i += BATCH) {
-      const batch = flatRows.slice(i, i + BATCH);
-      await prisma.$executeRaw`
-        INSERT INTO maj_cat_grid_values (major_category, attribute_name, value, uploaded_at)
-        SELECT v.major_category, v.attribute_name, v.value, NOW()
-        FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
-          AS v(major_category text, attribute_name text, value text)
-        ON CONFLICT (major_category, attribute_name, value) DO NOTHING
-      `;
-    }
+      for (let i = 0; i < flatRows.length; i += BATCH) {
+        const batch = flatRows.slice(i, i + BATCH);
+        await tx.$executeRaw`
+          INSERT INTO maj_cat_grid_values (major_category, attribute_name, value, uploaded_at)
+          SELECT v.major_category, v.attribute_name, v.value, NOW()
+          FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
+            AS v(major_category text, attribute_name text, value text)
+          ON CONFLICT (major_category, attribute_name, value) DO NOTHING
+        `;
+      }
+    }, { timeout: 14 * 60 * 1000 }); // 14-min DB transaction timeout (just under request timeout)
 
     // ── 3. Save lightweight metadata file ──────────────────────────────────────
     const meta = {
