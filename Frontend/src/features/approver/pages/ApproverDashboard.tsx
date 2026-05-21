@@ -519,51 +519,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         [selectedRowKeys, items]
     );
 
-    // field → schemaKey map for mandatory validation (mirrors ATTRIBUTE_FIELDS in ApproverArticleList)
-    const FIELD_TO_SCHEMA_KEY: Record<string, string> = {
-        macroMvgr: 'macro_mvgr', yarn1: 'yarn_01', mainMvgr: 'main_mvgr',
-        fabricMainMvgr: 'fabric_main_mvgr', weave: 'weave', mFab2: 'm_fab2',
-        composition: 'composition', fCount: 'f_count', fConstruction: 'f_construction',
-        lycra: 'lycra_non_lycra', finish: 'finish', gsm: 'gsm',
-        fOunce: 'f_ounce', fWidth: 'f_width', fabDiv: 'fab_div',
-        collar: 'collar', collarStyle: 'collar_style', neckDetails: 'neck_details',
-        neck: 'neck', placket: 'placket', fatherBelt: 'father_belt',
-        sleeve: 'sleeve', sleeveFold: 'sleeve_fold', bottomFold: 'bottom_fold',
-        noOfPocket: 'no_of_pocket', pocketType: 'pocket_type', extraPocket: 'extra_pocket',
-        fit: 'fit', pattern: 'body_style', length: 'length',
-        drawcord: 'drawcord', dcShape: 'dc_shape', button: 'button',
-        btnColour: 'btn_colour', zipper: 'zipper', zipColour: 'zip_colour',
-        patchesType: 'patches_type', patches: 'patches',
-        htrfType: 'htrf_type', htrfStyle: 'htrf_style',
-        printType: 'print_type', printStyle: 'print_style', printPlacement: 'print_placement',
-        embroidery: 'embroidery', embroideryType: 'embroidery_type',
-        embPlacement: 'emb_placement', wash: 'wash',
-        ageGroup: 'age_group', articleFashionType: 'article_fashion_type',
-        mvgrBrandVendor: 'mvgr_brand_vendor',
-    };
-
-    // Reactively check if ALL selected pending items have every visible dropdown field filled.
-    // '-' counts as filled (frontend placeholder); only null/empty triggers a block.
-    // Approve button is disabled when any item has an unfilled visible field.
+    // Only block approve if VENDOR CODE is missing — required for SAP processing.
+    // All attribute-level required checks have been removed per user request.
     const approveBlockedReasons = useMemo(() => {
         const pendingItems = items.filter(i => pendingSelectedKeys.includes(i.id));
         const errors: { articleId: string; missing: string[] }[] = [];
         for (const item of pendingItems) {
             const missing: string[] = [];
-            const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
-            const mandatoryKeys = getMajCatMandatoryKeys(majCat);
-            for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-                // Only check fields that are mandatory per Excel AND have dropdown values
-                const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
-                if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
-                    missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);
-                }
-            }
-            // BOM / header fields — always mandatory regardless of division
-            if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
-            if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
             if (!item.vendorCode) missing.push('VENDOR CODE');
-            // referenceArticleDescription is optional
             if (missing.length > 0) {
                 errors.push({
                     articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
@@ -583,22 +546,9 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
         for (const item of pendingItems) {
             const missing: string[] = [];
-
-            // Only validate fields that are mandatory per Excel for this major category
-            const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
-            const mandatoryKeys = getMajCatMandatoryKeys(majCat);
-            for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-                const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
-                if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
-                    missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);
-                }
-            }
-            // BOM / header fields — always mandatory regardless of division
-            if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
-            if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
+            // Only block approve if VENDOR CODE is missing — required for SAP processing.
+            // All attribute-level required checks removed per user request.
             if (!item.vendorCode) missing.push('VENDOR CODE');
-            // referenceArticleDescription is optional
-
             if (missing.length > 0) {
                 errors.push({
                     articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
