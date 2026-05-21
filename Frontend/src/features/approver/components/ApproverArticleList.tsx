@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, SAP_NAME_TO_SCHEMA_KEY, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, getMajCatGridEntry, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -310,44 +310,52 @@ const ArticleCard = React.memo(({
         ),
     [cardGroups]);
 
-    // Compute attributes per-card from this article's own majorCategory
+    // Compute attributes per-card from this article's own majorCategory.
+    // Visibility rule: show a field only when maj_cat_grid_values has entries for it
+    // under this major category. Required labels are removed — no mandatory marking.
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
         if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
 
-        // DB-driven config (set via Attribute Mapping in Admin Panel)
-        const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
-        const mandatoryKeys: Set<string> = dbConfig?.required ?? new Set();
+        // Check whether this major category exists in the uploaded grid at all.
+        // If the grid is loaded but has no entry for this cat, fall back to showing
+        // all fields (graceful degradation for categories not yet in the Excel).
+        const catInGrid = gridReady
+            ? Object.keys(SCHEMA_KEY_TO_EXCEL_ATTR).some(sk => {
+                const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[sk];
+                return excelAttr ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0 : false;
+              })
+            : false;
 
         const visible = attributeFields
             .map(af => {
-                // Skip BOM-only fields — they belong to the BOM section, not attribute groups
+                // BOM-only fields never appear in attribute groups
                 if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) return null;
 
-                // ── Mandatory Grid filter (field visibility per major category) ──
-                // Look up the primary SAP key for this schema key, then check the
-                // mandatory grid (uploaded Excel).  null = not configured → show.
-                // false = explicitly inactive → hide.
-                const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
-                if (sapKey && mandatoryGridReady) {
-                    const active = isMandatoryGridFieldActive(effectiveMajCat, sapKey);
-                    if (active === false) return null; // explicitly hidden for this major category
+                // ── Grid-driven visibility ──
+                // When the grid is loaded AND this major category exists in the grid:
+                // show ONLY fields that have values in the grid for this major category.
+                // freeText fields (shade, weight, segment…) always bypass the grid check.
+                // Non-grid fields are hidden even if they have a previously-saved value.
+                if (!af.freeText && gridReady && catInGrid) {
+                    const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
+                    const hasGridValues = excelAttr
+                        ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
+                        : false;
+                    if (!hasGridValues) return null;
                 }
 
-                // ── DB Attribute config filter ──
-                if (dbConfig?.configured) {
-                    if (!dbConfig.enabled.has(af.schemaKey)) return null;
-                    const values = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
-                    return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
-                }
-                // No DB config yet — show all non-hidden fields
-                const values = af.freeText ? [] : (getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? []);
+                const values = af.freeText
+                    ? []
+                    : (getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? []);
+
                 return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
             })
             .filter((af): af is NonNullable<typeof af> => af !== null);
 
-        return { visibleAttrs: visible, mandatoryKeys };
+        // mandatoryKeys intentionally empty — required labels removed per user request
+        return { visibleAttrs: visible, mandatoryKeys: new Set<string>() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, mandatoryGridReady, attributeFields]);
+    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, mandatoryGridReady, attributeFields, localValues]);
     const [editingField, setEditingField] = useState<string | null>(null);
 
     // Vendor name autocomplete state
@@ -446,12 +454,9 @@ const ArticleCard = React.memo(({
         return v ? String(v).trim() : null;
     }, [localValues, item]);
 
-    // Reactively rebuild fabric/body descriptions whenever mandatory fields or item changes.
-    // Reading localValues inside the setLocalValues updater (not as a dep) breaks the
-    // getFieldVal → localValues → effect → setLocalValues → localValues circular loop.
+    // Reactively rebuild fabric/body descriptions whenever visible fields or item changes.
     React.useEffect(() => {
         if (item.approvalStatus !== 'PENDING') return;
-        if (mandatoryKeys.size === 0) return;
 
         setLocalValues(prev => {
             const getVal = (field: string) => {
@@ -460,11 +465,9 @@ const ArticleCard = React.memo(({
             };
 
             const fabParts = FAB_FIELDS
-                .filter(f => mandatoryKeys.has(f.schemaKey))
                 .map(f => getVal(f.field))
                 .filter(Boolean) as string[];
             const bodyParts = BODY_FIELDS
-                .filter(f => mandatoryKeys.has(f.schemaKey))
                 .map(f => getVal(f.field))
                 .filter(Boolean) as string[];
 
@@ -476,7 +479,7 @@ const ArticleCard = React.memo(({
             if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
             return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
         });
-    }, [mandatoryKeys, item]);
+    }, [item]);
 
     const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
     const status = getDisplayStatus(item);
@@ -893,9 +896,7 @@ const ArticleCard = React.memo(({
                                         <tbody>
                                             {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText }) => {
                                                 const currentValue = getValue(field);
-                                                // '-' counts as filled; only truly empty/null is unfilled
                                                 const isEmpty = !currentValue;
-                                                const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
                                                 const isEditing = editingField === field;
                                                 const artNum = getArtNum(schemaKey, field, currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;
@@ -905,8 +906,8 @@ const ArticleCard = React.memo(({
                                                         <td style={{
                                                             padding: '4px 8px',
                                                             fontSize: 11,
-                                                            fontWeight: isMandatory ? 600 : 400,
-                                                            color: isMandatory ? '#262626' : '#595959',
+                                                            fontWeight: 400,
+                                                            color: '#595959',
                                                             background: '#fafafa',
                                                             borderRight: '1px solid #f0f0f0',
                                                             whiteSpace: 'nowrap',
@@ -915,7 +916,6 @@ const ArticleCard = React.memo(({
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
                                                         }}>
-                                                            {isMandatory && <span style={{ color: '#ff4d4f', marginRight: 2 }}>*</span>}
                                                             {label}
                                                         </td>
                                                         {/* Art # column — hidden for freeText fields (no BOM lookup needed) */}
@@ -952,9 +952,7 @@ const ArticleCard = React.memo(({
                                                             style={{
                                                                 padding: '3px 8px',
                                                                 cursor: isLocked ? 'default' : 'pointer',
-                                                                background: isEditing ? '#e6f7ff'
-                                                                    : isEmpty && isMandatory ? '#fff7e6'
-                                                                    : 'transparent',
+                                                                background: isEditing ? '#e6f7ff' : 'transparent',
                                                                 verticalAlign: 'middle',
                                                             }}
                                                             onClick={() => { if (!isLocked && !isEditing) setEditingField(field); }}
@@ -1002,11 +1000,11 @@ const ArticleCard = React.memo(({
                                                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                                     <span style={{
                                                                         fontSize: 11,
-                                                                        color: isEmpty ? (isMandatory ? '#fa8c16' : '#bfbfbf') : '#1a1a1a',
+                                                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
                                                                         fontStyle: isEmpty ? 'italic' : 'normal',
                                                                         flex: 1,
                                                                     }}>
-                                                                        {currentValue || (isMandatory ? 'Required' : '—')}
+                                                                        {currentValue || '—'}
                                                                     </span>
                                                                     {currentValue && !isLocked && (
                                                                         <span
