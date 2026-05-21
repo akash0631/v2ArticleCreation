@@ -77,6 +77,14 @@ export interface EnrichResult {
   failed: number;
 }
 
+// Module-level cache: last completed sync result + timestamp
+export interface LastSyncResult extends SyncResult {
+  completedAt: string; // ISO string
+  ranAt: string;       // ISO string (when sync started)
+}
+let _lastSyncResult: LastSyncResult | null = null;
+export function getLastSrmSyncResult(): LastSyncResult | null { return _lastSyncResult; }
+
 // Minimum delay between consecutive VLM calls to avoid Gemini rate limits
 const VLM_ENRICH_DELAY_MS = 2000;
 
@@ -102,35 +110,92 @@ async function getEnrichSchema() {
   return cachedEnrichSchema;
 }
 
+// How many pages to fetch in parallel per batch
+const PAGE_BATCH_SIZE = 5;
+// Max retries per page on transient failure
+const PAGE_MAX_RETRIES = 3;
+
 /**
- * Fetch one page from the SRM API.
+ * Fetch one page from the SRM API with retry logic.
  */
-async function fetchPage(page: number): Promise<SrmApiResponse> {
+async function fetchPage(page: number, retries = PAGE_MAX_RETRIES): Promise<SrmApiResponse> {
   const url = `${SRM_API_BASE}?page=${page}&page_size=${PAGE_SIZE}`;
-  const res = await fetch(url, {
-    headers: {
-      'apikey': SRM_SUPABASE_KEY,
-      'Authorization': `Bearer ${SRM_SUPABASE_KEY}`,
-      'x-api-key': SRM_API_KEY,
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`SRM API error: HTTP ${res.status}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'apikey': SRM_SUPABASE_KEY,
+          'Authorization': `Bearer ${SRM_SUPABASE_KEY}`,
+          'x-api-key': SRM_API_KEY,
+        },
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} — ${body.slice(0, 200)}`);
+      }
+      const json = await res.json() as any;
+
+      // Log API structure on first page so we can diagnose mismatches in server logs
+      if (page === 1) {
+        const keys = Object.keys(json).join(', ');
+        const rowsLen = Array.isArray(json.rows) ? json.rows.length
+          : Array.isArray(json.data) ? json.data.length : '?';
+        console.log(`[SRM Sync] API page 1 — keys: [${keys}] | total=${json.total ?? json.count ?? '?'} | rows_in_page=${rowsLen}`);
+      }
+
+      // Normalise: support both 'rows'/'total' and 'data'/'count' response shapes
+      const rows: SrmRow[] = Array.isArray(json.rows) ? json.rows
+        : Array.isArray(json.data) ? json.data : [];
+      const total: number = (typeof json.total === 'number' && json.total > 0) ? json.total
+        : (typeof json.count === 'number' && json.count > 0) ? json.count
+        : rows.length;
+
+      return { page: json.page ?? page, page_size: json.page_size ?? PAGE_SIZE, total, rows };
+    } catch (err: any) {
+      if (attempt === retries) {
+        throw new Error(`SRM API page ${page} failed after ${retries} attempts: ${err.message}`);
+      }
+      const delay = attempt * 1000; // 1s, 2s back-off
+      console.warn(`[SRM Sync] Page ${page} attempt ${attempt} failed — retrying in ${delay}ms: ${err.message}`);
+      await new Promise(r => setTimeout(r, delay));
+    }
   }
-  return res.json() as Promise<SrmApiResponse>;
+  // Unreachable but satisfies TypeScript
+  throw new Error(`SRM API page ${page}: exhausted retries`);
 }
 
 /**
  * Fetch all pages and return every row.
+ * Pages are fetched in parallel batches of PAGE_BATCH_SIZE to balance speed vs rate limits.
  */
 async function fetchAllRows(): Promise<SrmRow[]> {
+  // Step 1: fetch page 1 to discover total record count
   const first = await fetchPage(1);
   const allRows: SrmRow[] = [...first.rows];
-  const totalPages = Math.ceil(first.total / PAGE_SIZE);
-  for (let p = 2; p <= totalPages; p++) {
-    const page = await fetchPage(p);
-    allRows.push(...page.rows);
+
+  // Guard: if total came back as 0 but we got rows, trust the rows (API quirk)
+  const reportedTotal = first.total > 0 ? first.total : first.rows.length;
+  const totalPages = Math.ceil(reportedTotal / PAGE_SIZE);
+
+  if (totalPages <= 1) {
+    console.log(`[SRM Sync] Single page — ${allRows.length} records fetched`);
+    return allRows;
   }
+
+  console.log(`[SRM Sync] ${reportedTotal} total records → ${totalPages} pages (batch size ${PAGE_BATCH_SIZE})`);
+
+  // Step 2: fetch remaining pages in parallel batches
+  for (let batchStart = 2; batchStart <= totalPages; batchStart += PAGE_BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + PAGE_BATCH_SIZE - 1, totalPages);
+    const pageNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
+
+    const pages = await Promise.all(pageNums.map(p => fetchPage(p)));
+    for (const p of pages) allRows.push(...p.rows);
+
+    console.log(`[SRM Sync] ✓ Pages ${batchStart}–${batchEnd} of ${totalPages} (${allRows.length}/${reportedTotal} rows so far)`);
+  }
+
+  console.log(`[SRM Sync] All pages fetched — ${allRows.length} total rows`);
   return allRows;
 }
 
@@ -436,6 +501,7 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
  */
 export async function syncFromSrm(): Promise<SyncResult> {
   console.log('[SRM Sync] Starting sync from SRM API...');
+  const startedAt = new Date().toISOString();
   const result: SyncResult = { inserted: 0, skipped: 0, errors: 0, total: 0 };
 
   let rows: SrmRow[];
@@ -492,6 +558,9 @@ export async function syncFromSrm(): Promise<SyncResult> {
   }
 
   console.log(`[SRM Sync] Done — inserted: ${result.inserted}, skipped: ${result.skipped}, errors: ${result.errors}`);
+
+  // Cache the result so the status endpoint can return it
+  _lastSyncResult = { ...result, completedAt: new Date().toISOString(), ranAt: startedAt };
 
   // Enrich sequentially in the background with a delay between calls to avoid rate limits
   if (toEnrich.length > 0) {

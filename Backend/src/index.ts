@@ -166,10 +166,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Global request timeout — 90s for normal routes, 4min for watcher (processes images).
 // /api/model-generation/bulk gets 20min because the upload itself can carry hundreds of
 // images; the background worker is unaffected by the request timer.
+// /api/admin/majcat-grid/upload gets 15min — 300k+ row Excel insert needs time.
 app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
 app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
+app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
 app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/model-generation/bulk/')) return next();
+  if (req.path.startsWith('/admin/majcat-grid/upload')) return next();
   return requestTimeout(90 * 1000)(req, res, next);
 });
 
