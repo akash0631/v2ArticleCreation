@@ -625,7 +625,7 @@ export default function Admin() {
             <Button
               icon={<ReloadOutlined />}
               size="small"
-              onClick={loadSrmStatus}
+              onClick={() => loadSrmStatus()}
               loading={srmStatusLoading}
             >
               Refresh Status
