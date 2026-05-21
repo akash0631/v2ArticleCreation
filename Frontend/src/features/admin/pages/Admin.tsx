@@ -21,6 +21,15 @@ import { APP_CONFIG } from '../../../constants/app/config';
 
 const api = new BackendApiService();
 
+interface SrmSyncResult {
+  inserted: number;
+  skipped: number;
+  errors: number;
+  total: number;
+  completedAt?: string;
+  ranAt?: string;
+}
+
 interface SrmStatus {
   totalInDb: number;
   lastSyncAt: string | null;
@@ -30,13 +39,7 @@ interface SrmStatus {
   statusBreakdown: { status: string; count: number }[];
   nextScheduledSyncs: { istTime: string; utc: string }[];
   schedule: string;
-}
-
-interface SrmSyncResult {
-  inserted: number;
-  skipped: number;
-  errors: number;
-  total: number;
+  lastSyncResult?: SrmSyncResult | null;
 }
 
 interface VendorMasterStatus {
@@ -51,6 +54,7 @@ export default function Admin() {
   const [detailedExpenses, setDetailedExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [backfillLoading, setBackfillLoading] = useState(false);
+  const srmPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [srmStatus, setSrmStatus] = useState<SrmStatus | null>(null);
   const [srmStatusLoading, setSrmStatusLoading] = useState(false);
   const [srmSyncing, setSrmSyncing] = useState(false);
@@ -97,7 +101,7 @@ export default function Admin() {
   const [mandatoryGridProgress, setMandatoryGridProgress] = useState<number>(0);
   const mandatoryFileRef = useRef<HTMLInputElement | null>(null);
 
-  const loadSrmStatus = useCallback(async () => {
+  const loadSrmStatus = useCallback(async (stopPollOnResult = false) => {
     setSrmStatusLoading(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -107,6 +111,14 @@ export default function Admin() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load SRM status');
       setSrmStatus(data.data);
+      // If status includes a completed sync result, show it and stop polling
+      if (data.data?.lastSyncResult) {
+        setSrmLastResult(data.data.lastSyncResult);
+        if (stopPollOnResult && srmPollRef.current) {
+          clearInterval(srmPollRef.current);
+          srmPollRef.current = null;
+        }
+      }
     } catch (err: any) {
       message.error(err?.message || 'Failed to load SRM status');
     } finally {
@@ -146,10 +158,28 @@ export default function Admin() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'SRM sync failed');
-      setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total });
-      message.success(`SRM sync complete — ${data.inserted} new, ${data.skipped} already exist`);
-      // Refresh status after sync
-      await loadSrmStatus();
+
+      if (res.status === 202) {
+        // Background mode: sync is running on the server, results not ready yet
+        message.info('Sync started in background. Results will appear here once complete (~1-2 min).');
+        // Poll every 15s — stops automatically once lastSyncResult appears in status response
+        let attempts = 0;
+        if (srmPollRef.current) clearInterval(srmPollRef.current);
+        srmPollRef.current = setInterval(async () => {
+          attempts++;
+          await loadSrmStatus(true); // true = stop poll when result arrives
+          // Hard stop after 3 min (12 × 15s) as a safety net
+          if (attempts >= 12 && srmPollRef.current) {
+            clearInterval(srmPollRef.current);
+            srmPollRef.current = null;
+          }
+        }, 15000);
+      } else {
+        // Synchronous response — read counts directly
+        setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total });
+        message.success(`SRM sync complete — ${data.inserted} new, ${data.skipped} already exist`);
+        await loadSrmStatus();
+      }
     } catch (err: any) {
       message.error(err?.message || 'SRM sync failed');
     } finally {
@@ -337,7 +367,15 @@ export default function Admin() {
     loadVendorStatus();
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
-  }, [loadSrmStatus, loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus]);
+    // Cleanup: stop any active SRM status polling when component unmounts
+    return () => {
+      if (srmPollRef.current) {
+        clearInterval(srmPollRef.current);
+        srmPollRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -656,18 +694,27 @@ export default function Admin() {
                   </Descriptions.Item>
                 </Descriptions>
 
-                {srmLastResult && (
+                {srmLastResult && (srmLastResult.total > 0 || srmLastResult.inserted > 0) && (
                   <Alert
-                    type="success"
+                    type={srmLastResult.errors > 0 ? 'warning' : 'success'}
                     icon={<CheckCircleOutlined />}
                     showIcon
                     style={{ marginBottom: 12 }}
-                    message="Last Sync Result"
+                    message={
+                      <span>
+                        Last Sync Result
+                        {srmLastResult.completedAt && (
+                          <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, color: '#8c8c8c' }}>
+                            · {new Date(srmLastResult.completedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
+                          </span>
+                        )}
+                      </span>
+                    }
                     description={
                       <span>
-                        <strong>{srmLastResult.inserted}</strong> new records inserted&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong style={{ color: '#389e0d' }}>{srmLastResult.inserted}</strong> new records inserted&nbsp;&nbsp;·&nbsp;&nbsp;
                         <strong>{srmLastResult.skipped}</strong> already existed (skipped)&nbsp;&nbsp;·&nbsp;&nbsp;
-                        <strong>{srmLastResult.errors}</strong> errors&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong style={{ color: srmLastResult.errors > 0 ? '#cf1322' : undefined }}>{srmLastResult.errors}</strong> errors&nbsp;&nbsp;·&nbsp;&nbsp;
                         <strong>{srmLastResult.total}</strong> total from SRM API
                       </span>
                     }

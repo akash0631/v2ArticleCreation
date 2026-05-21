@@ -1460,103 +1460,111 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
 };
 
 /**
- * Get total number of images used for attribute extraction
- * Counts unique images and groups by status, category, date
+ * Get total number of images used for attribute extraction.
+ * Uses DB-level aggregations — never loads all rows into memory.
  */
 export const getImageUsageAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
     const { dateFrom, dateTo, status, categoryId } = req.query;
 
-    // Build where clause
+    // Build shared where clause
     const where: any = {};
-
-    // Filter by date range if provided
     if (dateFrom || dateTo) {
       where.createdAt = {};
-      if (dateFrom) {
-        where.createdAt.gte = new Date(dateFrom as string);
-      }
-      if (dateTo) {
-        where.createdAt.lte = new Date(dateTo as string);
-      }
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+      if (dateTo)   where.createdAt.lte = new Date(dateTo as string);
     }
+    if (status)     where.status     = status as string;
+    if (categoryId) where.categoryId = parseInt(categoryId as string);
 
-    // Filter by status if provided
-    if (status) {
-      where.status = status as string;
-    }
+    // ── All aggregations run in parallel at the DB level ──────────────────────
+    const [
+      totalImages,
+      uniqueImageUrls,
+      byStatus,
+      byCategory,
+      byDay,
+    ] = await Promise.all([
+      // Total job count
+      prisma.extractionJob.count({ where }),
 
-    // Filter by category if provided
-    if (categoryId) {
-      where.categoryId = parseInt(categoryId as string);
-    }
+      // Distinct image URLs (proxy for unique images)
+      prisma.extractionJob.findMany({
+        where,
+        select: { imageUrl: true },
+        distinct: ['imageUrl'],
+      }),
 
-    // Get extraction jobs for full filtered dataset
-    const jobs = await prisma.extractionJob.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        imageUrl: true,
-        imageHash: true,
-        status: true,
-        createdAt: true,
-        categoryId: true,
-        category: {
-          select: {
-            name: true,
-            code: true,
+      // Count grouped by status
+      prisma.extractionJob.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+
+      // Count grouped by category (join via sub-query)
+      prisma.extractionJob.groupBy({
+        by: ['categoryId'],
+        where,
+        _count: { _all: true },
+      }),
+
+      // Count grouped by date (last 30 days only, keep payload small)
+      prisma.extractionJob.groupBy({
+        by: ['createdAt'],
+        where: {
+          ...where,
+          createdAt: {
+            ...(where.createdAt ?? {}),
+            gte: where.createdAt?.gte ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
         },
-      },
-    });
+        _count: { _all: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
 
-    // Count unique images by hash (if available) or URL
-    const uniqueImages = new Set(jobs.map((job) => job.imageHash || job.imageUrl));
+    // Resolve category names for the category breakdown
+    const categoryIds = byCategory.map(r => r.categoryId).filter(Boolean) as number[];
+    const categories = categoryIds.length > 0
+      ? await prisma.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
+    const catMap = new Map(categories.map(c => [c.id, c]));
 
-    // Group by status
-    const statusBreakdown: any = {};
-    jobs.forEach((job) => {
-      if (!statusBreakdown[job.status]) {
-        statusBreakdown[job.status] = 0;
-      }
-      statusBreakdown[job.status] += 1;
-    });
+    // Shape responses
+    const statusBreakdown: Record<string, number> = {};
+    for (const r of byStatus) statusBreakdown[r.status] = r._count._all;
 
-    // Group by category
-    const categoryBreakdown: any = {};
-    jobs.forEach((job) => {
-      const categoryKey = `${job.category.code} (${job.category.name})`;
-      if (!categoryBreakdown[categoryKey]) {
-        categoryBreakdown[categoryKey] = 0;
-      }
-      categoryBreakdown[categoryKey] += 1;
-    });
+    const categoryBreakdown: Record<string, number> = {};
+    for (const r of byCategory) {
+      const cat = catMap.get(r.categoryId!);
+      const key = cat ? `${cat.code} (${cat.name})` : String(r.categoryId);
+      categoryBreakdown[key] = r._count._all;
+    }
 
-    // Daily breakdown for last 30 days
-    const dailyBreakdown: any = {};
-    jobs.forEach((job) => {
-      const date = new Date(job.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD format
-      if (!dailyBreakdown[date]) {
-        dailyBreakdown[date] = 0;
-      }
-      dailyBreakdown[date] += 1;
-    });
+    // Collapse groupBy-createdAt into YYYY-MM-DD buckets
+    const dailyBreakdown: Record<string, number> = {};
+    for (const r of byDay) {
+      const day = new Date(r.createdAt).toISOString().slice(0, 10);
+      dailyBreakdown[day] = (dailyBreakdown[day] ?? 0) + r._count._all;
+    }
+    const sortedDaily = Object.keys(dailyBreakdown).sort().reduce(
+      (acc: Record<string, number>, k) => { acc[k] = dailyBreakdown[k]; return acc; }, {}
+    );
+    const dayCount = Object.keys(sortedDaily).length;
 
     res.json({
       success: true,
       data: {
-        totalImages: jobs.length,
-        uniqueImages: uniqueImages.size,
-        averageImagesPerDay: (jobs.length / Math.max(Object.keys(dailyBreakdown).length, 1)).toFixed(2),
+        totalImages,
+        uniqueImages: uniqueImageUrls.length,
+        averageImagesPerDay: (totalImages / Math.max(dayCount, 1)).toFixed(2),
         statusBreakdown,
         categoryBreakdown,
-        dailyBreakdown: Object.entries(dailyBreakdown)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .reduce((acc: Record<string, number>, [date, count]) => {
-            acc[date] = count as number;
-            return acc;
-          }, {} as Record<string, number>),
+        dailyBreakdown: sortedDaily,
       },
     });
   } catch (error: any) {
@@ -1770,6 +1778,8 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
       return { istTime: t, utc: realUtc.toISOString() };
     });
 
+    const { getLastSrmSyncResult } = await import('../services/srmSyncService');
+
     res.json({
       success: true,
       data: {
@@ -1781,6 +1791,7 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
         statusBreakdown: byStatus.map(r => ({ status: r.approvalStatus, count: r._count._all })),
         nextScheduledSyncs: nextSyncs,
         schedule: 'Daily at 12:00 PM and 8:00 PM IST',
+        lastSyncResult: getLastSrmSyncResult(),
       },
     });
   } catch (error: any) {
