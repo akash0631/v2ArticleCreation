@@ -127,6 +127,7 @@ router.get('/extractions', h(adminController.getAllExtractions));
 router.get('/srm/status', h(adminController.getSrmSyncStatus));
 router.post('/srm/sync', h(adminController.triggerSrmSync));
 router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
+router.post('/srm/sync-by-ref', h(adminController.syncSrmByRef));
 
 // ═══════════════════════════════════════════════════════
 // VENDOR MASTER SYNC (ADMIN)
