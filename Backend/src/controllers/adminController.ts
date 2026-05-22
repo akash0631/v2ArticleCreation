@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
-import { invalidateMandatoryGridCache } from '../services/zmmArtCreationService';
+import { invalidateMandatoryGridCache, invalidateMajCatVisibleCache } from '../services/zmmArtCreationService';
 import path from 'path';
 import fs from 'fs';
 
@@ -2224,6 +2224,9 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
     const metaDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
     fs.writeFileSync(MAJ_CAT_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
+    invalidateMajCatVisibleCache();
 
     console.log(`[MajCatGrid] Done — ${totalRows} ACT rows inserted, ${inactiveSkipped} IN-ACT skipped, ${categoriesCount} major categories, ${attributesCount} attr slots`);
 

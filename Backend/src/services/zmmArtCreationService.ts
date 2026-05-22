@@ -69,6 +69,94 @@ export function invalidateMandatoryGridCache(): void {
     _mandatoryGridCache = null;
 }
 
+// ─── Maj-Cat Grid Visible Fields cache ────────────────────────────────────────
+// Maps attribute_name stored in maj_cat_grid_values → RFC key(s) in FLAT_TO_RFC.
+// Many Excel names differ from the RFC parameter name — this is the bridge.
+const EXCEL_ATTR_TO_RFC: Record<string, string[]> = {
+    'M_FAB_DIV':            ['M_FAB_DIV'],
+    'M_YARN':               ['M_YARN'],
+    'FAB_MAIN_MVGR-1':      ['M_YARN-02'],
+    'FAB-MAIN-MVGR-2':      ['M_WEAVE_2'],
+    'WEAVE-01':             ['M_FAB'],
+    'WEAVE 02':             ['M_FAB2'],
+    'M_COMPOSITION':        ['M_COMPOSITION'],
+    'M_FINISH':             ['M_FINISH'],
+    'M_CONSTRUCTION':       ['M_CONSTRUCTION'],
+    'M_LYCRA':              ['M_LYCRA'],
+    'M_GSM':                ['M_GSM'],
+    'M_OUNZ':               ['M_OUNZ'],
+    'M_WIDTH':              ['M_WIDTH'],
+    'M_COUNT':              ['M_COUNT'],
+    'M_COLLAR_TYPE':        ['M_COLLAR'],
+    'M_COLLAR_STYLE':       ['M_COLLAR_STYLE'],
+    'M_NECK_TYPE':          ['M_NECK_BAND'],
+    'M_NECK_STYLE':         ['M_NECK_BAND_STYLE'],
+    'M_PLACKET':            ['M_PLACKET'],
+    'M_BLT_TYPE':           ['M_BLT_MAIN_STYLE'],
+    'M_BLT_STYLE':          ['M_SUB_STYLE_BLT'],
+    'M_SLEEVES_MAIN_STYLE': ['M_SLEEVES_MAIN_STYLE'],
+    'M_SLEEVE_FOLD':        ['M_SLEEVE_FOLD'],
+    'M_BTM_FOLD':           ['M_BTM_FOLD'],
+    'M_NO_OF_POCKET':       ['NO_OF_POCKET', 'M_NO_OF_POCKET'],
+    'M_POCKET':             ['M_POCKET'],
+    'M_EXTRA_POCKET':       ['M_EXTRA_POCKET'],
+    'M_FIT':                ['M_FIT'],
+    'BODY STYLE':           ['M_PATTERN'],
+    'M_LENGTH':             ['M_LENGTH'],
+    'M_DC_STYLE':           ['M_DC_SUB_STYLE'],
+    'M_DC_SHAPE':           ['M_DC_SHAPE'],
+    'M_BTN_TYPE':           ['M_BTN_MAIN_MVGR'],
+    'M_BTN_CLR':            ['M_BTN_CLR'],
+    'M_ZIP_TYPE':           ['M_ZIP'],
+    'M_ZIP_COL':            ['M_ZIP_COL'],
+    'M_PATCHE_TYPE':        ['M_PATCHES'],
+    'M_PATCH_STYLE':        ['M_PATCH_TYPE'],
+    'M_HTRF_TYPE':          ['M_HTRF_TYPE'],
+    'M_HTRF_STYLE':         ['M_HTRF_STYLE'],
+    'M_PRINT_TYPE':         ['M_PRINT_TYPE'],
+    'M_PRINT_STYLE':        ['M_PRINT_STYLE'],
+    'M_PRINT_PLACEMENT':    ['M_PRINT_PLACEMENT'],
+    'M_EMB_TYPE':           ['M_EMB_TYPE'],
+    'M_EMBROIDERY_STYLE':   ['M_EMBROIDERY'],
+    'M_EMB_PLACEMENT':      ['M_EMB_PLACEMENT'],
+    'M_WASH':               ['M_WASH'],
+    'AGE GROUP':            ['M_AGE_GROUP'],
+};
+
+// majorCategory → Set<rfcKey> derived from maj_cat_grid_values (Tier 2 visible fields)
+type MajCatVisibleFields = Map<string, Set<string>>;
+let _majCatVisibleCache: MajCatVisibleFields | null = null;
+
+/**
+ * Load which RFC keys are visible (Tier 2) per major category from maj_cat_grid_values.
+ * A field is Tier 2 visible if maj_cat_grid_values has at least one row for
+ * (major_category, attribute_name). Cached for the process lifetime.
+ */
+async function loadMajCatVisibleFieldsForRfc(): Promise<MajCatVisibleFields> {
+    if (_majCatVisibleCache) return _majCatVisibleCache;
+
+    const rows = await prisma.$queryRaw<
+        { major_category: string; attribute_name: string }[]
+    >`SELECT DISTINCT major_category, attribute_name FROM maj_cat_grid_values`;
+
+    const map = new Map<string, Set<string>>();
+    for (const row of rows) {
+        const rfcKeys = EXCEL_ATTR_TO_RFC[row.attribute_name];
+        if (!rfcKeys) continue;
+        if (!map.has(row.major_category)) map.set(row.major_category, new Set());
+        for (const rfc of rfcKeys) map.get(row.major_category)!.add(rfc);
+    }
+
+    _majCatVisibleCache = map;
+    console.log(`[ZMM_RFC] Maj-cat visible fields loaded: ${map.size} major categories`);
+    return map;
+}
+
+/** Call this after an Admin maj_cat_grid upload to force a reload on next RFC call. */
+export function invalidateMajCatVisibleCache(): void {
+    _majCatVisibleCache = null;
+}
+
 async function getDbValues(division: string): Promise<Record<string, string[]>> {
     const div = division.trim().toUpperCase();
     if (_dbValuesCache.has(div)) return _dbValuesCache.get(div)!;
@@ -195,12 +283,22 @@ const RFC_ALWAYS_INCLUDE = new Set([
     'SEASON', 'ARTICLE_DES1',
 ]);
 
-// These fields always go to SAP if non-empty, bypassing the mandatory-grid filter.
-// Used for BOM/business fields that are not (or inconsistently) tracked in the grid.
-const RFC_INCLUDE_IF_PRESENT = new Set([
+// RFC keys that are always sent to SAP if non-empty, regardless of grid visibility.
+// These correspond to:
+//   BOM fields  — always shown in the article card BOM section
+//   freeText fields — always shown in the article card regardless of major category
+const RFC_ALWAYS_SEND_IF_PRESENT = new Set([
+    // BOM (always visible in card)
     'MRP',
     'PURCH_PRICE',
-    'M_MAIN_MVGR',    // IMP_ATBT — BOM field, not in the mandatory-grid Excel
+    'M_MAIN_MVGR',         // IMP_ATBT
+    // freeText fields (always visible in card, no dropdown filtering)
+    'M_SHADE',             // shade
+    'G_WEIGHT',            // weight
+    'PRICE_BAND_CATEGORY', // segment
+    'MVGR_BRAND_VENDOR',   // mvgrBrandVendor
+    'M_FO_BTN_STYLE',      // frontOpenStyle
+    'FASHION_GRADE',       // articleFashionType
 ]);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
@@ -317,19 +415,28 @@ const toStr = (v: unknown): string => {
 /**
  * Build the JSON body for ZMM_ART_CREATION_RFC.
  *
- * Field inclusion rules (in priority order):
- *  1. RFC_ALWAYS_INCLUDE fields → always sent (even empty) — header/identity fields.
- *  2. Major category IS configured in the mandatory grid:
- *       → Only send optional fields whose SAP key has is_active=true in the grid
- *         AND the value is non-empty.
- *       → Fields with is_active=false (or not listed) are excluded even if filled.
- *  3. Major category NOT in the mandatory grid (no rows uploaded yet):
- *       → Send all non-empty fields (safe fallback — same as before the grid upload).
+ * Mirrors the frontend 3-tier card visibility exactly:
+ *
+ *  RFC_ALWAYS_INCLUDE          → header/identity fields — always sent (even empty)
+ *  RFC_ALWAYS_SEND_IF_PRESENT  → BOM + freeText fields — always sent if non-empty
+ *  Tier 1 (mandatory grid)     → is_active=true for this major category → sent if non-empty
+ *  Tier 2 (maj_cat_grid)       → has dropdown values for this major category → sent if non-empty
+ *  Tier 3 (neither grid)       → NOT sent even if the DB has a value
  */
-function buildRfcPayload(item: FlatItem, mandatoryGrid: MandatoryGridCache): Record<string, string> {
+function buildRfcPayload(
+    item: FlatItem,
+    mandatoryGrid: MandatoryGridCache,
+    majCatVisible: MajCatVisibleFields,
+): Record<string, string> {
     const majorCategory = toStr(item.majorCategory);
-    const isCategoryConfigured = mandatoryGrid.configured.has(majorCategory);
-    const activeKeys = mandatoryGrid.active.get(majorCategory);
+
+    // Tier 1: SAP keys that are active (mandatory) for this major category
+    const mandatoryKeys = mandatoryGrid.active.get(majorCategory) ?? new Set<string>();
+    // Tier 2: SAP keys that have dropdown values for this major category
+    const optionalKeys  = majCatVisible.get(majorCategory)        ?? new Set<string>();
+
+    // Union: every RFC key that is visible in the article card
+    const visibleKeys = new Set([...mandatoryKeys, ...optionalKeys]);
 
     const payload: Record<string, string> = {};
 
@@ -337,21 +444,16 @@ function buildRfcPayload(item: FlatItem, mandatoryGrid: MandatoryGridCache): Rec
         const val = toStr(item[flat]);
 
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
-            // Rule 1: header/identity fields — always present (even empty)
+            // Header/identity fields — always present (even if empty)
             payload[rfc] = val;
-        } else if (val) {
-            if (RFC_INCLUDE_IF_PRESENT.has(rfc)) {
-                // Rule 2: BOM/business fields that bypass the mandatory-grid filter
-                payload[rfc] = val;
-            } else if (!isCategoryConfigured) {
-                // Rule 3: major category not in mandatory grid → send all non-empty (fallback)
-                payload[rfc] = val;
-            } else if (activeKeys?.has(rfc)) {
-                // Rule 4: category configured AND this SAP key is active (is_active=true)
-                payload[rfc] = val;
-            }
-            // else: category configured, SAP key inactive (0/empty in Excel) → skip
+        } else if (val && RFC_ALWAYS_SEND_IF_PRESENT.has(rfc)) {
+            // BOM / freeText fields — always sent if the value is non-empty
+            payload[rfc] = val;
+        } else if (val && visibleKeys.has(rfc)) {
+            // Tier 1 or Tier 2 field — visible in card AND has a value
+            payload[rfc] = val;
         }
+        // Tier 3: not in either grid → skip even if DB has a value
     }
 
     // Always re-derive MC_CD and HSN_CODE from majorCategory using the JSON source of truth.
@@ -444,8 +546,9 @@ export async function syncArticlesToSapViaRfc(
 
     const results: SapSyncItemResult[] = [];
 
-    // Load mandatory grid once for the entire batch (cached after first call)
+    // Load both grids once for the entire batch (cached after first call)
     const mandatoryGrid = await loadMandatoryGridForRfc();
+    const majCatVisible = await loadMajCatVisibleFieldsForRfc();
 
     for (const item of items) {
         // ── 1. Mandatory field check ──────────────────────────────────────────
@@ -464,8 +567,8 @@ export async function syncArticlesToSapViaRfc(
             continue;
         }
 
-        // ── 2. Build payload (filtered by mandatory grid) ─────────────────────
-        const payload = buildRfcPayload(item, mandatoryGrid);
+        // ── 2. Build payload (filtered by card visibility: mandatory + optional grids) ──
+        const payload = buildRfcPayload(item, mandatoryGrid, majCatVisible);
 
         console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
         console.log(`API URL : ${ZMM_RFC_URL}`);
