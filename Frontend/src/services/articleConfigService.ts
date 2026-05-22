@@ -231,7 +231,7 @@ export async function preloadMajCatGrid(): Promise<MajCatGrid> {
   const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
   const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
-  majCatGridPromise = fetch(`${baseURL}/admin/majcat-grid/values`, {
+  majCatGridPromise = fetch(`${baseURL}/article-config/majcat-grid`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
     .then(r => r.ok ? r.json() : { data: {} })
@@ -295,7 +295,7 @@ export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
   const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
   const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
-  mandatoryGridPromise = fetch(`${baseURL}/admin/mandatory-grid/values`, {
+  mandatoryGridPromise = fetch(`${baseURL}/article-config/mandatory-grid`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
     .then(r => r.ok ? r.json() : { data: {} })
