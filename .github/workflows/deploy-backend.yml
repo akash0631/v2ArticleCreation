@@ -50,6 +50,8 @@ jobs:
             R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
             APPROVED_R2_BUCKET_NAME=article-master \
             APPROVED_R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
+            PYTHON_BIN=python3 \
+            PYTHONPATH=/home/site/wwwroot/python_libs \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "DIRECT_URL=${{ secrets.DIRECT_URL }}" \
@@ -91,13 +93,30 @@ jobs:
           npm run postbuild
           npm prune --production
 
+      # Pillow is required by scripts/watermark.py (called by the approver flow).
+      # Install into Backend/python_libs/ so it ships inside the deploy zip,
+      # then point PYTHONPATH at it (set in the appsettings step above).
+      # --only-binary=:all: forces manylinux wheels — Azure App Service Linux is
+      # x86_64 manylinux2014-compatible so these wheels run without rebuild.
+      - name: Install Python deps into bundle
+        working-directory: Backend
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install \
+            --target python_libs \
+            --only-binary=:all: \
+            -r scripts/requirements.txt
+          echo "Bundled Python packages:"
+          ls -d python_libs/PIL python_libs/Pillow* 2>/dev/null || (echo "PIL/Pillow not present"; exit 1)
+          du -sh python_libs
+
       - name: Bundle frontend into backend
         run: cp -r Frontend/dist Backend/public
 
       - name: Create deployment zip
         working-directory: Backend
         run: |
-          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/ -x "*.map"
+          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/ scripts/ python_libs/ -x "*.map"
           echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
 
       - name: Deploy zip to Azure
