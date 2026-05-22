@@ -8,7 +8,7 @@ import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
 import { syncArticlesToSapViaRfc } from '../services/zmmArtCreationService';
 import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
-import { storageService } from '../services/storageService';
+import { storageService, type WatermarkLabel } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { prismaClient as prisma } from '../utils/prisma';
 import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
@@ -1735,9 +1735,32 @@ export class ApproverController {
 
                 try {
                     console.log(`📦 Copying approved image for article ${syncResult.sapArticleNumber} from source to article-master bucket...`);
+
+                    // Build the data we want stamped on the watermark. Every field is optional —
+                    // Python skips any line whose value is null/empty. Article number comes from
+                    // the freshly minted SAP RFC result, the rest from the DB row.
+                    const labelData: WatermarkLabel = {
+                        article_number: String(syncResult.sapArticleNumber),
+                        presentation_no: approvedItem.pptNumber ?? null,
+                        vendor_code: approvedItem.vendorCode ?? null,
+                        vendor_name: approvedItem.vendorName ?? null,
+                        division: approvedItem.division ?? null,
+                        sub_division: approvedItem.subDivision ?? null,
+                        major_category: approvedItem.majorCategory ?? null,
+                        design_number: approvedItem.designNumber ?? null,
+                        mc_code: approvedItem.mcCode ?? null,
+                        hsn_tax_code: approvedItem.hsnTaxCode ?? null,
+                        fabric: approvedItem.macroMvgr ?? null,
+                        season: approvedItem.season ?? null,
+                        year: approvedItem.year ?? null,
+                        rate: approvedItem.rate != null ? Number(approvedItem.rate) : null,
+                        mrp: approvedItem.mrp != null ? Number(approvedItem.mrp) : null,
+                    };
+
                     const approvedImageUpload = await storageService.uploadApprovedImageFromSourceUrl(
                         String(approvedItem.imageUrl),
-                        String(syncResult.sapArticleNumber)
+                        String(syncResult.sapArticleNumber),
+                        labelData,
                     );
 
                     await prisma.extractionResultFlat.update({
