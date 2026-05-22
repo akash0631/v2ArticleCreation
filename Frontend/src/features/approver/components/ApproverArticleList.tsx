@@ -330,6 +330,20 @@ const ArticleCard = React.memo(({
         // While loading, show everything so the card doesn't look broken.
         const gridsReady = gridReady || mandatoryGridReady;
 
+        // ── Graceful degradation: if the major category has NO entries in EITHER grid
+        // (e.g. not yet configured in the admin panel), fall back to showing ALL fields.
+        // This prevents a blank card for categories that haven't been set up yet.
+        const catHasAnyGridData = gridsReady && (
+            // Check mandatory grid: any SAP key active for this major category
+            (mandatoryGridReady && Object.values(SCHEMA_KEY_TO_PRIMARY_SAP_KEY).some(
+                sapKey => isMandatoryGridFieldActive(effectiveMajCat, sapKey) !== null
+            )) ||
+            // Check maj-cat grid: any dropdown values for this major category
+            (gridReady && Object.values(SCHEMA_KEY_TO_EXCEL_ATTR).some(
+                excelAttr => (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
+            ))
+        );
+
         for (const af of attributeFields) {
             // BOM-only fields never appear in attribute groups
             if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) continue;
@@ -343,8 +357,8 @@ const ArticleCard = React.memo(({
             // Dropdown values always come from Maj-Cat Grid
             const values: AttrValue[] = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
 
-            if (gridsReady) {
-                // ── Grids loaded: check per-field whether it has mandatory or dropdown values ──
+            if (gridsReady && catHasAnyGridData) {
+                // ── Grids loaded AND category is configured: apply 3-tier filtering ──
                 const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
                 const isActiveMandatory = (mandatoryGridReady && sapKey)
                     ? isMandatoryGridFieldActive(effectiveMajCat, sapKey) === true
@@ -363,9 +377,10 @@ const ArticleCard = React.memo(({
                     // TIER 2: Optional — has dropdown values but not mandatory
                     visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false, isMandatory: false });
                 }
-                // TIER 3: Neither → skip (completely hidden)
+                // TIER 3: Neither → skip (completely hidden for configured categories)
             } else {
-                // ── Grids not yet loaded: show all fields until they arrive ──
+                // ── Grids not yet loaded OR category has no grid data (not configured yet):
+                // show all fields as graceful fallback ──
                 visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false, isMandatory: false });
             }
         }
