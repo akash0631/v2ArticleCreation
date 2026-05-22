@@ -107,7 +107,8 @@ jobs:
             --only-binary=:all: \
             -r scripts/requirements.txt
           echo "Bundled Python packages:"
-          ls -d python_libs/PIL python_libs/Pillow* 2>/dev/null || (echo "PIL/Pillow not present"; exit 1)
+          python3 -c "import sys; sys.path.insert(0,'python_libs'); import PIL; print('PIL OK:', PIL.__version__)" \
+            || (echo "PIL/Pillow not present"; exit 1)
           du -sh python_libs
 
       - name: Bundle frontend into backend
