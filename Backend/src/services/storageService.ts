@@ -5,6 +5,33 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import https from 'https';
+import { runPythonWatermark } from '../utils/runPythonWatermark';
+
+/**
+ * Optional payload of SRM/article fields to stamp on the image. Every field is
+ * optional — Python skips lines whose value is null/empty. When present on
+ * `uploadApprovedImageFromSourceUrl`, the server-side S3-to-S3 copy is bypassed
+ * (we have to touch the bytes to draw the label) and the output is encoded as
+ * JPEG q=90 so the article-master bucket doesn't fill up with multi-MB PNGs.
+ */
+export interface WatermarkLabel {
+  article_number?: string | null;
+  presentation_no?: string | null;
+  vendor_code?: string | null;
+  vendor_name?: string | null;
+  division?: string | null;
+  sub_division?: string | null;
+  major_category?: string | null;
+  design_number?: string | null;
+  mc_code?: string | null;
+  hsn_tax_code?: string | null;
+  fabric?: string | null;
+  no_of_colors?: number | null;
+  season?: string | null;
+  year?: string | null;
+  rate?: number | string | null;
+  mrp?: number | string | null;
+}
 
 // Custom HTTPS agent: disables TLS packet-length strict checks that cause
 // EPROTO errors when Node.js OpenSSL rejects R2's TLS handshake on some networks.
@@ -121,6 +148,34 @@ export class StorageService {
             message.includes('forbidden') ||
             message.includes('invalid access key')
         );
+    }
+
+    /**
+     * Stamp the source image with article-creation data. Falls back to the
+     * original bytes (and original mime/extension) if the Python step fails so
+     * that approval is NEVER blocked by a watermarking glitch.
+     * Output is always JPEG q=90 on success — keeps catalog-bucket files small.
+     */
+    private async applyWatermarkOrPassthrough(
+        sourceBuffer: Buffer,
+        labelData: WatermarkLabel,
+        safeArticleNumber: string,
+    ): Promise<{ buffer: Buffer; mimeType: string; extension: string }> {
+        try {
+            const wm = await runPythonWatermark(sourceBuffer, labelData as Record<string, unknown>, { format: 'jpeg' });
+            if (wm.success && wm.buffer && wm.buffer.length > 0) {
+                console.log(`🖋️  Watermark applied for ${safeArticleNumber}: ${wm.buffer.length} bytes, ${wm.durationMs}ms`);
+                return {
+                    buffer: wm.buffer,
+                    mimeType: wm.mimeType || 'image/jpeg',
+                    extension: 'jpg',
+                };
+            }
+            console.warn(`⚠️ Watermark step failed for ${safeArticleNumber} (${wm.durationMs}ms): ${wm.error} — uploading unmodified bytes`);
+        } catch (err: any) {
+            console.warn(`⚠️ Watermark threw for ${safeArticleNumber}: ${err?.message ?? err} — uploading unmodified bytes`);
+        }
+        return { buffer: sourceBuffer, mimeType: 'image/jpeg', extension: 'jpg' };
     }
 
     private async putApprovedObject(
@@ -352,7 +407,7 @@ export class StorageService {
         return getSignedUrl(this.approvedS3Client, new GetObjectCommand({ Bucket: this.approvedBucket, Key: destKey }), { expiresIn: 604800 });
     }
 
-    async uploadApprovedImageFromSourceUrl(sourceImageUrl: string, articleNumber: string): Promise<UploadResult> {
+    async uploadApprovedImageFromSourceUrl(sourceImageUrl: string, articleNumber: string, labelData?: WatermarkLabel): Promise<UploadResult> {
         if (!sourceImageUrl) {
             throw new Error('Source image URL is required');
         }
@@ -361,11 +416,13 @@ export class StorageService {
         }
 
         const safeArticleNumber = this.sanitizeArticleNumber(articleNumber);
+        const wantWatermark = !!labelData;
 
         // Preferred path: direct S3-to-S3 copy — no HTTP download, no network fetch needed.
         // Works for both public CDN URLs and signed R2 URLs.
+        // SKIPPED when watermarking is requested — we have to touch the bytes.
         const sourceKey = this.extractKeyFromAnyUrl(sourceImageUrl);
-        if (sourceKey) {
+        if (sourceKey && !wantWatermark) {
             const extension = this.extensionFromPath(sourceKey) || 'jpg';
             const destKey = `${safeArticleNumber}.${extension}`;
             try {
@@ -380,20 +437,33 @@ export class StorageService {
             } catch (copyError: any) {
                 console.warn(`⚠️ Direct S3 copy failed (${copyError?.message}), trying S3 GetObject fallback...`);
             }
+        }
 
-            // Second fallback: GetObject from source bucket → PutObject to approved bucket.
-            // Avoids any outbound HTTP fetch — stays entirely within the S3 API.
+        if (sourceKey) {
+            const fallbackExt = this.extensionFromPath(sourceKey) || 'jpg';
+            const fallbackDestKey = `${safeArticleNumber}.${fallbackExt}`;
+            // Second fallback (and watermark path): GetObject from source bucket → optionally watermark → PutObject.
             try {
                 const getResult = await this.s3Client.send(new GetObjectCommand({ Bucket: this.bucket, Key: sourceKey }));
-                const mimeType = getResult.ContentType || 'image/jpeg';
+                const sourceMime = getResult.ContentType || 'image/jpeg';
                 const chunks: Uint8Array[] = [];
                 for await (const chunk of getResult.Body as AsyncIterable<Uint8Array>) chunks.push(chunk);
-                const fileBuffer = Buffer.concat(chunks);
+                let fileBuffer: Buffer = Buffer.concat(chunks);
+                let mimeType = sourceMime;
+                let destKey = fallbackDestKey;
+
+                if (wantWatermark) {
+                    const stamped = await this.applyWatermarkOrPassthrough(fileBuffer, labelData!, safeArticleNumber);
+                    fileBuffer = Buffer.from(stamped.buffer);
+                    mimeType = stamped.mimeType;
+                    destKey = `${safeArticleNumber}.${stamped.extension}`;
+                }
+
                 await this.putApprovedObject(this.approvedS3Client, this.approvedBucket, destKey, fileBuffer, mimeType, safeArticleNumber);
-                console.log(`✅ S3 GetObject fallback succeeded: ${destKey}`);
+                console.log(`✅ ${wantWatermark ? 'Watermarked' : 'S3 GetObject'} upload succeeded: ${destKey}`);
                 return { url: await this.buildApprovedUrl(destKey), path: destKey, key: destKey, uuid: safeArticleNumber };
             } catch (getError: any) {
-                console.warn(`⚠️ S3 GetObject fallback failed (${getError?.message}), falling back to HTTP fetch...`);
+                console.warn(`⚠️ S3 GetObject path failed (${getError?.message}), falling back to HTTP fetch...`);
             }
         }
 
@@ -408,15 +478,23 @@ export class StorageService {
             throw new Error(`Failed to fetch source image: HTTP ${response.status}`);
         }
 
-        const mimeType = response.headers.get('content-type') || 'image/jpeg';
-        const extension = this.normalizeExtension(
+        let mimeType = response.headers.get('content-type') || 'image/jpeg';
+        let extension = this.normalizeExtension(
             this.extensionFromMimeType(mimeType)
             || this.extensionFromPath(sourceImageUrl)
             || 'jpg'
         );
 
+        let fileBuffer: Buffer = Buffer.from(await response.arrayBuffer());
+
+        if (wantWatermark) {
+            const stamped = await this.applyWatermarkOrPassthrough(fileBuffer, labelData!, safeArticleNumber);
+            fileBuffer = Buffer.from(stamped.buffer);
+            mimeType = stamped.mimeType;
+            extension = stamped.extension;
+        }
+
         const key = `${safeArticleNumber}.${extension}`;
-        const fileBuffer = Buffer.from(await response.arrayBuffer());
 
         try {
             try {
