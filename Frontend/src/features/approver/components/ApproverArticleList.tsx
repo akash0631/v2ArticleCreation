@@ -311,49 +311,65 @@ const ArticleCard = React.memo(({
     [cardGroups]);
 
     // Compute attributes per-card from this article's own majorCategory.
-    // Visibility rule: show a field only when maj_cat_grid_values has entries for it
-    // under this major category. Required labels are removed — no mandatory marking.
+    //
+    // 3-tier visibility (applied once either grid is loaded):
+    //   MANDATORY  — Mandatory Grid = 1   → shown with bold label + * (required for approve)
+    //   OPTIONAL   — Maj-Cat Grid has dropdown values for this major category → shown plain (not required)
+    //   HIDDEN     — neither grid has this field for this major category → not shown at all
+    //
+    // While grids are still loading: show all fields as fallback.
+    // mandatoryKeys — schemaKeys of MANDATORY fields only (used for auto-fill logic).
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
         if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
 
-        // Check whether this major category exists in the uploaded grid at all.
-        // If the grid is loaded but has no entry for this cat, fall back to showing
-        // all fields (graceful degradation for categories not yet in the Excel).
-        const catInGrid = gridReady
-            ? Object.keys(SCHEMA_KEY_TO_EXCEL_ATTR).some(sk => {
-                const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[sk];
-                return excelAttr ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0 : false;
-              })
-            : false;
+        const visible: Array<{ field: string; label: string; schemaKey: string; group: string; groupColor: string; values: string[]; freeText: boolean; isMandatory: boolean }> = [];
+        const mandatory = new Set<string>();
 
-        const visible = attributeFields
-            .map(af => {
-                // BOM-only fields never appear in attribute groups
-                if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) return null;
+        // At least one grid must be ready before we apply filtering.
+        // While loading, show everything so the card doesn't look broken.
+        const gridsReady = gridReady || mandatoryGridReady;
 
-                // ── Grid-driven visibility ──
-                // When the grid is loaded AND this major category exists in the grid:
-                // show ONLY fields that have values in the grid for this major category.
-                // freeText fields (shade, weight, segment…) always bypass the grid check.
-                // Non-grid fields are hidden even if they have a previously-saved value.
-                if (!af.freeText && gridReady && catInGrid) {
-                    const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
-                    const hasGridValues = excelAttr
-                        ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
-                        : false;
-                    if (!hasGridValues) return null;
+        for (const af of attributeFields) {
+            // BOM-only fields never appear in attribute groups
+            if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) continue;
+
+            // freeText fields (shade, weight, segment…) always visible, never mandatory via grid
+            if (af.freeText) {
+                visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values: [], freeText: true, isMandatory: false });
+                continue;
+            }
+
+            // Dropdown values always come from Maj-Cat Grid
+            const values = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
+
+            if (gridsReady) {
+                // ── Grids loaded: check per-field whether it has mandatory or dropdown values ──
+                const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
+                const isActiveMandatory = (mandatoryGridReady && sapKey)
+                    ? isMandatoryGridFieldActive(effectiveMajCat, sapKey) === true
+                    : false;
+
+                const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
+                const hasDropdownValues = (gridReady && excelAttr)
+                    ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
+                    : false;
+
+                if (isActiveMandatory) {
+                    // TIER 1: Mandatory — bold + * in card, required for approve
+                    mandatory.add(af.schemaKey);
+                    visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false, isMandatory: true });
+                } else if (hasDropdownValues) {
+                    // TIER 2: Optional — has dropdown values but not mandatory
+                    visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false, isMandatory: false });
                 }
+                // TIER 3: Neither → skip (completely hidden)
+            } else {
+                // ── Grids not yet loaded: show all fields until they arrive ──
+                visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: false, isMandatory: false });
+            }
+        }
 
-                const values = af.freeText
-                    ? []
-                    : (getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? []);
-
-                return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
-            })
-            .filter((af): af is NonNullable<typeof af> => af !== null);
-
-        // mandatoryKeys intentionally empty — required labels removed per user request
-        return { visibleAttrs: visible, mandatoryKeys: new Set<string>() };
+        return { visibleAttrs: visible, mandatoryKeys: mandatory };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, mandatoryGridReady, attributeFields, localValues]);
     const [editingField, setEditingField] = useState<string | null>(null);
@@ -894,20 +910,21 @@ const ArticleCard = React.memo(({
                                     {/* Attribute rows for this group */}
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <tbody>
-                                            {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText }) => {
+                                            {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText, isMandatory }) => {
                                                 const currentValue = getValue(field);
                                                 const isEmpty = !currentValue;
                                                 const isEditing = editingField === field;
                                                 const artNum = getArtNum(schemaKey, field, currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;
+                                                const isEmptyMandatory = isMandatory && isEmpty && !isLocked;
                                                 return (
                                                     <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                         {/* Attribute label */}
                                                         <td style={{
                                                             padding: '4px 8px',
                                                             fontSize: 11,
-                                                            fontWeight: 400,
-                                                            color: '#595959',
+                                                            fontWeight: isMandatory ? 700 : 400,
+                                                            color: isEmptyMandatory ? '#cf1322' : '#595959',
                                                             background: '#fafafa',
                                                             borderRight: '1px solid #f0f0f0',
                                                             whiteSpace: 'nowrap',
@@ -916,7 +933,7 @@ const ArticleCard = React.memo(({
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
                                                         }}>
-                                                            {label}
+                                                            {label}{isMandatory && <span style={{ color: '#ff4d4f', marginLeft: 1 }}>*</span>}
                                                         </td>
                                                         {/* Art # column — hidden for freeText fields (no BOM lookup needed) */}
                                                         {!freeText && (
@@ -1140,7 +1157,7 @@ const ArticleCard = React.memo(({
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <tbody>
                                         {[
-                                            { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: false },
+                                            { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: true  },
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
                                             { label: 'IMP_ATBT',     field: 'impAtrbt2',  editable: true,  mandatory: true  },

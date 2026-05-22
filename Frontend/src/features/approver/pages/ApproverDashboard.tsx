@@ -9,8 +9,49 @@ import VariantSubTable from '../components/VariantSubTable';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import { getMcCodeByMajorCategory, MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
-import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
-import { preloadAttributeValues } from '../../../services/articleConfigService';
+import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory, SAP_NAME_TO_SCHEMA_KEY, SCHEMA_KEY_TO_DB_FIELD } from '../../../data/majCatAttributeMap';
+import { preloadAttributeValues, isMandatoryGridFieldActive, getMandatoryGridFieldLabel } from '../../../services/articleConfigService';
+
+// schemaKey → primary SAP key (used for mandatory-grid lookups)
+const SCHEMA_KEY_TO_SAP_KEY: Record<string, string> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
+    .reduce((acc, [sapKey, schemaKey]) => {
+        if (!acc[schemaKey]) acc[schemaKey] = sapKey;
+        return acc;
+    }, {} as Record<string, string>);
+
+/**
+ * Returns the list of mandatory field labels that are empty for a given article.
+ * Always-required: VENDOR NAME, IMP_ATBT (for all major categories).
+ * Grid-driven: any field marked active (1) in the uploaded Mandatory Grid Excel.
+ * Uses human-readable labels from the Excel Row 4 (e.g. "BODY STYLE" not "M_PATTERN").
+ */
+function getMissingMandatoryFields(item: any): string[] {
+    const missing: string[] = [];
+
+    // ── Always required for every major category ──
+    if (!item.vendorName) missing.push('VENDOR NAME');
+    if (!item.rate)       missing.push('RATE / COST');
+    if (!item.mrp)        missing.push('MRP');
+    if (!item.impAtrbt2)  missing.push('IMP_ATBT');
+
+    // ── Grid-driven mandatory fields ──
+    const majorCat = item.majorCategory || '';
+    if (!majorCat) return missing;
+
+    for (const [schemaKey, dbField] of Object.entries(SCHEMA_KEY_TO_DB_FIELD)) {
+        const sapKey = SCHEMA_KEY_TO_SAP_KEY[schemaKey];
+        if (!sapKey) continue;
+        const isActive = isMandatoryGridFieldActive(majorCat, sapKey);
+        if (isActive !== true) continue;
+        const value = item[dbField];
+        if (!value) {
+            // Prefer the Excel label (e.g. "BODY STYLE") over the SAP key ("M_PATTERN")
+            const label = getMandatoryGridFieldLabel(sapKey) || sapKey;
+            missing.push(label);
+        }
+    }
+    return missing;
+}
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import type { Dayjs } from 'dayjs';
 import { exportToExcel } from '../../../shared/utils/export/extractionExport';
@@ -519,14 +560,15 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         [selectedRowKeys, items]
     );
 
-    // Only block approve if VENDOR CODE is missing — required for SAP processing.
-    // All attribute-level required checks have been removed per user request.
+    // Block approve if VENDOR CODE or any mandatory grid field is missing.
     const approveBlockedReasons = useMemo(() => {
         const pendingItems = items.filter(i => pendingSelectedKeys.includes(i.id));
         const errors: { articleId: string; missing: string[] }[] = [];
         for (const item of pendingItems) {
             const missing: string[] = [];
             if (!item.vendorCode) missing.push('VENDOR CODE');
+            const mandatoryMissing = getMissingMandatoryFields(item);
+            missing.push(...mandatoryMissing);
             if (missing.length > 0) {
                 errors.push({
                     articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
@@ -546,9 +588,9 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
         for (const item of pendingItems) {
             const missing: string[] = [];
-            // Only block approve if VENDOR CODE is missing — required for SAP processing.
-            // All attribute-level required checks removed per user request.
             if (!item.vendorCode) missing.push('VENDOR CODE');
+            const mandatoryMissing = getMissingMandatoryFields(item);
+            missing.push(...mandatoryMissing);
             if (missing.length > 0) {
                 errors.push({
                     articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,

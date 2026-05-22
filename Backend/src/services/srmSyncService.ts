@@ -621,3 +621,156 @@ export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
   console.log(`[SRM Enrich Backfill] Done — enriched: ${result.enriched}, failed/no-change: ${result.failed}`);
   return result;
 }
+
+// ─── Single Presentation Fetch ─────────────────────────────────────────────
+
+const SRM_BY_REF_API = 'https://pymdqnnwwxrgeolvgvgv.supabase.co/functions/v1/srm-presentation-by-ref';
+
+interface SrmByRefImage {
+  id: string;
+  design_number: string;
+  fabric: string;
+  no_of_colors: number;
+  price: number;
+  quantity: number | null;
+  available_date: string | null;
+  image_url: string | null;
+  cost_sheet_url: string | null;
+  notes: string | null;
+  uploaded_at: string;
+  latest_decision: string | null;
+}
+
+interface SrmByRefResponse {
+  presentation: {
+    id: string;
+    ref_no: string;
+    status: string;
+    vendor_code: string;
+    vendor_name: string;
+    division: string;
+    sub_division: string;
+    major_category: string;
+    category_head_decision: string | null;
+    subdivision_head_decision: string | null;
+    received_at: string | null;
+    approved_at: string | null;
+    created_at: string;
+  };
+  images: SrmByRefImage[];
+  image_count: number;
+}
+
+export interface SinglePptSyncResult {
+  refNo: string;
+  imageCount: number;
+  inserted: number;
+  skipped: number;
+  errors: number;
+  vlmQueued: number;
+}
+
+/**
+ * Fetch a single SRM presentation by ref_no (PPT number) and insert/patch
+ * its images into extraction_results_flat — same logic as bulk sync but
+ * for one presentation only. VLM enrichment runs in background.
+ */
+export async function syncSinglePresentation(
+  refNo: string,
+  approvedOnly = false,
+): Promise<SinglePptSyncResult> {
+  console.log(`[SRM Single] Fetching presentation: ${refNo}`);
+
+  const url = new URL(SRM_BY_REF_API);
+  url.searchParams.set('ref_no', refNo);
+  if (approvedOnly) url.searchParams.set('approved_only', 'true');
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'apikey': SRM_SUPABASE_KEY,
+      'Authorization': `Bearer ${SRM_SUPABASE_KEY}`,
+      'x-api-key': SRM_API_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`SRM API error: HTTP ${res.status} — ${body.slice(0, 300)}`);
+  }
+
+  const json = await res.json() as SrmByRefResponse;
+  const { presentation, images } = json;
+
+  const result: SinglePptSyncResult = {
+    refNo,
+    imageCount: images.length,
+    inserted: 0,
+    skipped: 0,
+    errors: 0,
+    vlmQueued: 0,
+  };
+
+  const toEnrich: Array<{ id: string; imageUrl: string; majorCategory: string | null }> = [];
+
+  for (const img of images) {
+    try {
+      // Build an SrmRow compatible with insertRow()
+      const row: SrmRow = {
+        presentation_no: presentation.ref_no,
+        vendor_code:     presentation.vendor_code,
+        vendor_name:     presentation.vendor_name || null,
+        division:        presentation.division,
+        sub_division:    presentation.sub_division,
+        major_category:  presentation.major_category,
+        presentation_received_date: presentation.received_at || presentation.created_at,
+        design_number:   img.design_number || img.id,
+        fabric:          img.fabric || '',
+        no_of_colors:    img.no_of_colors ?? 0,
+        price:           img.price ?? 0,
+        image_url:       img.image_url || null,
+      };
+
+      const existing = await findExisting(row.presentation_no, row.design_number);
+      if (existing) {
+        if (row.image_url && !existing.imageUrl) {
+          await prisma.extractionResultFlat.update({
+            where: { id: existing.id },
+            data: { imageUrl: row.image_url },
+          });
+          void mirror360FlatUpdate(existing.id, { imageUrl: row.image_url });
+          toEnrich.push({ id: existing.id, imageUrl: row.image_url, majorCategory: presentation.major_category });
+          result.inserted++;
+        } else {
+          result.skipped++;
+        }
+        continue;
+      }
+
+      const flat = await insertRow(row);
+      result.inserted++;
+      console.log(`[SRM Single] Inserted: ${row.presentation_no} / ${row.design_number}`);
+      if (flat?.imageUrl) {
+        toEnrich.push({ id: flat.id, imageUrl: flat.imageUrl, majorCategory: presentation.major_category });
+      }
+    } catch (err: any) {
+      result.errors++;
+      console.error(`[SRM Single] Error for image ${img.id}:`, err.message);
+    }
+  }
+
+  result.vlmQueued = toEnrich.length;
+  console.log(`[SRM Single] Done — inserted:${result.inserted} skipped:${result.skipped} errors:${result.errors} vlmQueued:${result.vlmQueued}`);
+
+  // VLM enrichment in background
+  if (toEnrich.length > 0) {
+    void (async () => {
+      for (let i = 0; i < toEnrich.length; i++) {
+        await enrichSrmRowWithVlm(toEnrich[i].id, toEnrich[i].imageUrl, toEnrich[i].majorCategory);
+        if (i < toEnrich.length - 1) await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+      }
+      console.log(`[SRM Single] VLM enrichment complete for ${refNo} — ${toEnrich.length} images`);
+    })();
+  }
+
+  return result;
+}

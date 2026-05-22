@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert, Upload, Progress } from 'antd';
+import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert, Upload, Progress, Input } from 'antd';
 import {
   UserOutlined,
   CloudUploadOutlined,
@@ -15,6 +15,7 @@ import {
   TableOutlined,
   InboxOutlined,
   DownloadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { BackendApiService } from '../../../services/api/backendApi';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -61,6 +62,17 @@ export default function Admin() {
   const [srmEnriching, setSrmEnriching] = useState(false);
   const [srmLastResult, setSrmLastResult] = useState<SrmSyncResult | null>(null);
   const [srmEnrichMessage, setSrmEnrichMessage] = useState<string | null>(null);
+  const [pptRefNo, setPptRefNo] = useState('');
+  const [pptSyncing, setPptSyncing] = useState(false);
+  const [pptResult, setPptResult] = useState<{
+    refNo: string;
+    imageCount: number;
+    inserted: number;
+    skipped: number;
+    errors: number;
+    vlmQueued: number;
+  } | null>(null);
+  const [pptError, setPptError] = useState<string | null>(null);
 
   const [vendorStatus, setVendorStatus] = useState<VendorMasterStatus | null>(null);
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
@@ -144,6 +156,34 @@ export default function Admin() {
       message.error(err?.message || 'Enrichment trigger failed');
     } finally {
       setSrmEnriching(false);
+    }
+  };
+
+  const runSrmSyncByRef = async () => {
+    const ref = pptRefNo.trim().toUpperCase();
+    if (!ref) { message.warning('Enter a PPT number first (e.g. PRES-00721)'); return; }
+    setPptSyncing(true);
+    setPptResult(null);
+    setPptError(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/sync-by-ref`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ refNo: ref }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch presentation');
+      setPptResult(data.data);
+      message.success(`Fetched ${data.data.imageCount} images for ${ref}`);
+    } catch (err: any) {
+      setPptError(err?.message || 'Failed to fetch presentation');
+      message.error(err?.message || 'Failed to fetch presentation');
+    } finally {
+      setPptSyncing(false);
     }
   };
 
@@ -793,6 +833,77 @@ export default function Admin() {
               <Empty description="Could not load SRM sync status" />
             )}
           </Spin>
+        </Card>
+
+        {/* Fetch by PPT No */}
+        <Card
+          title={<span><SearchOutlined style={{ marginRight: 8 }} />Fetch Presentation by PPT No</span>}
+          style={{ marginBottom: 24 }}
+        >
+          <div style={{ marginBottom: 12, color: '#595959', fontSize: 13 }}>
+            Fetch a single SRM presentation by its reference number, insert all its images into the DB, and run Gemini VLM extraction automatically.
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Input
+              placeholder="e.g. PRES-00721"
+              value={pptRefNo}
+              onChange={e => { setPptRefNo(e.target.value.toUpperCase()); setPptResult(null); setPptError(null); }}
+              onPressEnter={runSrmSyncByRef}
+              style={{ maxWidth: 220, fontFamily: 'monospace', fontWeight: 600 }}
+              disabled={pptSyncing}
+              allowClear
+            />
+            <Button
+              type="primary"
+              icon={<SyncOutlined spin={pptSyncing} />}
+              loading={pptSyncing}
+              onClick={runSrmSyncByRef}
+              disabled={!pptRefNo.trim()}
+            >
+              {pptSyncing ? 'Fetching...' : 'Fetch & Extract'}
+            </Button>
+          </div>
+
+          {pptError && (
+            <Alert
+              type="error"
+              showIcon
+              message="Error"
+              description={pptError}
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
+          {pptResult && (
+            <Alert
+              type={pptResult.errors > 0 ? 'warning' : 'success'}
+              showIcon
+              icon={<CheckCircleOutlined />}
+              message={
+                <span>
+                  <strong>{pptResult.refNo}</strong>
+                  <span style={{ fontWeight: 400, color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>
+                    {pptResult.imageCount} image{pptResult.imageCount !== 1 ? 's' : ''} in presentation
+                  </span>
+                </span>
+              }
+              description={
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+                  <span><strong style={{ color: '#389e0d' }}>{pptResult.inserted}</strong> new inserted</span>
+                  <span style={{ color: '#8c8c8c' }}>·</span>
+                  <span><strong>{pptResult.skipped}</strong> already existed (skipped)</span>
+                  <span style={{ color: '#8c8c8c' }}>·</span>
+                  <span><strong style={{ color: pptResult.errors > 0 ? '#cf1322' : undefined }}>{pptResult.errors}</strong> errors</span>
+                  {pptResult.vlmQueued > 0 && (
+                    <>
+                      <span style={{ color: '#8c8c8c' }}>·</span>
+                      <span><strong style={{ color: '#722ed1' }}>{pptResult.vlmQueued}</strong> queued for VLM extraction</span>
+                    </>
+                  )}
+                </div>
+              }
+            />
+          )}
         </Card>
 
         {/* Vendor Master Sync */}

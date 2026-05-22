@@ -319,6 +319,20 @@ export function isMandatoryGridFieldActive(majorCategory: string, sapKey: string
   return entry.isActive;
 }
 
+/**
+ * Returns the human-readable label for a SAP key from the mandatory grid
+ * (Row 4 of the uploaded Excel). Returns null if not found.
+ * The label is the same across all major categories — we just pick the first one found.
+ */
+export function getMandatoryGridFieldLabel(sapKey: string): string | null {
+  if (!mandatoryGrid) return null;
+  for (const catData of Object.values(mandatoryGrid)) {
+    const entry = catData[sapKey];
+    if (entry?.label) return entry.label;
+  }
+  return null;
+}
+
 export function isMandatoryGridLoaded(): boolean {
   return mandatoryGrid !== null;
 }

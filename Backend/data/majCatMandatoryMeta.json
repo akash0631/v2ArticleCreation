@@ -1,8 +1,10 @@
 {
-  "uploadedAt": "2026-05-20T04:52:07.899Z",
+  "uploadedAt": "2026-05-22T04:13:33.347Z",
   "fileName": "MANDATORY GRID DATA-05.05.2026 NEW.xlsx",
-  "totalRows": 17435,
+  "totalRows": 317,
+  "attributesCount": 55,
+  "activeMappings": 6778,
+  "totalMappings": 17435,
   "categoriesCount": 317,
-  "activeCount": 6778,
   "skippedRows": 0
 }

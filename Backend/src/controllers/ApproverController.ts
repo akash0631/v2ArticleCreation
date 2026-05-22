@@ -812,9 +812,9 @@ export class ApproverController {
             where.imageUrl = { not: '' };
 
             // SRM extraction gate: hide SRM records while Gemini is still running.
-            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >4h (Gemini gave up).
+            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >30min (Gemini gave up).
             // This prevents a race condition where an approver edits a field that Gemini later overwrites.
-            const srmGateTime = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const srmGateTime = new Date(Date.now() - 30 * 60 * 1000);
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
@@ -1113,7 +1113,7 @@ export class ApproverController {
             where.imageUrl = { not: '' };
 
             // Same SRM extraction gate as getItems
-            const srmGateTimeExport = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const srmGateTimeExport = new Date(Date.now() - 30 * 60 * 1000);
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [

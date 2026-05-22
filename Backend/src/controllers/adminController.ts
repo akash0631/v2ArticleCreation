@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
-import { invalidateMandatoryGridCache } from '../services/zmmArtCreationService';
+import { invalidateMandatoryGridCache, invalidateMajCatVisibleCache } from '../services/zmmArtCreationService';
 import path from 'path';
 import fs from 'fs';
 
@@ -1754,12 +1754,12 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
       prisma.extractionResultFlat.count({
         where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
       }),
-      // Records currently hidden from approvers because extraction is still running (<4h old)
+      // Records currently hidden from approvers because extraction is still running (<30min old)
       prisma.extractionResultFlat.count({
         where: {
           source: 'SRM',
           extractionStatus: 'SRM_IMPORT',
-          createdAt: { gt: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+          createdAt: { gt: new Date(Date.now() - 30 * 60 * 1000) },
         },
       }),
     ]);
@@ -1857,6 +1857,42 @@ export const triggerSrmEnrichment = async (req: Request, res: Response): Promise
     })();
   } catch (error: any) {
     console.error('Error in triggerSrmEnrichment:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/sync-by-ref
+ * Fetch a single SRM presentation by PPT ref_no and insert/enrich its images.
+ * Body: { refNo: string, approvedOnly?: boolean }
+ */
+export const syncSrmByRef = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refNo, approvedOnly } = req.body as { refNo?: string; approvedOnly?: boolean };
+
+    if (!refNo || typeof refNo !== 'string' || !refNo.trim()) {
+      res.status(400).json({ success: false, error: 'refNo is required (e.g. PRES-00721)' });
+      return;
+    }
+
+    const cleanRef = refNo.trim().toUpperCase();
+
+    const { syncSinglePresentation } = await import('../services/srmSyncService');
+    console.log(`[Admin] Single PPT sync triggered for: ${cleanRef}`);
+
+    const result = await syncSinglePresentation(cleanRef, approvedOnly === true);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('Error in syncSrmByRef:', error);
+    // Pass through 404 from SRM API as a 404 to the client
+    if (error.message?.includes('HTTP 404')) {
+      res.status(404).json({ success: false, error: `Presentation not found: ${req.body?.refNo}` });
+      return;
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -2188,6 +2224,9 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
     const metaDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
     fs.writeFileSync(MAJ_CAT_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
+    invalidateMajCatVisibleCache();
 
     console.log(`[MajCatGrid] Done — ${totalRows} ACT rows inserted, ${inactiveSkipped} IN-ACT skipped, ${categoriesCount} major categories, ${attributesCount} attr slots`);
 
