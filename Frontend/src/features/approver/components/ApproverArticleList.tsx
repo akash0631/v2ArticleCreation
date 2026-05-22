@@ -322,7 +322,8 @@ const ArticleCard = React.memo(({
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
         if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
 
-        const visible: Array<{ field: string; label: string; schemaKey: string; group: string; groupColor: string; values: string[]; freeText: boolean; isMandatory: boolean }> = [];
+        type AttrValue = { shortForm: string; fullForm: string };
+        const visible: Array<{ field: string; label: string; schemaKey: string; group: string; groupColor: string; values: AttrValue[]; freeText: boolean; isMandatory: boolean }> = [];
         const mandatory = new Set<string>();
 
         // At least one grid must be ready before we apply filtering.
@@ -340,7 +341,7 @@ const ArticleCard = React.memo(({
             }
 
             // Dropdown values always come from Maj-Cat Grid
-            const values = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
+            const values: AttrValue[] = getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
 
             if (gridsReady) {
                 // ── Grids loaded: check per-field whether it has mandatory or dropdown values ──
