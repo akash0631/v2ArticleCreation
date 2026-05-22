@@ -923,11 +923,13 @@ const ArticleCard = React.memo(({
                                         <tbody>
                                             {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText, isMandatory }) => {
                                                 const currentValue = getValue(field);
-                                                const isEmpty = !currentValue;
+                                                // "-" is treated as no real value — mandatory fields show "Required" instead
+                                                const isEffectivelyEmpty = !currentValue || currentValue === '-';
+                                                const isEmpty = isEffectivelyEmpty;
                                                 const isEditing = editingField === field;
-                                                const artNum = getArtNum(schemaKey, field, currentValue);
+                                                const artNum = getArtNum(schemaKey, field, isEffectivelyEmpty ? null : currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;
-                                                const isEmptyMandatory = isMandatory && isEmpty && !isLocked;
+                                                const isEmptyMandatory = isMandatory && isEffectivelyEmpty && !isLocked;
                                                 return (
                                                     <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                         {/* Attribute label */}
@@ -1013,14 +1015,15 @@ const ArticleCard = React.memo(({
                                                                     allowClear
                                                                     open
                                                                     size="small"
-                                                                    defaultValue={currentValue || undefined}
+                                                                    defaultValue={isEffectivelyEmpty ? undefined : currentValue}
                                                                     style={{ width: '100%', minWidth: 120 }}
                                                                     optionFilterProp="children"
                                                                     onChange={(val) => handleSave(field, val ?? null)}
                                                                     onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
                                                                     getPopupContainer={() => document.body}
                                                                 >
-                                                                    {values.map(v => (
+                                                                    {/* Filter "-" from mandatory field dropdowns — it is not a real value */}
+                                                                    {values.filter(v => !isMandatory || v.shortForm !== '-').map(v => (
                                                                         <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
                                                                     ))}
                                                                 </Select>
@@ -1028,13 +1031,17 @@ const ArticleCard = React.memo(({
                                                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                                     <span style={{
                                                                         fontSize: 11,
-                                                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
-                                                                        fontStyle: isEmpty ? 'italic' : 'normal',
+                                                                        color: isEffectivelyEmpty ? (isEmptyMandatory ? '#ff4d4f' : '#bfbfbf') : '#1a1a1a',
+                                                                        fontStyle: isEffectivelyEmpty && !isEmptyMandatory ? 'italic' : 'normal',
+                                                                        fontWeight: isEmptyMandatory ? 600 : 'normal',
                                                                         flex: 1,
                                                                     }}>
-                                                                        {currentValue || '—'}
+                                                                        {isEffectivelyEmpty
+                                                                            ? (isEmptyMandatory ? 'Required' : '—')
+                                                                            : currentValue}
                                                                     </span>
-                                                                    {currentValue && !isLocked && (
+                                                                    {/* Show clear X only when there is a real value (not "-") */}
+                                                                    {!isEffectivelyEmpty && !isLocked && (
                                                                         <span
                                                                             onClick={(e) => { e.stopPropagation(); handleSave(field, null); }}
                                                                             style={{ color: '#bfbfbf', fontSize: 10, cursor: 'pointer', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
