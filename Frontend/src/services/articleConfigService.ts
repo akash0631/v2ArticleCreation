@@ -231,7 +231,7 @@ export async function preloadMajCatGrid(): Promise<MajCatGrid> {
   const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
   const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
-  majCatGridPromise = fetch(`${baseURL}/admin/majcat-grid/values`, {
+  majCatGridPromise = fetch(`${baseURL}/article-config/majcat-grid`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
     .then(r => r.ok ? r.json() : { data: {} })
@@ -264,6 +264,12 @@ export function isMajCatGridLoaded(): boolean {
   return majCatGrid !== null;
 }
 
+/** Returns true if the major category has ANY rows in the uploaded maj-cat grid. */
+export function isMajCatInGrid(majorCategory: string): boolean {
+  if (!majCatGrid) return false;
+  return majorCategory in majCatGrid;
+}
+
 export function invalidateMajCatGrid(): void {
   majCatGrid = null;
   majCatGridPromise = null;
@@ -289,7 +295,7 @@ export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
   const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
   const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
-  mandatoryGridPromise = fetch(`${baseURL}/admin/mandatory-grid/values`, {
+  mandatoryGridPromise = fetch(`${baseURL}/article-config/mandatory-grid`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
     .then(r => r.ok ? r.json() : { data: {} })
@@ -335,6 +341,12 @@ export function getMandatoryGridFieldLabel(sapKey: string): string | null {
 
 export function isMandatoryGridLoaded(): boolean {
   return mandatoryGrid !== null;
+}
+
+/** Returns true if the major category has ANY rows in the uploaded mandatory grid. */
+export function isMajCatInMandatoryGrid(majorCategory: string): boolean {
+  if (!mandatoryGrid) return false;
+  return majorCategory in mandatoryGrid;
 }
 
 export function invalidateMandatoryGrid(): void {

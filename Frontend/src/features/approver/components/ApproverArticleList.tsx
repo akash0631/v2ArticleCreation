@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, SAP_NAME_TO_SCHEMA_KEY, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, getMajCatGridEntry, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, getMajCatGridEntry, isMajCatInGrid, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive, isMajCatInMandatoryGrid } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -33,13 +33,15 @@ const { Option } = Select;
 // Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
 
-// Reverse map: schemaKey → primary SAP key (first non-alias entry in SAP_NAME_TO_SCHEMA_KEY).
-// Used to look up mandatory-grid visibility per field.
-const SCHEMA_KEY_TO_PRIMARY_SAP_KEY: Record<string, string> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
+// Reverse map: schemaKey → ALL SAP keys (including legacy aliases).
+// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
+// which SAP key variant the uploaded Excel used (e.g. NO_OF_POCKET vs M_NO_OF_POCKET).
+const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
     .reduce((acc, [sapKey, schemaKey]) => {
-        if (!acc[schemaKey]) acc[schemaKey] = sapKey;
+        if (!acc[schemaKey]) acc[schemaKey] = [];
+        acc[schemaKey].push(sapKey);
         return acc;
-    }, {} as Record<string, string>);
+    }, {} as Record<string, string[]>);
 
 // Attributes grouped exactly as in the Excel mandatory grid (4 groups)
 // freeText: true → renders as text input and is always visible (no dropdown/allowedValues check)
@@ -333,15 +335,10 @@ const ArticleCard = React.memo(({
         // ── Graceful degradation: if the major category has NO entries in EITHER grid
         // (e.g. not yet configured in the admin panel), fall back to showing ALL fields.
         // This prevents a blank card for categories that haven't been set up yet.
+        // Uses direct category key-existence checks — reliable regardless of field name variations.
         const catHasAnyGridData = gridsReady && (
-            // Check mandatory grid: any SAP key active for this major category
-            (mandatoryGridReady && Object.values(SCHEMA_KEY_TO_PRIMARY_SAP_KEY).some(
-                sapKey => isMandatoryGridFieldActive(effectiveMajCat, sapKey) !== null
-            )) ||
-            // Check maj-cat grid: any dropdown values for this major category
-            (gridReady && Object.values(SCHEMA_KEY_TO_EXCEL_ATTR).some(
-                excelAttr => (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
-            ))
+            (mandatoryGridReady && isMajCatInMandatoryGrid(effectiveMajCat)) ||
+            (gridReady && isMajCatInGrid(effectiveMajCat))
         );
 
         for (const af of attributeFields) {
@@ -359,10 +356,12 @@ const ArticleCard = React.memo(({
 
             if (gridsReady && catHasAnyGridData) {
                 // ── Grids loaded AND category is configured: apply 3-tier filtering ──
-                const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
-                const isActiveMandatory = (mandatoryGridReady && sapKey)
-                    ? isMandatoryGridFieldActive(effectiveMajCat, sapKey) === true
-                    : false;
+                // Check ALL SAP key aliases — uploaded Excel may use any variant
+                // (e.g. M_NO_OF_POCKET vs NO_OF_POCKET, M_COLLAR vs M_COLLAR_TYPE)
+                const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[af.schemaKey] ?? [];
+                const isActiveMandatory = mandatoryGridReady && sapKeys.some(
+                    sk => isMandatoryGridFieldActive(effectiveMajCat, sk) === true
+                );
 
                 const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
                 const hasDropdownValues = (gridReady && excelAttr)
@@ -928,11 +927,13 @@ const ArticleCard = React.memo(({
                                         <tbody>
                                             {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText, isMandatory }) => {
                                                 const currentValue = getValue(field);
-                                                const isEmpty = !currentValue;
+                                                // "-" is treated as no real value — mandatory fields show "Required" instead
+                                                const isEffectivelyEmpty = !currentValue || currentValue === '-';
+                                                const isEmpty = isEffectivelyEmpty;
                                                 const isEditing = editingField === field;
-                                                const artNum = getArtNum(schemaKey, field, currentValue);
+                                                const artNum = getArtNum(schemaKey, field, isEffectivelyEmpty ? null : currentValue);
                                                 const isEditingArtNum = editingField === `artnum_${field}`;
-                                                const isEmptyMandatory = isMandatory && isEmpty && !isLocked;
+                                                const isEmptyMandatory = isMandatory && isEffectivelyEmpty && !isLocked;
                                                 return (
                                                     <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                         {/* Attribute label */}
@@ -1018,14 +1019,15 @@ const ArticleCard = React.memo(({
                                                                     allowClear
                                                                     open
                                                                     size="small"
-                                                                    defaultValue={currentValue || undefined}
+                                                                    defaultValue={isEffectivelyEmpty ? undefined : currentValue}
                                                                     style={{ width: '100%', minWidth: 120 }}
                                                                     optionFilterProp="children"
                                                                     onChange={(val) => handleSave(field, val ?? null)}
                                                                     onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
                                                                     getPopupContainer={() => document.body}
                                                                 >
-                                                                    {values.map(v => (
+                                                                    {/* Filter "-" from mandatory field dropdowns — it is not a real value */}
+                                                                    {values.filter(v => !isMandatory || v.shortForm !== '-').map(v => (
                                                                         <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
                                                                     ))}
                                                                 </Select>
@@ -1033,13 +1035,17 @@ const ArticleCard = React.memo(({
                                                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                                                     <span style={{
                                                                         fontSize: 11,
-                                                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
-                                                                        fontStyle: isEmpty ? 'italic' : 'normal',
+                                                                        color: isEffectivelyEmpty ? (isEmptyMandatory ? '#ff4d4f' : '#bfbfbf') : '#1a1a1a',
+                                                                        fontStyle: isEffectivelyEmpty && !isEmptyMandatory ? 'italic' : 'normal',
+                                                                        fontWeight: isEmptyMandatory ? 600 : 'normal',
                                                                         flex: 1,
                                                                     }}>
-                                                                        {currentValue || '—'}
+                                                                        {isEffectivelyEmpty
+                                                                            ? (isEmptyMandatory ? 'Required' : '—')
+                                                                            : currentValue}
                                                                     </span>
-                                                                    {currentValue && !isLocked && (
+                                                                    {/* Show clear X only when there is a real value (not "-") */}
+                                                                    {!isEffectivelyEmpty && !isLocked && (
                                                                         <span
                                                                             onClick={(e) => { e.stopPropagation(); handleSave(field, null); }}
                                                                             style={{ color: '#bfbfbf', fontSize: 10, cursor: 'pointer', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
