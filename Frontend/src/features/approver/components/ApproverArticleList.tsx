@@ -33,13 +33,15 @@ const { Option } = Select;
 // Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
 
-// Reverse map: schemaKey → primary SAP key (first non-alias entry in SAP_NAME_TO_SCHEMA_KEY).
-// Used to look up mandatory-grid visibility per field.
-const SCHEMA_KEY_TO_PRIMARY_SAP_KEY: Record<string, string> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
+// Reverse map: schemaKey → ALL SAP keys (including legacy aliases).
+// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
+// which SAP key variant the uploaded Excel used (e.g. NO_OF_POCKET vs M_NO_OF_POCKET).
+const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
     .reduce((acc, [sapKey, schemaKey]) => {
-        if (!acc[schemaKey]) acc[schemaKey] = sapKey;
+        if (!acc[schemaKey]) acc[schemaKey] = [];
+        acc[schemaKey].push(sapKey);
         return acc;
-    }, {} as Record<string, string>);
+    }, {} as Record<string, string[]>);
 
 // Attributes grouped exactly as in the Excel mandatory grid (4 groups)
 // freeText: true → renders as text input and is always visible (no dropdown/allowedValues check)
@@ -354,10 +356,12 @@ const ArticleCard = React.memo(({
 
             if (gridsReady && catHasAnyGridData) {
                 // ── Grids loaded AND category is configured: apply 3-tier filtering ──
-                const sapKey = SCHEMA_KEY_TO_PRIMARY_SAP_KEY[af.schemaKey];
-                const isActiveMandatory = (mandatoryGridReady && sapKey)
-                    ? isMandatoryGridFieldActive(effectiveMajCat, sapKey) === true
-                    : false;
+                // Check ALL SAP key aliases — uploaded Excel may use any variant
+                // (e.g. M_NO_OF_POCKET vs NO_OF_POCKET, M_COLLAR vs M_COLLAR_TYPE)
+                const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[af.schemaKey] ?? [];
+                const isActiveMandatory = mandatoryGridReady && sapKeys.some(
+                    sk => isMandatoryGridFieldActive(effectiveMajCat, sk) === true
+                );
 
                 const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
                 const hasDropdownValues = (gridReady && excelAttr)
