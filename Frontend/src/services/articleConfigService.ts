@@ -264,6 +264,12 @@ export function isMajCatGridLoaded(): boolean {
   return majCatGrid !== null;
 }
 
+/** Returns true if the major category has ANY rows in the uploaded maj-cat grid. */
+export function isMajCatInGrid(majorCategory: string): boolean {
+  if (!majCatGrid) return false;
+  return majorCategory in majCatGrid;
+}
+
 export function invalidateMajCatGrid(): void {
   majCatGrid = null;
   majCatGridPromise = null;
@@ -335,6 +341,12 @@ export function getMandatoryGridFieldLabel(sapKey: string): string | null {
 
 export function isMandatoryGridLoaded(): boolean {
   return mandatoryGrid !== null;
+}
+
+/** Returns true if the major category has ANY rows in the uploaded mandatory grid. */
+export function isMajCatInMandatoryGrid(majorCategory: string): boolean {
+  if (!mandatoryGrid) return false;
+  return majorCategory in mandatoryGrid;
 }
 
 export function invalidateMandatoryGrid(): void {

@@ -4,7 +4,7 @@ import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlin
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, SAP_NAME_TO_SCHEMA_KEY, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, getMajCatGridEntry, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive } from '../../../services/articleConfigService';
+import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache, preloadMajCatGrid, isMajCatGridLoaded, getMajCatGridEntry, isMajCatInGrid, preloadMandatoryGrid, isMandatoryGridLoaded, isMandatoryGridFieldActive, isMajCatInMandatoryGrid } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
@@ -333,15 +333,10 @@ const ArticleCard = React.memo(({
         // ── Graceful degradation: if the major category has NO entries in EITHER grid
         // (e.g. not yet configured in the admin panel), fall back to showing ALL fields.
         // This prevents a blank card for categories that haven't been set up yet.
+        // Uses direct category key-existence checks — reliable regardless of field name variations.
         const catHasAnyGridData = gridsReady && (
-            // Check mandatory grid: any SAP key active for this major category
-            (mandatoryGridReady && Object.values(SCHEMA_KEY_TO_PRIMARY_SAP_KEY).some(
-                sapKey => isMandatoryGridFieldActive(effectiveMajCat, sapKey) !== null
-            )) ||
-            // Check maj-cat grid: any dropdown values for this major category
-            (gridReady && Object.values(SCHEMA_KEY_TO_EXCEL_ATTR).some(
-                excelAttr => (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0
-            ))
+            (mandatoryGridReady && isMajCatInMandatoryGrid(effectiveMajCat)) ||
+            (gridReady && isMajCatInGrid(effectiveMajCat))
         );
 
         for (const af of attributeFields) {
