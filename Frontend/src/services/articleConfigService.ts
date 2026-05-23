@@ -315,14 +315,28 @@ export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
 /**
  * Synchronous check — is a SAP key active (visible) for a major category?
  * Returns true if active, false if inactive, null if grid not loaded or category not found.
+ *
+ * Two-pass lookup:
+ *  1. Direct sap_key match  (fast path — the normal case)
+ *  2. Label match fallback  — handles Excel uploads where the column header (sap_key)
+ *     and the display label (row 4 text) differ.
+ *     Example: sap_key=M_EMBROIDERY, label=M_EMBROIDERY_STYLE → looking up
+ *     'M_EMBROIDERY_STYLE' now correctly finds the entry via its label.
  */
 export function isMandatoryGridFieldActive(majorCategory: string, sapKey: string): boolean | null {
   if (!mandatoryGrid) return null;
   const catData = mandatoryGrid[majorCategory];
   if (!catData) return null;
+
+  // Pass 1: direct sap_key lookup
   const entry = catData[sapKey];
-  if (!entry) return null;
-  return entry.isActive;
+  if (entry) return entry.isActive;
+
+  // Pass 2: label fallback — find any entry whose label equals the requested sapKey
+  const byLabel = Object.values(catData).find(e => e.label === sapKey);
+  if (byLabel) return byLabel.isActive;
+
+  return null;
 }
 
 /**

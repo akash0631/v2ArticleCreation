@@ -90,6 +90,35 @@ export function getLastSrmSyncResult(): LastSyncResult | null { return _lastSync
 const VLM_ENRICH_DELAY_MS = 2000;
 
 /**
+ * Fetches an image URL (Supabase private or public R2) and returns it as a
+ * data-URI base64 string suitable for the VLM provider.
+ *
+ * Supabase private storage URLs require `apikey` + `Authorization` headers.
+ * Public R2 URLs work with a plain fetch (no headers needed).
+ *
+ * Returns null if the fetch fails for any reason.
+ */
+async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
+  try {
+    // SRM image URLs (api.v2retail.com/storage/v1/object/public/...) are publicly
+    // accessible — no auth headers required.
+    const res = await fetch(imageUrl);
+    if (!res.ok) {
+      console.warn(`[SRM Image] fetchImageAsBase64 failed ${res.status} for: ${imageUrl.slice(0, 120)}`);
+      return null;
+    }
+
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const mimeBase = contentType.split(';')[0].trim().toLowerCase();
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return `data:${mimeBase};base64,${buffer.toString('base64')}`;
+  } catch (err: any) {
+    console.warn(`[SRM Image] fetchImageAsBase64 error: ${err.message}`);
+    return null;
+  }
+}
+
+/**
  * Downloads an SRM image URL (which may be a private Supabase storage URL or a
  * short-lived signed URL) using the SRM Supabase auth headers, then re-uploads it
  * to our own R2 bucket so it is permanently accessible without authentication.
@@ -294,15 +323,31 @@ const vlmService = new VLMService();
 
 async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCategory: string | null): Promise<boolean> {
   try {
+    console.log(`[SRM VLM] Starting enrichment for ${flatId} | category: ${majorCategory} | url: ${imageUrl.slice(0, 100)}`);
+
+    // Pre-download the image to base64 before passing to VLM.
+    const base64Image = await fetchImageAsBase64(imageUrl);
+    if (!base64Image) {
+      console.warn(`[SRM VLM] ❌ STEP 1 FAILED — image fetch returned null for ${flatId}. URL: ${imageUrl.slice(0, 120)}`);
+      return false;
+    }
+    console.log(`[SRM VLM] ✓ Image fetched — base64 length: ${base64Image.length} chars`);
+
     // Use the module-level schema cache — avoids a full DB query for every record
     const schema = await getEnrichSchema();
+    console.log(`[SRM VLM] ✓ Schema loaded — ${schema.length} attributes`);
 
     const result = await vlmService.extractFashionAttributes({
-      image: imageUrl,
+      image: base64Image,
       schema,
       categoryName: majorCategory || undefined,
       discoveryMode: false,
     });
+
+    const nonNullAttrs = Object.entries(result.attributes || {})
+      .filter(([, v]) => v !== null && (v as any)?.rawValue != null)
+      .map(([k]) => k);
+    console.log(`[SRM VLM] ✓ VLM complete — confidence: ${result.confidence}% | non-null attrs (${nonNullAttrs.length}): ${nonNullAttrs.join(', ') || 'NONE'} | model: ${result.modelUsed}`);
 
     const attrs = result.attributes || {};
     const get = (...keys: string[]): string | null => {
@@ -403,7 +448,7 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
     if (result.confidence != null) updates.avgConfidence = result.confidence;
 
     if (Object.keys(updates).length <= 3) {
-      // Only metadata fields set — VLM returned nothing useful
+      console.warn(`[SRM VLM] ❌ STEP 3 FAILED — VLM returned 0 usable attributes for ${flatId}. All attributes were null or failed allowed-value validation. Non-null attrs from VLM: [${nonNullAttrs.join(', ')}]`);
       return false;
     }
 
@@ -426,7 +471,8 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
     console.log(`[SRM VLM] Enriched ${flatId} — ${Object.keys(updates).length} fields from VLM`);
     return true;
   } catch (err: any) {
-    console.error(`[SRM VLM] Enrichment failed for ${flatId}:`, err.message);
+    console.error(`[SRM VLM] ❌ STEP 2 FAILED — exception during VLM call for ${flatId}:`, err.message);
+    console.error(`[SRM VLM] Stack:`, err.stack);
     return false;
   }
 }
@@ -640,6 +686,57 @@ export async function syncFromSrm(): Promise<SyncResult> {
   }
 
   return result;
+}
+
+/**
+ * Startup recovery enrichment — runs once when the server boots.
+ *
+ * Finds SRM records that were inserted within the last 48 hours but still have
+ * extractionStatus = 'SRM_IMPORT' (meaning the fire-and-forget VLM background
+ * task was killed before it finished, most likely due to a server restart).
+ *
+ * Scoped to the last 48 h only — genuinely old records are NEVER touched.
+ * Runs entirely in the background; startup is not blocked.
+ */
+export async function recoverRecentSrmVlmEnrichment(): Promise<void> {
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
+  const records = await prisma.extractionResultFlat.findMany({
+    where: {
+      source: 'SRM',
+      extractionStatus: 'SRM_IMPORT',
+      imageUrl: { not: null },
+      createdAt: { gte: cutoff },
+    },
+    select: { id: true, imageUrl: true, majorCategory: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (records.length === 0) {
+    console.log('[SRM Recovery] No recent SRM_IMPORT records in last 48h — nothing to recover');
+    return;
+  }
+
+  console.log(`[SRM Recovery] Found ${records.length} recent record(s) still at SRM_IMPORT — starting background recovery`);
+
+  // Run entirely in the background — does not block server startup
+  void (async () => {
+    let enriched = 0;
+    let failed = 0;
+    for (let i = 0; i < records.length; i++) {
+      const rec = records[i];
+      if (!rec.imageUrl) continue;
+      try {
+        const success = await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
+        if (success) enriched++; else failed++;
+      } catch {
+        failed++;
+      }
+      if (i < records.length - 1) {
+        await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+      }
+    }
+    console.log(`[SRM Recovery] Complete — enriched: ${enriched}, failed: ${failed} (of ${records.length})`);
+  })();
 }
 
 /**
