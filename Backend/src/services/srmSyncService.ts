@@ -355,7 +355,11 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
         const attr = attrs[key];
         if (!attr) continue;
         const v = attr.schemaValue ?? attr.rawValue;
-        if (v != null && String(v).trim() !== '') return String(v).trim();
+        const s = v != null ? String(v).trim() : '';
+        // Skip empty strings AND dash-only values — VLM uses "-" to mean
+        // "not visible / not applicable". Storing it causes "----TOP-RINSE" style
+        // article descriptions and pollutes DB fields that should stay null.
+        if (s !== '' && !/^-+$/.test(s)) return s;
       }
       return null;
     };
