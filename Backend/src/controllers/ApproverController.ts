@@ -148,11 +148,12 @@ export class ApproverController {
 
             // Include articles with matching subDivision OR with null/empty subDivision
             // (articles extracted without category assignment should still be visible).
-            // SRM records bypass sub-division scope for the same reason as division scope.
+            // NOTE: SRM records are NOT exempt here — an SRM article with subDivision='LN&L'
+            // must NOT appear for a user scoped to LK&L,LW. Only SRM articles with
+            // null/empty subDivision pass through (via the null/'' conditions below).
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
-                    { source: 'SRM' },
                     ...variants.map((variant) => ({
                         subDivision: { equals: variant, mode: 'insensitive' }
                     })),
@@ -162,7 +163,7 @@ export class ApproverController {
             });
         };
 
-        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD') {
+        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD' || role === 'CREATOR') {
             addDivisionScope(user?.division);
             addSubDivisionScope(user?.subDivision);
             return;
@@ -712,7 +713,24 @@ export class ApproverController {
                     }
                     if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
                 } else {
+                    // Apply profile-based scope first (division + subDivision from user record)
                     ApproverController.applyApproverScope(where, req.user);
+
+                    // Then narrow by the dropdown filters the user explicitly selected.
+                    // These AND on top of the scope — they can only narrow, never expand.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') {
+                        where.AND = where.AND || [];
+                        where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
+                    }
                 }
             }
 
@@ -1020,7 +1038,21 @@ export class ApproverController {
                 }
                 if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
             } else {
+                // Apply profile-based scope first, then narrow by dropdown filters
                 ApproverController.applyApproverScope(where, req.user);
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') {
+                    where.AND = where.AND || [];
+                    where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
+                }
             }
 
             // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
@@ -1489,7 +1521,7 @@ export class ApproverController {
             }
 
             const role = String(req.user?.role || '');
-            if (role === 'APPROVER' || role === 'CATEGORY_HEAD') {
+            if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
                 const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
@@ -1499,7 +1531,7 @@ export class ApproverController {
                     return res.status(403).json({ error: 'Access denied: Division mismatch' });
                 }
                 // Allow update when article has no subDivision yet (null/empty) — same as list query logic
-                if (role === 'APPROVER' && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
+                if ((role === 'APPROVER' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
                     return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
                 }
             }
