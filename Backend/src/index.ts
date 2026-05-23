@@ -36,6 +36,7 @@ import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
 import { syncFromSrm, recoverRecentSrmVlmEnrichment } from './services/srmSyncService';
+import srmHookRoutes from './routes/srmHook';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
 
 const app = express();
@@ -156,6 +157,7 @@ app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/watcher/')) return next();
   if (req.path.startsWith('/approver/')) return next();
   if (req.path.startsWith('/article-config/')) return next();
+  if (req.path.startsWith('/srm-hook/')) return next(); // uses own API key auth + background processing
   return limiter(req, res, next);
 });
 
@@ -168,6 +170,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // images; the background worker is unaffected by the request timer.
 // /api/admin/majcat-grid/upload gets 15min — 300k+ row Excel insert needs time.
 app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
+// SRM hook trigger returns 202 immediately — no timeout needed on the HTTP layer
+// (background processing is unbounded and runs independently of the request)
+app.use('/api/srm-hook/trigger', requestTimeout(15 * 1000));
 app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
 app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
 app.use('/api/', (req, res, next) => {
@@ -210,6 +215,13 @@ if (process.env.NODE_ENV === 'development') {
 // PUBLIC ROUTES (No authentication required)
 // ═══════════════════════════════════════════════════════
 app.use('/api/auth', authRoutes); // Login, verify token
+
+// ═══════════════════════════════════════════════════════
+// SRM WEBHOOK ROUTES (API-key secured, no JWT)
+// Called by the external SRM web app to trigger extraction.
+// Auth: x-srm-api-key header  (set SRM_HOOK_API_KEY in .env)
+// ═══════════════════════════════════════════════════════
+app.use('/api/srm-hook', srmHookRoutes);
 
 // ═══════════════════════════════════════════════════════
 // ADMIN ROUTES (Admin role required + Audit logging)

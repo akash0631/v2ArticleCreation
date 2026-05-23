@@ -960,3 +960,147 @@ export async function syncSinglePresentation(
 
   return result;
 }
+
+// ─── SRM Webhook Batch Processing ─────────────────────────────────────────
+
+/**
+ * One image entry as sent by the SRM web app in the webhook request body.
+ */
+export interface SrmWebhookImage {
+  design_number: string;
+  image_url?: string | null;
+  price?: number;
+  fabric?: string;
+  no_of_colors?: number;
+}
+
+/**
+ * Full request body shape expected from the SRM web app.
+ */
+export interface SrmWebhookBatchRequest {
+  presentation_no: string;
+  vendor_code: string;
+  vendor_name?: string | null;
+  division: string;
+  sub_division?: string | null;
+  major_category: string;
+  presentation_received_date?: string | null;
+  images: SrmWebhookImage[];
+}
+
+/**
+ * Progress update emitted after each image is processed.
+ * The controller uses this to update the in-memory job store.
+ */
+export interface SrmWebhookProgress {
+  designNumber: string;
+  id?: string;
+  success: boolean;
+  extractionStatus?: string;
+  articleDescription?: string;
+  error?: string;
+}
+
+export type SrmWebhookProgressCallback = (progress: SrmWebhookProgress) => void;
+
+/**
+ * Process a batch of SRM images received via the webhook endpoint.
+ *
+ * Runs SEQUENTIALLY (one image at a time) to respect Gemini rate limits.
+ * Calls onProgress after each image so the caller can update job state.
+ *
+ * This function is designed to be called inside a fire-and-forget wrapper —
+ * the HTTP response (202) must already have been sent before calling this.
+ *
+ * Does NOT touch cron-job logic or manual-trigger logic — purely additive.
+ */
+export async function processSrmWebhookBatch(
+  req: SrmWebhookBatchRequest,
+  onProgress: SrmWebhookProgressCallback,
+): Promise<void> {
+  console.log(`[SRM Hook] Batch started — presentation: ${req.presentation_no} | images: ${req.images.length}`);
+
+  for (let i = 0; i < req.images.length; i++) {
+    const img = req.images[i];
+    const designNumber = (img.design_number || `img-${i + 1}`).trim();
+
+    try {
+      // Build SrmRow compatible with insertRow()
+      const row: SrmRow = {
+        presentation_no:            req.presentation_no,
+        vendor_code:                req.vendor_code,
+        vendor_name:                req.vendor_name  || null,
+        division:                   req.division,
+        sub_division:               req.sub_division || '',
+        major_category:             req.major_category,
+        presentation_received_date: req.presentation_received_date || new Date().toISOString(),
+        design_number:              designNumber,
+        fabric:                     img.fabric       || '',
+        no_of_colors:               img.no_of_colors ?? 0,
+        price:                      img.price        ?? 0,
+        image_url:                  img.image_url    || null,
+      };
+
+      // ── 1. Insert or locate existing DB record ──────────────────────────
+      const existing = await findExisting(req.presentation_no, designNumber);
+      let flatId: string;
+      let imageUrl: string | null;
+
+      if (existing) {
+        flatId   = existing.id;
+        imageUrl = existing.imageUrl;
+
+        // If this call now provides an image URL we didn't have before — mirror it
+        if (img.image_url && !existing.imageUrl) {
+          const r2Url = await downloadAndMirrorToR2(img.image_url);
+          if (r2Url) {
+            imageUrl = r2Url;
+            await prisma.extractionResultFlat.update({ where: { id: flatId }, data: { imageUrl: r2Url } });
+            void mirror360FlatUpdate(flatId, { imageUrl: r2Url });
+          }
+        }
+        console.log(`[SRM Hook] Existing record for ${designNumber} — id: ${flatId}`);
+      } else {
+        const flat = await insertRow(row);
+        if (!flat) throw new Error('insertRow returned null');
+        flatId   = flat.id;
+        imageUrl = flat.imageUrl;
+        console.log(`[SRM Hook] Inserted new record for ${designNumber} — id: ${flatId}`);
+      }
+
+      // ── 2. VLM Extraction ────────────────────────────────────────────────
+      if (!imageUrl) {
+        console.warn(`[SRM Hook] No image URL for ${designNumber} — skipping VLM`);
+        onProgress({ designNumber, id: flatId, success: false, extractionStatus: 'SRM_IMPORT', error: 'No image URL' });
+        continue;
+      }
+
+      const success = await enrichSrmRowWithVlm(flatId, imageUrl, req.major_category);
+
+      // ── 3. Fetch final DB state for the progress report ──────────────────
+      const final = await prisma.extractionResultFlat.findUnique({
+        where:  { id: flatId },
+        select: { extractionStatus: true, articleDescription: true },
+      });
+
+      onProgress({
+        designNumber,
+        id:                 flatId,
+        success,
+        extractionStatus:   final?.extractionStatus   ?? (success ? 'COMPLETED' : 'SRM_IMPORT'),
+        articleDescription: final?.articleDescription  ?? undefined,
+      });
+
+    } catch (err: any) {
+      console.error(`[SRM Hook] Error for ${designNumber}:`, err.message);
+      onProgress({ designNumber, success: false, error: err.message });
+    }
+
+    // Rate-limit gap between consecutive Gemini calls (skip after last image)
+    if (i < req.images.length - 1) {
+      await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+    }
+  }
+
+  console.log(`[SRM Hook] Batch complete — presentation: ${req.presentation_no}`);
+}
