@@ -28,6 +28,7 @@ import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 import { VLMService } from './vlm/vlmService';
 import { mvgrMappingService } from './mvgrMappingService';
+import { storageService } from './storageService';
 
 const SRM_API_BASE = 'https://pymdqnnwwxrgeolvgvgv.supabase.co/functions/v1/srm-presentation-images-api';
 const SRM_API_KEY = process.env.SRM_API_KEY || 'v2@123';
@@ -87,6 +88,46 @@ export function getLastSrmSyncResult(): LastSyncResult | null { return _lastSync
 
 // Minimum delay between consecutive VLM calls to avoid Gemini rate limits
 const VLM_ENRICH_DELAY_MS = 2000;
+
+/**
+ * Downloads an SRM image URL (which may be a private Supabase storage URL or a
+ * short-lived signed URL) using the SRM Supabase auth headers, then re-uploads it
+ * to our own R2 bucket so it is permanently accessible without authentication.
+ *
+ * Returns the permanent R2 public URL, or null if the download/upload fails.
+ * This must be called during sync — not at enrichment time — to avoid expired URLs.
+ */
+async function downloadAndMirrorToR2(srmImageUrl: string): Promise<string | null> {
+  try {
+    // Fetch with SRM Supabase auth headers (required for private buckets / signed URLs)
+    const res = await fetch(srmImageUrl, {
+      headers: {
+        'apikey': SRM_SUPABASE_KEY,
+        'Authorization': `Bearer ${SRM_SUPABASE_KEY}`,
+      },
+    });
+
+    if (!res.ok) {
+      console.warn(`[SRM Image] Fetch failed ${res.status} for: ${srmImageUrl.slice(0, 120)}`);
+      return null;
+    }
+
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const mimeBase = contentType.split(';')[0].trim().toLowerCase();
+    const ext = mimeBase.includes('png') ? 'png'
+      : mimeBase.includes('webp') ? 'webp'
+      : mimeBase.includes('gif') ? 'gif'
+      : 'jpg';
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const result = await storageService.uploadFile(buffer, `srm-image.${ext}`, mimeBase, 'srm-images');
+    console.log(`[SRM Image] Mirrored to R2: ${result.url.slice(0, 80)}...`);
+    return result.url;
+  } catch (err: any) {
+    console.warn(`[SRM Image] Mirror to R2 failed: ${err.message}`);
+    return null;
+  }
+}
 
 // Module-level schema cache — masterAttribute rows rarely change, no need to re-query
 // for every single SRM record during a backfill run. Loaded once per process lifetime.
@@ -492,8 +533,23 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
   // Duplication would create spurious sibling records (e.g. YBW_... alongside JBW_...).
   // Variant creation is also skipped for the same reason.
 
-  // VLM enrichment is now handled by the caller (syncFromSrm) in a sequential queue.
-  return { id: flat.id, imageUrl: flat.imageUrl };
+  // Mirror SRM image to R2 immediately so VLM enrichment gets a permanent, auth-free URL.
+  // SRM image URLs are private Supabase storage or short-lived signed URLs — they expire
+  // and cannot be fetched by the VLM provider without credentials.
+  let finalImageUrl = flat.imageUrl;
+  if (srmImageUrl) {
+    const r2Url = await downloadAndMirrorToR2(srmImageUrl);
+    if (r2Url) {
+      finalImageUrl = r2Url;
+      await prisma.extractionResultFlat.update({
+        where: { id: flat.id },
+        data: { imageUrl: r2Url },
+      });
+      void mirror360FlatUpdate(flat.id, { imageUrl: r2Url });
+    }
+  }
+
+  return { id: flat.id, imageUrl: finalImageUrl };
 }
 
 /**
@@ -533,6 +589,11 @@ export async function syncFromSrm(): Promise<SyncResult> {
           patch.vendorName = row.vendor_name;
 
         if (Object.keys(patch).length > 0) {
+          // Mirror new image to R2 before saving, same as insertRow path
+          if (patch.imageUrl) {
+            const r2Url = await downloadAndMirrorToR2(patch.imageUrl);
+            if (r2Url) patch.imageUrl = r2Url;
+          }
           await prisma.extractionResultFlat.update({ where: { id: existing.id }, data: patch });
           void mirror360FlatUpdate(existing.id, patch);
           if (patch.imageUrl) {
@@ -603,8 +664,29 @@ export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
   for (let i = 0; i < records.length; i++) {
     const rec = records[i];
     if (!rec.imageUrl) continue;
+
+    // If the stored URL is still an SRM Supabase URL (not yet mirrored to R2),
+    // re-download and mirror it now so VLM gets a permanent accessible URL.
+    let imageUrl = rec.imageUrl;
+    if (imageUrl.includes('supabase.co/storage')) {
+      const r2Url = await downloadAndMirrorToR2(imageUrl);
+      if (r2Url) {
+        imageUrl = r2Url;
+        await prisma.extractionResultFlat.update({
+          where: { id: rec.id },
+          data: { imageUrl: r2Url },
+        });
+        void mirror360FlatUpdate(rec.id, { imageUrl: r2Url });
+        console.log(`[SRM Enrich Backfill] Re-mirrored SRM image to R2 for ${rec.id}`);
+      } else {
+        console.warn(`[SRM Enrich Backfill] Could not re-mirror image for ${rec.id} — skipping VLM`);
+        result.failed++;
+        continue;
+      }
+    }
+
     try {
-      const success = await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
+      const success = await enrichSrmRowWithVlm(rec.id, imageUrl, rec.majorCategory);
       if (success) {
         result.enriched++;
       } else {
@@ -733,12 +815,15 @@ export async function syncSinglePresentation(
       const existing = await findExisting(row.presentation_no, row.design_number);
       if (existing) {
         if (row.image_url && !existing.imageUrl) {
+          // Mirror to R2 first so the stored URL is permanent
+          const r2Url = await downloadAndMirrorToR2(row.image_url);
+          const finalUrl = r2Url || row.image_url;
           await prisma.extractionResultFlat.update({
             where: { id: existing.id },
-            data: { imageUrl: row.image_url },
+            data: { imageUrl: finalUrl },
           });
-          void mirror360FlatUpdate(existing.id, { imageUrl: row.image_url });
-          toEnrich.push({ id: existing.id, imageUrl: row.image_url, majorCategory: presentation.major_category });
+          void mirror360FlatUpdate(existing.id, { imageUrl: finalUrl });
+          toEnrich.push({ id: existing.id, imageUrl: finalUrl, majorCategory: presentation.major_category });
           result.inserted++;
         } else {
           result.skipped++;

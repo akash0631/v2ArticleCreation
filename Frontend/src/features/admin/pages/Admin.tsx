@@ -113,6 +113,25 @@ export default function Admin() {
   const [mandatoryGridProgress, setMandatoryGridProgress] = useState<number>(0);
   const mandatoryFileRef = useRef<HTMLInputElement | null>(null);
 
+  // Hierarchy Excel Upload
+  interface HierarchyExcelStatus { departments: number; subDepartments: number; categories: number; }
+  interface HierarchyUploadResult {
+    departments:    { new: number; updated: number; total: number };
+    subDepartments: { new: number; updated: number; total: number };
+    categories:     { new: number; updated: number; total: number };
+    skippedRows:    number;
+    dryRun:         boolean;
+    preview?: { divisions: string[]; subDivisions: string[]; majorCategories: string[] };
+  }
+  const [hierarchyExcelStatus, setHierarchyExcelStatus]         = useState<HierarchyExcelStatus | null>(null);
+  const [hierarchyExcelStatusLoading, setHierarchyExcelStatusLoading] = useState(false);
+  const [hierarchyExcelUploading, setHierarchyExcelUploading]   = useState(false);
+  const [hierarchyExcelProgress, setHierarchyExcelProgress]     = useState<number>(0);
+  const [hierarchyPreview, setHierarchyPreview]                 = useState<HierarchyUploadResult | null>(null);
+  const [hierarchyResult, setHierarchyResult]                   = useState<HierarchyUploadResult | null>(null);
+  const [hierarchyPendingFile, setHierarchyPendingFile]         = useState<File | null>(null);
+  const hierarchyFileRef = useRef<HTMLInputElement | null>(null);
+
   const loadSrmStatus = useCallback(async (stopPollOnResult = false) => {
     setSrmStatusLoading(true);
     try {
@@ -401,12 +420,98 @@ export default function Admin() {
     }
   };
 
+  const loadHierarchyExcelStatus = useCallback(async () => {
+    setHierarchyExcelStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/hierarchy/excel-status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load hierarchy status');
+      setHierarchyExcelStatus(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load hierarchy status');
+    } finally {
+      setHierarchyExcelStatusLoading(false);
+    }
+  }, []);
+
+  // Step 1: dry-run preview
+  const handleHierarchyPreview = async (file: File) => {
+    setHierarchyExcelUploading(true);
+    setHierarchyExcelProgress(0);
+    setHierarchyPreview(null);
+    setHierarchyResult(null);
+    setHierarchyPendingFile(file);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+      const progressInterval = setInterval(() => {
+        setHierarchyExcelProgress(prev => Math.min(prev + 8, 85));
+      }, 300);
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/hierarchy/upload-excel?dryRun=true`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setHierarchyExcelProgress(100);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Preview failed');
+      setHierarchyPreview(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Preview failed');
+      setHierarchyPendingFile(null);
+    } finally {
+      setHierarchyExcelUploading(false);
+      setTimeout(() => setHierarchyExcelProgress(0), 1000);
+      if (hierarchyFileRef.current) hierarchyFileRef.current.value = '';
+    }
+  };
+
+  // Step 2: confirmed import
+  const handleHierarchyConfirm = async () => {
+    if (!hierarchyPendingFile) return;
+    setHierarchyExcelUploading(true);
+    setHierarchyExcelProgress(0);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', hierarchyPendingFile);
+      const progressInterval = setInterval(() => {
+        setHierarchyExcelProgress(prev => Math.min(prev + 2, 90));
+      }, 600);
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/hierarchy/upload-excel`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setHierarchyExcelProgress(100);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setHierarchyResult(data.data);
+      setHierarchyPreview(null);
+      setHierarchyPendingFile(null);
+      message.success(data.message);
+      await loadHierarchyExcelStatus();
+    } catch (err: any) {
+      message.error(err?.message || 'Import failed');
+    } finally {
+      setHierarchyExcelUploading(false);
+      setTimeout(() => setHierarchyExcelProgress(0), 1500);
+    }
+  };
+
   useEffect(() => {
     loadData();
     loadSrmStatus();
     loadVendorStatus();
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
+    loadHierarchyExcelStatus();
     // Cleanup: stop any active SRM status polling when component unmounts
     return () => {
       if (srmPollRef.current) {
@@ -415,7 +520,7 @@ export default function Admin() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadHierarchyExcelStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1216,6 +1321,186 @@ export default function Admin() {
                       </p>
                       <p className="ant-upload-hint" style={{ fontSize: 11 }}>
                         Only Excel files. Max 50 MB.
+                      </p>
+                    </Upload.Dragger>
+                  )}
+                </div>
+              </Col>
+            </Row>
+          </Spin>
+        </Card>
+
+        {/* Hierarchy Excel Upload */}
+        <Card
+          title={<span><TableOutlined style={{ marginRight: 8 }} />Hierarchy Excel Upload (Division / Sub-Division / Major Category)</span>}
+          style={{ marginBottom: 24 }}
+          extra={
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadHierarchyExcelStatus}
+              loading={hierarchyExcelStatusLoading}
+            >
+              Refresh Status
+            </Button>
+          }
+        >
+          <Spin spinning={hierarchyExcelStatusLoading}>
+            <Row gutter={[16, 16]}>
+              {/* Status panel */}
+              <Col xs={24} md={14}>
+                {hierarchyExcelStatus ? (
+                  <Descriptions bordered size="small" column={{ xs: 1, sm: 3 }}>
+                    <Descriptions.Item label="Divisions (Departments)">
+                      <Tag color="blue">{hierarchyExcelStatus.departments}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Sub-Divisions">
+                      <Tag color="purple">{hierarchyExcelStatus.subDepartments}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Major Categories">
+                      <Tag color="green">{hierarchyExcelStatus.categories}</Tag>
+                    </Descriptions.Item>
+                  </Descriptions>
+                ) : (
+                  <Alert
+                    type="info"
+                    showIcon
+                    message="Upload Mandatory Grid Excel to sync hierarchy"
+                    description="Reads DIV, SUB-DIV, MAJOR_CATEGORY columns and upserts into departments, sub_departments, categories tables. Safe to re-upload — existing records are updated, nothing is deleted."
+                  />
+                )}
+
+                {/* Success result */}
+                {hierarchyResult && (
+                  <Alert
+                    type="success"
+                    showIcon
+                    icon={<CheckCircleOutlined />}
+                    style={{ marginTop: 12 }}
+                    message="Import Complete"
+                    description={
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 4 }}>
+                        <div>
+                          <strong>Departments:</strong>&nbsp;
+                          <Tag color="green">+{hierarchyResult.departments.new} new</Tag>
+                          <Tag color="blue">~{hierarchyResult.departments.updated} updated</Tag>
+                        </div>
+                        <div>
+                          <strong>Sub-Divisions:</strong>&nbsp;
+                          <Tag color="green">+{hierarchyResult.subDepartments.new} new</Tag>
+                          <Tag color="blue">~{hierarchyResult.subDepartments.updated} updated</Tag>
+                        </div>
+                        <div>
+                          <strong>Major Categories:</strong>&nbsp;
+                          <Tag color="green">+{hierarchyResult.categories.new} new</Tag>
+                          <Tag color="blue">~{hierarchyResult.categories.updated} updated</Tag>
+                        </div>
+                        {hierarchyResult.skippedRows > 0 && (
+                          <div>
+                            <Tag color="orange">{hierarchyResult.skippedRows} rows skipped (empty cells)</Tag>
+                          </div>
+                        )}
+                      </div>
+                    }
+                  />
+                )}
+              </Col>
+
+              {/* Upload panel */}
+              <Col xs={24} md={10}>
+                <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '16px' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Upload Hierarchy Excel</div>
+                  <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 12 }}>
+                    Upload <strong>MANDATORY GRID DATA.xlsx</strong> — columns A (DIV), B (SUB-DIV), C (MAJOR_CATEGORY). Data starts from row 6. Sub-division codes are auto-normalized (e.g. <code>KGU</code> → <code>KG-U</code>).
+                  </div>
+
+                  <input
+                    ref={hierarchyFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleHierarchyPreview(file);
+                    }}
+                  />
+
+                  {hierarchyExcelUploading ? (
+                    <div>
+                      <div style={{ color: '#1890ff', marginBottom: 8, fontSize: 13 }}>
+                        <SyncOutlined spin style={{ marginRight: 6 }} />
+                        {hierarchyPreview ? 'Importing to database...' : 'Reading Excel file...'}
+                      </div>
+                      <Progress
+                        percent={hierarchyExcelProgress}
+                        status={hierarchyExcelProgress === 100 ? 'success' : 'active'}
+                        strokeColor={{ from: '#52c41a', to: '#1890ff' }}
+                      />
+                    </div>
+                  ) : hierarchyPreview ? (
+                    /* Preview confirmation panel */
+                    <div>
+                      <Alert
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 12 }}
+                        message="Preview — confirm to import"
+                        description={
+                          <div style={{ marginTop: 4 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+                              <span><strong>Divisions:</strong> <Tag color="blue">{hierarchyPreview.departments.total}</Tag></span>
+                              <span><strong>Sub-Divisions:</strong> <Tag color="purple">{hierarchyPreview.subDepartments.total}</Tag></span>
+                              <span><strong>Major Categories:</strong> <Tag color="green">{hierarchyPreview.categories.total}</Tag></span>
+                              {hierarchyPreview.skippedRows > 0 && <Tag color="orange">{hierarchyPreview.skippedRows} rows skipped</Tag>}
+                            </div>
+                            {hierarchyPreview.preview && (
+                              <div style={{ fontSize: 12, color: '#595959' }}>
+                                <div><strong>Divisions found:</strong> {hierarchyPreview.preview.divisions.join(', ')}</div>
+                                <div style={{ marginTop: 4 }}>
+                                  <strong>Sub-Divisions:</strong> {hierarchyPreview.preview.subDivisions.join(', ')}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        }
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Button
+                          type="primary"
+                          icon={<CheckCircleOutlined />}
+                          onClick={handleHierarchyConfirm}
+                          style={{ flex: 1 }}
+                        >
+                          Confirm Import
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setHierarchyPreview(null);
+                            setHierarchyPendingFile(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Upload.Dragger
+                      accept=".xlsx,.xls"
+                      showUploadList={false}
+                      beforeUpload={file => {
+                        handleHierarchyPreview(file as unknown as File);
+                        return false;
+                      }}
+                      style={{ padding: '12px 0' }}
+                    >
+                      <p className="ant-upload-drag-icon">
+                        <InboxOutlined style={{ fontSize: 32, color: '#52c41a' }} />
+                      </p>
+                      <p className="ant-upload-text" style={{ fontSize: 13 }}>
+                        Click or drag <strong>.xlsx</strong> file here
+                      </p>
+                      <p className="ant-upload-hint" style={{ fontSize: 11 }}>
+                        Previews before importing. Only Excel files. Max 50 MB.
                       </p>
                     </Upload.Dragger>
                   )}

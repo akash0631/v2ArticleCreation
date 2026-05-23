@@ -151,4 +151,12 @@ router.get('/mandatory-grid/values', h(adminController.getMandatoryGridValues));
 router.get('/mandatory-grid/template', h(adminController.downloadMandatoryGridTemplate));
 router.post('/mandatory-grid/upload', excelUpload.single('file'), h(adminController.uploadMandatoryGrid));
 
+// ═══════════════════════════════════════════════════════
+// HIERARCHY EXCEL UPLOAD (ADMIN)
+// Upserts Department / SubDepartment / Category from
+// DIV / SUB-DIV / MAJOR_CATEGORY columns of the Mandatory Grid Excel.
+// ═══════════════════════════════════════════════════════
+router.get('/hierarchy/excel-status', h(adminController.getHierarchyExcelStatus));
+router.post('/hierarchy/upload-excel', excelUpload.single('file'), mut, h(adminController.uploadHierarchyExcel));
+
 export default router;

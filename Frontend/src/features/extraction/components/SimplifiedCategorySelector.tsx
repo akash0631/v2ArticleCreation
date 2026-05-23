@@ -2,14 +2,18 @@
  * Simplified Category Selector — DB-driven
  * Fetches departments and categories from the hierarchy API.
  * Falls back to hardcoded data if the API is unavailable.
+ *
+ * Always shows Division + Sub-Division dropdowns so the user can see and
+ * change them at any time. A "Continue to Upload →" button appears once both
+ * are chosen and the user must click it explicitly to proceed.
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Select, Card, Typography, Tag, Button, Spin } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Select, Typography, Button, Spin, Divider } from 'antd';
+import { ArrowRightOutlined } from '@ant-design/icons';
 import { APP_CONFIG } from '../../../constants/app/config';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 // Hardcoded fallback (used if API is empty / unreachable)
@@ -68,17 +72,19 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
         for (const dept of data.data.departments) {
           if (!dept.categories?.length) continue;
           const key = normalizeDivision(dept.name) || dept.name;
-          const incoming = (dept.categories as any[])
-            .map((c: any) => String(c.code).trim())
-            // Skip major-category-style codes (e.g. M_TEES_HS, M_BLAZER)
-            // Sub-division codes are short identifiers like MU, MS-U, MO, ML, KB-L
-            .filter((code: string) => !code.startsWith('M_'));
+          // Each category entry carries `subDepartmentCode` (e.g. "MU", "MW", "LU")
+          // which is the actual sub-division code from the SubDepartment table.
+          // Using c.code would give major-category codes (e.g. "MW_LW_JKT_FS") — wrong.
+          const incoming = [...new Set(
+            (dept.categories as any[])
+              .map((c: any) => String(c.subDepartmentCode ?? '').trim())
+              .filter(Boolean)
+          )];
           if (incoming.length === 0) continue;
           const existing = apiMap[key] || [];
           apiMap[key] = [...new Set([...existing, ...incoming])];
         }
-        // Always merge API result with hardcoded fallback:
-        // fallback guarantees the known sub-divisions are present even if DB is incomplete
+        // Always merge API result with hardcoded fallback
         const merged: Record<string, string[]> = { ...SIMPLIFIED_HIERARCHY };
         for (const [key, codes] of Object.entries(apiMap)) {
           merged[key] = [...new Set([...(SIMPLIFIED_HIERARCHY[key] || []), ...codes])];
@@ -89,143 +95,125 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
       .finally(() => setHierarchyLoading(false));
   }, []);
 
+  // Pre-fill division from user profile if not yet chosen
   const creatorScope = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isCreator = user.role === 'CREATOR';
-    const restrictedDivision = isCreator ? normalizeDivision(user.division) : null;
-    const allowedSubDivisions = isCreator ? parseSubDivisions(user.subDivision) : [];
-    return {
-      isCreator,
-      restrictedDivision,
-      allowedSubDivisions,
-      isSingleScopedCreator: isCreator && !!restrictedDivision && allowedSubDivisions.length === 1,
-    };
+    const defaultDivision = normalizeDivision(user.division) ?? null;
+    const allowedSubDivisions = parseSubDivisions(user.subDivision);
+    return { isCreator, defaultDivision, allowedSubDivisions };
   }, []);
 
-  const departments = creatorScope.restrictedDivision
-    ? [creatorScope.restrictedDivision]
-    : Object.keys(hierarchy);
+  useEffect(() => {
+    if (creatorScope.defaultDivision && !selectedDepartment) {
+      setSelectedDepartment(creatorScope.defaultDivision);
+    }
+  }, [creatorScope.defaultDivision, selectedDepartment]);
+
+  const departments = Object.keys(hierarchy);
 
   const majorCategories = selectedDepartment
-    ? (hierarchy[selectedDepartment] || []).filter(cat => {
-        if (!creatorScope.isCreator) return true;
-        if (creatorScope.allowedSubDivisions.length === 0) return true;
-        return creatorScope.allowedSubDivisions.includes(cat);
-      })
+    ? (hierarchy[selectedDepartment] || [])
     : [];
-
-  useEffect(() => {
-    if (creatorScope.restrictedDivision && !selectedDepartment) {
-      setSelectedDepartment(creatorScope.restrictedDivision);
-    }
-  }, [creatorScope.restrictedDivision, selectedDepartment]);
-
-  useEffect(() => {
-    if (selectedDepartment && selectedMajorCategory) {
-      onCategorySelect({
-        department: selectedDepartment,
-        majorCategory: selectedMajorCategory,
-        displayName: `${selectedDepartment} - ${selectedMajorCategory}`,
-      });
-    }
-  }, [selectedDepartment, selectedMajorCategory, onCategorySelect]);
 
   const handleDepartmentChange = (value: string) => {
     setSelectedDepartment(value);
     setSelectedMajorCategory(undefined);
-    onCategorySelect(null);
+    onCategorySelect(null); // clear parent selection when division changes
   };
 
-  const handleReset = () => {
-    setSelectedDepartment(undefined);
-    setSelectedMajorCategory(undefined);
-    onCategorySelect(null);
+  const handleMajorCategoryChange = (value: string) => {
+    setSelectedMajorCategory(value);
+    onCategorySelect(null); // clear parent selection until user clicks Continue
   };
 
-  if (selectedDepartment && selectedMajorCategory) {
-    return (
-      <Card className="category-summary" style={{ borderRadius: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Title level={4} style={{ margin: 0, color: '#FF6F61' }}>
-              {selectedMajorCategory}
-            </Title>
-            <Text type="secondary">{selectedDepartment} → {selectedMajorCategory}</Text>
-            <div style={{ marginTop: 8 }}>
-              <Tag color="blue" className="selection-badge">Sub-Division Selected</Tag>
-            </div>
-          </div>
-          {!creatorScope.isSingleScopedCreator ? (
-            <Button icon={<ReloadOutlined />} onClick={handleReset} className="btn-secondary">
-              Change Sub-Division
-            </Button>
-          ) : (
-            <Tag color="orange">Fixed Scope</Tag>
-          )}
-        </div>
-      </Card>
-    );
-  }
+  const handleContinue = () => {
+    if (!selectedDepartment || !selectedMajorCategory) return;
+    onCategorySelect({
+      department: selectedDepartment,
+      majorCategory: selectedMajorCategory,
+      displayName: `${selectedDepartment} - ${selectedMajorCategory}`,
+    });
+  };
+
+  const canContinue = !!selectedDepartment && !!selectedMajorCategory;
 
   return (
-    <Card
-      title={
-        <span style={{ color: '#FF6F61', fontWeight: 600 }}>
-          <InfoCircleOutlined style={{ marginRight: 8 }} />
-          Select Category (Simplified)
-        </span>
-      }
-      className="category-selector"
-      style={{ borderRadius: 12 }}
-    >
-      <Spin spinning={hierarchyLoading} tip="Loading categories...">
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>1. Choose Division</Text>
-            <Select
-              placeholder="Select division (Kids, Ladies, MENS)"
-              value={selectedDepartment}
-              onChange={handleDepartmentChange}
-              style={{ width: '100%' }}
-              size="large"
-              allowClear={!creatorScope.restrictedDivision}
-              disabled={!!creatorScope.restrictedDivision || hierarchyLoading}
-            >
-              {departments.map(dept => (
-                <Option key={dept} value={dept}>{dept}</Option>
-              ))}
-            </Select>
-          </div>
+    <Spin spinning={hierarchyLoading} tip="Loading categories...">
+      <div style={{ display: 'grid', gap: 20 }}>
 
-          {selectedDepartment && (
-            <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>2. Choose Sub-Division</Text>
-              <Select
-                placeholder="Select sub-division (Tops, Bottoms, etc.)"
-                value={selectedMajorCategory}
-                onChange={setSelectedMajorCategory}
-                style={{ width: '100%' }}
-                size="large"
-                allowClear
-                showSearch
-                filterOption={(input, option) =>
-                  String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-              >
-                {majorCategories.map(cat => (
-                  <Option key={cat} value={cat}>{cat}</Option>
-                ))}
-              </Select>
-            </div>
-          )}
-
-          {selectedDepartment && !selectedMajorCategory && (
-            <div style={{ padding: 12, background: '#e6f7ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
-              <Text type="secondary">ℹ️ Select a major category to proceed</Text>
-            </div>
-          )}
+        {/* Division */}
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+            1. Division
+          </Text>
+          <Select
+            placeholder="Select Division (Kids, Ladies, MENS)"
+            value={selectedDepartment}
+            onChange={handleDepartmentChange}
+            style={{ width: '100%' }}
+            size="large"
+            allowClear
+            disabled={hierarchyLoading}
+            showSearch
+            filterOption={(input, option) =>
+              String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          >
+            {departments.map(dept => (
+              <Option key={dept} value={dept}>{dept}</Option>
+            ))}
+          </Select>
         </div>
-      </Spin>
-    </Card>
+
+        {/* Sub-Division */}
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+            2. Sub-Division
+          </Text>
+          <Select
+            placeholder={selectedDepartment ? 'Select Sub-Division (MU, MW, LU, LW…)' : 'Select Division first'}
+            value={selectedMajorCategory}
+            onChange={handleMajorCategoryChange}
+            style={{ width: '100%' }}
+            size="large"
+            allowClear
+            showSearch
+            disabled={!selectedDepartment || hierarchyLoading}
+            filterOption={(input, option) =>
+              String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          >
+            {majorCategories.map(cat => (
+              <Option key={cat} value={cat}>{cat}</Option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Continue button */}
+        <Divider style={{ margin: '4px 0' }} />
+        <Button
+          type="primary"
+          size="large"
+          icon={<ArrowRightOutlined />}
+          disabled={!canContinue}
+          onClick={handleContinue}
+          style={{
+            width: '100%',
+            height: 48,
+            fontWeight: 600,
+            fontSize: 15,
+            background: canContinue
+              ? 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)'
+              : undefined,
+            border: 'none',
+          }}
+        >
+          {canContinue
+            ? `Continue to Upload → ${selectedDepartment} · ${selectedMajorCategory}`
+            : 'Select Division and Sub-Division to continue'}
+        </Button>
+      </div>
+    </Spin>
   );
 };
