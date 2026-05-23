@@ -150,7 +150,8 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_FO_BTN_STYLE:      'front_open_style',
   // Business fields
   'Price Band Category': 'segment',
-  'Fashion Grade':     'article_fashion_type',
+  'Fashion Grade':     'article_fashion_type',  // Excel label variant (space, mixed case)
+  FASHION_GRADE:       'article_fashion_type',  // DB sap_key variant (uppercase, underscore)
   'Cost':              'rate',
   'Mrp ( Char Val)':   'mrp',
   'Vendor':            'vendor_name',

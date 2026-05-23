@@ -59,7 +59,10 @@ const toShortToken = (value: unknown): string | null => {
     .replace(/\s+/g, '')
     .replace(/[^A-Za-z0-9_\-*]/g, '')
     .toUpperCase();
-  return text || null;
+  // Skip dash-only values — VLM returns "-" to mean "not visible / not applicable".
+  // Without this guard, ["-", "-", "TOP", "RINSE"].join('-') → "----TOP-RINSE"
+  if (!text || /^-+$/.test(text)) return null;
+  return text;
 };
 
 export const buildArticleDescription = (
