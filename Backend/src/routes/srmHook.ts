@@ -11,14 +11,16 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { authenticateSrmHook } from '../middleware/srmHookAuth';
-import { triggerBatch, getJobStatus } from '../controllers/srmHookController';
+import { triggerBatch, getJobStatus, retryJobFailed, retryPresentation } from '../controllers/srmHookController';
 
 const router = Router();
 
 // All SRM hook routes require the shared API key — no JWT
 router.use(authenticateSrmHook);
 
-router.post('/trigger',          asyncHandler(triggerBatch));
-router.get('/status/:jobId',     asyncHandler(getJobStatus));
+router.post('/trigger',                asyncHandler(triggerBatch));
+router.get('/status/:jobId',           asyncHandler(getJobStatus));
+router.post('/retry/:jobId',           asyncHandler(retryJobFailed));
+router.post('/retry-presentation',     asyncHandler(retryPresentation));
 
 export default router;

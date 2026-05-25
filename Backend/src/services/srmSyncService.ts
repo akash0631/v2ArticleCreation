@@ -158,6 +158,20 @@ async function downloadAndMirrorToR2(srmImageUrl: string): Promise<string | null
   }
 }
 
+/**
+ * Public wrapper around enrichSrmRowWithVlm for admin-initiated retries.
+ * The inner function is intentionally kept module-private so callers can't
+ * accidentally call it without going through the rate-limit gap logic.
+ * The admin controller calls this directly and manages its own sequencing.
+ */
+export async function enrichSrmRowWithVlmAdmin(
+  flatId: string,
+  imageUrl: string,
+  majorCategory: string | null,
+): Promise<boolean> {
+  return enrichSrmRowWithVlm(flatId, imageUrl, majorCategory);
+}
+
 // Module-level schema cache — masterAttribute rows rarely change, no need to re-query
 // for every single SRM record during a backfill run. Loaded once per process lifetime.
 let cachedEnrichSchema: Array<{ key: string; label: string; type: any; allowedValues: string[] }> | null = null;
@@ -321,164 +335,190 @@ async function resolveCategoryId(majorCategory: string, division: string): Promi
  */
 const vlmService = new VLMService();
 
+// Max VLM attempts per record: 1 initial call + 2 automatic retries
+const VLM_MAX_ATTEMPTS = 3;
+// Backoff between retry attempts (multiplied by attempt number: 3s, 6s)
+const VLM_RETRY_BACKOFF_MS = 3000;
+
 async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCategory: string | null): Promise<boolean> {
-  try {
-    console.log(`[SRM VLM] Starting enrichment for ${flatId} | category: ${majorCategory} | url: ${imageUrl.slice(0, 100)}`);
+  console.log(`[SRM VLM] Starting enrichment for ${flatId} | category: ${majorCategory} | url: ${imageUrl.slice(0, 100)}`);
 
-    // Pre-download the image to base64 before passing to VLM.
-    const base64Image = await fetchImageAsBase64(imageUrl);
-    if (!base64Image) {
-      console.warn(`[SRM VLM] ❌ STEP 1 FAILED — image fetch returned null for ${flatId}. URL: ${imageUrl.slice(0, 120)}`);
-      return false;
-    }
-    console.log(`[SRM VLM] ✓ Image fetched — base64 length: ${base64Image.length} chars`);
-
-    // Use the module-level schema cache — avoids a full DB query for every record
-    const schema = await getEnrichSchema();
-    console.log(`[SRM VLM] ✓ Schema loaded — ${schema.length} attributes`);
-
-    const result = await vlmService.extractFashionAttributes({
-      image: base64Image,
-      schema,
-      categoryName: majorCategory || undefined,
-      discoveryMode: false,
-    });
-
-    const nonNullAttrs = Object.entries(result.attributes || {})
-      .filter(([, v]) => v !== null && (v as any)?.rawValue != null)
-      .map(([k]) => k);
-    console.log(`[SRM VLM] ✓ VLM complete — confidence: ${result.confidence}% | non-null attrs (${nonNullAttrs.length}): ${nonNullAttrs.join(', ') || 'NONE'} | model: ${result.modelUsed}`);
-
-    const attrs = result.attributes || {};
-    const get = (...keys: string[]): string | null => {
-      for (const key of keys) {
-        const attr = attrs[key];
-        if (!attr) continue;
-        const v = attr.schemaValue ?? attr.rawValue;
-        const s = v != null ? String(v).trim() : '';
-        // Skip empty strings AND dash-only values — VLM uses "-" to mean
-        // "not visible / not applicable". Storing it causes "----TOP-RINSE" style
-        // article descriptions and pollutes DB fields that should stay null.
-        if (s !== '' && !/^-+$/.test(s)) return s;
-      }
-      return null;
-    };
-
-    const updates: Record<string, any> = {};
-
-    // FAB group
-    const yarn1 = get('yarn_01');       if (yarn1)  updates.yarn1  = yarn1;
-    const yarn2 = get('yarn_02');       if (yarn2)  updates.yarn2  = yarn2;
-    const mainMvgr = get('main_mvgr'); if (mainMvgr) {
-      updates.mainMvgr = mainMvgr;
-      updates.mainMvgrFullForm = mvgrMappingService.getMainMvgrFullForm(mainMvgr);
-    }
-    const fabMain = get('fabric_main_mvgr'); if (fabMain) updates.fabricMainMvgr = fabMain;
-    const weave   = get('weave');            if (weave)   updates.weave           = weave;
-    const mFab2   = get('m_fab2');           if (mFab2)   {
-      updates.mFab2 = mFab2;
-      updates.mFab2FullForm = mvgrMappingService.getWeave2FullForm(mFab2);
-    }
-    const comp    = get('composition');      if (comp)    updates.composition     = comp;
-    const finish  = get('finish');           if (finish)  updates.finish          = finish;
-    const gsm     = get('gsm', 'gram_per_square_meter'); if (gsm) updates.gsm   = gsm;
-    const shade   = get('shade');            if (shade)   updates.shade           = shade;
-    const lycra   = get('lycra_non_lycra'); if (lycra)   updates.lycra           = lycra;
-    const fCount  = get('f_count');          if (fCount)  updates.fCount          = fCount;
-    const fConstr = get('f_construction');   if (fConstr) updates.fConstruction   = fConstr;
-    const fOunce  = get('f_ounce');          if (fOunce)  updates.fOunce          = fOunce;
-    const fWidth  = get('f_width');          if (fWidth)  updates.fWidth          = fWidth;
-
-    // Weight — extract numeric only
-    const weightAttr = attrs['weight'] ?? attrs['g_weight'] ?? attrs['G-Weight'];
-    if (weightAttr) {
-      const v = weightAttr.schemaValue ?? weightAttr.rawValue;
-      if (v != null) {
-        const match = String(v).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
-        if (match) updates.weight = match[1];
-      }
-    }
-
-    // BODY group
-    const neck       = get('neck');                          if (neck)       updates.neck           = neck;
-    const neckDet    = get('neck_details', 'neck_detail');   if (neckDet)    updates.neckDetails    = neckDet;
-    const collar     = get('collar');                        if (collar)     updates.collar         = collar;
-    const collarSt   = get('collar_style');                  if (collarSt)   updates.collarStyle    = collarSt;
-    const placket    = get('placket');                       if (placket)    updates.placket        = placket;
-    const sleeve     = get('sleeve');                        if (sleeve)     updates.sleeve         = sleeve;
-    const sleeveFold = get('sleeve_fold');                   if (sleeveFold) updates.sleeveFold     = sleeveFold;
-    const botFold    = get('bottom_fold');                   if (botFold)    updates.bottomFold     = botFold;
-    const frontOpen  = get('front_open_style');              if (frontOpen)  updates.frontOpenStyle = frontOpen;
-    const noOfPocket = get('no_of_pocket');                  if (noOfPocket) updates.noOfPocket     = noOfPocket;
-    const pocketType = get('pocket_type');                   if (pocketType) updates.pocketType     = pocketType;
-    const extraPkt   = get('extra_pocket');                  if (extraPkt)   updates.extraPocket    = extraPkt;
-    const fit        = get('fit');                           if (fit)        updates.fit            = fit;
-    const pattern    = get('pattern', 'body_style');         if (pattern)    updates.pattern        = pattern;
-    const length     = get('length');                        if (length)     updates.length         = length;
-    const colour     = get('colour', 'color');               if (colour)     updates.colour         = colour;
-    const fatBelt    = get('father_belt');                   if (fatBelt)    updates.fatherBelt     = fatBelt;
-    const childBelt  = get('child_belt');                    if (childBelt)  updates.childBelt      = childBelt;
-    const ageGroup   = get('age_group');                     if (ageGroup)   updates.ageGroup       = ageGroup;
-
-    // VA ACC group
-    const drawcord  = get('drawcord');                       if (drawcord)  updates.drawcord   = drawcord;
-    const dcShape   = get('dc_shape');                       if (dcShape)   updates.dcShape    = dcShape;
-    const button    = get('button');                         if (button)    updates.button     = button;
-    const btnColour = get('btn_colour');                     if (btnColour) updates.btnColour  = btnColour;
-    const zipper    = get('zipper');                         if (zipper)    updates.zipper     = zipper;
-    const zipColour = get('zip_colour');                     if (zipColour) updates.zipColour  = zipColour;
-    const patches   = get('patches');                        if (patches)   updates.patches    = patches;
-    const patchType = get('patches_type', 'patch_type');     if (patchType) updates.patchesType = patchType;
-    const htrfType  = get('htrf_type');                      if (htrfType)  updates.htrfType   = htrfType;
-    const htrfStyle = get('htrf_style');                     if (htrfStyle) updates.htrfStyle  = htrfStyle;
-
-    // PRINTING group
-    const printType  = get('print_type');                    if (printType)  updates.printType  = printType;
-    const printStyle = get('print_style');                   if (printStyle) updates.printStyle = printStyle;
-    const printPlace = get('print_placement');               if (printPlace) updates.printPlacement = printPlace;
-    const emb        = get('embroidery');                    if (emb)        updates.embroidery = emb;
-    const embType    = get('embroidery_type');               if (embType)    updates.embroideryType = embType;
-    const embPlace   = get('emb_placement');                 if (embPlace)   updates.embPlacement   = embPlace;
-    const wash       = get('wash');                          if (wash)       updates.wash       = wash;
-
-    // Misc
-    const fashionGrid   = get('fashion_grid', 'fashiongrid');                   if (fashionGrid)   updates.fashionGrid        = fashionGrid;
-    const articleType   = get('article_type', 'articletype');                   if (articleType)   updates.articleType        = articleType;
-    const artFashType   = get('article_fashion_type', 'fashion_grade');         if (artFashType)   updates.articleFashionType = artFashType;
-
-    // Mark as VLM-enriched
-    updates.extractionStatus = 'COMPLETED';
-    updates.aiModel = result.modelUsed ? String(result.modelUsed) : 'google-gemini';
-    if (result.confidence != null) updates.avgConfidence = result.confidence;
-
-    if (Object.keys(updates).length <= 3) {
-      console.warn(`[SRM VLM] ❌ STEP 3 FAILED — VLM returned 0 usable attributes for ${flatId}. All attributes were null or failed allowed-value validation. Non-null attrs from VLM: [${nonNullAttrs.join(', ')}]`);
-      return false;
-    }
-
-    // prisma.update returns the full updated record — no extra findUnique needed
-    const updatedRow = await prisma.extractionResultFlat.update({ where: { id: flatId }, data: updates });
-
-    // Rebuild article description with the newly populated fields
-    if (updatedRow) {
-      const artDesc = buildArticleDescription(updatedRow as any);
-      if (artDesc) {
-        await prisma.extractionResultFlat.update({
-          where: { id: flatId },
-          data: { articleDescription: artDesc }
-        });
-        updates.articleDescription = artDesc;
-      }
-    }
-
-    void mirror360FlatUpdate(flatId, updates);
-    console.log(`[SRM VLM] Enriched ${flatId} — ${Object.keys(updates).length} fields from VLM`);
-    return true;
-  } catch (err: any) {
-    console.error(`[SRM VLM] ❌ STEP 2 FAILED — exception during VLM call for ${flatId}:`, err.message);
-    console.error(`[SRM VLM] Stack:`, err.stack);
+  // ── Step 1: fetch image (once — no retry, fast-fail) ──────────────────────
+  const base64Image = await fetchImageAsBase64(imageUrl);
+  if (!base64Image) {
+    console.warn(`[SRM VLM] ❌ Image fetch failed for ${flatId}. URL: ${imageUrl.slice(0, 120)}`);
     return false;
   }
+  console.log(`[SRM VLM] ✓ Image fetched — base64 length: ${base64Image.length} chars`);
+
+  // ── Step 2: load schema (once — cached after first call) ──────────────────
+  const schema = await getEnrichSchema();
+  console.log(`[SRM VLM] ✓ Schema loaded — ${schema.length} attributes`);
+
+  // ── Step 3: VLM call with up to VLM_MAX_ATTEMPTS attempts ─────────────────
+  for (let attempt = 1; attempt <= VLM_MAX_ATTEMPTS; attempt++) {
+    const attemptTag = attempt > 1 ? ` [retry ${attempt - 1}/${VLM_MAX_ATTEMPTS - 1}]` : '';
+    try {
+      const result = await vlmService.extractFashionAttributes({
+        image: base64Image,
+        schema,
+        categoryName: majorCategory || undefined,
+        discoveryMode: false,
+      });
+
+      const nonNullAttrs = Object.entries(result.attributes || {})
+        .filter(([, v]) => v !== null && (v as any)?.rawValue != null)
+        .map(([k]) => k);
+      console.log(`[SRM VLM]${attemptTag} ✓ VLM complete — confidence: ${result.confidence}% | non-null attrs (${nonNullAttrs.length}): ${nonNullAttrs.join(', ') || 'NONE'} | model: ${result.modelUsed}`);
+
+      const attrs = result.attributes || {};
+      const get = (...keys: string[]): string | null => {
+        for (const key of keys) {
+          const attr = attrs[key];
+          if (!attr) continue;
+          const v = attr.schemaValue ?? attr.rawValue;
+          const s = v != null ? String(v).trim() : '';
+          // Skip empty strings AND dash-only values — VLM uses "-" to mean
+          // "not visible / not applicable". Storing it causes "----TOP-RINSE" style
+          // article descriptions and pollutes DB fields that should stay null.
+          if (s !== '' && !/^-+$/.test(s)) return s;
+        }
+        return null;
+      };
+
+      const updates: Record<string, any> = {};
+
+      // FAB group
+      const yarn1 = get('yarn_01');       if (yarn1)  updates.yarn1  = yarn1;
+      const yarn2 = get('yarn_02');       if (yarn2)  updates.yarn2  = yarn2;
+      const mainMvgr = get('main_mvgr'); if (mainMvgr) {
+        updates.mainMvgr = mainMvgr;
+        updates.mainMvgrFullForm = mvgrMappingService.getMainMvgrFullForm(mainMvgr);
+      }
+      const fabMain = get('fabric_main_mvgr'); if (fabMain) updates.fabricMainMvgr = fabMain;
+      const weave   = get('weave');            if (weave)   updates.weave           = weave;
+      const mFab2   = get('m_fab2');           if (mFab2)   {
+        updates.mFab2 = mFab2;
+        updates.mFab2FullForm = mvgrMappingService.getWeave2FullForm(mFab2);
+      }
+      const comp    = get('composition');      if (comp)    updates.composition     = comp;
+      const finish  = get('finish');           if (finish)  updates.finish          = finish;
+      const gsm     = get('gsm', 'gram_per_square_meter'); if (gsm) updates.gsm   = gsm;
+      const shade   = get('shade');            if (shade)   updates.shade           = shade;
+      const lycra   = get('lycra_non_lycra'); if (lycra)   updates.lycra           = lycra;
+      const fCount  = get('f_count');          if (fCount)  updates.fCount          = fCount;
+      const fConstr = get('f_construction');   if (fConstr) updates.fConstruction   = fConstr;
+      const fOunce  = get('f_ounce');          if (fOunce)  updates.fOunce          = fOunce;
+      const fWidth  = get('f_width');          if (fWidth)  updates.fWidth          = fWidth;
+
+      // Weight — extract numeric only
+      const weightAttr = attrs['weight'] ?? attrs['g_weight'] ?? attrs['G-Weight'];
+      if (weightAttr) {
+        const v = weightAttr.schemaValue ?? weightAttr.rawValue;
+        if (v != null) {
+          const match = String(v).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+          if (match) updates.weight = match[1];
+        }
+      }
+
+      // BODY group
+      const neck       = get('neck');                          if (neck)       updates.neck           = neck;
+      const neckDet    = get('neck_details', 'neck_detail');   if (neckDet)    updates.neckDetails    = neckDet;
+      const collar     = get('collar');                        if (collar)     updates.collar         = collar;
+      const collarSt   = get('collar_style');                  if (collarSt)   updates.collarStyle    = collarSt;
+      const placket    = get('placket');                       if (placket)    updates.placket        = placket;
+      const sleeve     = get('sleeve');                        if (sleeve)     updates.sleeve         = sleeve;
+      const sleeveFold = get('sleeve_fold');                   if (sleeveFold) updates.sleeveFold     = sleeveFold;
+      const botFold    = get('bottom_fold');                   if (botFold)    updates.bottomFold     = botFold;
+      const frontOpen  = get('front_open_style');              if (frontOpen)  updates.frontOpenStyle = frontOpen;
+      const noOfPocket = get('no_of_pocket');                  if (noOfPocket) updates.noOfPocket     = noOfPocket;
+      const pocketType = get('pocket_type');                   if (pocketType) updates.pocketType     = pocketType;
+      const extraPkt   = get('extra_pocket');                  if (extraPkt)   updates.extraPocket    = extraPkt;
+      const fit        = get('fit');                           if (fit)        updates.fit            = fit;
+      const pattern    = get('pattern', 'body_style');         if (pattern)    updates.pattern        = pattern;
+      const length     = get('length');                        if (length)     updates.length         = length;
+      const colour     = get('colour', 'color');               if (colour)     updates.colour         = colour;
+      const fatBelt    = get('father_belt');                   if (fatBelt)    updates.fatherBelt     = fatBelt;
+      const childBelt  = get('child_belt');                    if (childBelt)  updates.childBelt      = childBelt;
+      const ageGroup   = get('age_group');                     if (ageGroup)   updates.ageGroup       = ageGroup;
+
+      // VA ACC group
+      const drawcord  = get('drawcord');                       if (drawcord)  updates.drawcord   = drawcord;
+      const dcShape   = get('dc_shape');                       if (dcShape)   updates.dcShape    = dcShape;
+      const button    = get('button');                         if (button)    updates.button     = button;
+      const btnColour = get('btn_colour');                     if (btnColour) updates.btnColour  = btnColour;
+      const zipper    = get('zipper');                         if (zipper)    updates.zipper     = zipper;
+      const zipColour = get('zip_colour');                     if (zipColour) updates.zipColour  = zipColour;
+      const patches   = get('patches');                        if (patches)   updates.patches    = patches;
+      const patchType = get('patches_type', 'patch_type');     if (patchType) updates.patchesType = patchType;
+      const htrfType  = get('htrf_type');                      if (htrfType)  updates.htrfType   = htrfType;
+      const htrfStyle = get('htrf_style');                     if (htrfStyle) updates.htrfStyle  = htrfStyle;
+
+      // PRINTING group
+      const printType  = get('print_type');                    if (printType)  updates.printType  = printType;
+      const printStyle = get('print_style');                   if (printStyle) updates.printStyle = printStyle;
+      const printPlace = get('print_placement');               if (printPlace) updates.printPlacement = printPlace;
+      const emb        = get('embroidery');                    if (emb)        updates.embroidery = emb;
+      const embType    = get('embroidery_type');               if (embType)    updates.embroideryType = embType;
+      const embPlace   = get('emb_placement');                 if (embPlace)   updates.embPlacement   = embPlace;
+      const wash       = get('wash');                          if (wash)       updates.wash       = wash;
+
+      // Misc
+      const fashionGrid   = get('fashion_grid', 'fashiongrid');                   if (fashionGrid)   updates.fashionGrid        = fashionGrid;
+      const articleType   = get('article_type', 'articletype');                   if (articleType)   updates.articleType        = articleType;
+      const artFashType   = get('article_fashion_type', 'fashion_grade');         if (artFashType)   updates.articleFashionType = artFashType;
+
+      // Mark as VLM-enriched
+      updates.extractionStatus = 'COMPLETED';
+      updates.aiModel = result.modelUsed ? String(result.modelUsed) : 'google-gemini';
+      if (result.confidence != null) updates.avgConfidence = result.confidence;
+
+      if (Object.keys(updates).length <= 3) {
+        // VLM returned 0 usable attributes — retry if attempts remain
+        if (attempt < VLM_MAX_ATTEMPTS) {
+          const delay = attempt * VLM_RETRY_BACKOFF_MS;
+          console.warn(`[SRM VLM]${attemptTag} ⚠️ 0 usable attributes for ${flatId} — retrying in ${delay / 1000}s...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        console.warn(`[SRM VLM] ❌ All ${VLM_MAX_ATTEMPTS} attempts returned 0 usable attributes for ${flatId}. Non-null from VLM: [${nonNullAttrs.join(', ')}]`);
+        return false;
+      }
+
+      // ── Save to DB ─────────────────────────────────────────────────────────
+      const updatedRow = await prisma.extractionResultFlat.update({ where: { id: flatId }, data: updates });
+
+      // Rebuild article description with the newly populated fields
+      if (updatedRow) {
+        const artDesc = buildArticleDescription(updatedRow as any);
+        if (artDesc) {
+          await prisma.extractionResultFlat.update({
+            where: { id: flatId },
+            data: { articleDescription: artDesc }
+          });
+          updates.articleDescription = artDesc;
+        }
+      }
+
+      void mirror360FlatUpdate(flatId, updates);
+      console.log(`[SRM VLM]${attemptTag} ✅ Enriched ${flatId} — ${Object.keys(updates).length} fields saved`);
+      return true;
+
+    } catch (err: any) {
+      if (attempt < VLM_MAX_ATTEMPTS) {
+        const delay = attempt * VLM_RETRY_BACKOFF_MS;
+        console.warn(`[SRM VLM]${attemptTag} ⚠️ VLM exception for ${flatId} — retrying in ${delay / 1000}s: ${err.message}`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      console.error(`[SRM VLM] ❌ All ${VLM_MAX_ATTEMPTS} attempts failed for ${flatId}: ${err.message}`);
+      console.error(`[SRM VLM] Stack:`, err.stack);
+      return false;
+    }
+  }
+
+  // Unreachable but satisfies TypeScript
+  return false;
 }
 
 /**
@@ -1103,4 +1143,63 @@ export async function processSrmWebhookBatch(
   }
 
   console.log(`[SRM Hook] Batch complete — presentation: ${req.presentation_no}`);
+}
+
+// ─── Retry: Re-run VLM on already-inserted records ─────────────────────────
+
+/**
+ * A record that needs VLM re-extraction.
+ * The DB row already exists — we only need its id, imageUrl, and majorCategory.
+ */
+export interface SrmRetryRecord {
+  id: string;
+  designNumber: string;
+  imageUrl: string;
+  majorCategory: string | null;
+}
+
+/**
+ * Re-run VLM extraction on a list of already-inserted records.
+ *
+ * Used by both retry endpoints:
+ *   - retry/:jobId          → retries failed images from a previous job
+ *   - retry-presentation    → retries all SRM_IMPORT images for a presentation_no
+ *
+ * Runs sequentially (same rate-limit gap as the main batch).
+ * Calls onProgress after each image — same shape as processSrmWebhookBatch.
+ */
+export async function retrySrmVlmForRecords(
+  records: SrmRetryRecord[],
+  onProgress: SrmWebhookProgressCallback,
+): Promise<void> {
+  console.log(`[SRM Retry] Starting — ${records.length} record(s) to re-extract`);
+
+  for (let i = 0; i < records.length; i++) {
+    const rec = records[i];
+    try {
+      const success = await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
+
+      const final = await prisma.extractionResultFlat.findUnique({
+        where:  { id: rec.id },
+        select: { extractionStatus: true, articleDescription: true },
+      });
+
+      onProgress({
+        designNumber:       rec.designNumber,
+        id:                 rec.id,
+        success,
+        extractionStatus:   final?.extractionStatus   ?? (success ? 'COMPLETED' : 'SRM_IMPORT'),
+        articleDescription: final?.articleDescription  ?? undefined,
+      });
+    } catch (err: any) {
+      console.error(`[SRM Retry] Error for ${rec.designNumber}:`, err.message);
+      onProgress({ designNumber: rec.designNumber, id: rec.id, success: false, error: err.message });
+    }
+
+    if (i < records.length - 1) {
+      await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
+    }
+  }
+
+  console.log(`[SRM Retry] Complete — ${records.length} record(s) processed`);
 }

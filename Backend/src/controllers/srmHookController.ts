@@ -5,14 +5,18 @@
  * runs VLM extraction on each one sequentially, and stores results in the DB.
  *
  * Flow:
- *   POST /api/srm-hook/trigger  → returns 202 + job_id immediately
- *   (background) processSrmWebhookBatch() → insertRow + enrichSrmRowWithVlm per image
- *   GET  /api/srm-hook/status/:jobId → returns progress / final results
+ *   POST /api/srm-hook/trigger              → queue a batch extraction job
+ *   GET  /api/srm-hook/status/:jobId        → poll job progress / results
+ *   POST /api/srm-hook/retry/:jobId         → retry only the failed images from a job
+ *   POST /api/srm-hook/retry-presentation   → retry all SRM_IMPORT images for a presentation_no
  */
 
 import { Request, Response } from 'express';
+import { prismaClient as prisma } from '../utils/prisma';
 import {
   processSrmWebhookBatch,
+  retrySrmVlmForRecords,
+  SrmRetryRecord,
   SrmWebhookBatchRequest,
   SrmWebhookProgress,
 } from '../services/srmSyncService';
@@ -218,4 +222,170 @@ export const getJobStatus = async (req: Request, res: Response): Promise<void> =
     estimated_minutes_remaining: job.estimatedMinutesRemaining,
     results:             job.results,
   });
+};
+
+// ─── Helper: run a retry batch and manage its job entry ─────────────────────
+
+async function startRetryJob(
+  label: string,
+  records: SrmRetryRecord[],
+  res: Response,
+): Promise<void> {
+  if (records.length === 0) {
+    res.json({
+      success: true,
+      message: 'No failed/pending records found — nothing to retry.',
+      queued:  0,
+    });
+    return;
+  }
+
+  const jobId = generateJobId();
+
+  const job: SrmHookJob = {
+    jobId,
+    presentationNo:            label,
+    total:                     records.length,
+    processed:                 0,
+    enriched:                  0,
+    failed:                    0,
+    status:                    'QUEUED',
+    startedAt:                 new Date().toISOString(),
+    estimatedMinutesRemaining: calcEstimatedMinutes(records.length),
+    results:                   [],
+    _createdAt:                Date.now(),
+  };
+  jobStore.set(jobId, job);
+
+  res.status(202).json({
+    success:           true,
+    job_id:            jobId,
+    queued:            records.length,
+    status:            'QUEUED',
+    poll_url:          `/api/srm-hook/status/${jobId}`,
+    estimated_minutes: calcEstimatedMinutes(records.length),
+    message:           `Retry queued for ${records.length} image(s). Poll poll_url for progress.`,
+  });
+
+  void (async () => {
+    job.status = 'PROCESSING';
+    try {
+      await retrySrmVlmForRecords(records, (progress) => {
+        job.processed++;
+        if (progress.success) job.enriched++;
+        else job.failed++;
+        job.results.push(progress);
+        job.estimatedMinutesRemaining = calcEstimatedMinutes(job.total - job.processed);
+      });
+    } catch (err: any) {
+      console.error(`[SRM Retry] Unhandled error in job ${jobId}:`, err.message);
+    }
+
+    job.status = job.enriched === job.total ? 'COMPLETE'
+               : job.enriched > 0           ? 'PARTIAL_COMPLETE'
+               : 'FAILED';
+    job.completedAt = new Date().toISOString();
+    job.estimatedMinutesRemaining = 0;
+    console.log(`[SRM Retry] Job ${jobId} — enriched: ${job.enriched}/${job.total} | status: ${job.status}`);
+  })();
+}
+
+// ─── Retry by Job ID ────────────────────────────────────────────────────────
+
+/**
+ * POST /api/srm-hook/retry/:jobId
+ *
+ * Retries only the images that FAILED in a previous batch job.
+ * Looks up failed results from the original job, fetches their current DB state,
+ * and re-runs VLM on each. Returns a new job_id to poll.
+ *
+ * Use this immediately after a job completes with failed > 0.
+ * Note: job data expires after 24 hours — use retry-presentation after that.
+ */
+export const retryJobFailed = async (req: Request, res: Response): Promise<void> => {
+  const { jobId } = req.params;
+  const originalJob = jobStore.get(jobId);
+
+  if (!originalJob) {
+    res.status(404).json({
+      success: false,
+      error:   'Original job not found or expired (24h TTL). Use retry-presentation instead.',
+    });
+    return;
+  }
+
+  if (originalJob.failed === 0) {
+    res.json({ success: true, message: 'No failures in this job — nothing to retry.', queued: 0 });
+    return;
+  }
+
+  // Collect DB IDs for failed items that have a record in DB
+  const failedIds = originalJob.results
+    .filter(r => !r.success && r.id)
+    .map(r => r.id as string);
+
+  if (failedIds.length === 0) {
+    res.json({
+      success: true,
+      message: 'Failed items have no DB record (insert itself failed). Re-trigger the original batch instead.',
+      queued:  0,
+    });
+    return;
+  }
+
+  // Fetch current DB state for these records
+  const dbRecords = await prisma.extractionResultFlat.findMany({
+    where:  { id: { in: failedIds }, imageUrl: { not: null } },
+    select: { id: true, designNumber: true, imageUrl: true, majorCategory: true },
+  });
+
+  const records: SrmRetryRecord[] = dbRecords.map(r => ({
+    id:            r.id,
+    designNumber:  r.designNumber || r.id,
+    imageUrl:      r.imageUrl!,
+    majorCategory: r.majorCategory,
+  }));
+
+  await startRetryJob(`retry:${originalJob.presentationNo}`, records, res);
+};
+
+// ─── Retry by Presentation No ───────────────────────────────────────────────
+
+/**
+ * POST /api/srm-hook/retry-presentation
+ *
+ * Body: { "presentation_no": "PRES-00831" }
+ *
+ * Retries ALL images for a presentation that are still at SRM_IMPORT
+ * (never successfully enriched). Works even when the original job has expired.
+ * Also covers records inserted by the cron job that failed enrichment.
+ */
+export const retryPresentation = async (req: Request, res: Response): Promise<void> => {
+  const { presentation_no } = req.body as { presentation_no?: string };
+
+  if (!presentation_no?.trim()) {
+    res.status(400).json({ success: false, error: 'presentation_no is required' });
+    return;
+  }
+
+  // Find all un-enriched records for this presentation
+  const dbRecords = await prisma.extractionResultFlat.findMany({
+    where: {
+      pptNumber:         presentation_no.trim(),
+      source:            'SRM',
+      extractionStatus:  'SRM_IMPORT',
+      imageUrl:          { not: null },
+    },
+    select: { id: true, designNumber: true, imageUrl: true, majorCategory: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const records: SrmRetryRecord[] = dbRecords.map(r => ({
+    id:            r.id,
+    designNumber:  r.designNumber || r.id,
+    imageUrl:      r.imageUrl!,
+    majorCategory: r.majorCategory,
+  }));
+
+  await startRetryJob(presentation_no.trim(), records, res);
 };
