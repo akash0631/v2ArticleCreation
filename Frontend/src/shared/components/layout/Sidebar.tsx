@@ -11,6 +11,7 @@ import {
   CloseCircleOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -79,13 +80,28 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       label: <Link to="/po-presentation">PO Presentation</Link>,
     }] : []),
     ...(userRole === 'ADMIN' ? [{
-      key: '/admin',
+      key: 'admin-group',
       icon: <SettingOutlined />,
-      label: <Link to="/admin">Admin</Link>,
+      label: 'Admin',
+      children: [
+        {
+          key: '/admin',
+          icon: <SettingOutlined />,
+          label: <Link to="/admin">Admin Dashboard</Link>,
+        },
+        {
+          key: '/admin/srm-failed',
+          icon: <WarningOutlined />,
+          label: <Link to="/admin/srm-failed">Failed Extractions</Link>,
+        },
+      ],
     }] : []),
   ];
 
-  const openKeys = selectedKey.startsWith('/approver') ? ['approver-group'] : [];
+  const openKeys = [
+    ...(selectedKey.startsWith('/approver') ? ['approver-group'] : []),
+    ...(selectedKey.startsWith('/admin')    ? ['admin-group']    : []),
+  ];
 
   return (
     <Sider trigger={null} collapsible collapsed={collapsed}>

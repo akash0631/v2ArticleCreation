@@ -1898,6 +1898,221 @@ export const syncSrmByRef = async (req: Request, res: Response): Promise<void> =
 };
 
 // ═══════════════════════════════════════════════════════
+// SRM FAILED EXTRACTIONS (ADMIN)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/srm/failed-extractions
+ *
+ * Returns paginated SRM records that are still at SRM_IMPORT status
+ * (inserted but VLM enrichment never completed).
+ *
+ * Query params:
+ *   page        default 1
+ *   limit       default 50, max 200
+ *   search      filter by ppt_number or design_number (case-insensitive)
+ *   division    filter by division
+ */
+export const getSrmFailedExtractions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prismaClient: prisma } = await import('../utils/prisma');
+
+    const page  = Math.max(1, parseInt(req.query.page  as string || '1', 10));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string || '50', 10)));
+    const skip  = (page - 1) * limit;
+
+    const search   = (req.query.search   as string || '').trim();
+    const division = (req.query.division as string || '').trim();
+
+    const where: any = {
+      source:           'SRM',
+      extractionStatus: 'SRM_IMPORT',
+    };
+
+    if (search) {
+      where.OR = [
+        { pptNumber:    { contains: search, mode: 'insensitive' } },
+        { designNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (division) {
+      where.division = { equals: division, mode: 'insensitive' };
+    }
+
+    const [total, records] = await Promise.all([
+      prisma.extractionResultFlat.count({ where }),
+      prisma.extractionResultFlat.findMany({
+        where,
+        select: {
+          id:               true,
+          pptNumber:        true,
+          designNumber:     true,
+          majorCategory:    true,
+          division:         true,
+          subDivision:      true,
+          vendorCode:       true,
+          vendorName:       true,
+          imageUrl:         true,
+          extractionStatus: true,
+          createdAt:        true,
+          updatedAt:        true,
+          aiModel:          true,
+          avgConfidence:    true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    // Summary by division (for the stats cards)
+    const divBreakdown = await prisma.extractionResultFlat.groupBy({
+      by: ['division'],
+      where: { source: 'SRM', extractionStatus: 'SRM_IMPORT' },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        records,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        divisionBreakdown: divBreakdown.map(d => ({
+          division: d.division || 'Unknown',
+          count:    d._count.id,
+        })),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in getSrmFailedExtractions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/failed-extractions/:id/retry
+ *
+ * Immediately re-runs VLM enrichment for a single SRM_IMPORT record.
+ * Returns the updated extractionStatus synchronously (may take ~30s).
+ */
+export const retrySrmFailedRecord = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { prismaClient: prisma } = await import('../utils/prisma');
+
+    const record = await prisma.extractionResultFlat.findUnique({
+      where:  { id },
+      select: { id: true, imageUrl: true, majorCategory: true, extractionStatus: true, pptNumber: true, designNumber: true },
+    });
+
+    if (!record) {
+      res.status(404).json({ success: false, error: 'Record not found' });
+      return;
+    }
+
+    if (!record.imageUrl) {
+      res.status(422).json({ success: false, error: 'Record has no image URL — cannot run VLM' });
+      return;
+    }
+
+    const { enrichSrmRowWithVlmAdmin } = await import('../services/srmSyncService');
+    const success = await enrichSrmRowWithVlmAdmin(record.id, record.imageUrl, record.majorCategory);
+
+    const updated = await prisma.extractionResultFlat.findUnique({
+      where:  { id },
+      select: { extractionStatus: true, articleDescription: true, aiModel: true, avgConfidence: true },
+    });
+
+    res.json({
+      success,
+      id,
+      pptNumber:        record.pptNumber,
+      designNumber:     record.designNumber,
+      extractionStatus: updated?.extractionStatus,
+      articleDescription: updated?.articleDescription,
+      aiModel:          updated?.aiModel,
+      avgConfidence:    updated?.avgConfidence,
+      message:          success ? 'VLM enrichment succeeded' : 'VLM enrichment failed — check server logs',
+    });
+  } catch (error: any) {
+    console.error('Error in retrySrmFailedRecord:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/failed-extractions/retry-all
+ *
+ * Queues VLM re-extraction for ALL current SRM_IMPORT records that have an imageUrl.
+ * Responds immediately (202); runs in background.
+ *
+ * Body (optional): { division?: string } — limit retry to one division
+ */
+export const retrySrmFailedAll = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prismaClient: prisma } = await import('../utils/prisma');
+    const division = (req.body?.division as string || '').trim() || undefined;
+
+    const where: any = {
+      source:           'SRM',
+      extractionStatus: 'SRM_IMPORT',
+      imageUrl:         { not: null },
+    };
+    if (division) where.division = { equals: division, mode: 'insensitive' };
+
+    const count = await prisma.extractionResultFlat.count({ where });
+
+    if (count === 0) {
+      res.json({ success: true, message: 'No failed records found — nothing to retry.', queued: 0 });
+      return;
+    }
+
+    res.status(202).json({
+      success:  true,
+      queued:   count,
+      message:  `Retry queued for ${count} record(s). Processing in background — check server logs for progress.`,
+    });
+
+    // Run entirely in background
+    void (async () => {
+      try {
+        const records = await prisma.extractionResultFlat.findMany({
+          where,
+          select: { id: true, imageUrl: true, majorCategory: true },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        const { enrichSrmRowWithVlmAdmin } = await import('../services/srmSyncService');
+        const VLM_DELAY = 2000;
+        let enriched = 0;
+        let failed   = 0;
+
+        for (let i = 0; i < records.length; i++) {
+          const rec = records[i];
+          if (!rec.imageUrl) continue;
+          try {
+            const ok = await enrichSrmRowWithVlmAdmin(rec.id, rec.imageUrl, rec.majorCategory);
+            if (ok) enriched++; else failed++;
+          } catch { failed++; }
+          if (i < records.length - 1) await new Promise(r => setTimeout(r, VLM_DELAY));
+        }
+
+        console.log(`[Admin] Retry-all complete — enriched:${enriched} failed:${failed} / ${records.length}`);
+      } catch (err: any) {
+        console.error('[Admin] Retry-all background error:', err?.message);
+      }
+    })();
+  } catch (error: any) {
+    console.error('Error in retrySrmFailedAll:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
 // VENDOR MASTER SYNC (ADMIN)
 // ═══════════════════════════════════════════════════════
 

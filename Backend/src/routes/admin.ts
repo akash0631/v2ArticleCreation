@@ -130,6 +130,15 @@ router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
 router.post('/srm/sync-by-ref', h(adminController.syncSrmByRef));
 
 // ═══════════════════════════════════════════════════════
+// SRM FAILED EXTRACTIONS (ADMIN)
+// ═══════════════════════════════════════════════════════
+// ORDER MATTERS: retry-all must come before :id/retry so Express
+// doesn't treat "retry-all" as a record id.
+router.get('/srm/failed-extractions',                  h(adminController.getSrmFailedExtractions));
+router.post('/srm/failed-extractions/retry-all',       h(adminController.retrySrmFailedAll));
+router.post('/srm/failed-extractions/:id/retry',       h(adminController.retrySrmFailedRecord));
+
+// ═══════════════════════════════════════════════════════
 // VENDOR MASTER SYNC (ADMIN)
 // ═══════════════════════════════════════════════════════
 router.get('/vendor-master/status', h(adminController.getVendorMasterSyncStatus));
