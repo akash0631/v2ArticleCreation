@@ -111,3 +111,5 @@ export {
   AccordionContent,
 } from './accordion';
 export { InputNumber } from './input-number';
+export { MultiSelect } from './multi-select';
+export type { MultiSelectOption } from './multi-select';

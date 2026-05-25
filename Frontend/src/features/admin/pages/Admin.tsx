@@ -1,18 +1,35 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert } from 'antd';
 import {
-  UserOutlined,
-  CloudUploadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ReloadOutlined,
-  DollarOutlined,
-  PictureOutlined,
-  EyeOutlined,
-  FileTextOutlined,
-  SyncOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
+  User,
+  CloudUpload,
+  CheckCircle2,
+  XCircle,
+  RotateCw,
+  DollarSign,
+  ImageIcon,
+  Eye,
+  FileText,
+  RefreshCw,
+  Info,
+} from 'lucide-react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DataTable,
+  Descriptions,
+  Empty,
+  Popconfirm,
+  Spinner,
+  Statistic,
+  Tag,
+  type DataTableColumn,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
 import { BackendApiService } from '../../../services/api/backendApi';
 import { APP_CONFIG } from '../../../constants/app/config';
 
@@ -110,7 +127,6 @@ export default function Admin() {
       if (!res.ok) throw new Error(data.error || 'SRM sync failed');
       setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total });
       message.success(`SRM sync complete — ${data.inserted} new, ${data.skipped} already exist`);
-      // Refresh status after sync
       await loadSrmStatus();
     } catch (err: any) {
       message.error(err?.message || 'SRM sync failed');
@@ -170,10 +186,6 @@ export default function Admin() {
         api.getImageUsageAnalytics(),
         api.getDetailedExpenses({ limit: 500 }),
       ]);
-      console.log('Admin Stats:', adminStats);
-      console.log('Expense Data:', expenses);
-      console.log('Image Data:', images);
-      console.log('Detailed Expenses:', detailed);
       setStats(adminStats);
       setExpenseData(expenses);
       setImageData(images);
@@ -193,7 +205,7 @@ export default function Admin() {
       const baseURL = APP_CONFIG.api.baseURL;
       const res = await fetch(
         `${baseURL}/approver/backfill-descriptions?fromDate=2026-04-10&toDate=${new Date().toISOString().slice(0, 10)}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Backfill failed');
@@ -205,183 +217,151 @@ export default function Admin() {
     }
   };
 
-  const expenseColumns = [
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-    },
-    {
-      title: 'Count',
-      dataIndex: 'count',
-      key: 'count',
-    },
+  const expenseColumns: DataTableColumn<any>[] = [
+    { title: 'Status', dataIndex: 'status', key: 'status' },
+    { title: 'Count', dataIndex: 'count', key: 'count' },
     {
       title: 'Total Cost',
       key: 'costPrice',
-      render: (_: any, record: any) => `$${record.totalCostPrice?.toFixed(2) || '0.00'}`,
+      render: (_v, record) => `$${record.totalCostPrice?.toFixed(2) || '0.00'}`,
     },
   ];
 
-  const detailedExpenseColumns = [
+  const detailedExpenseColumns: DataTableColumn<any>[] = [
     {
       title: 'Image',
       key: 'image',
       width: 80,
-      align: 'center' as const,
-      render: (_: any, record: any) => (
+      align: 'center',
+      render: (_v, record) =>
         record.imageUrl ? (
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => window.open(record.imageUrl, '_blank')}
-            title="View image"
-          />
+          <Button variant="link" size="icon" onClick={() => window.open(record.imageUrl, '_blank')} title="View image">
+            <Eye />
+          </Button>
         ) : (
-          <span style={{ color: '#ccc' }}>—</span>
-        )
-      ),
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       title: 'Article',
       dataIndex: 'imageName',
       key: 'imageName',
-      ellipsis: true,
-      render: (imageName: string, record: any) => {
-        // Use articleNumber if available, otherwise fall back to imageName
-        const displayName = record.articleNumber || imageName;
-        return displayName || '—';
-      },
+      render: (imageName: string, record) => record.articleNumber || imageName || '—',
     },
     {
       title: 'Input Tokens',
       dataIndex: 'inputTokens',
       key: 'inputTokens',
-      align: 'right' as const,
+      align: 'right',
       render: (val: number) => val?.toLocaleString() || '0',
     },
     {
       title: 'Output Tokens',
       dataIndex: 'outputTokens',
       key: 'outputTokens',
-      align: 'right' as const,
+      align: 'right',
       render: (val: number) => val?.toLocaleString() || '0',
     },
     {
       title: 'Total Tokens',
       key: 'totalTokens',
-      align: 'right' as const,
-      render: (_: any, record: any) => ((record.inputTokens || 0) + (record.outputTokens || 0)).toLocaleString(),
+      align: 'right',
+      render: (_v, record) => ((record.inputTokens || 0) + (record.outputTokens || 0)).toLocaleString(),
     },
     {
       title: 'Cost',
       dataIndex: 'cost',
       key: 'cost',
-      align: 'right' as const,
+      align: 'right',
       render: (val: number) => `$${val?.toFixed(4) || '0.0000'}`,
-    },
-  ];
-
-  const categoryColumns = [
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-    },
-    {
-      title: 'Image Count',
-      dataIndex: 'count',
-      key: 'count',
     },
   ];
 
   const statusBreakdownData = expenseData?.statusBreakdown
     ? Object.entries(expenseData.statusBreakdown).map(([status, data]: [string, any]) => ({
-      key: status,
-      status,
-      count: data.count,
-      totalCostPrice: data.totalCostPrice,
-      totalSellingPrice: data.totalSellingPrice,
-    }))
+        key: status,
+        status,
+        count: data.count,
+        totalCostPrice: data.totalCostPrice,
+        totalSellingPrice: data.totalSellingPrice,
+      }))
     : [];
 
   const categoryBreakdownData = imageData?.categoryBreakdown
-    ? Object.entries(imageData.categoryBreakdown).map(([category, count]: [string, any]) => ({
-      key: category,
-      category,
-      count,
-    }))
+    ? Object.entries(imageData.categoryBreakdown).map(([category, count]: [string, any]) => ({ key: category, category, count }))
     : [];
 
   return (
-    <div className="page-scroll-enabled" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1>Admin Dashboard</h1>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+    <div className="page-scroll-enabled p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="m-0 text-2xl font-semibold">Admin Dashboard</h1>
+        <Button onClick={loadData} disabled={loading} variant="outline">
+          <RotateCw className={loading ? 'animate-spin' : ''} />
           Refresh
         </Button>
       </div>
 
-      <Spin spinning={loading}>
+      <Spinner spinning={loading}>
         {/* Main Statistics Row */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
               <Statistic
                 title="Total Uploads"
                 value={stats.totalUploads}
-                prefix={<CloudUploadOutlined />}
+                prefix={<CloudUpload className="h-5 w-5" />}
                 valueStyle={{ color: '#FF6F61' }}
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
               <Statistic
                 title="Completed"
                 value={stats.completed}
-                prefix={<CheckCircleOutlined />}
+                prefix={<CheckCircle2 className="h-5 w-5" />}
                 valueStyle={{ color: '#52c41a' }}
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
               <Statistic
                 title="Failed"
                 value={stats.failed}
-                prefix={<CloseCircleOutlined />}
+                prefix={<XCircle className="h-5 w-5" />}
                 valueStyle={{ color: '#f5222d' }}
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
               <Statistic
                 title="Pending"
                 value={stats.pending}
-                prefix={<UserOutlined />}
+                prefix={<User className="h-5 w-5" />}
                 valueStyle={{ color: '#faad14' }}
               />
-            </Card>
-          </Col>
-        </Row>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Backfill Tools */}
-        <Card
-          title={<span><FileTextOutlined style={{ marginRight: 8 }} />Data Maintenance</span>}
-          style={{ marginBottom: 24 }}
-        >
-          <Row gutter={[16, 16]} align="middle">
-            <Col flex="auto">
-              <div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              Data Maintenance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex-1">
                 <strong>Backfill Article Descriptions</strong>
-                <div style={{ color: '#8c8c8c', fontSize: 13, marginTop: 2 }}>
+                <div className="mt-0.5 text-[13px] text-muted-foreground">
                   Re-compute article descriptions for all articles created from <strong>10 Apr 2026</strong> to today using the current formula (YARN‑WEAVE‑MVGR‑LYCRA‑NECK‑SLEEVE…, max 40 chars).
                 </div>
               </div>
-            </Col>
-            <Col>
               <Popconfirm
                 title="Run description backfill?"
                 description="This will overwrite existing article descriptions for articles from 10 Apr 2026 to today. Continue?"
@@ -389,129 +369,123 @@ export default function Admin() {
                 okText="Yes, run it"
                 cancelText="Cancel"
               >
-                <Button
-                  type="primary"
-                  icon={<FileTextOutlined />}
-                  loading={backfillLoading}
-                >
+                <Button disabled={backfillLoading}>
+                  <FileText />
                   Run Backfill
                 </Button>
               </Popconfirm>
-            </Col>
-          </Row>
+            </div>
+          </CardContent>
         </Card>
 
         {/* SRM Sync */}
-        <Card
-          title={<span><SyncOutlined style={{ marginRight: 8 }} />SRM Presentation Sync</span>}
-          style={{ marginBottom: 24 }}
-          extra={
-            <Button
-              icon={<ReloadOutlined />}
-              size="small"
-              onClick={loadSrmStatus}
-              loading={srmStatusLoading}
-            >
+        <Card className="mb-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RefreshCw className="h-4 w-4" />
+              SRM Presentation Sync
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={loadSrmStatus} disabled={srmStatusLoading}>
+              <RotateCw className={srmStatusLoading ? 'animate-spin' : ''} />
               Refresh Status
             </Button>
-          }
-        >
-          <Spin spinning={srmStatusLoading}>
-            {srmStatus ? (
-              <>
-                <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }}>
-                  <Descriptions.Item label="Records in DB">
-                    <strong style={{ fontSize: 18 }}>{srmStatus.totalInDb}</strong>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Last Sync">
-                    {srmStatus.lastSyncAt
-                      ? new Date(srmStatus.lastSyncAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' IST'
-                      : <span style={{ color: '#999' }}>Never</span>}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Schedule">
-                    {srmStatus.schedule}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Division Breakdown" span={2}>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {srmStatus.divisionBreakdown.map(d => (
-                        <Tag key={d.division} color="blue">{d.division}: {d.count}</Tag>
-                      ))}
-                    </div>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Approval Status">
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {srmStatus.statusBreakdown.map(s => (
-                        <Tag
-                          key={s.status}
-                          color={s.status === 'APPROVED' ? 'green' : s.status === 'REJECTED' ? 'red' : 'orange'}
-                        >
-                          {s.status}: {s.count}
-                        </Tag>
-                      ))}
-                    </div>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Pending VLM Extraction" span={2}>
-                    {srmStatus.pendingEnrichment > 0 ? (
-                      <Tag color="volcano">{srmStatus.pendingEnrichment} records need extraction</Tag>
-                    ) : (
-                      <Tag color="green">All records extracted</Tag>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Hidden from Approvers">
-                    {srmStatus.hiddenFromApprovers > 0 ? (
-                      <Tag color="gold">{srmStatus.hiddenFromApprovers} extracting now</Tag>
-                    ) : (
-                      <Tag color="green">None</Tag>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Next Syncs" span={3}>
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      {srmStatus.nextScheduledSyncs.map(s => (
-                        <span key={s.istTime}>
-                          <Tag color="geekblue">{s.istTime} IST</Tag>
-                          <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                            ({new Date(s.utc).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', timeStyle: 'short' })} IST)
+          </CardHeader>
+          <CardContent>
+            <Spinner spinning={srmStatusLoading}>
+              {srmStatus ? (
+                <>
+                  <Descriptions bordered className="mb-4">
+                    <Descriptions.Item label="Records in DB">
+                      <strong className="text-lg">{srmStatus.totalInDb}</strong>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Last Sync">
+                      {srmStatus.lastSyncAt
+                        ? new Date(srmStatus.lastSyncAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }) + ' IST'
+                        : <span className="text-muted-foreground">Never</span>}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Schedule">{srmStatus.schedule}</Descriptions.Item>
+                    <Descriptions.Item label="Division Breakdown">
+                      <div className="flex flex-wrap gap-2">
+                        {srmStatus.divisionBreakdown.map((d) => (
+                          <Badge key={d.division} variant="info">{d.division}: {d.count}</Badge>
+                        ))}
+                      </div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Approval Status">
+                      <div className="flex flex-wrap gap-2">
+                        {srmStatus.statusBreakdown.map((s) => (
+                          <Badge
+                            key={s.status}
+                            variant={s.status === 'APPROVED' ? 'success' : s.status === 'REJECTED' ? 'destructive' : 'warning'}
+                          >
+                            {s.status}: {s.count}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Pending VLM Extraction">
+                      {srmStatus.pendingEnrichment > 0 ? (
+                        <Badge variant="destructive">{srmStatus.pendingEnrichment} records need extraction</Badge>
+                      ) : (
+                        <Badge variant="success">All records extracted</Badge>
+                      )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Hidden from Approvers">
+                      {srmStatus.hiddenFromApprovers > 0 ? (
+                        <Badge variant="warning">{srmStatus.hiddenFromApprovers} extracting now</Badge>
+                      ) : (
+                        <Badge variant="success">None</Badge>
+                      )}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Next Syncs">
+                      <div className="flex flex-wrap gap-3">
+                        {srmStatus.nextScheduledSyncs.map((s) => (
+                          <span key={s.istTime} className="inline-flex items-center gap-1">
+                            <Badge variant="info">{s.istTime} IST</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              ({new Date(s.utc).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', timeStyle: 'short' })} IST)
+                            </span>
                           </span>
+                        ))}
+                      </div>
+                    </Descriptions.Item>
+                  </Descriptions>
+
+                  {srmLastResult && (
+                    <Alert
+                      type="success"
+                      showIcon
+                      className="mb-3"
+                      message="Last Sync Result"
+                      description={
+                        <span>
+                          <strong>{srmLastResult.inserted}</strong> new records inserted &nbsp;·&nbsp;
+                          <strong>{srmLastResult.skipped}</strong> already existed &nbsp;·&nbsp;
+                          <strong>{srmLastResult.errors}</strong> errors &nbsp;·&nbsp;
+                          <strong>{srmLastResult.total}</strong> total from SRM API
                         </span>
-                      ))}
-                    </div>
-                  </Descriptions.Item>
-                </Descriptions>
+                      }
+                    />
+                  )}
 
-                {srmLastResult && (
-                  <Alert
-                    type="success"
-                    icon={<CheckCircleOutlined />}
-                    showIcon
-                    style={{ marginBottom: 12 }}
-                    message="Last Sync Result"
-                    description={
-                      <span>
-                        <strong>{srmLastResult.inserted}</strong> new records inserted&nbsp;&nbsp;·&nbsp;&nbsp;
-                        <strong>{srmLastResult.skipped}</strong> already existed (skipped)&nbsp;&nbsp;·&nbsp;&nbsp;
-                        <strong>{srmLastResult.errors}</strong> errors&nbsp;&nbsp;·&nbsp;&nbsp;
-                        <strong>{srmLastResult.total}</strong> total from SRM API
-                      </span>
-                    }
-                  />
-                )}
+                  {srmEnrichMessage && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      className="mb-3"
+                      message="VLM Extraction Started"
+                      description={srmEnrichMessage}
+                    />
+                  )}
 
-                {srmEnrichMessage && (
-                  <Alert
-                    type="info"
-                    icon={<InfoCircleOutlined />}
-                    showIcon
-                    style={{ marginBottom: 12 }}
-                    message="VLM Extraction Started"
-                    description={srmEnrichMessage}
-                  />
-                )}
-
-                <Row gutter={[12, 12]}>
-                  <Col xs={24} sm={12}>
-                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Sync Presentations</div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-md border border-border p-4">
+                      <div className="mb-1 font-semibold">Sync Presentations</div>
+                      <div className="mb-2.5 text-xs text-muted-foreground">
                         Fetches all presentations from the SRM API and inserts any new records. Already-imported records are skipped.
                       </div>
                       <Popconfirm
@@ -521,26 +495,20 @@ export default function Admin() {
                         okText="Yes, sync now"
                         cancelText="Cancel"
                       >
-                        <Button
-                          type="primary"
-                          icon={<SyncOutlined spin={srmSyncing} />}
-                          loading={srmSyncing}
-                          block
-                        >
+                        <Button disabled={srmSyncing} className="w-full">
+                          <RefreshCw className={srmSyncing ? 'animate-spin' : ''} />
                           {srmSyncing ? 'Syncing...' : 'Sync Now'}
                         </Button>
                       </Popconfirm>
                     </div>
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    <div className="rounded-md border border-border p-4">
+                      <div className="mb-1 flex items-center gap-2 font-semibold">
                         Run VLM Extraction
                         {srmStatus.pendingEnrichment > 0 && (
-                          <Tag color="volcano" style={{ marginLeft: 8 }}>{srmStatus.pendingEnrichment} pending</Tag>
+                          <Badge variant="destructive">{srmStatus.pendingEnrichment} pending</Badge>
                         )}
                       </div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                      <div className="mb-2.5 text-xs text-muted-foreground">
                         Runs AI attribute extraction on SRM records that have an image but haven't been extracted yet. Processes sequentially (~2s per record).
                       </div>
                       <Popconfirm
@@ -552,66 +520,69 @@ export default function Admin() {
                         disabled={srmStatus.pendingEnrichment === 0}
                       >
                         <Button
-                          icon={<SyncOutlined spin={srmEnriching} />}
-                          loading={srmEnriching}
-                          disabled={srmStatus.pendingEnrichment === 0}
-                          block
+                          variant="outline"
+                          disabled={srmEnriching || srmStatus.pendingEnrichment === 0}
+                          className="w-full"
                         >
-                          {srmEnriching ? 'Starting...' : srmStatus.pendingEnrichment === 0 ? 'All Extracted' : 'Extract Attributes'}
+                          <RefreshCw className={srmEnriching ? 'animate-spin' : ''} />
+                          {srmEnriching
+                            ? 'Starting...'
+                            : srmStatus.pendingEnrichment === 0
+                            ? 'All Extracted'
+                            : 'Extract Attributes'}
                         </Button>
                       </Popconfirm>
                     </div>
-                  </Col>
-                </Row>
-              </>
-            ) : (
-              <Empty description="Could not load SRM sync status" />
-            )}
-          </Spin>
+                  </div>
+                </>
+              ) : (
+                <Empty description="Could not load SRM sync status" />
+              )}
+            </Spinner>
+          </CardContent>
         </Card>
 
         {/* Vendor Master Sync */}
-        <Card
-          title={<span><SyncOutlined style={{ marginRight: 8 }} />Vendor Master Sync</span>}
-          style={{ marginBottom: 24 }}
-          extra={
-            <Button
-              icon={<ReloadOutlined />}
-              size="small"
-              onClick={loadVendorStatus}
-              loading={vendorStatusLoading}
-            >
+        <Card className="mb-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RefreshCw className="h-4 w-4" />
+              Vendor Master Sync
+            </CardTitle>
+            <Button size="sm" variant="outline" onClick={loadVendorStatus} disabled={vendorStatusLoading}>
+              <RotateCw className={vendorStatusLoading ? 'animate-spin' : ''} />
               Refresh Status
             </Button>
-          }
-        >
-          <Spin spinning={vendorStatusLoading}>
-            {vendorStatus ? (
-              <>
-                <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }}>
-                  <Descriptions.Item label="Records in DB">
-                    <strong style={{ fontSize: 18 }}>{vendorStatus.count.toLocaleString()}</strong>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Last Sync">
-                    {vendorStatus.lastSyncedAt
-                      ? new Date(vendorStatus.lastSyncedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' IST'
-                      : <span style={{ color: '#999' }}>Never</span>}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Schedule">
-                    Daily at 2:00 AM IST
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Source API" span={3}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#595959' }}>
-                      https://my-dab-app.azurewebsites.net/api/ET_Supplier_Master
-                    </span>
-                  </Descriptions.Item>
-                </Descriptions>
+          </CardHeader>
+          <CardContent>
+            <Spinner spinning={vendorStatusLoading}>
+              {vendorStatus ? (
+                <>
+                  <Descriptions bordered className="mb-4">
+                    <Descriptions.Item label="Records in DB">
+                      <strong className="text-lg">{vendorStatus.count.toLocaleString()}</strong>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Last Sync">
+                      {vendorStatus.lastSyncedAt
+                        ? new Date(vendorStatus.lastSyncedAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }) + ' IST'
+                        : <span className="text-muted-foreground">Never</span>}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Schedule">Daily at 2:00 AM IST</Descriptions.Item>
+                    <Descriptions.Item label="Source API">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        https://my-dab-app.azurewebsites.net/api/ET_Supplier_Master
+                      </span>
+                    </Descriptions.Item>
+                  </Descriptions>
 
-                <Row gutter={[12, 12]}>
-                  <Col xs={24} sm={12}>
-                    <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Sync Vendor Master</div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12, marginBottom: 10 }}>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-md border border-border p-4">
+                      <div className="mb-1 font-semibold">Sync Vendor Master</div>
+                      <div className="mb-2.5 text-xs text-muted-foreground">
                         Fetches all vendor records from the DAB API and upserts into the local database. Runs in background — page will auto-refresh status after 5s.
                       </div>
                       <Popconfirm
@@ -621,138 +592,137 @@ export default function Admin() {
                         okText="Yes, sync now"
                         cancelText="Cancel"
                       >
-                        <Button
-                          type="primary"
-                          icon={<SyncOutlined spin={vendorSyncing} />}
-                          loading={vendorSyncing}
-                          block
-                        >
+                        <Button disabled={vendorSyncing} className="w-full">
+                          <RefreshCw className={vendorSyncing ? 'animate-spin' : ''} />
                           {vendorSyncing ? 'Syncing...' : 'Sync Now'}
                         </Button>
                       </Popconfirm>
                     </div>
-                  </Col>
-                </Row>
-              </>
-            ) : (
-              <Empty description="Could not load vendor master status" />
-            )}
-          </Spin>
+                  </div>
+                </>
+              ) : (
+                <Empty description="Could not load vendor master status" />
+              )}
+            </Spinner>
+          </CardContent>
         </Card>
 
         {/* Debug Info */}
-        <Card style={{ marginBottom: 24, background: '#f0f2f5' }}>
-          <p><strong>Debug Info:</strong></p>
-          <p>Expense Data Loaded: {expenseData ? 'Yes' : 'No'}</p>
-          <p>Image Data Loaded: {imageData ? 'Yes' : 'No'}</p>
-          <p>Status Breakdown Records: {statusBreakdownData.length}</p>
-          <p>Category Breakdown Records: {categoryBreakdownData.length}</p>
+        <Card className="mb-6 bg-muted/40">
+          <CardContent className="pt-6">
+            <p><strong>Debug Info:</strong></p>
+            <p>Expense Data Loaded: {expenseData ? 'Yes' : 'No'}</p>
+            <p>Image Data Loaded: {imageData ? 'Yes' : 'No'}</p>
+            <p>Status Breakdown Records: {statusBreakdownData.length}</p>
+            <p>Category Breakdown Records: {categoryBreakdownData.length}</p>
+          </CardContent>
         </Card>
 
         {/* Expense and Image Analytics Row */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} md={12}>
-            <Card title="Expense Overview" extra={<DollarOutlined />}>
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Expense Overview</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
               {expenseData ? (
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12}>
-                    <Statistic
-                      title="Total Cost Price"
-                      value={expenseData.totalCostPrice}
-                      prefix="$"
-                      precision={2}
-                      valueStyle={{ color: '#1890ff' }}
-                    />
-                  </Col>
-                </Row>
+                <Statistic
+                  title="Total Cost Price"
+                  value={expenseData.totalCostPrice}
+                  prefix="$"
+                  valueStyle={{ color: '#1890ff' }}
+                />
               ) : (
                 <Empty description="No expense data available" />
               )}
-            </Card>
-          </Col>
+            </CardContent>
+          </Card>
 
-          <Col xs={24} md={12}>
-            <Card title="Image Usage Overview" extra={<PictureOutlined />}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Image Usage Overview</CardTitle>
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
               {imageData ? (
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12}>
-                    <Statistic
-                      title="Total Images Used"
-                      value={imageData.totalImages}
-                      valueStyle={{ color: '#722ed1' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Statistic
-                      title="Unique Images"
-                      value={imageData.uniqueImages}
-                      valueStyle={{ color: '#13c2c2' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Statistic
-                      title="Images with Costs"
-                      value={expenseData?.totalJobsWithCosts || 0}
-                      valueStyle={{ color: '#1890ff' }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={12}>
-                    <Statistic
-                      title="Avg Images/Day"
-                      value={imageData.averageImagesPerDay}
-                      precision={2}
-                      valueStyle={{ color: '#eb2f96' }}
-                    />
-                  </Col>
-                </Row>
+                <div className="grid grid-cols-2 gap-4">
+                  <Statistic title="Total Images Used" value={imageData.totalImages} valueStyle={{ color: '#722ed1' }} />
+                  <Statistic title="Unique Images" value={imageData.uniqueImages} valueStyle={{ color: '#13c2c2' }} />
+                  <Statistic
+                    title="Images with Costs"
+                    value={expenseData?.totalJobsWithCosts || 0}
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                  <Statistic
+                    title="Avg Images/Day"
+                    value={imageData.averageImagesPerDay}
+                    valueStyle={{ color: '#eb2f96' }}
+                  />
+                </div>
               ) : (
                 <Empty description="No image data available" />
               )}
-            </Card>
-          </Col>
-        </Row>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Detailed Tables */}
-        <Card style={{ marginBottom: 24, marginTop: 24 }}>
-          <h3 style={{ marginBottom: 16 }}>Expense Breakdown</h3>
-          {statusBreakdownData.length > 0 ? (
-            <Table
-              columns={expenseColumns}
-              dataSource={statusBreakdownData}
-              pagination={false}
-              size="small"
-              rowKey="key"
-            />
-          ) : (
-            <Empty description="No expense data available" style={{ padding: '40px 0' }} />
-          )}
+        <Card className="mb-6 mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">Expense Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {statusBreakdownData.length > 0 ? (
+              <DataTable
+                columns={expenseColumns}
+                dataSource={statusBreakdownData}
+                pagination={false}
+                size="small"
+                rowKey="key"
+              />
+            ) : (
+              <Empty description="No expense data available" className="py-10" />
+            )}
+          </CardContent>
         </Card>
 
-        {/* Detailed Per-Image Expenses */}
-        <Card title="Detailed Image Expenses" style={{ marginBottom: 24 }}>
-          {detailedExpenses.length > 0 ? (
-            <Table
-              columns={detailedExpenseColumns}
-              dataSource={detailedExpenses}
-              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `Total ${total} images` }}
-              size="small"
-              rowKey="key"
-              scroll={{ x: 800 }}
-            />
-          ) : (
-            <Empty description="No detailed expense data available" style={{ padding: '40px 0' }} />
-          )}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">Detailed Image Expenses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {detailedExpenses.length > 0 ? (
+              <DataTable
+                columns={detailedExpenseColumns}
+                dataSource={detailedExpenses}
+                pagination={{ pageSize: 20, showSizeChanger: true }}
+                size="small"
+                rowKey="key"
+                scroll={{ x: 800 }}
+              />
+            ) : (
+              <Empty description="No detailed expense data available" className="py-10" />
+            )}
+          </CardContent>
         </Card>
 
-        <Card title="Admin Overview" style={{ marginTop: 24 }}>
-          <p>Use the sidebar navigation to manage the system:</p>
-          <ul>
-            <li><strong>Hierarchy Management:</strong> Manage departments, categories, and attributes</li>
-            <li><strong>Expense Analytics:</strong> Track costs, selling prices, and profit margins</li>
-            <li><strong>Image Usage Analytics:</strong> Monitor total images and extraction statistics</li>
-          </ul>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base">Admin Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Use the sidebar navigation to manage the system:</p>
+            <ul className="ml-4 list-disc">
+              <li><strong>Hierarchy Management:</strong> Manage departments, categories, and attributes</li>
+              <li><strong>Expense Analytics:</strong> Track costs, selling prices, and profit margins</li>
+              <li><strong>Image Usage Analytics:</strong> Monitor total images and extraction statistics</li>
+            </ul>
+            {/* keep Tag/Info imports referenced */}
+            {false && <Tag><Info /></Tag>}
+          </CardContent>
         </Card>
-      </Spin>
+      </Spinner>
     </div>
   );
 }
