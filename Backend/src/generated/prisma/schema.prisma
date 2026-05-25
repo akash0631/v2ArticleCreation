@@ -355,7 +355,11 @@ model ExtractionResultFlat {
   sapArticleId   String?       @map("sap_article_id") @db.VarChar(100)
   sapSyncMessage String?       @map("sap_sync_message")
 
-  job ExtractionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  // SRM dedup key — set ONCE on insert from SRM, NEVER updated even if user edits designNumber
+  srmOriginalDesignNumber String? @map("srm_original_design_number") @db.VarChar(255)
+
+  job             ExtractionJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  srmSyncRunItems SrmSyncRunItem[]
 
   @@index([jobId])
   @@index([imageName])
@@ -903,4 +907,46 @@ model Article360Flat {
   @@index([referenceArticleNumber])
   @@map("article_360_flat")
   @@schema("360article")
+}
+
+// ── SRM Sync Audit Logs ──────────────────────────────────────────────────────
+
+/// One row per cron/admin/webhook sync execution
+model SrmSyncRun {
+  id          String    @id @default(uuid())
+  triggeredBy String    @default("CRON") @map("triggered_by") @db.VarChar(64)
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  total       Int       @default(0)
+  inserted    Int       @default(0)
+  skipped     Int       @default(0)
+  patched     Int       @default(0)
+  errors      Int       @default(0)
+  notes       String?
+
+  items SrmSyncRunItem[]
+
+  @@map("srm_sync_runs")
+  @@schema("public")
+}
+
+/// One row per article processed in a sync run — stable link via flat_id even after design number edits
+model SrmSyncRunItem {
+  id              String   @id @default(uuid())
+  runId           String   @map("run_id")
+  pptNumber       String?  @map("ppt_number") @db.VarChar(64)
+  srmDesignNumber String?  @map("srm_design_number") @db.VarChar(255)
+  flatId          String?  @map("flat_id")
+  action          String   @db.VarChar(16) // INSERTED | SKIPPED | PATCHED | ERROR
+  errorMessage    String?  @map("error_message")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  run  SrmSyncRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  flat ExtractionResultFlat? @relation(fields: [flatId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([flatId])
+  @@index([pptNumber])
+  @@map("srm_sync_run_items")
+  @@schema("public")
 }
