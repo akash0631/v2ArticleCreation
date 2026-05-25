@@ -55,10 +55,23 @@ interface FailedRecord {
   vendorName: string | null;
   imageUrl: string | null;
   extractionStatus: string;
+  /** PENDING | APPROVED | REJECTED */
+  approvalStatus: string;
+  /** NOT_SYNCED | PENDING | SYNCED | FAILED */
+  sapSyncStatus: string;
   createdAt: string;
   updatedAt: string;
   aiModel: string | null;
   avgConfidence: number | null;
+}
+
+/**
+ * Returns true when retry should be BLOCKED.
+ * Rule: if the article is APPROVED by an approver AND already SYNCED to SAP,
+ * the data was manually reviewed — VLM extraction would overwrite approved work.
+ */
+function isRetryBlocked(rec: FailedRecord): boolean {
+  return rec.approvalStatus === 'APPROVED' && rec.sapSyncStatus === 'SYNCED';
 }
 
 interface DivisionBreakdown {
@@ -292,15 +305,46 @@ export default function SrmFailedExtractionsPage() {
       render:    (v: string) => new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }),
     },
     {
+      title:  'Approval',
+      key:    'approvalStatus',
+      width:  110,
+      render: (_: any, rec: FailedRecord) => {
+        const colorMap: Record<string, string> = { APPROVED: 'green', REJECTED: 'red', PENDING: 'orange' };
+        return <Tag color={colorMap[rec.approvalStatus] || 'default'}>{rec.approvalStatus}</Tag>;
+      },
+    },
+    {
+      title:  'SAP Sync',
+      key:    'sapSyncStatus',
+      width:  100,
+      render: (_: any, rec: FailedRecord) => {
+        const colorMap: Record<string, string> = { SYNCED: 'green', FAILED: 'red', PENDING: 'blue', NOT_SYNCED: 'default' };
+        return <Tag color={colorMap[rec.sapSyncStatus] || 'default'}>{rec.sapSyncStatus.replace('_', ' ')}</Tag>;
+      },
+    },
+    {
       title:  'Action',
       key:    'action',
-      width:  110,
+      width:  130,
       fixed:  'right',
       render: (_: any, rec: FailedRecord) => {
-        const state = rowRetrying[rec.id];
+        const state   = rowRetrying[rec.id];
+        const blocked = isRetryBlocked(rec);
+
         if (state === 'done') {
           return <Tag color="success" icon={<CheckCircleOutlined />}>Done</Tag>;
         }
+
+        if (blocked) {
+          return (
+            <Tooltip title="Approved & SAP-synced — extraction locked to protect manually approved data">
+              <Tag color="default" style={{ cursor: 'not-allowed', userSelect: 'none' }}>
+                🔒 Locked
+              </Tag>
+            </Tooltip>
+          );
+        }
+
         return (
           <Tooltip title={!rec.imageUrl ? 'No image URL — cannot retry' : 'Re-run VLM extraction (~30s)'}>
             <Button
