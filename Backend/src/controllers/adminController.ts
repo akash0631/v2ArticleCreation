@@ -2047,6 +2047,22 @@ export const retrySrmFailedRecord = async (req: Request, res: Response): Promise
       return;
     }
 
+    // Guard: do not touch legacy records created before 25 May 2026.
+    // These are correct SRM imports whose data must not be overwritten by re-extraction.
+    const SRM_ENRICHMENT_CUTOFF = new Date('2026-05-25T00:00:00.000Z');
+    const fullRecord = await prisma.extractionResultFlat.findUnique({
+      where: { id },
+      select: { createdAt: true },
+    });
+    if (fullRecord && fullRecord.createdAt < SRM_ENRICHMENT_CUTOFF) {
+      res.status(409).json({
+        success: false,
+        error:   `Cannot retry: this record was created on ${fullRecord.createdAt.toISOString().slice(0, 10)} (before 2026-05-25). Re-extraction would overwrite the original import data.`,
+        createdAt: fullRecord.createdAt,
+      });
+      return;
+    }
+
     const { enrichSrmRowWithVlmAdmin } = await import('../services/srmSyncService');
     const success = await enrichSrmRowWithVlmAdmin(record.id, record.imageUrl, record.majorCategory);
 
@@ -2085,10 +2101,15 @@ export const retrySrmFailedAll = async (req: Request, res: Response): Promise<vo
     const { prismaClient: prisma } = await import('../utils/prisma');
     const division = (req.body?.division as string || '').trim() || undefined;
 
+    // Only retry records created on or after 2026-05-25.
+    // Legacy records (before this date) are correct SRM imports — re-extraction would overwrite their data.
+    const SRM_ENRICHMENT_CUTOFF = new Date('2026-05-25T00:00:00.000Z');
+
     const where: any = {
       source:           'SRM',
       extractionStatus: 'SRM_IMPORT',
       imageUrl:         { not: null },
+      createdAt:        { gte: SRM_ENRICHMENT_CUTOFF },
       // Never touch articles that are already APPROVED + SYNCED to SAP
       NOT: { approvalStatus: 'APPROVED', sapSyncStatus: 'SYNCED' },
     };

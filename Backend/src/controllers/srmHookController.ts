@@ -117,20 +117,23 @@ export const triggerBatch = async (req: Request, res: Response): Promise<void> =
   }
 
   // ── Duplicate presentation guard ───────────────────────────────────────
-  // Only allow extraction for design numbers that don't already exist in DB.
-  // If ALL requested design numbers are already present, reject the whole request.
+  // Dedup uses srmOriginalDesignNumber (immutable) NOT designNumber (user-editable).
+  // If user renamed design "151" → "1007", checking designNumber would miss the
+  // existing record and create a duplicate. srmOriginalDesignNumber never changes.
   const pptNo = body.presentation_no.trim();
   const requestedDesigns = body.images.map((img) => img.design_number.trim());
 
-  const existingDesigns = await prisma.extractionResultFlat.findMany({
+  const existingRecords = await prisma.extractionResultFlat.findMany({
     where: {
-      pptNumber:    pptNo,
-      designNumber: { in: requestedDesigns },
+      pptNumber:               pptNo,
+      srmOriginalDesignNumber: { in: requestedDesigns },
     },
-    select: { designNumber: true },
+    select: { srmOriginalDesignNumber: true },
   });
 
-  const existingDesignSet = new Set(existingDesigns.map((r) => r.designNumber).filter(Boolean) as string[]);
+  const existingDesignSet = new Set(
+    existingRecords.map((r) => r.srmOriginalDesignNumber).filter(Boolean) as string[]
+  );
   const newDesigns = requestedDesigns.filter((d) => !existingDesignSet.has(d));
 
   if (newDesigns.length === 0) {
@@ -142,9 +145,9 @@ export const triggerBatch = async (req: Request, res: Response): Promise<void> =
     return;
   }
 
-  // Filter images to only those with new design numbers
+  // Filter images to only those with new (not yet imported) design numbers
   if (existingDesignSet.size > 0) {
-    console.log(`[SrmHook] Presentation ${pptNo}: skipping ${existingDesignSet.size} already-existing design(s), extracting ${newDesigns.length} new.`);
+    console.log(`[SrmHook] Presentation ${pptNo}: skipping ${existingDesignSet.size} already-existing design(s) (by srmOriginalDesignNumber), extracting ${newDesigns.length} new.`);
     body.images = body.images.filter((img) => !existingDesignSet.has(img.design_number.trim()));
   }
 

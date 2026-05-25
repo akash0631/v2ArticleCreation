@@ -138,6 +138,16 @@ export type SapAttributeValue = $Result.DefaultSelection<Prisma.$SapAttributeVal
  * Article360Flat: Denormalized flat table — single row per article, all fields in one place
  */
 export type Article360Flat = $Result.DefaultSelection<Prisma.$Article360FlatPayload>
+/**
+ * Model SrmSyncRun
+ * One row per cron/admin/webhook sync execution
+ */
+export type SrmSyncRun = $Result.DefaultSelection<Prisma.$SrmSyncRunPayload>
+/**
+ * Model SrmSyncRunItem
+ * One row per article processed in a sync run — stable link via flat_id even after design number edits
+ */
+export type SrmSyncRunItem = $Result.DefaultSelection<Prisma.$SrmSyncRunItemPayload>
 
 /**
  * Enums
@@ -610,6 +620,26 @@ export class PrismaClient<
     * ```
     */
   get article360Flat(): Prisma.Article360FlatDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.srmSyncRun`: Exposes CRUD operations for the **SrmSyncRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SrmSyncRuns
+    * const srmSyncRuns = await prisma.srmSyncRun.findMany()
+    * ```
+    */
+  get srmSyncRun(): Prisma.SrmSyncRunDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.srmSyncRunItem`: Exposes CRUD operations for the **SrmSyncRunItem** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SrmSyncRunItems
+    * const srmSyncRunItems = await prisma.srmSyncRunItem.findMany()
+    * ```
+    */
+  get srmSyncRunItem(): Prisma.SrmSyncRunItemDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1074,7 +1104,9 @@ export namespace Prisma {
     ArticleBom: 'ArticleBom',
     SapFieldConfig: 'SapFieldConfig',
     SapAttributeValue: 'SapAttributeValue',
-    Article360Flat: 'Article360Flat'
+    Article360Flat: 'Article360Flat',
+    SrmSyncRun: 'SrmSyncRun',
+    SrmSyncRunItem: 'SrmSyncRunItem'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1093,7 +1125,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "masterVendorDetail" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat"
+      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "masterVendorDetail" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat" | "srmSyncRun" | "srmSyncRunItem"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2947,6 +2979,154 @@ export namespace Prisma {
           }
         }
       }
+      SrmSyncRun: {
+        payload: Prisma.$SrmSyncRunPayload<ExtArgs>
+        fields: Prisma.SrmSyncRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SrmSyncRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SrmSyncRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          findFirst: {
+            args: Prisma.SrmSyncRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SrmSyncRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          findMany: {
+            args: Prisma.SrmSyncRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>[]
+          }
+          create: {
+            args: Prisma.SrmSyncRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          createMany: {
+            args: Prisma.SrmSyncRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SrmSyncRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>[]
+          }
+          delete: {
+            args: Prisma.SrmSyncRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          update: {
+            args: Prisma.SrmSyncRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.SrmSyncRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SrmSyncRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SrmSyncRunUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>[]
+          }
+          upsert: {
+            args: Prisma.SrmSyncRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunPayload>
+          }
+          aggregate: {
+            args: Prisma.SrmSyncRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSrmSyncRun>
+          }
+          groupBy: {
+            args: Prisma.SrmSyncRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SrmSyncRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SrmSyncRunCountArgs<ExtArgs>
+            result: $Utils.Optional<SrmSyncRunCountAggregateOutputType> | number
+          }
+        }
+      }
+      SrmSyncRunItem: {
+        payload: Prisma.$SrmSyncRunItemPayload<ExtArgs>
+        fields: Prisma.SrmSyncRunItemFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SrmSyncRunItemFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SrmSyncRunItemFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          findFirst: {
+            args: Prisma.SrmSyncRunItemFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SrmSyncRunItemFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          findMany: {
+            args: Prisma.SrmSyncRunItemFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>[]
+          }
+          create: {
+            args: Prisma.SrmSyncRunItemCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          createMany: {
+            args: Prisma.SrmSyncRunItemCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SrmSyncRunItemCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>[]
+          }
+          delete: {
+            args: Prisma.SrmSyncRunItemDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          update: {
+            args: Prisma.SrmSyncRunItemUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          deleteMany: {
+            args: Prisma.SrmSyncRunItemDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SrmSyncRunItemUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SrmSyncRunItemUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>[]
+          }
+          upsert: {
+            args: Prisma.SrmSyncRunItemUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SrmSyncRunItemPayload>
+          }
+          aggregate: {
+            args: Prisma.SrmSyncRunItemAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSrmSyncRunItem>
+          }
+          groupBy: {
+            args: Prisma.SrmSyncRunItemGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SrmSyncRunItemGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SrmSyncRunItemCountArgs<ExtArgs>
+            result: $Utils.Optional<SrmSyncRunItemCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -3064,6 +3244,8 @@ export namespace Prisma {
     sapFieldConfig?: SapFieldConfigOmit
     sapAttributeValue?: SapAttributeValueOmit
     article360Flat?: Article360FlatOmit
+    srmSyncRun?: SrmSyncRunOmit
+    srmSyncRunItem?: SrmSyncRunItemOmit
   }
 
   /* Types for Logging */
@@ -3353,6 +3535,37 @@ export namespace Prisma {
 
 
   /**
+   * Count Type ExtractionResultFlatCountOutputType
+   */
+
+  export type ExtractionResultFlatCountOutputType = {
+    srmSyncRunItems: number
+  }
+
+  export type ExtractionResultFlatCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    srmSyncRunItems?: boolean | ExtractionResultFlatCountOutputTypeCountSrmSyncRunItemsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ExtractionResultFlatCountOutputType without action
+   */
+  export type ExtractionResultFlatCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExtractionResultFlatCountOutputType
+     */
+    select?: ExtractionResultFlatCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ExtractionResultFlatCountOutputType without action
+   */
+  export type ExtractionResultFlatCountOutputTypeCountSrmSyncRunItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SrmSyncRunItemWhereInput
+  }
+
+
+  /**
    * Count Type UserCountOutputType
    */
 
@@ -3438,6 +3651,37 @@ export namespace Prisma {
    */
   export type SapFieldConfigCountOutputTypeCountValuesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SapAttributeValueWhereInput
+  }
+
+
+  /**
+   * Count Type SrmSyncRunCountOutputType
+   */
+
+  export type SrmSyncRunCountOutputType = {
+    items: number
+  }
+
+  export type SrmSyncRunCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    items?: boolean | SrmSyncRunCountOutputTypeCountItemsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * SrmSyncRunCountOutputType without action
+   */
+  export type SrmSyncRunCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunCountOutputType
+     */
+    select?: SrmSyncRunCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * SrmSyncRunCountOutputType without action
+   */
+  export type SrmSyncRunCountOutputTypeCountItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SrmSyncRunItemWhereInput
   }
 
 
@@ -13654,6 +13898,7 @@ export namespace Prisma {
     sapSyncStatus: $Enums.SapSyncStatus | null
     sapArticleId: string | null
     sapSyncMessage: string | null
+    srmOriginalDesignNumber: string | null
   }
 
   export type ExtractionResultFlatMaxAggregateOutputType = {
@@ -13776,6 +14021,7 @@ export namespace Prisma {
     sapSyncStatus: $Enums.SapSyncStatus | null
     sapArticleId: string | null
     sapSyncMessage: string | null
+    srmOriginalDesignNumber: string | null
   }
 
   export type ExtractionResultFlatCountAggregateOutputType = {
@@ -13898,6 +14144,7 @@ export namespace Prisma {
     sapSyncStatus: number
     sapArticleId: number
     sapSyncMessage: number
+    srmOriginalDesignNumber: number
     _all: number
   }
 
@@ -14052,6 +14299,7 @@ export namespace Prisma {
     sapSyncStatus?: true
     sapArticleId?: true
     sapSyncMessage?: true
+    srmOriginalDesignNumber?: true
   }
 
   export type ExtractionResultFlatMaxAggregateInputType = {
@@ -14174,6 +14422,7 @@ export namespace Prisma {
     sapSyncStatus?: true
     sapArticleId?: true
     sapSyncMessage?: true
+    srmOriginalDesignNumber?: true
   }
 
   export type ExtractionResultFlatCountAggregateInputType = {
@@ -14296,6 +14545,7 @@ export namespace Prisma {
     sapSyncStatus?: true
     sapArticleId?: true
     sapSyncMessage?: true
+    srmOriginalDesignNumber?: true
     _all?: true
   }
 
@@ -14505,6 +14755,7 @@ export namespace Prisma {
     sapSyncStatus: $Enums.SapSyncStatus
     sapArticleId: string | null
     sapSyncMessage: string | null
+    srmOriginalDesignNumber: string | null
     _count: ExtractionResultFlatCountAggregateOutputType | null
     _avg: ExtractionResultFlatAvgAggregateOutputType | null
     _sum: ExtractionResultFlatSumAggregateOutputType | null
@@ -14646,8 +14897,11 @@ export namespace Prisma {
     sapSyncStatus?: boolean
     sapArticleId?: boolean
     sapSyncMessage?: boolean
+    srmOriginalDesignNumber?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    srmSyncRunItems?: boolean | ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>
+    _count?: boolean | ExtractionResultFlatCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
 
   export type ExtractionResultFlatSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -14770,6 +15024,7 @@ export namespace Prisma {
     sapSyncStatus?: boolean
     sapArticleId?: boolean
     sapSyncMessage?: boolean
+    srmOriginalDesignNumber?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
@@ -14894,6 +15149,7 @@ export namespace Prisma {
     sapSyncStatus?: boolean
     sapArticleId?: boolean
     sapSyncMessage?: boolean
+    srmOriginalDesignNumber?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
@@ -15018,12 +15274,15 @@ export namespace Prisma {
     sapSyncStatus?: boolean
     sapArticleId?: boolean
     sapSyncMessage?: boolean
+    srmOriginalDesignNumber?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    srmSyncRunItems?: boolean | ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>
+    _count?: boolean | ExtractionResultFlatCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ExtractionResultFlatIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
@@ -15039,6 +15298,7 @@ export namespace Prisma {
     objects: {
       approver: Prisma.$UserPayload<ExtArgs> | null
       job: Prisma.$ExtractionJobPayload<ExtArgs>
+      srmSyncRunItems: Prisma.$SrmSyncRunItemPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -15160,6 +15420,7 @@ export namespace Prisma {
       sapSyncStatus: $Enums.SapSyncStatus
       sapArticleId: string | null
       sapSyncMessage: string | null
+      srmOriginalDesignNumber: string | null
     }, ExtArgs["result"]["extractionResultFlat"]>
     composites: {}
   }
@@ -15556,6 +15817,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     approver<T extends ExtractionResultFlat$approverArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionResultFlat$approverArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     job<T extends ExtractionJobDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionJobDefaultArgs<ExtArgs>>): Prisma__ExtractionJobClient<$Result.GetResult<Prisma.$ExtractionJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    srmSyncRunItems<T extends ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -15704,6 +15966,7 @@ export namespace Prisma {
     readonly sapSyncStatus: FieldRef<"ExtractionResultFlat", 'SapSyncStatus'>
     readonly sapArticleId: FieldRef<"ExtractionResultFlat", 'String'>
     readonly sapSyncMessage: FieldRef<"ExtractionResultFlat", 'String'>
+    readonly srmOriginalDesignNumber: FieldRef<"ExtractionResultFlat", 'String'>
   }
     
 
@@ -16116,6 +16379,30 @@ export namespace Prisma {
      */
     include?: UserInclude<ExtArgs> | null
     where?: UserWhereInput
+  }
+
+  /**
+   * ExtractionResultFlat.srmSyncRunItems
+   */
+  export type ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    where?: SrmSyncRunItemWhereInput
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: SrmSyncRunItemScalarFieldEnum | SrmSyncRunItemScalarFieldEnum[]
   }
 
   /**
@@ -35663,6 +35950,2315 @@ export namespace Prisma {
 
 
   /**
+   * Model SrmSyncRun
+   */
+
+  export type AggregateSrmSyncRun = {
+    _count: SrmSyncRunCountAggregateOutputType | null
+    _avg: SrmSyncRunAvgAggregateOutputType | null
+    _sum: SrmSyncRunSumAggregateOutputType | null
+    _min: SrmSyncRunMinAggregateOutputType | null
+    _max: SrmSyncRunMaxAggregateOutputType | null
+  }
+
+  export type SrmSyncRunAvgAggregateOutputType = {
+    total: number | null
+    inserted: number | null
+    skipped: number | null
+    patched: number | null
+    errors: number | null
+  }
+
+  export type SrmSyncRunSumAggregateOutputType = {
+    total: number | null
+    inserted: number | null
+    skipped: number | null
+    patched: number | null
+    errors: number | null
+  }
+
+  export type SrmSyncRunMinAggregateOutputType = {
+    id: string | null
+    triggeredBy: string | null
+    startedAt: Date | null
+    completedAt: Date | null
+    total: number | null
+    inserted: number | null
+    skipped: number | null
+    patched: number | null
+    errors: number | null
+    notes: string | null
+  }
+
+  export type SrmSyncRunMaxAggregateOutputType = {
+    id: string | null
+    triggeredBy: string | null
+    startedAt: Date | null
+    completedAt: Date | null
+    total: number | null
+    inserted: number | null
+    skipped: number | null
+    patched: number | null
+    errors: number | null
+    notes: string | null
+  }
+
+  export type SrmSyncRunCountAggregateOutputType = {
+    id: number
+    triggeredBy: number
+    startedAt: number
+    completedAt: number
+    total: number
+    inserted: number
+    skipped: number
+    patched: number
+    errors: number
+    notes: number
+    _all: number
+  }
+
+
+  export type SrmSyncRunAvgAggregateInputType = {
+    total?: true
+    inserted?: true
+    skipped?: true
+    patched?: true
+    errors?: true
+  }
+
+  export type SrmSyncRunSumAggregateInputType = {
+    total?: true
+    inserted?: true
+    skipped?: true
+    patched?: true
+    errors?: true
+  }
+
+  export type SrmSyncRunMinAggregateInputType = {
+    id?: true
+    triggeredBy?: true
+    startedAt?: true
+    completedAt?: true
+    total?: true
+    inserted?: true
+    skipped?: true
+    patched?: true
+    errors?: true
+    notes?: true
+  }
+
+  export type SrmSyncRunMaxAggregateInputType = {
+    id?: true
+    triggeredBy?: true
+    startedAt?: true
+    completedAt?: true
+    total?: true
+    inserted?: true
+    skipped?: true
+    patched?: true
+    errors?: true
+    notes?: true
+  }
+
+  export type SrmSyncRunCountAggregateInputType = {
+    id?: true
+    triggeredBy?: true
+    startedAt?: true
+    completedAt?: true
+    total?: true
+    inserted?: true
+    skipped?: true
+    patched?: true
+    errors?: true
+    notes?: true
+    _all?: true
+  }
+
+  export type SrmSyncRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SrmSyncRun to aggregate.
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRuns to fetch.
+     */
+    orderBy?: SrmSyncRunOrderByWithRelationInput | SrmSyncRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SrmSyncRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SrmSyncRuns
+    **/
+    _count?: true | SrmSyncRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SrmSyncRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SrmSyncRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SrmSyncRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SrmSyncRunMaxAggregateInputType
+  }
+
+  export type GetSrmSyncRunAggregateType<T extends SrmSyncRunAggregateArgs> = {
+        [P in keyof T & keyof AggregateSrmSyncRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSrmSyncRun[P]>
+      : GetScalarType<T[P], AggregateSrmSyncRun[P]>
+  }
+
+
+
+
+  export type SrmSyncRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SrmSyncRunWhereInput
+    orderBy?: SrmSyncRunOrderByWithAggregationInput | SrmSyncRunOrderByWithAggregationInput[]
+    by: SrmSyncRunScalarFieldEnum[] | SrmSyncRunScalarFieldEnum
+    having?: SrmSyncRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SrmSyncRunCountAggregateInputType | true
+    _avg?: SrmSyncRunAvgAggregateInputType
+    _sum?: SrmSyncRunSumAggregateInputType
+    _min?: SrmSyncRunMinAggregateInputType
+    _max?: SrmSyncRunMaxAggregateInputType
+  }
+
+  export type SrmSyncRunGroupByOutputType = {
+    id: string
+    triggeredBy: string
+    startedAt: Date
+    completedAt: Date | null
+    total: number
+    inserted: number
+    skipped: number
+    patched: number
+    errors: number
+    notes: string | null
+    _count: SrmSyncRunCountAggregateOutputType | null
+    _avg: SrmSyncRunAvgAggregateOutputType | null
+    _sum: SrmSyncRunSumAggregateOutputType | null
+    _min: SrmSyncRunMinAggregateOutputType | null
+    _max: SrmSyncRunMaxAggregateOutputType | null
+  }
+
+  type GetSrmSyncRunGroupByPayload<T extends SrmSyncRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SrmSyncRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SrmSyncRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SrmSyncRunGroupByOutputType[P]>
+            : GetScalarType<T[P], SrmSyncRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SrmSyncRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    triggeredBy?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    total?: boolean
+    inserted?: boolean
+    skipped?: boolean
+    patched?: boolean
+    errors?: boolean
+    notes?: boolean
+    items?: boolean | SrmSyncRun$itemsArgs<ExtArgs>
+    _count?: boolean | SrmSyncRunCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["srmSyncRun"]>
+
+  export type SrmSyncRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    triggeredBy?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    total?: boolean
+    inserted?: boolean
+    skipped?: boolean
+    patched?: boolean
+    errors?: boolean
+    notes?: boolean
+  }, ExtArgs["result"]["srmSyncRun"]>
+
+  export type SrmSyncRunSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    triggeredBy?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    total?: boolean
+    inserted?: boolean
+    skipped?: boolean
+    patched?: boolean
+    errors?: boolean
+    notes?: boolean
+  }, ExtArgs["result"]["srmSyncRun"]>
+
+  export type SrmSyncRunSelectScalar = {
+    id?: boolean
+    triggeredBy?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    total?: boolean
+    inserted?: boolean
+    skipped?: boolean
+    patched?: boolean
+    errors?: boolean
+    notes?: boolean
+  }
+
+  export type SrmSyncRunOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "triggeredBy" | "startedAt" | "completedAt" | "total" | "inserted" | "skipped" | "patched" | "errors" | "notes", ExtArgs["result"]["srmSyncRun"]>
+  export type SrmSyncRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    items?: boolean | SrmSyncRun$itemsArgs<ExtArgs>
+    _count?: boolean | SrmSyncRunCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type SrmSyncRunIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type SrmSyncRunIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $SrmSyncRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SrmSyncRun"
+    objects: {
+      items: Prisma.$SrmSyncRunItemPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      triggeredBy: string
+      startedAt: Date
+      completedAt: Date | null
+      total: number
+      inserted: number
+      skipped: number
+      patched: number
+      errors: number
+      notes: string | null
+    }, ExtArgs["result"]["srmSyncRun"]>
+    composites: {}
+  }
+
+  type SrmSyncRunGetPayload<S extends boolean | null | undefined | SrmSyncRunDefaultArgs> = $Result.GetResult<Prisma.$SrmSyncRunPayload, S>
+
+  type SrmSyncRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SrmSyncRunFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SrmSyncRunCountAggregateInputType | true
+    }
+
+  export interface SrmSyncRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SrmSyncRun'], meta: { name: 'SrmSyncRun' } }
+    /**
+     * Find zero or one SrmSyncRun that matches the filter.
+     * @param {SrmSyncRunFindUniqueArgs} args - Arguments to find a SrmSyncRun
+     * @example
+     * // Get one SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SrmSyncRunFindUniqueArgs>(args: SelectSubset<T, SrmSyncRunFindUniqueArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one SrmSyncRun that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SrmSyncRunFindUniqueOrThrowArgs} args - Arguments to find a SrmSyncRun
+     * @example
+     * // Get one SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SrmSyncRunFindUniqueOrThrowArgs>(args: SelectSubset<T, SrmSyncRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SrmSyncRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunFindFirstArgs} args - Arguments to find a SrmSyncRun
+     * @example
+     * // Get one SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SrmSyncRunFindFirstArgs>(args?: SelectSubset<T, SrmSyncRunFindFirstArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SrmSyncRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunFindFirstOrThrowArgs} args - Arguments to find a SrmSyncRun
+     * @example
+     * // Get one SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SrmSyncRunFindFirstOrThrowArgs>(args?: SelectSubset<T, SrmSyncRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more SrmSyncRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SrmSyncRuns
+     * const srmSyncRuns = await prisma.srmSyncRun.findMany()
+     * 
+     * // Get first 10 SrmSyncRuns
+     * const srmSyncRuns = await prisma.srmSyncRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const srmSyncRunWithIdOnly = await prisma.srmSyncRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SrmSyncRunFindManyArgs>(args?: SelectSubset<T, SrmSyncRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a SrmSyncRun.
+     * @param {SrmSyncRunCreateArgs} args - Arguments to create a SrmSyncRun.
+     * @example
+     * // Create one SrmSyncRun
+     * const SrmSyncRun = await prisma.srmSyncRun.create({
+     *   data: {
+     *     // ... data to create a SrmSyncRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends SrmSyncRunCreateArgs>(args: SelectSubset<T, SrmSyncRunCreateArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many SrmSyncRuns.
+     * @param {SrmSyncRunCreateManyArgs} args - Arguments to create many SrmSyncRuns.
+     * @example
+     * // Create many SrmSyncRuns
+     * const srmSyncRun = await prisma.srmSyncRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SrmSyncRunCreateManyArgs>(args?: SelectSubset<T, SrmSyncRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SrmSyncRuns and returns the data saved in the database.
+     * @param {SrmSyncRunCreateManyAndReturnArgs} args - Arguments to create many SrmSyncRuns.
+     * @example
+     * // Create many SrmSyncRuns
+     * const srmSyncRun = await prisma.srmSyncRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SrmSyncRuns and only return the `id`
+     * const srmSyncRunWithIdOnly = await prisma.srmSyncRun.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SrmSyncRunCreateManyAndReturnArgs>(args?: SelectSubset<T, SrmSyncRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a SrmSyncRun.
+     * @param {SrmSyncRunDeleteArgs} args - Arguments to delete one SrmSyncRun.
+     * @example
+     * // Delete one SrmSyncRun
+     * const SrmSyncRun = await prisma.srmSyncRun.delete({
+     *   where: {
+     *     // ... filter to delete one SrmSyncRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SrmSyncRunDeleteArgs>(args: SelectSubset<T, SrmSyncRunDeleteArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one SrmSyncRun.
+     * @param {SrmSyncRunUpdateArgs} args - Arguments to update one SrmSyncRun.
+     * @example
+     * // Update one SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SrmSyncRunUpdateArgs>(args: SelectSubset<T, SrmSyncRunUpdateArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more SrmSyncRuns.
+     * @param {SrmSyncRunDeleteManyArgs} args - Arguments to filter SrmSyncRuns to delete.
+     * @example
+     * // Delete a few SrmSyncRuns
+     * const { count } = await prisma.srmSyncRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SrmSyncRunDeleteManyArgs>(args?: SelectSubset<T, SrmSyncRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SrmSyncRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SrmSyncRuns
+     * const srmSyncRun = await prisma.srmSyncRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SrmSyncRunUpdateManyArgs>(args: SelectSubset<T, SrmSyncRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SrmSyncRuns and returns the data updated in the database.
+     * @param {SrmSyncRunUpdateManyAndReturnArgs} args - Arguments to update many SrmSyncRuns.
+     * @example
+     * // Update many SrmSyncRuns
+     * const srmSyncRun = await prisma.srmSyncRun.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SrmSyncRuns and only return the `id`
+     * const srmSyncRunWithIdOnly = await prisma.srmSyncRun.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SrmSyncRunUpdateManyAndReturnArgs>(args: SelectSubset<T, SrmSyncRunUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one SrmSyncRun.
+     * @param {SrmSyncRunUpsertArgs} args - Arguments to update or create a SrmSyncRun.
+     * @example
+     * // Update or create a SrmSyncRun
+     * const srmSyncRun = await prisma.srmSyncRun.upsert({
+     *   create: {
+     *     // ... data to create a SrmSyncRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SrmSyncRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SrmSyncRunUpsertArgs>(args: SelectSubset<T, SrmSyncRunUpsertArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of SrmSyncRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunCountArgs} args - Arguments to filter SrmSyncRuns to count.
+     * @example
+     * // Count the number of SrmSyncRuns
+     * const count = await prisma.srmSyncRun.count({
+     *   where: {
+     *     // ... the filter for the SrmSyncRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends SrmSyncRunCountArgs>(
+      args?: Subset<T, SrmSyncRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SrmSyncRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SrmSyncRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SrmSyncRunAggregateArgs>(args: Subset<T, SrmSyncRunAggregateArgs>): Prisma.PrismaPromise<GetSrmSyncRunAggregateType<T>>
+
+    /**
+     * Group by SrmSyncRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SrmSyncRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SrmSyncRunGroupByArgs['orderBy'] }
+        : { orderBy?: SrmSyncRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SrmSyncRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSrmSyncRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SrmSyncRun model
+   */
+  readonly fields: SrmSyncRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SrmSyncRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SrmSyncRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    items<T extends SrmSyncRun$itemsArgs<ExtArgs> = {}>(args?: Subset<T, SrmSyncRun$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SrmSyncRun model
+   */
+  interface SrmSyncRunFieldRefs {
+    readonly id: FieldRef<"SrmSyncRun", 'String'>
+    readonly triggeredBy: FieldRef<"SrmSyncRun", 'String'>
+    readonly startedAt: FieldRef<"SrmSyncRun", 'DateTime'>
+    readonly completedAt: FieldRef<"SrmSyncRun", 'DateTime'>
+    readonly total: FieldRef<"SrmSyncRun", 'Int'>
+    readonly inserted: FieldRef<"SrmSyncRun", 'Int'>
+    readonly skipped: FieldRef<"SrmSyncRun", 'Int'>
+    readonly patched: FieldRef<"SrmSyncRun", 'Int'>
+    readonly errors: FieldRef<"SrmSyncRun", 'Int'>
+    readonly notes: FieldRef<"SrmSyncRun", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SrmSyncRun findUnique
+   */
+  export type SrmSyncRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRun to fetch.
+     */
+    where: SrmSyncRunWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRun findUniqueOrThrow
+   */
+  export type SrmSyncRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRun to fetch.
+     */
+    where: SrmSyncRunWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRun findFirst
+   */
+  export type SrmSyncRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRun to fetch.
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRuns to fetch.
+     */
+    orderBy?: SrmSyncRunOrderByWithRelationInput | SrmSyncRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SrmSyncRuns.
+     */
+    cursor?: SrmSyncRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SrmSyncRuns.
+     */
+    distinct?: SrmSyncRunScalarFieldEnum | SrmSyncRunScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRun findFirstOrThrow
+   */
+  export type SrmSyncRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRun to fetch.
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRuns to fetch.
+     */
+    orderBy?: SrmSyncRunOrderByWithRelationInput | SrmSyncRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SrmSyncRuns.
+     */
+    cursor?: SrmSyncRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SrmSyncRuns.
+     */
+    distinct?: SrmSyncRunScalarFieldEnum | SrmSyncRunScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRun findMany
+   */
+  export type SrmSyncRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRuns to fetch.
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRuns to fetch.
+     */
+    orderBy?: SrmSyncRunOrderByWithRelationInput | SrmSyncRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SrmSyncRuns.
+     */
+    cursor?: SrmSyncRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRuns.
+     */
+    skip?: number
+    distinct?: SrmSyncRunScalarFieldEnum | SrmSyncRunScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRun create
+   */
+  export type SrmSyncRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SrmSyncRun.
+     */
+    data?: XOR<SrmSyncRunCreateInput, SrmSyncRunUncheckedCreateInput>
+  }
+
+  /**
+   * SrmSyncRun createMany
+   */
+  export type SrmSyncRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SrmSyncRuns.
+     */
+    data: SrmSyncRunCreateManyInput | SrmSyncRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SrmSyncRun createManyAndReturn
+   */
+  export type SrmSyncRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * The data used to create many SrmSyncRuns.
+     */
+    data: SrmSyncRunCreateManyInput | SrmSyncRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SrmSyncRun update
+   */
+  export type SrmSyncRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SrmSyncRun.
+     */
+    data: XOR<SrmSyncRunUpdateInput, SrmSyncRunUncheckedUpdateInput>
+    /**
+     * Choose, which SrmSyncRun to update.
+     */
+    where: SrmSyncRunWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRun updateMany
+   */
+  export type SrmSyncRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SrmSyncRuns.
+     */
+    data: XOR<SrmSyncRunUpdateManyMutationInput, SrmSyncRunUncheckedUpdateManyInput>
+    /**
+     * Filter which SrmSyncRuns to update
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * Limit how many SrmSyncRuns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SrmSyncRun updateManyAndReturn
+   */
+  export type SrmSyncRunUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * The data used to update SrmSyncRuns.
+     */
+    data: XOR<SrmSyncRunUpdateManyMutationInput, SrmSyncRunUncheckedUpdateManyInput>
+    /**
+     * Filter which SrmSyncRuns to update
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * Limit how many SrmSyncRuns to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SrmSyncRun upsert
+   */
+  export type SrmSyncRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SrmSyncRun to update in case it exists.
+     */
+    where: SrmSyncRunWhereUniqueInput
+    /**
+     * In case the SrmSyncRun found by the `where` argument doesn't exist, create a new SrmSyncRun with this data.
+     */
+    create: XOR<SrmSyncRunCreateInput, SrmSyncRunUncheckedCreateInput>
+    /**
+     * In case the SrmSyncRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SrmSyncRunUpdateInput, SrmSyncRunUncheckedUpdateInput>
+  }
+
+  /**
+   * SrmSyncRun delete
+   */
+  export type SrmSyncRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+    /**
+     * Filter which SrmSyncRun to delete.
+     */
+    where: SrmSyncRunWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRun deleteMany
+   */
+  export type SrmSyncRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SrmSyncRuns to delete
+     */
+    where?: SrmSyncRunWhereInput
+    /**
+     * Limit how many SrmSyncRuns to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SrmSyncRun.items
+   */
+  export type SrmSyncRun$itemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    where?: SrmSyncRunItemWhereInput
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: SrmSyncRunItemScalarFieldEnum | SrmSyncRunItemScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRun without action
+   */
+  export type SrmSyncRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRun
+     */
+    select?: SrmSyncRunSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRun
+     */
+    omit?: SrmSyncRunOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model SrmSyncRunItem
+   */
+
+  export type AggregateSrmSyncRunItem = {
+    _count: SrmSyncRunItemCountAggregateOutputType | null
+    _min: SrmSyncRunItemMinAggregateOutputType | null
+    _max: SrmSyncRunItemMaxAggregateOutputType | null
+  }
+
+  export type SrmSyncRunItemMinAggregateOutputType = {
+    id: string | null
+    runId: string | null
+    pptNumber: string | null
+    srmDesignNumber: string | null
+    flatId: string | null
+    action: string | null
+    errorMessage: string | null
+    createdAt: Date | null
+  }
+
+  export type SrmSyncRunItemMaxAggregateOutputType = {
+    id: string | null
+    runId: string | null
+    pptNumber: string | null
+    srmDesignNumber: string | null
+    flatId: string | null
+    action: string | null
+    errorMessage: string | null
+    createdAt: Date | null
+  }
+
+  export type SrmSyncRunItemCountAggregateOutputType = {
+    id: number
+    runId: number
+    pptNumber: number
+    srmDesignNumber: number
+    flatId: number
+    action: number
+    errorMessage: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type SrmSyncRunItemMinAggregateInputType = {
+    id?: true
+    runId?: true
+    pptNumber?: true
+    srmDesignNumber?: true
+    flatId?: true
+    action?: true
+    errorMessage?: true
+    createdAt?: true
+  }
+
+  export type SrmSyncRunItemMaxAggregateInputType = {
+    id?: true
+    runId?: true
+    pptNumber?: true
+    srmDesignNumber?: true
+    flatId?: true
+    action?: true
+    errorMessage?: true
+    createdAt?: true
+  }
+
+  export type SrmSyncRunItemCountAggregateInputType = {
+    id?: true
+    runId?: true
+    pptNumber?: true
+    srmDesignNumber?: true
+    flatId?: true
+    action?: true
+    errorMessage?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type SrmSyncRunItemAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SrmSyncRunItem to aggregate.
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRunItems to fetch.
+     */
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRunItems from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRunItems.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SrmSyncRunItems
+    **/
+    _count?: true | SrmSyncRunItemCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SrmSyncRunItemMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SrmSyncRunItemMaxAggregateInputType
+  }
+
+  export type GetSrmSyncRunItemAggregateType<T extends SrmSyncRunItemAggregateArgs> = {
+        [P in keyof T & keyof AggregateSrmSyncRunItem]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSrmSyncRunItem[P]>
+      : GetScalarType<T[P], AggregateSrmSyncRunItem[P]>
+  }
+
+
+
+
+  export type SrmSyncRunItemGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SrmSyncRunItemWhereInput
+    orderBy?: SrmSyncRunItemOrderByWithAggregationInput | SrmSyncRunItemOrderByWithAggregationInput[]
+    by: SrmSyncRunItemScalarFieldEnum[] | SrmSyncRunItemScalarFieldEnum
+    having?: SrmSyncRunItemScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SrmSyncRunItemCountAggregateInputType | true
+    _min?: SrmSyncRunItemMinAggregateInputType
+    _max?: SrmSyncRunItemMaxAggregateInputType
+  }
+
+  export type SrmSyncRunItemGroupByOutputType = {
+    id: string
+    runId: string
+    pptNumber: string | null
+    srmDesignNumber: string | null
+    flatId: string | null
+    action: string
+    errorMessage: string | null
+    createdAt: Date
+    _count: SrmSyncRunItemCountAggregateOutputType | null
+    _min: SrmSyncRunItemMinAggregateOutputType | null
+    _max: SrmSyncRunItemMaxAggregateOutputType | null
+  }
+
+  type GetSrmSyncRunItemGroupByPayload<T extends SrmSyncRunItemGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SrmSyncRunItemGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SrmSyncRunItemGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SrmSyncRunItemGroupByOutputType[P]>
+            : GetScalarType<T[P], SrmSyncRunItemGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SrmSyncRunItemSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    pptNumber?: boolean
+    srmDesignNumber?: boolean
+    flatId?: boolean
+    action?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }, ExtArgs["result"]["srmSyncRunItem"]>
+
+  export type SrmSyncRunItemSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    pptNumber?: boolean
+    srmDesignNumber?: boolean
+    flatId?: boolean
+    action?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }, ExtArgs["result"]["srmSyncRunItem"]>
+
+  export type SrmSyncRunItemSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    runId?: boolean
+    pptNumber?: boolean
+    srmDesignNumber?: boolean
+    flatId?: boolean
+    action?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }, ExtArgs["result"]["srmSyncRunItem"]>
+
+  export type SrmSyncRunItemSelectScalar = {
+    id?: boolean
+    runId?: boolean
+    pptNumber?: boolean
+    srmDesignNumber?: boolean
+    flatId?: boolean
+    action?: boolean
+    errorMessage?: boolean
+    createdAt?: boolean
+  }
+
+  export type SrmSyncRunItemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "runId" | "pptNumber" | "srmDesignNumber" | "flatId" | "action" | "errorMessage" | "createdAt", ExtArgs["result"]["srmSyncRunItem"]>
+  export type SrmSyncRunItemInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }
+  export type SrmSyncRunItemIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }
+  export type SrmSyncRunItemIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    run?: boolean | SrmSyncRunDefaultArgs<ExtArgs>
+    flat?: boolean | SrmSyncRunItem$flatArgs<ExtArgs>
+  }
+
+  export type $SrmSyncRunItemPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SrmSyncRunItem"
+    objects: {
+      run: Prisma.$SrmSyncRunPayload<ExtArgs>
+      flat: Prisma.$ExtractionResultFlatPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      runId: string
+      pptNumber: string | null
+      srmDesignNumber: string | null
+      flatId: string | null
+      action: string
+      errorMessage: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["srmSyncRunItem"]>
+    composites: {}
+  }
+
+  type SrmSyncRunItemGetPayload<S extends boolean | null | undefined | SrmSyncRunItemDefaultArgs> = $Result.GetResult<Prisma.$SrmSyncRunItemPayload, S>
+
+  type SrmSyncRunItemCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SrmSyncRunItemFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SrmSyncRunItemCountAggregateInputType | true
+    }
+
+  export interface SrmSyncRunItemDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SrmSyncRunItem'], meta: { name: 'SrmSyncRunItem' } }
+    /**
+     * Find zero or one SrmSyncRunItem that matches the filter.
+     * @param {SrmSyncRunItemFindUniqueArgs} args - Arguments to find a SrmSyncRunItem
+     * @example
+     * // Get one SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SrmSyncRunItemFindUniqueArgs>(args: SelectSubset<T, SrmSyncRunItemFindUniqueArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one SrmSyncRunItem that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SrmSyncRunItemFindUniqueOrThrowArgs} args - Arguments to find a SrmSyncRunItem
+     * @example
+     * // Get one SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SrmSyncRunItemFindUniqueOrThrowArgs>(args: SelectSubset<T, SrmSyncRunItemFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SrmSyncRunItem that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemFindFirstArgs} args - Arguments to find a SrmSyncRunItem
+     * @example
+     * // Get one SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SrmSyncRunItemFindFirstArgs>(args?: SelectSubset<T, SrmSyncRunItemFindFirstArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first SrmSyncRunItem that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemFindFirstOrThrowArgs} args - Arguments to find a SrmSyncRunItem
+     * @example
+     * // Get one SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SrmSyncRunItemFindFirstOrThrowArgs>(args?: SelectSubset<T, SrmSyncRunItemFindFirstOrThrowArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more SrmSyncRunItems that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SrmSyncRunItems
+     * const srmSyncRunItems = await prisma.srmSyncRunItem.findMany()
+     * 
+     * // Get first 10 SrmSyncRunItems
+     * const srmSyncRunItems = await prisma.srmSyncRunItem.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const srmSyncRunItemWithIdOnly = await prisma.srmSyncRunItem.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SrmSyncRunItemFindManyArgs>(args?: SelectSubset<T, SrmSyncRunItemFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a SrmSyncRunItem.
+     * @param {SrmSyncRunItemCreateArgs} args - Arguments to create a SrmSyncRunItem.
+     * @example
+     * // Create one SrmSyncRunItem
+     * const SrmSyncRunItem = await prisma.srmSyncRunItem.create({
+     *   data: {
+     *     // ... data to create a SrmSyncRunItem
+     *   }
+     * })
+     * 
+     */
+    create<T extends SrmSyncRunItemCreateArgs>(args: SelectSubset<T, SrmSyncRunItemCreateArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many SrmSyncRunItems.
+     * @param {SrmSyncRunItemCreateManyArgs} args - Arguments to create many SrmSyncRunItems.
+     * @example
+     * // Create many SrmSyncRunItems
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SrmSyncRunItemCreateManyArgs>(args?: SelectSubset<T, SrmSyncRunItemCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SrmSyncRunItems and returns the data saved in the database.
+     * @param {SrmSyncRunItemCreateManyAndReturnArgs} args - Arguments to create many SrmSyncRunItems.
+     * @example
+     * // Create many SrmSyncRunItems
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SrmSyncRunItems and only return the `id`
+     * const srmSyncRunItemWithIdOnly = await prisma.srmSyncRunItem.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SrmSyncRunItemCreateManyAndReturnArgs>(args?: SelectSubset<T, SrmSyncRunItemCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a SrmSyncRunItem.
+     * @param {SrmSyncRunItemDeleteArgs} args - Arguments to delete one SrmSyncRunItem.
+     * @example
+     * // Delete one SrmSyncRunItem
+     * const SrmSyncRunItem = await prisma.srmSyncRunItem.delete({
+     *   where: {
+     *     // ... filter to delete one SrmSyncRunItem
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SrmSyncRunItemDeleteArgs>(args: SelectSubset<T, SrmSyncRunItemDeleteArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one SrmSyncRunItem.
+     * @param {SrmSyncRunItemUpdateArgs} args - Arguments to update one SrmSyncRunItem.
+     * @example
+     * // Update one SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SrmSyncRunItemUpdateArgs>(args: SelectSubset<T, SrmSyncRunItemUpdateArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more SrmSyncRunItems.
+     * @param {SrmSyncRunItemDeleteManyArgs} args - Arguments to filter SrmSyncRunItems to delete.
+     * @example
+     * // Delete a few SrmSyncRunItems
+     * const { count } = await prisma.srmSyncRunItem.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SrmSyncRunItemDeleteManyArgs>(args?: SelectSubset<T, SrmSyncRunItemDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SrmSyncRunItems.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SrmSyncRunItems
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SrmSyncRunItemUpdateManyArgs>(args: SelectSubset<T, SrmSyncRunItemUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SrmSyncRunItems and returns the data updated in the database.
+     * @param {SrmSyncRunItemUpdateManyAndReturnArgs} args - Arguments to update many SrmSyncRunItems.
+     * @example
+     * // Update many SrmSyncRunItems
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SrmSyncRunItems and only return the `id`
+     * const srmSyncRunItemWithIdOnly = await prisma.srmSyncRunItem.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SrmSyncRunItemUpdateManyAndReturnArgs>(args: SelectSubset<T, SrmSyncRunItemUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one SrmSyncRunItem.
+     * @param {SrmSyncRunItemUpsertArgs} args - Arguments to update or create a SrmSyncRunItem.
+     * @example
+     * // Update or create a SrmSyncRunItem
+     * const srmSyncRunItem = await prisma.srmSyncRunItem.upsert({
+     *   create: {
+     *     // ... data to create a SrmSyncRunItem
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SrmSyncRunItem we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SrmSyncRunItemUpsertArgs>(args: SelectSubset<T, SrmSyncRunItemUpsertArgs<ExtArgs>>): Prisma__SrmSyncRunItemClient<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of SrmSyncRunItems.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemCountArgs} args - Arguments to filter SrmSyncRunItems to count.
+     * @example
+     * // Count the number of SrmSyncRunItems
+     * const count = await prisma.srmSyncRunItem.count({
+     *   where: {
+     *     // ... the filter for the SrmSyncRunItems we want to count
+     *   }
+     * })
+    **/
+    count<T extends SrmSyncRunItemCountArgs>(
+      args?: Subset<T, SrmSyncRunItemCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SrmSyncRunItemCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SrmSyncRunItem.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SrmSyncRunItemAggregateArgs>(args: Subset<T, SrmSyncRunItemAggregateArgs>): Prisma.PrismaPromise<GetSrmSyncRunItemAggregateType<T>>
+
+    /**
+     * Group by SrmSyncRunItem.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SrmSyncRunItemGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SrmSyncRunItemGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SrmSyncRunItemGroupByArgs['orderBy'] }
+        : { orderBy?: SrmSyncRunItemGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SrmSyncRunItemGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSrmSyncRunItemGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SrmSyncRunItem model
+   */
+  readonly fields: SrmSyncRunItemFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SrmSyncRunItem.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SrmSyncRunItemClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    run<T extends SrmSyncRunDefaultArgs<ExtArgs> = {}>(args?: Subset<T, SrmSyncRunDefaultArgs<ExtArgs>>): Prisma__SrmSyncRunClient<$Result.GetResult<Prisma.$SrmSyncRunPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    flat<T extends SrmSyncRunItem$flatArgs<ExtArgs> = {}>(args?: Subset<T, SrmSyncRunItem$flatArgs<ExtArgs>>): Prisma__ExtractionResultFlatClient<$Result.GetResult<Prisma.$ExtractionResultFlatPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SrmSyncRunItem model
+   */
+  interface SrmSyncRunItemFieldRefs {
+    readonly id: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly runId: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly pptNumber: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly srmDesignNumber: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly flatId: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly action: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly errorMessage: FieldRef<"SrmSyncRunItem", 'String'>
+    readonly createdAt: FieldRef<"SrmSyncRunItem", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SrmSyncRunItem findUnique
+   */
+  export type SrmSyncRunItemFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRunItem to fetch.
+     */
+    where: SrmSyncRunItemWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRunItem findUniqueOrThrow
+   */
+  export type SrmSyncRunItemFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRunItem to fetch.
+     */
+    where: SrmSyncRunItemWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRunItem findFirst
+   */
+  export type SrmSyncRunItemFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRunItem to fetch.
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRunItems to fetch.
+     */
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SrmSyncRunItems.
+     */
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRunItems from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRunItems.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SrmSyncRunItems.
+     */
+    distinct?: SrmSyncRunItemScalarFieldEnum | SrmSyncRunItemScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRunItem findFirstOrThrow
+   */
+  export type SrmSyncRunItemFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRunItem to fetch.
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRunItems to fetch.
+     */
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SrmSyncRunItems.
+     */
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRunItems from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRunItems.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SrmSyncRunItems.
+     */
+    distinct?: SrmSyncRunItemScalarFieldEnum | SrmSyncRunItemScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRunItem findMany
+   */
+  export type SrmSyncRunItemFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter, which SrmSyncRunItems to fetch.
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SrmSyncRunItems to fetch.
+     */
+    orderBy?: SrmSyncRunItemOrderByWithRelationInput | SrmSyncRunItemOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SrmSyncRunItems.
+     */
+    cursor?: SrmSyncRunItemWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SrmSyncRunItems from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SrmSyncRunItems.
+     */
+    skip?: number
+    distinct?: SrmSyncRunItemScalarFieldEnum | SrmSyncRunItemScalarFieldEnum[]
+  }
+
+  /**
+   * SrmSyncRunItem create
+   */
+  export type SrmSyncRunItemCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SrmSyncRunItem.
+     */
+    data: XOR<SrmSyncRunItemCreateInput, SrmSyncRunItemUncheckedCreateInput>
+  }
+
+  /**
+   * SrmSyncRunItem createMany
+   */
+  export type SrmSyncRunItemCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SrmSyncRunItems.
+     */
+    data: SrmSyncRunItemCreateManyInput | SrmSyncRunItemCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SrmSyncRunItem createManyAndReturn
+   */
+  export type SrmSyncRunItemCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * The data used to create many SrmSyncRunItems.
+     */
+    data: SrmSyncRunItemCreateManyInput | SrmSyncRunItemCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SrmSyncRunItem update
+   */
+  export type SrmSyncRunItemUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SrmSyncRunItem.
+     */
+    data: XOR<SrmSyncRunItemUpdateInput, SrmSyncRunItemUncheckedUpdateInput>
+    /**
+     * Choose, which SrmSyncRunItem to update.
+     */
+    where: SrmSyncRunItemWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRunItem updateMany
+   */
+  export type SrmSyncRunItemUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SrmSyncRunItems.
+     */
+    data: XOR<SrmSyncRunItemUpdateManyMutationInput, SrmSyncRunItemUncheckedUpdateManyInput>
+    /**
+     * Filter which SrmSyncRunItems to update
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * Limit how many SrmSyncRunItems to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SrmSyncRunItem updateManyAndReturn
+   */
+  export type SrmSyncRunItemUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * The data used to update SrmSyncRunItems.
+     */
+    data: XOR<SrmSyncRunItemUpdateManyMutationInput, SrmSyncRunItemUncheckedUpdateManyInput>
+    /**
+     * Filter which SrmSyncRunItems to update
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * Limit how many SrmSyncRunItems to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SrmSyncRunItem upsert
+   */
+  export type SrmSyncRunItemUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SrmSyncRunItem to update in case it exists.
+     */
+    where: SrmSyncRunItemWhereUniqueInput
+    /**
+     * In case the SrmSyncRunItem found by the `where` argument doesn't exist, create a new SrmSyncRunItem with this data.
+     */
+    create: XOR<SrmSyncRunItemCreateInput, SrmSyncRunItemUncheckedCreateInput>
+    /**
+     * In case the SrmSyncRunItem was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SrmSyncRunItemUpdateInput, SrmSyncRunItemUncheckedUpdateInput>
+  }
+
+  /**
+   * SrmSyncRunItem delete
+   */
+  export type SrmSyncRunItemDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+    /**
+     * Filter which SrmSyncRunItem to delete.
+     */
+    where: SrmSyncRunItemWhereUniqueInput
+  }
+
+  /**
+   * SrmSyncRunItem deleteMany
+   */
+  export type SrmSyncRunItemDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SrmSyncRunItems to delete
+     */
+    where?: SrmSyncRunItemWhereInput
+    /**
+     * Limit how many SrmSyncRunItems to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SrmSyncRunItem.flat
+   */
+  export type SrmSyncRunItem$flatArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExtractionResultFlat
+     */
+    select?: ExtractionResultFlatSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExtractionResultFlat
+     */
+    omit?: ExtractionResultFlatOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ExtractionResultFlatInclude<ExtArgs> | null
+    where?: ExtractionResultFlatWhereInput
+  }
+
+  /**
+   * SrmSyncRunItem without action
+   */
+  export type SrmSyncRunItemDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SrmSyncRunItem
+     */
+    select?: SrmSyncRunItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SrmSyncRunItem
+     */
+    omit?: SrmSyncRunItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SrmSyncRunItemInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -35950,7 +38546,8 @@ export namespace Prisma {
     variantColor: 'variantColor',
     sapSyncStatus: 'sapSyncStatus',
     sapArticleId: 'sapArticleId',
-    sapSyncMessage: 'sapSyncMessage'
+    sapSyncMessage: 'sapSyncMessage',
+    srmOriginalDesignNumber: 'srmOriginalDesignNumber'
   };
 
   export type ExtractionResultFlatScalarFieldEnum = (typeof ExtractionResultFlatScalarFieldEnum)[keyof typeof ExtractionResultFlatScalarFieldEnum]
@@ -36301,6 +38898,36 @@ export namespace Prisma {
   export type Article360FlatScalarFieldEnum = (typeof Article360FlatScalarFieldEnum)[keyof typeof Article360FlatScalarFieldEnum]
 
 
+  export const SrmSyncRunScalarFieldEnum: {
+    id: 'id',
+    triggeredBy: 'triggeredBy',
+    startedAt: 'startedAt',
+    completedAt: 'completedAt',
+    total: 'total',
+    inserted: 'inserted',
+    skipped: 'skipped',
+    patched: 'patched',
+    errors: 'errors',
+    notes: 'notes'
+  };
+
+  export type SrmSyncRunScalarFieldEnum = (typeof SrmSyncRunScalarFieldEnum)[keyof typeof SrmSyncRunScalarFieldEnum]
+
+
+  export const SrmSyncRunItemScalarFieldEnum: {
+    id: 'id',
+    runId: 'runId',
+    pptNumber: 'pptNumber',
+    srmDesignNumber: 'srmDesignNumber',
+    flatId: 'flatId',
+    action: 'action',
+    errorMessage: 'errorMessage',
+    createdAt: 'createdAt'
+  };
+
+  export type SrmSyncRunItemScalarFieldEnum = (typeof SrmSyncRunItemScalarFieldEnum)[keyof typeof SrmSyncRunItemScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -36534,7 +39161,8 @@ export namespace Prisma {
     variantSize: 'variantSize',
     variantColor: 'variantColor',
     sapArticleId: 'sapArticleId',
-    sapSyncMessage: 'sapSyncMessage'
+    sapSyncMessage: 'sapSyncMessage',
+    srmOriginalDesignNumber: 'srmOriginalDesignNumber'
   };
 
   export type ExtractionResultFlatOrderByRelevanceFieldEnum = (typeof ExtractionResultFlatOrderByRelevanceFieldEnum)[keyof typeof ExtractionResultFlatOrderByRelevanceFieldEnum]
@@ -36809,6 +39437,28 @@ export namespace Prisma {
   };
 
   export type Article360FlatOrderByRelevanceFieldEnum = (typeof Article360FlatOrderByRelevanceFieldEnum)[keyof typeof Article360FlatOrderByRelevanceFieldEnum]
+
+
+  export const SrmSyncRunOrderByRelevanceFieldEnum: {
+    id: 'id',
+    triggeredBy: 'triggeredBy',
+    notes: 'notes'
+  };
+
+  export type SrmSyncRunOrderByRelevanceFieldEnum = (typeof SrmSyncRunOrderByRelevanceFieldEnum)[keyof typeof SrmSyncRunOrderByRelevanceFieldEnum]
+
+
+  export const SrmSyncRunItemOrderByRelevanceFieldEnum: {
+    id: 'id',
+    runId: 'runId',
+    pptNumber: 'pptNumber',
+    srmDesignNumber: 'srmDesignNumber',
+    flatId: 'flatId',
+    action: 'action',
+    errorMessage: 'errorMessage'
+  };
+
+  export type SrmSyncRunItemOrderByRelevanceFieldEnum = (typeof SrmSyncRunItemOrderByRelevanceFieldEnum)[keyof typeof SrmSyncRunItemOrderByRelevanceFieldEnum]
 
 
   /**
@@ -37972,8 +40622,10 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFilter<"ExtractionResultFlat"> | $Enums.SapSyncStatus
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
+    srmSyncRunItems?: SrmSyncRunItemListRelationFilter
   }
 
   export type ExtractionResultFlatOrderByWithRelationInput = {
@@ -38096,8 +40748,10 @@ export namespace Prisma {
     sapSyncStatus?: SortOrder
     sapArticleId?: SortOrderInput | SortOrder
     sapSyncMessage?: SortOrderInput | SortOrder
+    srmOriginalDesignNumber?: SortOrderInput | SortOrder
     approver?: UserOrderByWithRelationInput
     job?: ExtractionJobOrderByWithRelationInput
+    srmSyncRunItems?: SrmSyncRunItemOrderByRelationAggregateInput
     _relevance?: ExtractionResultFlatOrderByRelevanceInput
   }
 
@@ -38224,8 +40878,10 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFilter<"ExtractionResultFlat"> | $Enums.SapSyncStatus
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
+    srmSyncRunItems?: SrmSyncRunItemListRelationFilter
   }, "id" | "jobId" | "imageUncPath">
 
   export type ExtractionResultFlatOrderByWithAggregationInput = {
@@ -38348,6 +41004,7 @@ export namespace Prisma {
     sapSyncStatus?: SortOrder
     sapArticleId?: SortOrderInput | SortOrder
     sapSyncMessage?: SortOrderInput | SortOrder
+    srmOriginalDesignNumber?: SortOrderInput | SortOrder
     _count?: ExtractionResultFlatCountOrderByAggregateInput
     _avg?: ExtractionResultFlatAvgOrderByAggregateInput
     _max?: ExtractionResultFlatMaxOrderByAggregateInput
@@ -38478,6 +41135,7 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusWithAggregatesFilter<"ExtractionResultFlat"> | $Enums.SapSyncStatus
     sapArticleId?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
+    srmOriginalDesignNumber?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
   }
 
   export type MvgrLookupWhereInput = {
@@ -40256,6 +42914,163 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"Article360Flat"> | Date | string
   }
 
+  export type SrmSyncRunWhereInput = {
+    AND?: SrmSyncRunWhereInput | SrmSyncRunWhereInput[]
+    OR?: SrmSyncRunWhereInput[]
+    NOT?: SrmSyncRunWhereInput | SrmSyncRunWhereInput[]
+    id?: StringFilter<"SrmSyncRun"> | string
+    triggeredBy?: StringFilter<"SrmSyncRun"> | string
+    startedAt?: DateTimeFilter<"SrmSyncRun"> | Date | string
+    completedAt?: DateTimeNullableFilter<"SrmSyncRun"> | Date | string | null
+    total?: IntFilter<"SrmSyncRun"> | number
+    inserted?: IntFilter<"SrmSyncRun"> | number
+    skipped?: IntFilter<"SrmSyncRun"> | number
+    patched?: IntFilter<"SrmSyncRun"> | number
+    errors?: IntFilter<"SrmSyncRun"> | number
+    notes?: StringNullableFilter<"SrmSyncRun"> | string | null
+    items?: SrmSyncRunItemListRelationFilter
+  }
+
+  export type SrmSyncRunOrderByWithRelationInput = {
+    id?: SortOrder
+    triggeredBy?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+    notes?: SortOrderInput | SortOrder
+    items?: SrmSyncRunItemOrderByRelationAggregateInput
+    _relevance?: SrmSyncRunOrderByRelevanceInput
+  }
+
+  export type SrmSyncRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: SrmSyncRunWhereInput | SrmSyncRunWhereInput[]
+    OR?: SrmSyncRunWhereInput[]
+    NOT?: SrmSyncRunWhereInput | SrmSyncRunWhereInput[]
+    triggeredBy?: StringFilter<"SrmSyncRun"> | string
+    startedAt?: DateTimeFilter<"SrmSyncRun"> | Date | string
+    completedAt?: DateTimeNullableFilter<"SrmSyncRun"> | Date | string | null
+    total?: IntFilter<"SrmSyncRun"> | number
+    inserted?: IntFilter<"SrmSyncRun"> | number
+    skipped?: IntFilter<"SrmSyncRun"> | number
+    patched?: IntFilter<"SrmSyncRun"> | number
+    errors?: IntFilter<"SrmSyncRun"> | number
+    notes?: StringNullableFilter<"SrmSyncRun"> | string | null
+    items?: SrmSyncRunItemListRelationFilter
+  }, "id">
+
+  export type SrmSyncRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    triggeredBy?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+    notes?: SortOrderInput | SortOrder
+    _count?: SrmSyncRunCountOrderByAggregateInput
+    _avg?: SrmSyncRunAvgOrderByAggregateInput
+    _max?: SrmSyncRunMaxOrderByAggregateInput
+    _min?: SrmSyncRunMinOrderByAggregateInput
+    _sum?: SrmSyncRunSumOrderByAggregateInput
+  }
+
+  export type SrmSyncRunScalarWhereWithAggregatesInput = {
+    AND?: SrmSyncRunScalarWhereWithAggregatesInput | SrmSyncRunScalarWhereWithAggregatesInput[]
+    OR?: SrmSyncRunScalarWhereWithAggregatesInput[]
+    NOT?: SrmSyncRunScalarWhereWithAggregatesInput | SrmSyncRunScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"SrmSyncRun"> | string
+    triggeredBy?: StringWithAggregatesFilter<"SrmSyncRun"> | string
+    startedAt?: DateTimeWithAggregatesFilter<"SrmSyncRun"> | Date | string
+    completedAt?: DateTimeNullableWithAggregatesFilter<"SrmSyncRun"> | Date | string | null
+    total?: IntWithAggregatesFilter<"SrmSyncRun"> | number
+    inserted?: IntWithAggregatesFilter<"SrmSyncRun"> | number
+    skipped?: IntWithAggregatesFilter<"SrmSyncRun"> | number
+    patched?: IntWithAggregatesFilter<"SrmSyncRun"> | number
+    errors?: IntWithAggregatesFilter<"SrmSyncRun"> | number
+    notes?: StringNullableWithAggregatesFilter<"SrmSyncRun"> | string | null
+  }
+
+  export type SrmSyncRunItemWhereInput = {
+    AND?: SrmSyncRunItemWhereInput | SrmSyncRunItemWhereInput[]
+    OR?: SrmSyncRunItemWhereInput[]
+    NOT?: SrmSyncRunItemWhereInput | SrmSyncRunItemWhereInput[]
+    id?: StringFilter<"SrmSyncRunItem"> | string
+    runId?: StringFilter<"SrmSyncRunItem"> | string
+    pptNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    srmDesignNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    flatId?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    action?: StringFilter<"SrmSyncRunItem"> | string
+    errorMessage?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    createdAt?: DateTimeFilter<"SrmSyncRunItem"> | Date | string
+    run?: XOR<SrmSyncRunScalarRelationFilter, SrmSyncRunWhereInput>
+    flat?: XOR<ExtractionResultFlatNullableScalarRelationFilter, ExtractionResultFlatWhereInput> | null
+  }
+
+  export type SrmSyncRunItemOrderByWithRelationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    pptNumber?: SortOrderInput | SortOrder
+    srmDesignNumber?: SortOrderInput | SortOrder
+    flatId?: SortOrderInput | SortOrder
+    action?: SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    run?: SrmSyncRunOrderByWithRelationInput
+    flat?: ExtractionResultFlatOrderByWithRelationInput
+    _relevance?: SrmSyncRunItemOrderByRelevanceInput
+  }
+
+  export type SrmSyncRunItemWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: SrmSyncRunItemWhereInput | SrmSyncRunItemWhereInput[]
+    OR?: SrmSyncRunItemWhereInput[]
+    NOT?: SrmSyncRunItemWhereInput | SrmSyncRunItemWhereInput[]
+    runId?: StringFilter<"SrmSyncRunItem"> | string
+    pptNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    srmDesignNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    flatId?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    action?: StringFilter<"SrmSyncRunItem"> | string
+    errorMessage?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    createdAt?: DateTimeFilter<"SrmSyncRunItem"> | Date | string
+    run?: XOR<SrmSyncRunScalarRelationFilter, SrmSyncRunWhereInput>
+    flat?: XOR<ExtractionResultFlatNullableScalarRelationFilter, ExtractionResultFlatWhereInput> | null
+  }, "id">
+
+  export type SrmSyncRunItemOrderByWithAggregationInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    pptNumber?: SortOrderInput | SortOrder
+    srmDesignNumber?: SortOrderInput | SortOrder
+    flatId?: SortOrderInput | SortOrder
+    action?: SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: SrmSyncRunItemCountOrderByAggregateInput
+    _max?: SrmSyncRunItemMaxOrderByAggregateInput
+    _min?: SrmSyncRunItemMinOrderByAggregateInput
+  }
+
+  export type SrmSyncRunItemScalarWhereWithAggregatesInput = {
+    AND?: SrmSyncRunItemScalarWhereWithAggregatesInput | SrmSyncRunItemScalarWhereWithAggregatesInput[]
+    OR?: SrmSyncRunItemScalarWhereWithAggregatesInput[]
+    NOT?: SrmSyncRunItemScalarWhereWithAggregatesInput | SrmSyncRunItemScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"SrmSyncRunItem"> | string
+    runId?: StringWithAggregatesFilter<"SrmSyncRunItem"> | string
+    pptNumber?: StringNullableWithAggregatesFilter<"SrmSyncRunItem"> | string | null
+    srmDesignNumber?: StringNullableWithAggregatesFilter<"SrmSyncRunItem"> | string | null
+    flatId?: StringNullableWithAggregatesFilter<"SrmSyncRunItem"> | string | null
+    action?: StringWithAggregatesFilter<"SrmSyncRunItem"> | string
+    errorMessage?: StringNullableWithAggregatesFilter<"SrmSyncRunItem"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"SrmSyncRunItem"> | Date | string
+  }
+
   export type DepartmentCreateInput = {
     code: string
     name: string
@@ -41302,8 +44117,10 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
     job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+    srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUncheckedCreateInput = {
@@ -41426,6 +44243,8 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUpdateInput = {
@@ -41546,8 +44365,10 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
     job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+    srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateInput = {
@@ -41670,6 +44491,8 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatCreateManyInput = {
@@ -41792,6 +44615,7 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
   }
 
   export type ExtractionResultFlatUpdateManyMutationInput = {
@@ -41912,6 +44736,7 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ExtractionResultFlatUncheckedUpdateManyInput = {
@@ -42034,6 +44859,7 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type MvgrLookupCreateInput = {
@@ -44127,6 +46953,176 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type SrmSyncRunCreateInput = {
+    id?: string
+    triggeredBy?: string
+    startedAt?: Date | string
+    completedAt?: Date | string | null
+    total?: number
+    inserted?: number
+    skipped?: number
+    patched?: number
+    errors?: number
+    notes?: string | null
+    items?: SrmSyncRunItemCreateNestedManyWithoutRunInput
+  }
+
+  export type SrmSyncRunUncheckedCreateInput = {
+    id?: string
+    triggeredBy?: string
+    startedAt?: Date | string
+    completedAt?: Date | string | null
+    total?: number
+    inserted?: number
+    skipped?: number
+    patched?: number
+    errors?: number
+    notes?: string | null
+    items?: SrmSyncRunItemUncheckedCreateNestedManyWithoutRunInput
+  }
+
+  export type SrmSyncRunUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    items?: SrmSyncRunItemUpdateManyWithoutRunNestedInput
+  }
+
+  export type SrmSyncRunUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    items?: SrmSyncRunItemUncheckedUpdateManyWithoutRunNestedInput
+  }
+
+  export type SrmSyncRunCreateManyInput = {
+    id?: string
+    triggeredBy?: string
+    startedAt?: Date | string
+    completedAt?: Date | string | null
+    total?: number
+    inserted?: number
+    skipped?: number
+    patched?: number
+    errors?: number
+    notes?: string | null
+  }
+
+  export type SrmSyncRunUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type SrmSyncRunUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type SrmSyncRunItemCreateInput = {
+    id?: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+    run: SrmSyncRunCreateNestedOneWithoutItemsInput
+    flat?: ExtractionResultFlatCreateNestedOneWithoutSrmSyncRunItemsInput
+  }
+
+  export type SrmSyncRunItemUncheckedCreateInput = {
+    id?: string
+    runId: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    flatId?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    run?: SrmSyncRunUpdateOneRequiredWithoutItemsNestedInput
+    flat?: ExtractionResultFlatUpdateOneWithoutSrmSyncRunItemsNestedInput
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runId?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SrmSyncRunItemCreateManyInput = {
+    id?: string
+    runId: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    flatId?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runId?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -45161,6 +48157,16 @@ export namespace Prisma {
     not?: NestedEnumSapSyncStatusFilter<$PrismaModel> | $Enums.SapSyncStatus
   }
 
+  export type SrmSyncRunItemListRelationFilter = {
+    every?: SrmSyncRunItemWhereInput
+    some?: SrmSyncRunItemWhereInput
+    none?: SrmSyncRunItemWhereInput
+  }
+
+  export type SrmSyncRunItemOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type ExtractionResultFlatOrderByRelevanceInput = {
     fields: ExtractionResultFlatOrderByRelevanceFieldEnum | ExtractionResultFlatOrderByRelevanceFieldEnum[]
     sort: SortOrder
@@ -45287,6 +48293,7 @@ export namespace Prisma {
     sapSyncStatus?: SortOrder
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
+    srmOriginalDesignNumber?: SortOrder
   }
 
   export type ExtractionResultFlatAvgOrderByAggregateInput = {
@@ -45424,6 +48431,7 @@ export namespace Prisma {
     sapSyncStatus?: SortOrder
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
+    srmOriginalDesignNumber?: SortOrder
   }
 
   export type ExtractionResultFlatMinOrderByAggregateInput = {
@@ -45546,6 +48554,7 @@ export namespace Prisma {
     sapSyncStatus?: SortOrder
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
+    srmOriginalDesignNumber?: SortOrder
   }
 
   export type ExtractionResultFlatSumOrderByAggregateInput = {
@@ -46865,6 +49874,111 @@ export namespace Prisma {
     userId?: SortOrder
   }
 
+  export type SrmSyncRunOrderByRelevanceInput = {
+    fields: SrmSyncRunOrderByRelevanceFieldEnum | SrmSyncRunOrderByRelevanceFieldEnum[]
+    sort: SortOrder
+    search: string
+  }
+
+  export type SrmSyncRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    triggeredBy?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+    notes?: SortOrder
+  }
+
+  export type SrmSyncRunAvgOrderByAggregateInput = {
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+  }
+
+  export type SrmSyncRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    triggeredBy?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+    notes?: SortOrder
+  }
+
+  export type SrmSyncRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    triggeredBy?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+    notes?: SortOrder
+  }
+
+  export type SrmSyncRunSumOrderByAggregateInput = {
+    total?: SortOrder
+    inserted?: SortOrder
+    skipped?: SortOrder
+    patched?: SortOrder
+    errors?: SortOrder
+  }
+
+  export type SrmSyncRunScalarRelationFilter = {
+    is?: SrmSyncRunWhereInput
+    isNot?: SrmSyncRunWhereInput
+  }
+
+  export type SrmSyncRunItemOrderByRelevanceInput = {
+    fields: SrmSyncRunItemOrderByRelevanceFieldEnum | SrmSyncRunItemOrderByRelevanceFieldEnum[]
+    sort: SortOrder
+    search: string
+  }
+
+  export type SrmSyncRunItemCountOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    pptNumber?: SortOrder
+    srmDesignNumber?: SortOrder
+    flatId?: SortOrder
+    action?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type SrmSyncRunItemMaxOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    pptNumber?: SortOrder
+    srmDesignNumber?: SortOrder
+    flatId?: SortOrder
+    action?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type SrmSyncRunItemMinOrderByAggregateInput = {
+    id?: SortOrder
+    runId?: SortOrder
+    pptNumber?: SortOrder
+    srmDesignNumber?: SortOrder
+    flatId?: SortOrder
+    action?: SortOrder
+    errorMessage?: SortOrder
+    createdAt?: SortOrder
+  }
+
   export type SubDepartmentCreateNestedManyWithoutDepartmentInput = {
     create?: XOR<SubDepartmentCreateWithoutDepartmentInput, SubDepartmentUncheckedCreateWithoutDepartmentInput> | SubDepartmentCreateWithoutDepartmentInput[] | SubDepartmentUncheckedCreateWithoutDepartmentInput[]
     connectOrCreate?: SubDepartmentCreateOrConnectWithoutDepartmentInput | SubDepartmentCreateOrConnectWithoutDepartmentInput[]
@@ -47520,6 +50634,20 @@ export namespace Prisma {
     connect?: ExtractionJobWhereUniqueInput
   }
 
+  export type SrmSyncRunItemCreateNestedManyWithoutFlatInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput> | SrmSyncRunItemCreateWithoutFlatInput[] | SrmSyncRunItemUncheckedCreateWithoutFlatInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutFlatInput | SrmSyncRunItemCreateOrConnectWithoutFlatInput[]
+    createMany?: SrmSyncRunItemCreateManyFlatInputEnvelope
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+  }
+
+  export type SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput> | SrmSyncRunItemCreateWithoutFlatInput[] | SrmSyncRunItemUncheckedCreateWithoutFlatInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutFlatInput | SrmSyncRunItemCreateOrConnectWithoutFlatInput[]
+    createMany?: SrmSyncRunItemCreateManyFlatInputEnvelope
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+  }
+
   export type EnumApprovalStatusFieldUpdateOperationsInput = {
     set?: $Enums.ApprovalStatus
   }
@@ -47544,6 +50672,34 @@ export namespace Prisma {
     upsert?: ExtractionJobUpsertWithoutFlatResultInput
     connect?: ExtractionJobWhereUniqueInput
     update?: XOR<XOR<ExtractionJobUpdateToOneWithWhereWithoutFlatResultInput, ExtractionJobUpdateWithoutFlatResultInput>, ExtractionJobUncheckedUpdateWithoutFlatResultInput>
+  }
+
+  export type SrmSyncRunItemUpdateManyWithoutFlatNestedInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput> | SrmSyncRunItemCreateWithoutFlatInput[] | SrmSyncRunItemUncheckedCreateWithoutFlatInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutFlatInput | SrmSyncRunItemCreateOrConnectWithoutFlatInput[]
+    upsert?: SrmSyncRunItemUpsertWithWhereUniqueWithoutFlatInput | SrmSyncRunItemUpsertWithWhereUniqueWithoutFlatInput[]
+    createMany?: SrmSyncRunItemCreateManyFlatInputEnvelope
+    set?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    disconnect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    delete?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    update?: SrmSyncRunItemUpdateWithWhereUniqueWithoutFlatInput | SrmSyncRunItemUpdateWithWhereUniqueWithoutFlatInput[]
+    updateMany?: SrmSyncRunItemUpdateManyWithWhereWithoutFlatInput | SrmSyncRunItemUpdateManyWithWhereWithoutFlatInput[]
+    deleteMany?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput> | SrmSyncRunItemCreateWithoutFlatInput[] | SrmSyncRunItemUncheckedCreateWithoutFlatInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutFlatInput | SrmSyncRunItemCreateOrConnectWithoutFlatInput[]
+    upsert?: SrmSyncRunItemUpsertWithWhereUniqueWithoutFlatInput | SrmSyncRunItemUpsertWithWhereUniqueWithoutFlatInput[]
+    createMany?: SrmSyncRunItemCreateManyFlatInputEnvelope
+    set?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    disconnect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    delete?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    update?: SrmSyncRunItemUpdateWithWhereUniqueWithoutFlatInput | SrmSyncRunItemUpdateWithWhereUniqueWithoutFlatInput[]
+    updateMany?: SrmSyncRunItemUpdateManyWithWhereWithoutFlatInput | SrmSyncRunItemUpdateManyWithWhereWithoutFlatInput[]
+    deleteMany?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
   }
 
   export type ApiKeyCreateNestedManyWithoutUserInput = {
@@ -48068,6 +51224,78 @@ export namespace Prisma {
     upsert?: SapFieldConfigUpsertWithoutValuesInput
     connect?: SapFieldConfigWhereUniqueInput
     update?: XOR<XOR<SapFieldConfigUpdateToOneWithWhereWithoutValuesInput, SapFieldConfigUpdateWithoutValuesInput>, SapFieldConfigUncheckedUpdateWithoutValuesInput>
+  }
+
+  export type SrmSyncRunItemCreateNestedManyWithoutRunInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput> | SrmSyncRunItemCreateWithoutRunInput[] | SrmSyncRunItemUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutRunInput | SrmSyncRunItemCreateOrConnectWithoutRunInput[]
+    createMany?: SrmSyncRunItemCreateManyRunInputEnvelope
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+  }
+
+  export type SrmSyncRunItemUncheckedCreateNestedManyWithoutRunInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput> | SrmSyncRunItemCreateWithoutRunInput[] | SrmSyncRunItemUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutRunInput | SrmSyncRunItemCreateOrConnectWithoutRunInput[]
+    createMany?: SrmSyncRunItemCreateManyRunInputEnvelope
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+  }
+
+  export type SrmSyncRunItemUpdateManyWithoutRunNestedInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput> | SrmSyncRunItemCreateWithoutRunInput[] | SrmSyncRunItemUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutRunInput | SrmSyncRunItemCreateOrConnectWithoutRunInput[]
+    upsert?: SrmSyncRunItemUpsertWithWhereUniqueWithoutRunInput | SrmSyncRunItemUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: SrmSyncRunItemCreateManyRunInputEnvelope
+    set?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    disconnect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    delete?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    update?: SrmSyncRunItemUpdateWithWhereUniqueWithoutRunInput | SrmSyncRunItemUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: SrmSyncRunItemUpdateManyWithWhereWithoutRunInput | SrmSyncRunItemUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateManyWithoutRunNestedInput = {
+    create?: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput> | SrmSyncRunItemCreateWithoutRunInput[] | SrmSyncRunItemUncheckedCreateWithoutRunInput[]
+    connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutRunInput | SrmSyncRunItemCreateOrConnectWithoutRunInput[]
+    upsert?: SrmSyncRunItemUpsertWithWhereUniqueWithoutRunInput | SrmSyncRunItemUpsertWithWhereUniqueWithoutRunInput[]
+    createMany?: SrmSyncRunItemCreateManyRunInputEnvelope
+    set?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    disconnect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    delete?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    connect?: SrmSyncRunItemWhereUniqueInput | SrmSyncRunItemWhereUniqueInput[]
+    update?: SrmSyncRunItemUpdateWithWhereUniqueWithoutRunInput | SrmSyncRunItemUpdateWithWhereUniqueWithoutRunInput[]
+    updateMany?: SrmSyncRunItemUpdateManyWithWhereWithoutRunInput | SrmSyncRunItemUpdateManyWithWhereWithoutRunInput[]
+    deleteMany?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
+  }
+
+  export type SrmSyncRunCreateNestedOneWithoutItemsInput = {
+    create?: XOR<SrmSyncRunCreateWithoutItemsInput, SrmSyncRunUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: SrmSyncRunCreateOrConnectWithoutItemsInput
+    connect?: SrmSyncRunWhereUniqueInput
+  }
+
+  export type ExtractionResultFlatCreateNestedOneWithoutSrmSyncRunItemsInput = {
+    create?: XOR<ExtractionResultFlatCreateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput>
+    connectOrCreate?: ExtractionResultFlatCreateOrConnectWithoutSrmSyncRunItemsInput
+    connect?: ExtractionResultFlatWhereUniqueInput
+  }
+
+  export type SrmSyncRunUpdateOneRequiredWithoutItemsNestedInput = {
+    create?: XOR<SrmSyncRunCreateWithoutItemsInput, SrmSyncRunUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: SrmSyncRunCreateOrConnectWithoutItemsInput
+    upsert?: SrmSyncRunUpsertWithoutItemsInput
+    connect?: SrmSyncRunWhereUniqueInput
+    update?: XOR<XOR<SrmSyncRunUpdateToOneWithWhereWithoutItemsInput, SrmSyncRunUpdateWithoutItemsInput>, SrmSyncRunUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type ExtractionResultFlatUpdateOneWithoutSrmSyncRunItemsNestedInput = {
+    create?: XOR<ExtractionResultFlatCreateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput>
+    connectOrCreate?: ExtractionResultFlatCreateOrConnectWithoutSrmSyncRunItemsInput
+    upsert?: ExtractionResultFlatUpsertWithoutSrmSyncRunItemsInput
+    disconnect?: ExtractionResultFlatWhereInput | boolean
+    delete?: ExtractionResultFlatWhereInput | boolean
+    connect?: ExtractionResultFlatWhereUniqueInput
+    update?: XOR<XOR<ExtractionResultFlatUpdateToOneWithWhereWithoutSrmSyncRunItemsInput, ExtractionResultFlatUpdateWithoutSrmSyncRunItemsInput>, ExtractionResultFlatUncheckedUpdateWithoutSrmSyncRunItemsInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -49735,7 +52963,9 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
+    srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUncheckedCreateWithoutJobInput = {
@@ -49857,6 +53087,8 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatCreateOrConnectWithoutJobInput = {
@@ -50101,7 +53333,9 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
+    srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateWithoutJobInput = {
@@ -50223,6 +53457,8 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
   export type MasterAttributeCreateWithoutExtractionsInput = {
@@ -50720,6 +53956,36 @@ export namespace Prisma {
     create: XOR<ExtractionJobCreateWithoutFlatResultInput, ExtractionJobUncheckedCreateWithoutFlatResultInput>
   }
 
+  export type SrmSyncRunItemCreateWithoutFlatInput = {
+    id?: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+    run: SrmSyncRunCreateNestedOneWithoutItemsInput
+  }
+
+  export type SrmSyncRunItemUncheckedCreateWithoutFlatInput = {
+    id?: string
+    runId: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemCreateOrConnectWithoutFlatInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    create: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput>
+  }
+
+  export type SrmSyncRunItemCreateManyFlatInputEnvelope = {
+    data: SrmSyncRunItemCreateManyFlatInput | SrmSyncRunItemCreateManyFlatInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserUpsertWithoutApprovedItemsInput = {
     update: XOR<UserUpdateWithoutApprovedItemsInput, UserUncheckedUpdateWithoutApprovedItemsInput>
     create: XOR<UserCreateWithoutApprovedItemsInput, UserUncheckedCreateWithoutApprovedItemsInput>
@@ -50831,6 +54097,36 @@ export namespace Prisma {
     inputTokens?: NullableIntFieldUpdateOperationsInput | number | null
     outputTokens?: NullableIntFieldUpdateOperationsInput | number | null
     results?: ExtractionResultUncheckedUpdateManyWithoutJobNestedInput
+  }
+
+  export type SrmSyncRunItemUpsertWithWhereUniqueWithoutFlatInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    update: XOR<SrmSyncRunItemUpdateWithoutFlatInput, SrmSyncRunItemUncheckedUpdateWithoutFlatInput>
+    create: XOR<SrmSyncRunItemCreateWithoutFlatInput, SrmSyncRunItemUncheckedCreateWithoutFlatInput>
+  }
+
+  export type SrmSyncRunItemUpdateWithWhereUniqueWithoutFlatInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    data: XOR<SrmSyncRunItemUpdateWithoutFlatInput, SrmSyncRunItemUncheckedUpdateWithoutFlatInput>
+  }
+
+  export type SrmSyncRunItemUpdateManyWithWhereWithoutFlatInput = {
+    where: SrmSyncRunItemScalarWhereInput
+    data: XOR<SrmSyncRunItemUpdateManyMutationInput, SrmSyncRunItemUncheckedUpdateManyWithoutFlatInput>
+  }
+
+  export type SrmSyncRunItemScalarWhereInput = {
+    AND?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
+    OR?: SrmSyncRunItemScalarWhereInput[]
+    NOT?: SrmSyncRunItemScalarWhereInput | SrmSyncRunItemScalarWhereInput[]
+    id?: StringFilter<"SrmSyncRunItem"> | string
+    runId?: StringFilter<"SrmSyncRunItem"> | string
+    pptNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    srmDesignNumber?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    flatId?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    action?: StringFilter<"SrmSyncRunItem"> | string
+    errorMessage?: StringNullableFilter<"SrmSyncRunItem"> | string | null
+    createdAt?: DateTimeFilter<"SrmSyncRunItem"> | Date | string
   }
 
   export type ApiKeyCreateWithoutUserInput = {
@@ -51121,7 +54417,9 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
     job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+    srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUncheckedCreateWithoutApproverInput = {
@@ -51243,6 +54541,8 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatCreateOrConnectWithoutApproverInput = {
@@ -51495,6 +54795,7 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFilter<"ExtractionResultFlat"> | $Enums.SapSyncStatus
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
   }
 
   export type UserCreateWithoutApiKeysInput = {
@@ -52835,6 +56136,628 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type SrmSyncRunItemCreateWithoutRunInput = {
+    id?: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+    flat?: ExtractionResultFlatCreateNestedOneWithoutSrmSyncRunItemsInput
+  }
+
+  export type SrmSyncRunItemUncheckedCreateWithoutRunInput = {
+    id?: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    flatId?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemCreateOrConnectWithoutRunInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    create: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput>
+  }
+
+  export type SrmSyncRunItemCreateManyRunInputEnvelope = {
+    data: SrmSyncRunItemCreateManyRunInput | SrmSyncRunItemCreateManyRunInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type SrmSyncRunItemUpsertWithWhereUniqueWithoutRunInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    update: XOR<SrmSyncRunItemUpdateWithoutRunInput, SrmSyncRunItemUncheckedUpdateWithoutRunInput>
+    create: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput>
+  }
+
+  export type SrmSyncRunItemUpdateWithWhereUniqueWithoutRunInput = {
+    where: SrmSyncRunItemWhereUniqueInput
+    data: XOR<SrmSyncRunItemUpdateWithoutRunInput, SrmSyncRunItemUncheckedUpdateWithoutRunInput>
+  }
+
+  export type SrmSyncRunItemUpdateManyWithWhereWithoutRunInput = {
+    where: SrmSyncRunItemScalarWhereInput
+    data: XOR<SrmSyncRunItemUpdateManyMutationInput, SrmSyncRunItemUncheckedUpdateManyWithoutRunInput>
+  }
+
+  export type SrmSyncRunCreateWithoutItemsInput = {
+    id?: string
+    triggeredBy?: string
+    startedAt?: Date | string
+    completedAt?: Date | string | null
+    total?: number
+    inserted?: number
+    skipped?: number
+    patched?: number
+    errors?: number
+    notes?: string | null
+  }
+
+  export type SrmSyncRunUncheckedCreateWithoutItemsInput = {
+    id?: string
+    triggeredBy?: string
+    startedAt?: Date | string
+    completedAt?: Date | string | null
+    total?: number
+    inserted?: number
+    skipped?: number
+    patched?: number
+    errors?: number
+    notes?: string | null
+  }
+
+  export type SrmSyncRunCreateOrConnectWithoutItemsInput = {
+    where: SrmSyncRunWhereUniqueInput
+    create: XOR<SrmSyncRunCreateWithoutItemsInput, SrmSyncRunUncheckedCreateWithoutItemsInput>
+  }
+
+  export type ExtractionResultFlatCreateWithoutSrmSyncRunItemsInput = {
+    id?: string
+    imageName?: string | null
+    imageUrl?: string | null
+    articleNumber?: string | null
+    extractionStatus?: string | null
+    aiModel?: string | null
+    avgConfidence?: Decimal | DecimalJsLike | number | string | null
+    processingTimeMs?: number | null
+    totalAttributes?: number | null
+    extractedCount?: number | null
+    inputTokens?: number | null
+    outputTokens?: number | null
+    totalTokens?: number | null
+    apiCost?: Decimal | DecimalJsLike | number | string | null
+    userId?: number | null
+    userName?: string | null
+    extractionDate?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    majorCategory?: string | null
+    vendorName?: string | null
+    designNumber?: string | null
+    pptNumber?: string | null
+    rate?: Decimal | DecimalJsLike | number | string | null
+    size?: string | null
+    yarn1?: string | null
+    yarn2?: string | null
+    fabricMainMvgr?: string | null
+    weave?: string | null
+    weaveFullForm?: string | null
+    composition?: string | null
+    finish?: string | null
+    gsm?: string | null
+    macroMvgr?: string | null
+    macroMvgrFullForm?: string | null
+    mainMvgr?: string | null
+    mainMvgrFullForm?: string | null
+    mFab2?: string | null
+    mFab2FullForm?: string | null
+    shade?: string | null
+    weight?: string | null
+    lycra?: string | null
+    neck?: string | null
+    neckDetails?: string | null
+    collar?: string | null
+    placket?: string | null
+    sleeve?: string | null
+    bottomFold?: string | null
+    frontOpenStyle?: string | null
+    pocketType?: string | null
+    fit?: string | null
+    pattern?: string | null
+    length?: string | null
+    colour?: string | null
+    drawcord?: string | null
+    button?: string | null
+    zipper?: string | null
+    zipColour?: string | null
+    printType?: string | null
+    printStyle?: string | null
+    printPlacement?: string | null
+    patches?: string | null
+    patchesType?: string | null
+    embroidery?: string | null
+    embroideryType?: string | null
+    wash?: string | null
+    fatherBelt?: string | null
+    childBelt?: string | null
+    division?: string | null
+    subDivision?: string | null
+    referenceArticleNumber?: string | null
+    referenceArticleDescription?: string | null
+    collarStyle?: string | null
+    sleeveFold?: string | null
+    noOfPocket?: string | null
+    extraPocket?: string | null
+    dcShape?: string | null
+    btnColour?: string | null
+    fCount?: string | null
+    fConstruction?: string | null
+    fOunce?: string | null
+    fWidth?: string | null
+    fabDiv?: string | null
+    htrfType?: string | null
+    htrfStyle?: string | null
+    embPlacement?: string | null
+    ageGroup?: string | null
+    articleFashionType?: string | null
+    articleDimension?: string | null
+    bodyArticle?: string | null
+    bodyArticleDescription?: string | null
+    fabricArticleNumber?: string | null
+    fabricArticleDescription?: string | null
+    attrArticleNums?: string | null
+    mvgrBrandVendor?: string | null
+    vendorCode?: string | null
+    mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
+    mcCode?: string | null
+    segment?: string | null
+    season?: string | null
+    hsnTaxCode?: string | null
+    articleDescription?: string | null
+    fashionGrid?: string | null
+    year?: string | null
+    articleType?: string | null
+    approvalStatus?: $Enums.ApprovalStatus
+    approvedAt?: Date | string | null
+    source?: string | null
+    imageUncPath?: string | null
+    isGeneric?: boolean
+    genericArticleId?: string | null
+    variantSize?: string | null
+    variantColor?: string | null
+    sapSyncStatus?: $Enums.SapSyncStatus
+    sapArticleId?: string | null
+    sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
+    approver?: UserCreateNestedOneWithoutApprovedItemsInput
+    job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+  }
+
+  export type ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput = {
+    id?: string
+    jobId: string
+    imageName?: string | null
+    imageUrl?: string | null
+    articleNumber?: string | null
+    extractionStatus?: string | null
+    aiModel?: string | null
+    avgConfidence?: Decimal | DecimalJsLike | number | string | null
+    processingTimeMs?: number | null
+    totalAttributes?: number | null
+    extractedCount?: number | null
+    inputTokens?: number | null
+    outputTokens?: number | null
+    totalTokens?: number | null
+    apiCost?: Decimal | DecimalJsLike | number | string | null
+    userId?: number | null
+    userName?: string | null
+    extractionDate?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    majorCategory?: string | null
+    vendorName?: string | null
+    designNumber?: string | null
+    pptNumber?: string | null
+    rate?: Decimal | DecimalJsLike | number | string | null
+    size?: string | null
+    yarn1?: string | null
+    yarn2?: string | null
+    fabricMainMvgr?: string | null
+    weave?: string | null
+    weaveFullForm?: string | null
+    composition?: string | null
+    finish?: string | null
+    gsm?: string | null
+    macroMvgr?: string | null
+    macroMvgrFullForm?: string | null
+    mainMvgr?: string | null
+    mainMvgrFullForm?: string | null
+    mFab2?: string | null
+    mFab2FullForm?: string | null
+    shade?: string | null
+    weight?: string | null
+    lycra?: string | null
+    neck?: string | null
+    neckDetails?: string | null
+    collar?: string | null
+    placket?: string | null
+    sleeve?: string | null
+    bottomFold?: string | null
+    frontOpenStyle?: string | null
+    pocketType?: string | null
+    fit?: string | null
+    pattern?: string | null
+    length?: string | null
+    colour?: string | null
+    drawcord?: string | null
+    button?: string | null
+    zipper?: string | null
+    zipColour?: string | null
+    printType?: string | null
+    printStyle?: string | null
+    printPlacement?: string | null
+    patches?: string | null
+    patchesType?: string | null
+    embroidery?: string | null
+    embroideryType?: string | null
+    wash?: string | null
+    fatherBelt?: string | null
+    childBelt?: string | null
+    division?: string | null
+    subDivision?: string | null
+    referenceArticleNumber?: string | null
+    referenceArticleDescription?: string | null
+    collarStyle?: string | null
+    sleeveFold?: string | null
+    noOfPocket?: string | null
+    extraPocket?: string | null
+    dcShape?: string | null
+    btnColour?: string | null
+    fCount?: string | null
+    fConstruction?: string | null
+    fOunce?: string | null
+    fWidth?: string | null
+    fabDiv?: string | null
+    htrfType?: string | null
+    htrfStyle?: string | null
+    embPlacement?: string | null
+    ageGroup?: string | null
+    articleFashionType?: string | null
+    articleDimension?: string | null
+    bodyArticle?: string | null
+    bodyArticleDescription?: string | null
+    fabricArticleNumber?: string | null
+    fabricArticleDescription?: string | null
+    attrArticleNums?: string | null
+    mvgrBrandVendor?: string | null
+    vendorCode?: string | null
+    mrp?: Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: string | null
+    mcCode?: string | null
+    segment?: string | null
+    season?: string | null
+    hsnTaxCode?: string | null
+    articleDescription?: string | null
+    fashionGrid?: string | null
+    year?: string | null
+    articleType?: string | null
+    approvalStatus?: $Enums.ApprovalStatus
+    approvedBy?: number | null
+    approvedAt?: Date | string | null
+    source?: string | null
+    imageUncPath?: string | null
+    isGeneric?: boolean
+    genericArticleId?: string | null
+    variantSize?: string | null
+    variantColor?: string | null
+    sapSyncStatus?: $Enums.SapSyncStatus
+    sapArticleId?: string | null
+    sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
+  }
+
+  export type ExtractionResultFlatCreateOrConnectWithoutSrmSyncRunItemsInput = {
+    where: ExtractionResultFlatWhereUniqueInput
+    create: XOR<ExtractionResultFlatCreateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput>
+  }
+
+  export type SrmSyncRunUpsertWithoutItemsInput = {
+    update: XOR<SrmSyncRunUpdateWithoutItemsInput, SrmSyncRunUncheckedUpdateWithoutItemsInput>
+    create: XOR<SrmSyncRunCreateWithoutItemsInput, SrmSyncRunUncheckedCreateWithoutItemsInput>
+    where?: SrmSyncRunWhereInput
+  }
+
+  export type SrmSyncRunUpdateToOneWithWhereWithoutItemsInput = {
+    where?: SrmSyncRunWhereInput
+    data: XOR<SrmSyncRunUpdateWithoutItemsInput, SrmSyncRunUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type SrmSyncRunUpdateWithoutItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type SrmSyncRunUncheckedUpdateWithoutItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    triggeredBy?: StringFieldUpdateOperationsInput | string
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    total?: IntFieldUpdateOperationsInput | number
+    inserted?: IntFieldUpdateOperationsInput | number
+    skipped?: IntFieldUpdateOperationsInput | number
+    patched?: IntFieldUpdateOperationsInput | number
+    errors?: IntFieldUpdateOperationsInput | number
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type ExtractionResultFlatUpsertWithoutSrmSyncRunItemsInput = {
+    update: XOR<ExtractionResultFlatUpdateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedUpdateWithoutSrmSyncRunItemsInput>
+    create: XOR<ExtractionResultFlatCreateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput>
+    where?: ExtractionResultFlatWhereInput
+  }
+
+  export type ExtractionResultFlatUpdateToOneWithWhereWithoutSrmSyncRunItemsInput = {
+    where?: ExtractionResultFlatWhereInput
+    data: XOR<ExtractionResultFlatUpdateWithoutSrmSyncRunItemsInput, ExtractionResultFlatUncheckedUpdateWithoutSrmSyncRunItemsInput>
+  }
+
+  export type ExtractionResultFlatUpdateWithoutSrmSyncRunItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    imageName?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    extractionStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    aiModel?: NullableStringFieldUpdateOperationsInput | string | null
+    avgConfidence?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    processingTimeMs?: NullableIntFieldUpdateOperationsInput | number | null
+    totalAttributes?: NullableIntFieldUpdateOperationsInput | number | null
+    extractedCount?: NullableIntFieldUpdateOperationsInput | number | null
+    inputTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    outputTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    apiCost?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    userId?: NullableIntFieldUpdateOperationsInput | number | null
+    userName?: NullableStringFieldUpdateOperationsInput | string | null
+    extractionDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    size?: NullableStringFieldUpdateOperationsInput | string | null
+    yarn1?: NullableStringFieldUpdateOperationsInput | string | null
+    yarn2?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricMainMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    weave?: NullableStringFieldUpdateOperationsInput | string | null
+    weaveFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    composition?: NullableStringFieldUpdateOperationsInput | string | null
+    finish?: NullableStringFieldUpdateOperationsInput | string | null
+    gsm?: NullableStringFieldUpdateOperationsInput | string | null
+    macroMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    macroMvgrFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    mainMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    mainMvgrFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    mFab2?: NullableStringFieldUpdateOperationsInput | string | null
+    mFab2FullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    shade?: NullableStringFieldUpdateOperationsInput | string | null
+    weight?: NullableStringFieldUpdateOperationsInput | string | null
+    lycra?: NullableStringFieldUpdateOperationsInput | string | null
+    neck?: NullableStringFieldUpdateOperationsInput | string | null
+    neckDetails?: NullableStringFieldUpdateOperationsInput | string | null
+    collar?: NullableStringFieldUpdateOperationsInput | string | null
+    placket?: NullableStringFieldUpdateOperationsInput | string | null
+    sleeve?: NullableStringFieldUpdateOperationsInput | string | null
+    bottomFold?: NullableStringFieldUpdateOperationsInput | string | null
+    frontOpenStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    pocketType?: NullableStringFieldUpdateOperationsInput | string | null
+    fit?: NullableStringFieldUpdateOperationsInput | string | null
+    pattern?: NullableStringFieldUpdateOperationsInput | string | null
+    length?: NullableStringFieldUpdateOperationsInput | string | null
+    colour?: NullableStringFieldUpdateOperationsInput | string | null
+    drawcord?: NullableStringFieldUpdateOperationsInput | string | null
+    button?: NullableStringFieldUpdateOperationsInput | string | null
+    zipper?: NullableStringFieldUpdateOperationsInput | string | null
+    zipColour?: NullableStringFieldUpdateOperationsInput | string | null
+    printType?: NullableStringFieldUpdateOperationsInput | string | null
+    printStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    printPlacement?: NullableStringFieldUpdateOperationsInput | string | null
+    patches?: NullableStringFieldUpdateOperationsInput | string | null
+    patchesType?: NullableStringFieldUpdateOperationsInput | string | null
+    embroidery?: NullableStringFieldUpdateOperationsInput | string | null
+    embroideryType?: NullableStringFieldUpdateOperationsInput | string | null
+    wash?: NullableStringFieldUpdateOperationsInput | string | null
+    fatherBelt?: NullableStringFieldUpdateOperationsInput | string | null
+    childBelt?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceArticleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    sleeveFold?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfPocket?: NullableStringFieldUpdateOperationsInput | string | null
+    extraPocket?: NullableStringFieldUpdateOperationsInput | string | null
+    dcShape?: NullableStringFieldUpdateOperationsInput | string | null
+    btnColour?: NullableStringFieldUpdateOperationsInput | string | null
+    fCount?: NullableStringFieldUpdateOperationsInput | string | null
+    fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
+    fOunce?: NullableStringFieldUpdateOperationsInput | string | null
+    fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
+    htrfType?: NullableStringFieldUpdateOperationsInput | string | null
+    htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
+    ageGroup?: NullableStringFieldUpdateOperationsInput | string | null
+    articleFashionType?: NullableStringFieldUpdateOperationsInput | string | null
+    articleDimension?: NullableStringFieldUpdateOperationsInput | string | null
+    bodyArticle?: NullableStringFieldUpdateOperationsInput | string | null
+    bodyArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricArticleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    attrArticleNums?: NullableStringFieldUpdateOperationsInput | string | null
+    mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
+    mcCode?: NullableStringFieldUpdateOperationsInput | string | null
+    segment?: NullableStringFieldUpdateOperationsInput | string | null
+    season?: NullableStringFieldUpdateOperationsInput | string | null
+    hsnTaxCode?: NullableStringFieldUpdateOperationsInput | string | null
+    articleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    fashionGrid?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    articleType?: NullableStringFieldUpdateOperationsInput | string | null
+    approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isGeneric?: BoolFieldUpdateOperationsInput | boolean
+    genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    variantSize?: NullableStringFieldUpdateOperationsInput | string | null
+    variantColor?: NullableStringFieldUpdateOperationsInput | string | null
+    sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
+    sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    approver?: UserUpdateOneWithoutApprovedItemsNestedInput
+    job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+  }
+
+  export type ExtractionResultFlatUncheckedUpdateWithoutSrmSyncRunItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    jobId?: StringFieldUpdateOperationsInput | string
+    imageName?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    extractionStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    aiModel?: NullableStringFieldUpdateOperationsInput | string | null
+    avgConfidence?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    processingTimeMs?: NullableIntFieldUpdateOperationsInput | number | null
+    totalAttributes?: NullableIntFieldUpdateOperationsInput | number | null
+    extractedCount?: NullableIntFieldUpdateOperationsInput | number | null
+    inputTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    outputTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    apiCost?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    userId?: NullableIntFieldUpdateOperationsInput | number | null
+    userName?: NullableStringFieldUpdateOperationsInput | string | null
+    extractionDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    rate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    size?: NullableStringFieldUpdateOperationsInput | string | null
+    yarn1?: NullableStringFieldUpdateOperationsInput | string | null
+    yarn2?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricMainMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    weave?: NullableStringFieldUpdateOperationsInput | string | null
+    weaveFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    composition?: NullableStringFieldUpdateOperationsInput | string | null
+    finish?: NullableStringFieldUpdateOperationsInput | string | null
+    gsm?: NullableStringFieldUpdateOperationsInput | string | null
+    macroMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    macroMvgrFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    mainMvgr?: NullableStringFieldUpdateOperationsInput | string | null
+    mainMvgrFullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    mFab2?: NullableStringFieldUpdateOperationsInput | string | null
+    mFab2FullForm?: NullableStringFieldUpdateOperationsInput | string | null
+    shade?: NullableStringFieldUpdateOperationsInput | string | null
+    weight?: NullableStringFieldUpdateOperationsInput | string | null
+    lycra?: NullableStringFieldUpdateOperationsInput | string | null
+    neck?: NullableStringFieldUpdateOperationsInput | string | null
+    neckDetails?: NullableStringFieldUpdateOperationsInput | string | null
+    collar?: NullableStringFieldUpdateOperationsInput | string | null
+    placket?: NullableStringFieldUpdateOperationsInput | string | null
+    sleeve?: NullableStringFieldUpdateOperationsInput | string | null
+    bottomFold?: NullableStringFieldUpdateOperationsInput | string | null
+    frontOpenStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    pocketType?: NullableStringFieldUpdateOperationsInput | string | null
+    fit?: NullableStringFieldUpdateOperationsInput | string | null
+    pattern?: NullableStringFieldUpdateOperationsInput | string | null
+    length?: NullableStringFieldUpdateOperationsInput | string | null
+    colour?: NullableStringFieldUpdateOperationsInput | string | null
+    drawcord?: NullableStringFieldUpdateOperationsInput | string | null
+    button?: NullableStringFieldUpdateOperationsInput | string | null
+    zipper?: NullableStringFieldUpdateOperationsInput | string | null
+    zipColour?: NullableStringFieldUpdateOperationsInput | string | null
+    printType?: NullableStringFieldUpdateOperationsInput | string | null
+    printStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    printPlacement?: NullableStringFieldUpdateOperationsInput | string | null
+    patches?: NullableStringFieldUpdateOperationsInput | string | null
+    patchesType?: NullableStringFieldUpdateOperationsInput | string | null
+    embroidery?: NullableStringFieldUpdateOperationsInput | string | null
+    embroideryType?: NullableStringFieldUpdateOperationsInput | string | null
+    wash?: NullableStringFieldUpdateOperationsInput | string | null
+    fatherBelt?: NullableStringFieldUpdateOperationsInput | string | null
+    childBelt?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceArticleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    referenceArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    collarStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    sleeveFold?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfPocket?: NullableStringFieldUpdateOperationsInput | string | null
+    extraPocket?: NullableStringFieldUpdateOperationsInput | string | null
+    dcShape?: NullableStringFieldUpdateOperationsInput | string | null
+    btnColour?: NullableStringFieldUpdateOperationsInput | string | null
+    fCount?: NullableStringFieldUpdateOperationsInput | string | null
+    fConstruction?: NullableStringFieldUpdateOperationsInput | string | null
+    fOunce?: NullableStringFieldUpdateOperationsInput | string | null
+    fWidth?: NullableStringFieldUpdateOperationsInput | string | null
+    fabDiv?: NullableStringFieldUpdateOperationsInput | string | null
+    htrfType?: NullableStringFieldUpdateOperationsInput | string | null
+    htrfStyle?: NullableStringFieldUpdateOperationsInput | string | null
+    embPlacement?: NullableStringFieldUpdateOperationsInput | string | null
+    ageGroup?: NullableStringFieldUpdateOperationsInput | string | null
+    articleFashionType?: NullableStringFieldUpdateOperationsInput | string | null
+    articleDimension?: NullableStringFieldUpdateOperationsInput | string | null
+    bodyArticle?: NullableStringFieldUpdateOperationsInput | string | null
+    bodyArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricArticleNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabricArticleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    attrArticleNums?: NullableStringFieldUpdateOperationsInput | string | null
+    mvgrBrandVendor?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    mrp?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    impAtrbt2?: NullableStringFieldUpdateOperationsInput | string | null
+    mcCode?: NullableStringFieldUpdateOperationsInput | string | null
+    segment?: NullableStringFieldUpdateOperationsInput | string | null
+    season?: NullableStringFieldUpdateOperationsInput | string | null
+    hsnTaxCode?: NullableStringFieldUpdateOperationsInput | string | null
+    articleDescription?: NullableStringFieldUpdateOperationsInput | string | null
+    fashionGrid?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    articleType?: NullableStringFieldUpdateOperationsInput | string | null
+    approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    approvedBy?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    source?: NullableStringFieldUpdateOperationsInput | string | null
+    imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isGeneric?: BoolFieldUpdateOperationsInput | boolean
+    genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    variantSize?: NullableStringFieldUpdateOperationsInput | string | null
+    variantColor?: NullableStringFieldUpdateOperationsInput | string | null
+    sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
+    sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
+    sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type SubDepartmentCreateManyDepartmentInput = {
     id?: number
     code: string
@@ -53366,6 +57289,46 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type SrmSyncRunItemCreateManyFlatInput = {
+    id?: string
+    runId: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemUpdateWithoutFlatInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    run?: SrmSyncRunUpdateOneRequiredWithoutItemsNestedInput
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateWithoutFlatInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runId?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateManyWithoutFlatInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runId?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type ApiKeyCreateManyUserInput = {
     id?: number
     name: string
@@ -53538,6 +57501,7 @@ export namespace Prisma {
     sapSyncStatus?: $Enums.SapSyncStatus
     sapArticleId?: string | null
     sapSyncMessage?: string | null
+    srmOriginalDesignNumber?: string | null
   }
 
   export type ApiKeyUpdateWithoutUserInput = {
@@ -53820,7 +57784,9 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+    srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateWithoutApproverInput = {
@@ -53942,6 +57908,8 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateManyWithoutApproverInput = {
@@ -54063,6 +58031,7 @@ export namespace Prisma {
     sapSyncStatus?: EnumSapSyncStatusFieldUpdateOperationsInput | $Enums.SapSyncStatus
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type SapAttributeValueCreateManyFieldConfigInput = {
@@ -54097,6 +58066,46 @@ export namespace Prisma {
     majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
     displayOrder?: IntFieldUpdateOperationsInput | number
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SrmSyncRunItemCreateManyRunInput = {
+    id?: string
+    pptNumber?: string | null
+    srmDesignNumber?: string | null
+    flatId?: string | null
+    action: string
+    errorMessage?: string | null
+    createdAt?: Date | string
+  }
+
+  export type SrmSyncRunItemUpdateWithoutRunInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    flat?: ExtractionResultFlatUpdateOneWithoutSrmSyncRunItemsNestedInput
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateWithoutRunInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SrmSyncRunItemUncheckedUpdateManyWithoutRunInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    pptNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    action?: StringFieldUpdateOperationsInput | string
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 

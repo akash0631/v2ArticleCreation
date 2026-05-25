@@ -284,14 +284,20 @@ async function fetchAllRows(): Promise<SrmRow[]> {
 }
 
 /**
- * Find an existing SRM record for this presentation_no + design_number pair.
- * Returns the record id and current imageUrl so we can patch the image if needed.
+ * Find an existing SRM record using the IMMUTABLE srm_original_design_number key.
+ *
+ * Why immutable? The user-facing `designNumber` field can be edited by approvers
+ * after import. If we dedup by `designNumber` alone, a user edit (e.g. "151" → "1007")
+ * makes the cron think the original "151" is new — and inserts a duplicate.
+ *
+ * `srmOriginalDesignNumber` is set ONCE on insert and never touched again, making
+ * it a reliable stable key regardless of what the user changes later.
  */
-async function findExisting(presentationNo: string, designNumber: string): Promise<{ id: string; imageUrl: string | null; vendorCode: string | null; vendorName: string | null } | null> {
+async function findExisting(presentationNo: string, srmDesignNumber: string): Promise<{ id: string; imageUrl: string | null; vendorCode: string | null; vendorName: string | null } | null> {
   return prisma.extractionResultFlat.findFirst({
     where: {
       pptNumber: presentationNo,
-      designNumber: designNumber,
+      srmOriginalDesignNumber: srmDesignNumber,
       source: 'SRM',
     },
     select: { id: true, imageUrl: true, vendorCode: true, vendorName: true },
@@ -572,8 +578,10 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
       isGeneric:      true,   // SRM records are standalone articles, not variants
 
       // SRM-provided fields
-      pptNumber:      row.presentation_no || null,
-      designNumber:   row.design_number   || null,
+      pptNumber:                row.presentation_no || null,
+      designNumber:             row.design_number   || null,
+      // Immutable dedup key — NEVER updated even if user changes designNumber later
+      srmOriginalDesignNumber:  row.design_number   || null,
       vendorCode:     normaliseVendorCode(row.vendor_code),
       vendorName:     row.vendor_name     || null,
       division:       row.division        || null,
@@ -644,17 +652,45 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
 
 /**
  * Main sync function. Call this from the route handler or cron job.
+ *
+ * Every execution writes a persistent audit trail to:
+ *   srm_sync_runs       — one row per execution (counts + timing)
+ *   srm_sync_run_items  — one row per article (action + flat_id link)
+ *
+ * Deduplication uses `srmOriginalDesignNumber` (immutable) NOT `designNumber`
+ * (user-editable). This prevents false "new article" detections when an approver
+ * renames a design number after import.
  */
-export async function syncFromSrm(): Promise<SyncResult> {
-  console.log('[SRM Sync] Starting sync from SRM API...');
-  const startedAt = new Date().toISOString();
+export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'CRON'): Promise<SyncResult> {
+  console.log(`[SRM Sync] Starting sync (triggeredBy=${triggeredBy})...`);
+  const startedAt = new Date();
   const result: SyncResult = { inserted: 0, skipped: 0, errors: 0, total: 0 };
+
+  // ── Create persistent run record ──────────────────────────────────────────
+  const run = await prisma.srmSyncRun.create({
+    data: { triggeredBy, startedAt },
+  });
+  console.log(`[SRM Sync] Run ID: ${run.id}`);
+
+  // Buffer item logs — batch-insert at the end to avoid per-row DB round-trips
+  const itemLogs: Array<{
+    runId: string;
+    pptNumber: string | null;
+    srmDesignNumber: string | null;
+    flatId: string | null;
+    action: string;
+    errorMessage: string | null;
+  }> = [];
 
   let rows: SrmRow[];
   try {
     rows = await fetchAllRows();
   } catch (err: any) {
     console.error('[SRM Sync] Failed to fetch from SRM API:', err.message);
+    await prisma.srmSyncRun.update({
+      where: { id: run.id },
+      data: { completedAt: new Date(), notes: `Fetch failed: ${err.message}` },
+    });
     throw err;
   }
 
@@ -666,6 +702,7 @@ export async function syncFromSrm(): Promise<SyncResult> {
 
   for (const row of rows) {
     try {
+      // ── Use immutable srmOriginalDesignNumber as dedup key ─────────────
       const existing = await findExisting(row.presentation_no, row.design_number);
       if (existing) {
         // Record exists — patch any fields the API now provides that we didn't have before
@@ -679,7 +716,6 @@ export async function syncFromSrm(): Promise<SyncResult> {
           patch.vendorName = row.vendor_name;
 
         if (Object.keys(patch).length > 0) {
-          // Mirror new image to R2 before saving, same as insertRow path
           if (patch.imageUrl) {
             const r2Url = await downloadAndMirrorToR2(patch.imageUrl);
             if (r2Url) patch.imageUrl = r2Url;
@@ -689,33 +725,59 @@ export async function syncFromSrm(): Promise<SyncResult> {
           if (patch.imageUrl) {
             toEnrich.push({ id: existing.id, imageUrl: patch.imageUrl, majorCategory: row.major_category || null });
           }
-          console.log(`[SRM Sync] Patched fields [${Object.keys(patch).join(', ')}] for: ${row.presentation_no} / ${row.design_number}`);
+          console.log(`[SRM Sync] Patched [${Object.keys(patch).join(', ')}] for: ${row.presentation_no} / ${row.design_number}`);
           result.inserted++;
+          itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: existing.id, action: 'PATCHED', errorMessage: null });
         } else {
           result.skipped++;
+          itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: existing.id, action: 'SKIPPED', errorMessage: null });
         }
         continue;
       }
+
+      // ── New article — insert ───────────────────────────────────────────
       const flat = await insertRowAndReturn(row);
       result.inserted++;
-      console.log(`[SRM Sync] Inserted: ${row.presentation_no} / ${row.design_number}`);
+      console.log(`[SRM Sync] Inserted: ${row.presentation_no} / ${row.design_number} → flat_id=${flat?.id}`);
       if (flat && flat.imageUrl) {
         toEnrich.push({ id: flat.id, imageUrl: flat.imageUrl, majorCategory: row.major_category || null });
       }
+      itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: flat?.id ?? null, action: 'INSERTED', errorMessage: null });
+
     } catch (err: any) {
       result.errors++;
       console.error(`[SRM Sync] Error for ${row.presentation_no}/${row.design_number}:`, err.message);
+      itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: null, action: 'ERROR', errorMessage: err.message?.slice(0, 500) ?? null });
     }
   }
 
-  console.log(`[SRM Sync] Done — inserted: ${result.inserted}, skipped: ${result.skipped}, errors: ${result.errors}`);
+  // ── Batch-insert all item logs ────────────────────────────────────────────
+  if (itemLogs.length > 0) {
+    await prisma.srmSyncRunItem.createMany({ data: itemLogs });
+  }
 
-  // Cache the result so the status endpoint can return it
-  _lastSyncResult = { ...result, completedAt: new Date().toISOString(), ranAt: startedAt };
+  // ── Mark run as complete ──────────────────────────────────────────────────
+  const patched = itemLogs.filter(l => l.action === 'PATCHED').length;
+  await prisma.srmSyncRun.update({
+    where: { id: run.id },
+    data: {
+      completedAt: new Date(),
+      total:    result.total,
+      inserted: result.inserted - patched,  // true new inserts only
+      skipped:  result.skipped,
+      patched,
+      errors:   result.errors,
+    },
+  });
 
-  // Enrich sequentially in the background with a delay between calls to avoid rate limits
+  console.log(`[SRM Sync] Done — inserted: ${result.inserted - patched}, patched: ${patched}, skipped: ${result.skipped}, errors: ${result.errors} | Run: ${run.id}`);
+
+  // Cache the in-memory result for the status endpoint
+  _lastSyncResult = { ...result, completedAt: new Date().toISOString(), ranAt: startedAt.toISOString() };
+
+  // Enrich sequentially in the background
   if (toEnrich.length > 0) {
-    console.log(`[SRM Sync] Queuing VLM enrichment for ${toEnrich.length} records (sequential, ${VLM_ENRICH_DELAY_MS}ms gap)...`);
+    console.log(`[SRM Sync] Queuing VLM enrichment for ${toEnrich.length} records...`);
     void (async () => {
       let enriched = 0;
       for (const item of toEnrich) {
@@ -743,7 +805,14 @@ export async function syncFromSrm(): Promise<SyncResult> {
  * Runs entirely in the background; startup is not blocked.
  */
 export async function recoverRecentSrmVlmEnrichment(): Promise<void> {
-  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
+  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  // Use the later of: 48h ago OR the hard cutoff date — whichever is more recent.
+  // This ensures legacy records (before 2026-05-25) are NEVER touched even if the
+  // server restarts close to that date.
+  const cutoff = fortyEightHoursAgo > SRM_ENRICHMENT_CUTOFF
+    ? fortyEightHoursAgo
+    : SRM_ENRICHMENT_CUTOFF;
+
   const records = await prisma.extractionResultFlat.findMany({
     where: {
       source: 'SRM',
@@ -783,9 +852,19 @@ export async function recoverRecentSrmVlmEnrichment(): Promise<void> {
   })();
 }
 
+// Hard cutoff: never auto-enrich SRM_IMPORT records created before this date.
+// Records before this date are legacy imports whose data must not be overwritten.
+const SRM_ENRICHMENT_CUTOFF = new Date('2026-05-25T00:00:00.000Z');
+
 /**
- * Backfill VLM enrichment for all SRM records that have an imageUrl
- * but are still at SRM_IMPORT status. Runs sequentially to avoid rate limits.
+ * Backfill VLM enrichment for SRM records that have an imageUrl
+ * but are still at SRM_IMPORT status.
+ *
+ * IMPORTANT: Only processes records created ON OR AFTER 2026-05-25.
+ * Records before that date are legacy imports — their data must not be
+ * overwritten by re-running enrichment, even if their status is SRM_IMPORT.
+ *
+ * Runs sequentially to avoid rate limits.
  * Exported for the admin panel manual trigger.
  */
 export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
@@ -794,8 +873,9 @@ export async function backfillSrmVlmEnrichment(): Promise<EnrichResult> {
       source: 'SRM',
       extractionStatus: 'SRM_IMPORT',
       imageUrl: { not: null },
+      createdAt: { gte: SRM_ENRICHMENT_CUTOFF },   // ← only new records
     },
-    select: { id: true, imageUrl: true, majorCategory: true },
+    select: { id: true, imageUrl: true, majorCategory: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   });
 

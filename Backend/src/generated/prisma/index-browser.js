@@ -370,7 +370,8 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   variantColor: 'variantColor',
   sapSyncStatus: 'sapSyncStatus',
   sapArticleId: 'sapArticleId',
-  sapSyncMessage: 'sapSyncMessage'
+  sapSyncMessage: 'sapSyncMessage',
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
 };
 
 exports.Prisma.MvgrLookupScalarFieldEnum = {
@@ -670,6 +671,30 @@ exports.Prisma.Article360FlatScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.SrmSyncRunScalarFieldEnum = {
+  id: 'id',
+  triggeredBy: 'triggeredBy',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  total: 'total',
+  inserted: 'inserted',
+  skipped: 'skipped',
+  patched: 'patched',
+  errors: 'errors',
+  notes: 'notes'
+};
+
+exports.Prisma.SrmSyncRunItemScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  pptNumber: 'pptNumber',
+  srmDesignNumber: 'srmDesignNumber',
+  flatId: 'flatId',
+  action: 'action',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -861,7 +886,8 @@ exports.Prisma.ExtractionResultFlatOrderByRelevanceFieldEnum = {
   variantSize: 'variantSize',
   variantColor: 'variantColor',
   sapArticleId: 'sapArticleId',
-  sapSyncMessage: 'sapSyncMessage'
+  sapSyncMessage: 'sapSyncMessage',
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
 };
 
 exports.Prisma.MvgrLookupOrderByRelevanceFieldEnum = {
@@ -1086,6 +1112,22 @@ exports.Prisma.Article360FlatOrderByRelevanceFieldEnum = {
   userName: 'userName',
   userEmail: 'userEmail'
 };
+
+exports.Prisma.SrmSyncRunOrderByRelevanceFieldEnum = {
+  id: 'id',
+  triggeredBy: 'triggeredBy',
+  notes: 'notes'
+};
+
+exports.Prisma.SrmSyncRunItemOrderByRelevanceFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  pptNumber: 'pptNumber',
+  srmDesignNumber: 'srmDesignNumber',
+  flatId: 'flatId',
+  action: 'action',
+  errorMessage: 'errorMessage'
+};
 exports.GarmentType = exports.$Enums.GarmentType = {
   UPPER: 'UPPER',
   LOWER: 'LOWER',
@@ -1161,7 +1203,9 @@ exports.Prisma.ModelName = {
   ArticleBom: 'ArticleBom',
   SapFieldConfig: 'SapFieldConfig',
   SapAttributeValue: 'SapAttributeValue',
-  Article360Flat: 'Article360Flat'
+  Article360Flat: 'Article360Flat',
+  SrmSyncRun: 'SrmSyncRun',
+  SrmSyncRunItem: 'SrmSyncRunItem'
 };
 
 /**
