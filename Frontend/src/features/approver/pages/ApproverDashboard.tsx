@@ -13,11 +13,15 @@ import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATT
 import { preloadAttributeValues, isMandatoryGridFieldActive, getMandatoryGridFieldLabel } from '../../../services/articleConfigService';
 
 // schemaKey → primary SAP key (used for mandatory-grid lookups)
-const SCHEMA_KEY_TO_SAP_KEY: Record<string, string> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
+// Maps schemaKey → ALL SAP key aliases (including legacy/DB variants).
+// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
+// which variant the uploaded Excel used (e.g. 'Price Band Category' vs 'SEGMENT').
+const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
     .reduce((acc, [sapKey, schemaKey]) => {
-        if (!acc[schemaKey]) acc[schemaKey] = sapKey;
+        if (!acc[schemaKey]) acc[schemaKey] = [];
+        acc[schemaKey].push(sapKey);
         return acc;
-    }, {} as Record<string, string>);
+    }, {} as Record<string, string[]>);
 
 /**
  * Returns the list of mandatory field labels that are empty for a given article.
@@ -39,14 +43,17 @@ function getMissingMandatoryFields(item: any): string[] {
     if (!majorCat) return missing;
 
     for (const [schemaKey, dbField] of Object.entries(SCHEMA_KEY_TO_DB_FIELD)) {
-        const sapKey = SCHEMA_KEY_TO_SAP_KEY[schemaKey];
-        if (!sapKey) continue;
-        const isActive = isMandatoryGridFieldActive(majorCat, sapKey);
-        if (isActive !== true) continue;
+        // Check ALL SAP key aliases — DB may use a different variant than the Excel header
+        // e.g. segment: 'Price Band Category' (Excel) vs 'SEGMENT' (DB sap_key)
+        const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[schemaKey] ?? [];
+        if (sapKeys.length === 0) continue;
+        const isActive = sapKeys.some(sk => isMandatoryGridFieldActive(majorCat, sk) === true);
+        if (!isActive) continue;
         const value = item[dbField];
         if (!value) {
-            // Prefer the Excel label (e.g. "BODY STYLE") over the SAP key ("M_PATTERN")
-            const label = getMandatoryGridFieldLabel(sapKey) || sapKey;
+            // Use label from whichever alias is active in the grid (first match wins)
+            const activeSapKey = sapKeys.find(sk => isMandatoryGridFieldActive(majorCat, sk) === true)!;
+            const label = getMandatoryGridFieldLabel(activeSapKey) || activeSapKey;
             missing.push(label);
         }
     }
