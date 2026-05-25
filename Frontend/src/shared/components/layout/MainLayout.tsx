@@ -17,6 +17,7 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   CameraOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './MainLayout.css';
@@ -99,6 +100,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           { key: '/admin/hierarchy', icon: <GlobalOutlined />, label: 'Hierarchy Management' },
           { key: '/admin/users', icon: <UserOutlined />, label: 'User Management' },
           { key: '/admin/expenses', icon: <ShoppingOutlined />, label: 'Expense Viewer' },
+          { key: '/admin/srm-failed', icon: <WarningOutlined />, label: 'Failed Extractions' },
         ],
       },
     ];

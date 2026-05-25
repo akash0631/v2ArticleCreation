@@ -345,9 +345,14 @@ const ArticleCard = React.memo(({
             // BOM-only fields never appear in attribute groups
             if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) continue;
 
-            // freeText fields (shade, weight, segment…) always visible, never mandatory via grid
+            // freeText fields (shade, weight, segment…) are always visible.
+            // They CAN be mandatory if the mandatory grid marks them as active — check the grid.
             if (af.freeText) {
-                visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values: [], freeText: true, isMandatory: false });
+                const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[af.schemaKey] ?? [];
+                const isMandatory = gridsReady && catHasAnyGridData && mandatoryGridReady &&
+                    sapKeys.some(sk => isMandatoryGridFieldActive(effectiveMajCat, sk) === true);
+                if (isMandatory) mandatory.add(af.schemaKey);
+                visible.push({ field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values: [], freeText: true, isMandatory });
                 continue;
             }
 
