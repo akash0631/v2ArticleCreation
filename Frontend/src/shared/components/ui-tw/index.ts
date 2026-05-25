@@ -98,3 +98,16 @@ export {
 } from './table';
 export { DataTable } from './data-table';
 export type { DataTableColumn, DataTablePagination, DataTableProps } from './data-table';
+export { Breadcrumb } from './breadcrumb';
+export { Popconfirm } from './popconfirm';
+export { Segmented } from './segmented';
+export { Upload } from './upload';
+export { Tree } from './tree';
+export type { TreeNode } from './tree';
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from './accordion';
+export { InputNumber } from './input-number';

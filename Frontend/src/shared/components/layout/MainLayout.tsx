@@ -1,39 +1,60 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Button, Badge, Space, Typography, Breadcrumb, List, Empty, Divider } from 'antd';
-import {
-  HomeOutlined,
-  ShoppingOutlined,
-  FileSearchOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  BellOutlined,
-  GlobalOutlined,
-  ControlOutlined,
-  SettingOutlined,
-  CheckSquareOutlined,
-  FileOutlined,
-  HistoryOutlined,
-  CloseCircleOutlined,
-  FileTextOutlined,
-  CheckCircleOutlined,
-  CameraOutlined,
-} from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Home,
+  ShoppingBag,
+  FileSearch,
+  User,
+  LogOut,
+  Bell,
+  Globe,
+  SlidersHorizontal,
+  Settings,
+  CheckSquare,
+  FileText,
+  History,
+  XCircle,
+  CheckCircle2,
+  Camera,
+} from 'lucide-react';
+import {
+  Avatar,
+  AvatarFallback,
+  Badge,
+  Breadcrumb,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Empty,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Separator,
+} from '@/shared/components/ui-tw';
+import { cn } from '@/lib/utils';
 import './MainLayout.css';
 import {
   getNotifications,
   markAllRead,
   markRead,
   clearNotifications,
-  type NotificationItem
+  type NotificationItem,
 } from '../../services/notifications/notificationStore';
 import { resetExtractionSession } from '../../hooks/extraction/useImageExtraction';
 
-const { Header, Content, Footer } = Layout;
-const { Text } = Typography;
-
 interface MainLayoutProps {
   children: React.ReactNode;
+}
+
+interface NavItem {
+  key: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  children?: NavItem[];
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
@@ -47,9 +68,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -74,100 +93,62 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     };
   }, [userData?.id]);
 
-  const getMenuItems = () => {
-    const menuItems = [
-      { key: '/dashboard', icon: <HomeOutlined />, label: 'Home' },
-    ];
-
-    // Only show Products to non-Approver roles (SUB_DIVISION_HEAD can also see these)
-    if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
-      menuItems.push({ key: '/products', icon: <ShoppingOutlined />, label: 'Products' });
-    }
-
-    // Only show Extraction to creator-side roles (SUB_DIVISION_HEAD can also extract)
-    if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
-      menuItems.push({ key: '/extraction', icon: <FileSearchOutlined />, label: 'Extraction' });
-      menuItems.push({ key: '/model-generation', icon: <CameraOutlined />, label: 'Model Generation' });
-    }
-
-    const adminItems = [
-      {
-        key: '/admin',
-        icon: <ControlOutlined />,
-        label: 'Admin Panel',
-        children: [
-          { key: '/admin/hierarchy', icon: <GlobalOutlined />, label: 'Hierarchy Management' },
-          { key: '/admin/users', icon: <UserOutlined />, label: 'User Management' },
-          { key: '/admin/expenses', icon: <ShoppingOutlined />, label: 'Expense Viewer' },
-        ],
-      },
-    ];
-
-    const approverItems = [
-      {
-        key: '/approver-group',
-        icon: <CheckSquareOutlined />,
-        label: 'Approver',
-        children: [
-          { key: '/approver', icon: <FileOutlined />, label: 'New Articles' },
-          { key: '/approver/old-articles', icon: <HistoryOutlined />, label: 'Old Articles' },
-          { key: '/approver/rejected', icon: <CloseCircleOutlined />, label: 'Rejected Articles' },
-          { key: '/approver/created', icon: <CheckCircleOutlined />, label: 'Created' },
-        ],
-      },
-    ];
-
+  const getMenuItems = (): NavItem[] => {
     if (!isAuthenticated) return [];
 
-    // Combine items based on role
-    let items = [...menuItems];
+    const items: NavItem[] = [{ key: '/dashboard', Icon: Home, label: 'Home' }];
 
-    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin || userData?.role === 'CREATOR') {
-      items = [...items, ...approverItems];
+    const role = userData?.role;
+    const isApproverSide = role === 'APPROVER' || role === 'CATEGORY_HEAD';
+
+    if (!isApproverSide) {
+      items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
+      items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
+      items.push({ key: '/model-generation', Icon: Camera, label: 'Model Generation' });
     }
 
-    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin) {
-      items = [...items, { key: '/po-presentation', icon: <FileTextOutlined />, label: 'PO Presentation' }];
+    const approverChildren: NavItem[] = [
+      { key: '/approver', Icon: FileText, label: 'New Articles' },
+      { key: '/approver/old-articles', Icon: History, label: 'Old Articles' },
+      { key: '/approver/rejected', Icon: XCircle, label: 'Rejected Articles' },
+      { key: '/approver/created', Icon: CheckCircle2, label: 'Created' },
+    ];
+
+    if (
+      role === 'APPROVER' ||
+      role === 'CATEGORY_HEAD' ||
+      role === 'SUB_DIVISION_HEAD' ||
+      isAdmin ||
+      role === 'CREATOR'
+    ) {
+      items.push({ key: '/approver-group', Icon: CheckSquare, label: 'Approver', children: approverChildren });
+    }
+
+    if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin) {
+      items.push({ key: '/po-presentation', Icon: FileText, label: 'PO Presentation' });
     }
 
     if (isAdmin) {
-      items = [...items, ...adminItems];
+      items.push({
+        key: '/admin',
+        Icon: SlidersHorizontal,
+        label: 'Admin Panel',
+        children: [
+          { key: '/admin/hierarchy', Icon: Globe, label: 'Hierarchy Management' },
+          { key: '/admin/users', Icon: User, label: 'User Management' },
+          { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expense Viewer' },
+        ],
+      });
     }
 
     return items;
   };
 
-  const userMenu = {
-    items: [
-      {
-        key: 'profile',
-        icon: <UserOutlined />,
-        label: 'Profile',
-        onClick: () => navigate('/profile'),
-      },
-      {
-        key: 'settings',
-        icon: <SettingOutlined />,
-        label: 'Settings',
-        onClick: () => navigate('/profile'),
-      },
-      { key: 'divider', type: 'divider' as const },
-      {
-        key: 'logout',
-        icon: <LogoutOutlined />,
-        label: 'Logout',
-        onClick: () => {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
-          resetExtractionSession();
-          navigate('/');
-        },
-      },
-    ],
-  };
-
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    resetExtractionSession();
+    navigate('/');
   };
 
   const isAuthPage = ['/login', '/register'].includes(location.pathname);
@@ -178,133 +159,201 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const menuItems = getMenuItems();
 
-  const formatTime = (iso: string) => {
-    const date = new Date(iso);
-    return date.toLocaleString();
-  };
+  const formatTime = (iso: string) => new Date(iso).toLocaleString();
+
+  const isPathActive = (key: string) => location.pathname === key || location.pathname.startsWith(key + '/');
+
+  const initials =
+    (userData?.name || userData?.email || 'U')
+      .split(/\s|@/)
+      .map((p: string) => p.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('') || 'U';
 
   return (
-    <Layout className="main-layout" style={{ minHeight: '100vh' }}>
-      <Header className="top-nav">
-        <div className="top-nav-left">
-          <div className="brand" onClick={() => navigate('/dashboard')}>
-            <img src="/V2retail.png" alt="V2Retail" style={{ height: '28px', objectFit: 'contain' }} />
-            <span>Article Creation</span>
+    <div className="main-layout flex h-screen flex-col overflow-hidden">
+      <header className="top-nav flex items-center justify-between gap-4 border-b border-border bg-background px-6">
+        <div className="top-nav-left flex items-center gap-6">
+          <div
+            className="brand flex cursor-pointer items-center gap-2"
+            onClick={() => navigate('/dashboard')}
+          >
+            <img src="/V2retail.png" alt="V2Retail" className="h-7 object-contain" />
+            <span className="text-lg font-semibold">Article Creation</span>
           </div>
 
           {!isLandingPage && !isMobile && (
             <Breadcrumb
               items={[
                 { title: 'Home' },
-                { title: location.pathname.slice(1).charAt(0).toUpperCase() + location.pathname.slice(2) },
+                {
+                  title:
+                    location.pathname.slice(1).charAt(0).toUpperCase() + location.pathname.slice(2),
+                },
               ]}
             />
           )}
 
           {isAuthenticated && !isLandingPage && (
-            <Menu
-              mode="horizontal"
-              selectedKeys={[location.pathname]}
-              items={getMenuItems()}
-              onClick={handleMenuClick}
-              className="top-nav-menu"
-            />
+            <nav className="top-nav-menu flex items-center gap-1">
+              {menuItems.map((item) => {
+                if (item.children) {
+                  const active = item.children.some((c) => isPathActive(c.key));
+                  return (
+                    <DropdownMenu key={item.key}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(active && 'bg-accent text-accent-foreground')}
+                        >
+                          <item.Icon className="h-4 w-4" />
+                          {item.label}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {item.children.map((c) => (
+                          <DropdownMenuItem key={c.key} onClick={() => navigate(c.key)}>
+                            <c.Icon className="h-4 w-4" />
+                            {c.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
+                const active = isPathActive(item.key);
+                return (
+                  <Button
+                    key={item.key}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(item.key)}
+                    className={cn(active && 'bg-accent text-accent-foreground')}
+                  >
+                    <item.Icon className="h-4 w-4" />
+                    {item.label}
+                  </Button>
+                );
+              })}
+            </nav>
           )}
         </div>
 
-        <Space size="middle">
+        <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <Dropdown
-                trigger={['click']}
-                popupRender={() => (
-                  <div className="notification-dropdown">
-                    <div className="notification-header">
-                      <Text strong>Notifications</Text>
-                      <Space size={8}>
-                        <Button type="link" size="small" onClick={markAllRead} disabled={!unreadCount}>
-                          Mark all read
-                        </Button>
-                        <Button type="link" size="small" onClick={clearNotifications}>
-                          Clear
-                        </Button>
-                      </Space>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative rounded-full">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -right-1 -top-1 h-4 min-w-[16px] justify-center px-1 text-[10px]"
+                      >
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="notification-dropdown w-80 p-0" align="end">
+                  <div className="notification-header flex items-center justify-between p-3">
+                    <span className="text-sm font-semibold">Notifications</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-1"
+                        onClick={markAllRead}
+                        disabled={!unreadCount}
+                      >
+                        Mark all read
+                      </Button>
+                      <Button variant="link" size="sm" className="h-auto px-1" onClick={clearNotifications}>
+                        Clear
+                      </Button>
                     </div>
-                    <Divider style={{ margin: '8px 0' }} />
+                  </div>
+                  <Separator />
+                  <div className="max-h-80 overflow-auto">
                     {notifications.length === 0 ? (
-                      <Empty description="No notifications" style={{ padding: '12px 0' }} />
+                      <Empty description="No notifications" className="py-3" />
                     ) : (
-                      <List
-                        dataSource={notifications}
-                        renderItem={(item) => (
-                          <List.Item
-                            className={`notification-item ${item.read ? 'read' : 'unread'}`}
+                      <ul className="divide-y divide-border">
+                        {notifications.map((item) => (
+                          <li
+                            key={item.id}
+                            className={cn(
+                              'notification-item cursor-pointer p-3 transition-colors hover:bg-accent',
+                              item.read ? 'read' : 'unread',
+                            )}
                             onClick={() => markRead(item.id)}
                           >
-                            <List.Item.Meta
-                              title={<Text strong={!item.read}>{item.title}</Text>}
-                              description={
-                                <div>
-                                  <div>{item.description}</div>
-                                  <Text type="secondary" style={{ fontSize: 12 }}>
-                                    {formatTime(item.createdAt)}
-                                  </Text>
-                                </div>
-                              }
-                            />
-                          </List.Item>
-                        )}
-                      />
+                            <div className={cn('text-sm', !item.read && 'font-semibold')}>{item.title}</div>
+                            <div className="text-sm text-muted-foreground">{item.description}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {formatTime(item.createdAt)}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
-                )}
-              >
-                <Badge count={unreadCount} size="small">
-                  <Button type="text" icon={<BellOutlined />} shape="circle" size="large" />
-                </Badge>
-              </Dropdown>
-              <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-                <div className="user-chip">
-                  {!isMobile && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: 4 }}>
-                      <Text strong style={{ lineHeight: '1.2' }}>{userData?.name || 'User'}</Text>
-                      <Text type="secondary" style={{ fontSize: '11px', lineHeight: '1.2' }}>
-                        {userData?.role
-                          ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1).toLowerCase()
-                          : 'Member'}
-                      </Text>
-                    </div>
-                  )}
-                  <Avatar
-                    size="large"
-                    icon={<UserOutlined />}
-                    style={{ backgroundColor: '#111827', color: '#fff' }}
-                  />
-                </div>
-              </Dropdown>
+                </PopoverContent>
+              </Popover>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="user-chip flex items-center gap-2 rounded-md p-1 hover:bg-accent">
+                    {!isMobile && (
+                      <div className="mr-1 flex flex-col items-end leading-tight">
+                        <span className="text-sm font-semibold">{userData?.name || 'User'}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {userData?.role
+                            ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1).toLowerCase()
+                            : 'Member'}
+                        </span>
+                      </div>
+                    )}
+                    <Avatar className="h-10 w-10 bg-neutral-900">
+                      <AvatarFallback className="bg-neutral-900 text-white">{initials}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User className="h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
-            <Space>
-              <Button onClick={() => navigate('/login')}>Login</Button>
-              <Button type="primary" onClick={() => navigate('/register')}>Sign Up</Button>
-            </Space>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => navigate('/login')}>
+                Login
+              </Button>
+              <Button onClick={() => navigate('/register')}>Sign Up</Button>
+            </div>
           )}
-        </Space>
-      </Header>
-
-      <Content className={isLandingPage ? 'content-landing' : 'content-shell'}>
-        {children}
-      </Content>
-
-      <Footer className={isLandingPage ? 'footer-landing' : 'footer-shell'}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <Text className={isLandingPage ? 'footer-text-light' : 'footer-text-dark'}>
-            © 2025 AI Fashion Extractor. All rights reserved.
-          </Text>
         </div>
-      </Footer>
-    </Layout>
+      </header>
+
+      <main className={isLandingPage ? 'content-landing flex-1 overflow-auto' : 'content-shell'}>{children}</main>
+    </div>
   );
 };
 

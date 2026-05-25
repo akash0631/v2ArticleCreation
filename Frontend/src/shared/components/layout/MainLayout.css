@@ -87,7 +87,7 @@
   padding: 24px;
   background: #F6F1EC;
   border-radius: 16px;
-  height: calc(100vh - 112px);
+  height: calc(100vh - 64px);
   overflow-y: auto;
   overflow-x: hidden;
 }
