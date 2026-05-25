@@ -1,7 +1,7 @@
 import React from 'react';
 import * as Sentry from '@sentry/react';
-import { Button, Result } from 'antd';
-import { ReloadOutlined, HomeOutlined, BugOutlined } from '@ant-design/icons';
+import { RotateCw, Home, Bug } from 'lucide-react';
+import { Button, Result } from '@/shared/components/ui-tw';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -16,9 +16,6 @@ interface ErrorFallbackProps {
   resetError: () => void;
 }
 
-/**
- * Custom error fallback component with recovery options
- */
 const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, componentStack, resetError }) => {
   const isDevelopment = import.meta.env.MODE === 'development';
 
@@ -36,40 +33,43 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, componentStack, re
   };
 
   return (
-    <div style={{ padding: '50px 20px', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="flex min-h-screen items-center justify-center px-5 py-12">
       <Result
         status="500"
         title="Something went wrong"
         subTitle="We're sorry for the inconvenience. The error has been reported to our team."
-        extra={[
-          <Button type="primary" icon={<ReloadOutlined />} onClick={resetError} key="reset">
-            Try Again
-          </Button>,
-          <Button icon={<HomeOutlined />} onClick={handleGoHome} key="home">
-            Go Home
-          </Button>,
-          <Button icon={<BugOutlined />} onClick={handleReportIssue} key="report">
-            Report Issue
-          </Button>,
-        ]}
+        extra={
+          <>
+            <Button onClick={resetError}>
+              <RotateCw />
+              Try Again
+            </Button>
+            <Button variant="outline" onClick={handleGoHome}>
+              <Home />
+              Go Home
+            </Button>
+            <Button variant="outline" onClick={handleReportIssue}>
+              <Bug />
+              Report Issue
+            </Button>
+          </>
+        }
       >
         {isDevelopment && (
-          <div style={{ textAlign: 'left', marginTop: 24 }}>
-            <details style={{ whiteSpace: 'pre-wrap', fontSize: '12px', background: '#f5f5f5', padding: '16px', borderRadius: '4px' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' }}>
-                Error Details (Development Only)
-              </summary>
+          <div className="mt-6 text-left">
+            <details className="whitespace-pre-wrap rounded-md bg-muted p-4 text-xs">
+              <summary className="mb-2 cursor-pointer font-bold">Error Details (Development Only)</summary>
               <div>
                 <strong>Error:</strong> {error.message}
               </div>
               {componentStack && (
-                <div style={{ marginTop: '8px' }}>
+                <div className="mt-2">
                   <strong>Component Stack:</strong>
                   <pre>{componentStack}</pre>
                 </div>
               )}
               {error.stack && (
-                <div style={{ marginTop: '8px' }}>
+                <div className="mt-2">
                   <strong>Stack Trace:</strong>
                   <pre>{error.stack}</pre>
                 </div>
@@ -82,42 +82,27 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({ error, componentStack, re
   );
 };
 
-/**
- * Error Boundary wrapper component using Sentry
- * 
- * @example
- * ```tsx
- * <ErrorBoundary>
- *   <App />
- * </ErrorBoundary>
- * ```
- * 
- * @example With custom fallback
- * ```tsx
- * <ErrorBoundary fallback={<div>Custom error UI</div>}>
- *   <MyComponent />
- * </ErrorBoundary>
- * ```
- */
-export const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ 
-  children, 
+export const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({
+  children,
   fallback,
   showDialog = true,
-  onReset 
+  onReset,
 }) => {
   return (
     <Sentry.ErrorBoundary
-      fallback={fallback as any || ((props: any) => (
-        <ErrorFallback 
-          error={props.error as Error}
-          componentStack={props.componentStack}
-          resetError={props.resetError}
-        />
-      ))}
+      fallback={
+        (fallback as any) ||
+        ((props: any) => (
+          <ErrorFallback
+            error={props.error as Error}
+            componentStack={props.componentStack}
+            resetError={props.resetError}
+          />
+        ))
+      }
       showDialog={showDialog}
       onReset={onReset}
       beforeCapture={(scope) => {
-        // Add custom context before sending to Sentry
         scope.setTag('error-boundary', 'react');
         scope.setLevel('error');
       }}

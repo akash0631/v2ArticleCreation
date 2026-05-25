@@ -7,6 +7,7 @@ import { QueryProvider } from './app/providers/QueryProvider'
 import { antdTheme } from './theme'
 import { initSentry } from './config/sentry'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import './styles/tailwind.css'
 import './styles/index.css'
 
 // Initialize Sentry monitoring

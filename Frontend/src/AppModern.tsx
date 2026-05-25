@@ -24,6 +24,7 @@ import ModelGenerationPage from './features/model-generation/pages/ModelGenerati
 // Shared Components
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { SentryTest } from './components/SentryTest';
+import { Toaster } from './shared/components/ui-tw';
 
 // Global Styles
 import './styles/App.css';
@@ -102,6 +103,7 @@ const App: React.FC = () => {
       <AntdApp>
       <AppProviders>
         <ErrorBoundary>
+          <Toaster />
           <Router>
             <Routes>
               {/* Public Routes - No MainLayout */}

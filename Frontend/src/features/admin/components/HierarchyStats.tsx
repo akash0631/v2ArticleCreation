@@ -1,16 +1,9 @@
 /**
  * Hierarchy Stats Component
- * Displays dashboard statistics with Ant Design Statistic
+ * Displays dashboard statistics
  */
-
-import { Row, Col, Card, Statistic, Skeleton } from 'antd';
-import { 
-  BankOutlined, 
-  FolderOutlined, 
-  TagsOutlined, 
-  BgColorsOutlined, 
-  StarOutlined 
-} from '@ant-design/icons';
+import { Building2, Folder, Tags, Palette, Star } from 'lucide-react';
+import { Card, CardContent, Skeleton, Statistic } from '@/shared/components/ui-tw';
 import type { DashboardStats } from '../../../services/adminApi';
 
 interface HierarchyStatsProps {
@@ -20,84 +13,45 @@ interface HierarchyStatsProps {
 
 export const HierarchyStats = ({ stats, loading }: HierarchyStatsProps) => {
   const statCards = [
-    {
-      title: 'Departments',
-      value: stats?.departments || 0,
-      icon: <BankOutlined style={{ fontSize: 24, color: '#FF6F61' }} />,
-      valueStyle: { color: '#FF6F61' },
-      prefix: null,
-    },
-    {
-      title: 'Sub-Departments',
-      value: stats?.subDepartments || 0,
-      icon: <FolderOutlined style={{ fontSize: 24, color: '#722ed1' }} />,
-      valueStyle: { color: '#722ed1' },
-      prefix: null,
-    },
-    {
-      title: 'Categories',
-      value: stats?.categories || 0,
-      icon: <TagsOutlined style={{ fontSize: 24, color: '#52c41a' }} />,
-      valueStyle: { color: '#52c41a' },
-      prefix: null,
-    },
-    {
-      title: 'Master Attributes',
-      value: stats?.masterAttributes || 0,
-      icon: <BgColorsOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
-      valueStyle: { color: '#fa8c16' },
-      prefix: null,
-    },
-    {
-      title: 'Allowed Values',
-      value: stats?.allowedValues || 0,
-      icon: <StarOutlined style={{ fontSize: 24, color: '#eb2f96' }} />,
-      valueStyle: { color: '#eb2f96' },
-      prefix: null,
-    },
+    { title: 'Departments', value: stats?.departments || 0, Icon: Building2, color: '#FF6F61' },
+    { title: 'Sub-Departments', value: stats?.subDepartments || 0, Icon: Folder, color: '#722ed1' },
+    { title: 'Categories', value: stats?.categories || 0, Icon: Tags, color: '#52c41a' },
+    { title: 'Master Attributes', value: stats?.masterAttributes || 0, Icon: Palette, color: '#fa8c16' },
+    { title: 'Allowed Values', value: stats?.allowedValues || 0, Icon: Star, color: '#eb2f96' },
   ];
 
   if (loading) {
     return (
-      <Row gutter={[16, 16]}>
-        {[...Array(5)].map((_, index) => (
-          <Col xs={24} sm={12} md={8} lg={8} xl={4} key={index}>
-            <Card>
-              <Skeleton active paragraph={{ rows: 2 }} />
-            </Card>
-          </Col>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+        {[...Array(5)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="pt-6">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-2 h-8 w-16" />
+            </CardContent>
+          </Card>
         ))}
-      </Row>
+      </div>
     );
   }
 
   return (
-    <Row gutter={[16, 16]}>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
       {statCards.map((stat, index) => (
-        <Col xs={24} sm={12} md={8} lg={8} xl={4} key={index}>
-          <Card 
-            bordered={false} 
-            hoverable
-            style={{ 
-              borderRadius: 8,
-              transition: 'all 0.3s ease',
-            }}
-            styles={{ body: { padding: '20px 24px' } }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Statistic
-                title={stat.title}
-                value={stat.value}
-                valueStyle={stat.valueStyle}
-                prefix={stat.prefix}
-              />
-              <div style={{ marginTop: 4 }}>
-                {stat.icon}
+        <Card
+          key={index}
+          className="cursor-pointer rounded-lg border-0 shadow-sm transition-all duration-300 hover:shadow-md"
+        >
+          <CardContent className="px-6 py-5">
+            <div className="flex items-start justify-between">
+              <Statistic title={stat.title} value={stat.value} valueStyle={{ color: stat.color }} />
+              <div className="mt-1">
+                <stat.Icon className="h-6 w-6" style={{ color: stat.color }} />
               </div>
             </div>
-          </Card>
-        </Col>
+          </CardContent>
+        </Card>
       ))}
-    </Row>
+    </div>
   );
 };

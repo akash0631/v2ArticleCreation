@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Space, Table, Select } from 'antd';
+import { ShoppingBag, Zap, SlidersHorizontal, Calendar } from 'lucide-react';
 import {
-  ShoppingOutlined,
-  ThunderboltOutlined,
-  ControlOutlined,
-  CalendarOutlined
-} from '@ant-design/icons';
+  Button,
+  Card,
+  DataTable,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  type DataTableColumn,
+} from '@/shared/components/ui-tw';
 import './Dashboard.css';
 import { APP_CONFIG } from '../../../constants/app/config';
-
-const { Title, Paragraph, Text } = Typography;
 
 type FlatDashboardRow = {
   id?: string;
@@ -40,15 +43,12 @@ const getDashboardTableViewportOffset = (): number => {
   const ratio = window.devicePixelRatio || 1;
   const width = window.innerWidth;
   const height = window.innerHeight;
-
   let offset = 150;
-
   if (height < 800) offset += 25;
   if (width < 1440) offset += 15;
   if (ratio > 1.25) offset += 20;
   if (ratio > 1.5) offset += 16;
   if (ratio < 1) offset -= 12;
-
   return offset;
 };
 
@@ -97,13 +97,11 @@ export default function Dashboard() {
         const response = await fetch(endpoint, {
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch extraction history');
-        }
+        if (!response.ok) throw new Error('Failed to fetch extraction history');
 
         const result = await response.json();
         const jobs: FlatDashboardRow[] = result?.data?.jobs || [];
@@ -119,7 +117,6 @@ export default function Dashboard() {
 
         jobs.forEach((job) => {
           if (!job.createdAt) return;
-
           const createdAt = new Date(job.createdAt);
           if (Number.isNaN(createdAt.getTime())) return;
 
@@ -134,14 +131,12 @@ export default function Dashboard() {
             division,
             subDivision,
             totalExtractions: 0,
-            totalApproved: 0
+            totalApproved: 0,
           };
-
           existing.totalExtractions += 1;
           if (String(job.approvalStatus || '').toUpperCase() === 'APPROVED') {
             existing.totalApproved += 1;
           }
-
           groupedRows.set(key, existing);
         });
 
@@ -171,31 +166,28 @@ export default function Dashboard() {
     fetchStats();
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === 'extractionsLastUpdated') {
-        fetchStats();
-      }
+      if (event.key === 'extractionsLastUpdated') fetchStats();
     };
-
-    const handleFocus = () => {
-      fetchStats();
-    };
+    const handleFocus = () => fetchStats();
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
-
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
     };
   }, [isAdmin, recalcAnalyticsScrollY]);
 
-  const analyticsColumns = useMemo(() => [
-    { title: 'Date', dataIndex: 'date', key: 'date', width: 130 },
-    { title: 'Division', dataIndex: 'division', key: 'division', width: 120 },
-    { title: 'Sub Division', dataIndex: 'subDivision', key: 'subDivision', width: 140 },
-    { title: 'Total Extractions', dataIndex: 'totalExtractions', key: 'totalExtractions', width: 150 },
-    { title: 'Total Approved', dataIndex: 'totalApproved', key: 'totalApproved', width: 140 }
-  ], []);
+  const analyticsColumns = useMemo<DataTableColumn<AnalyticsSummaryRow>[]>(
+    () => [
+      { title: 'Date', dataIndex: 'date', key: 'date', width: 130 },
+      { title: 'Division', dataIndex: 'division', key: 'division', width: 120 },
+      { title: 'Sub Division', dataIndex: 'subDivision', key: 'subDivision', width: 140 },
+      { title: 'Total Extractions', dataIndex: 'totalExtractions', key: 'totalExtractions', width: 150 },
+      { title: 'Total Approved', dataIndex: 'totalApproved', key: 'totalApproved', width: 140 },
+    ],
+    [],
+  );
 
   const dateOptions = useMemo(() => {
     return Array.from(new Set(analyticsRows.map((row) => row.date))).sort((a, b) => {
@@ -229,84 +221,68 @@ export default function Dashboard() {
   }, [analyticsRows, dateFilter, divisionFilter, subDivisionFilter]);
 
   useEffect(() => {
-    if (divisionFilter !== 'ALL' && !divisionOptions.includes(divisionFilter)) {
-      setDivisionFilter('ALL');
-    }
+    if (divisionFilter !== 'ALL' && !divisionOptions.includes(divisionFilter)) setDivisionFilter('ALL');
   }, [divisionFilter, divisionOptions]);
 
   useEffect(() => {
-    if (subDivisionFilter !== 'ALL' && !subDivisionOptions.includes(subDivisionFilter)) {
-      setSubDivisionFilter('ALL');
-    }
+    if (subDivisionFilter !== 'ALL' && !subDivisionOptions.includes(subDivisionFilter)) setSubDivisionFilter('ALL');
   }, [subDivisionFilter, subDivisionOptions]);
 
   return (
     <div className="dashboard-container">
       <div className="dashboard-hero">
         <div className="dashboard-hero-text">
-          <Text className="dashboard-hero-greeting">{greeting}</Text>
-          <Title level={2} className="dashboard-hero-title">
-            {userData?.name || 'Welcome back'}
-          </Title>
-          <Paragraph className="dashboard-hero-subtitle">
+          <span className="dashboard-hero-greeting">{greeting}</span>
+          <h2 className="dashboard-hero-title">{userData?.name || 'Welcome back'}</h2>
+          <p className="dashboard-hero-subtitle">
             Keep your catalog organized with clean insights and a calmer workflow.
-          </Paragraph>
-          <Space>
-            <Button
-              type="primary"
-              icon={<ThunderboltOutlined />}
-              className="dashboard-hero-btn"
-              onClick={() => navigate('/extraction')}
-            >
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button className="dashboard-hero-btn" onClick={() => navigate('/extraction')}>
+              <Zap />
               Start Extraction
             </Button>
-            <Button
-              icon={<ShoppingOutlined />}
-              className="dashboard-ghost-btn"
-              onClick={() => navigate('/products')}
-            >
+            <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/products')}>
+              <ShoppingBag />
               View Products
             </Button>
             {isAdmin && (
-              <Button
-                icon={<ControlOutlined />}
-                className="dashboard-ghost-btn"
-                onClick={() => navigate('/admin')}
-              >
+              <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/admin')}>
+                <SlidersHorizontal />
                 Open Admin Panel
               </Button>
             )}
-          </Space>
+          </div>
         </div>
         <div className="dashboard-hero-card">
           <div className="dashboard-hero-card-icon">
-            <ThunderboltOutlined />
+            <Zap />
           </div>
-          <Text type="secondary">Today’s Processing</Text>
-          <Title level={3} className="dashboard-hero-metric">
+          <span className="text-sm text-muted-foreground">Today's Processing</span>
+          <h3 className="dashboard-hero-metric">
             {todayCount && todayCount > 0
               ? `${todayCount} ${todayCount === 1 ? 'job' : 'jobs'}`
               : 'No data yet'}
-          </Title>
-          <Text className="dashboard-hero-metric-sub">
+          </h3>
+          <span className="dashboard-hero-metric-sub">
             {totalCount && totalCount > 0
               ? `${totalCount} total extraction${totalCount === 1 ? '' : 's'}`
               : 'Run an extraction to see stats'}
-          </Text>
+          </span>
         </div>
       </div>
 
       <Card className="dashboard-panel dashboard-panel-soft dashboard-analytics-card">
-        <div className="dashboard-analytics-header">
+        <div className="dashboard-analytics-header p-6">
           <div>
-            <Title level={4}>Analytics Timeline</Title>
-            <Paragraph type="secondary">
+            <h4 className="text-xl font-semibold">Analytics Timeline</h4>
+            <p className="text-sm text-muted-foreground">
               Daily division and sub-division summary for extractions and approvals.
-            </Paragraph>
+            </p>
           </div>
           <div className="dashboard-analytics-summary">
             <div className="dashboard-analytics-chip">
-              <CalendarOutlined />
+              <Calendar className="h-4 w-4" />
               <span>{todayCount ?? 0} today</span>
             </div>
             <div className="dashboard-analytics-chip accent">
@@ -315,58 +291,67 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="dashboard-analytics-filters">
-          <Select
-            value={dateFilter}
-            onChange={setDateFilter}
-            className="dashboard-analytics-filter"
-            size="small"
-          >
-            <Select.Option value="ALL">All Dates</Select.Option>
-            {dateOptions.map((date) => (
-              <Select.Option key={date} value={date}>{date}</Select.Option>
-            ))}
+        <div className="dashboard-analytics-filters px-6">
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="dashboard-analytics-filter h-8 w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Dates</SelectItem>
+              {dateOptions.map((date) => (
+                <SelectItem key={date} value={date}>
+                  {date}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
 
           <Select
             value={divisionFilter}
-            onChange={(value) => {
+            onValueChange={(value) => {
               setDivisionFilter(value);
               setSubDivisionFilter('ALL');
             }}
-            className="dashboard-analytics-filter"
-            size="small"
           >
-            <Select.Option value="ALL">All Divisions</Select.Option>
-            {divisionOptions.map((division) => (
-              <Select.Option key={division} value={division}>{division}</Select.Option>
-            ))}
+            <SelectTrigger className="dashboard-analytics-filter h-8 w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Divisions</SelectItem>
+              {divisionOptions.map((division) => (
+                <SelectItem key={division} value={division}>
+                  {division}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
 
-          <Select
-            value={subDivisionFilter}
-            onChange={setSubDivisionFilter}
-            className="dashboard-analytics-filter"
-            size="small"
-          >
-            <Select.Option value="ALL">All Sub Divisions</Select.Option>
-            {subDivisionOptions.map((subDivision) => (
-              <Select.Option key={subDivision} value={subDivision}>{subDivision}</Select.Option>
-            ))}
+          <Select value={subDivisionFilter} onValueChange={setSubDivisionFilter}>
+            <SelectTrigger className="dashboard-analytics-filter h-8 w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Sub Divisions</SelectItem>
+              {subDivisionOptions.map((sd) => (
+                <SelectItem key={sd} value={sd}>
+                  {sd}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 
-        <div ref={analyticsTableRef} className="dashboard-analytics-table-shell">
-          <Table
+        <div ref={analyticsTableRef} className="dashboard-analytics-table-shell p-6">
+          <DataTable<AnalyticsSummaryRow>
             columns={analyticsColumns}
             dataSource={filteredAnalyticsRows}
             loading={analyticsLoading}
             size="small"
+            rowKey="key"
             pagination={{
               pageSize: 50,
               showSizeChanger: true,
               pageSizeOptions: ['25', '50', '100'],
-              position: ['bottomRight']
             }}
             scroll={{ x: 'max-content', y: analyticsScrollY }}
             sticky

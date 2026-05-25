@@ -1,6 +1,6 @@
 // src/hooks/extraction/extractionHelpers.ts
 
-import { message } from 'antd';
+import { message } from '@/lib/message';
 import { logger } from '../../utils/common/logger';
 import { generateId } from '../../utils/common/helpers';
 import { ImageCompressionService } from '../../services/processing/ImageCompressionService';

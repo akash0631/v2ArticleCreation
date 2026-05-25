@@ -1,11 +1,19 @@
 import { defineConfig } from 'vite'
+import path from 'node:path'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   plugins: [
     react(),
+    tailwindcss(),
     // Sentry plugin for source maps (only in production builds)
     process.env.NODE_ENV === 'production' && sentryVitePlugin({
       org: process.env.VITE_SENTRY_ORG,
