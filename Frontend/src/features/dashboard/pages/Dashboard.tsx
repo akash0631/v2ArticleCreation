@@ -263,7 +263,7 @@ export default function Dashboard() {
             <Button
               icon={<ShoppingOutlined />}
               className="dashboard-ghost-btn"
-              onClick={() => navigate('/products')}
+              onClick={() => navigate('/approver')}
             >
               View Products
             </Button>

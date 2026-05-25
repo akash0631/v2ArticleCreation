@@ -1954,6 +1954,8 @@ export const getSrmFailedExtractions = async (req: Request, res: Response): Prom
           vendorName:       true,
           imageUrl:         true,
           extractionStatus: true,
+          approvalStatus:   true,
+          sapSyncStatus:    true,
           createdAt:        true,
           updatedAt:        true,
           aiModel:          true,
@@ -2006,7 +2008,7 @@ export const retrySrmFailedRecord = async (req: Request, res: Response): Promise
 
     const record = await prisma.extractionResultFlat.findUnique({
       where:  { id },
-      select: { id: true, imageUrl: true, majorCategory: true, extractionStatus: true, pptNumber: true, designNumber: true },
+      select: { id: true, imageUrl: true, majorCategory: true, extractionStatus: true, pptNumber: true, designNumber: true, approvalStatus: true, sapSyncStatus: true },
     });
 
     if (!record) {
@@ -2016,6 +2018,18 @@ export const retrySrmFailedRecord = async (req: Request, res: Response): Promise
 
     if (!record.imageUrl) {
       res.status(422).json({ success: false, error: 'Record has no image URL — cannot run VLM' });
+      return;
+    }
+
+    // Guard: do not overwrite data that has already been approved and synced to SAP.
+    // The approver reviewed & edited the fields manually; VLM would clobber their work.
+    if (record.approvalStatus === 'APPROVED' && record.sapSyncStatus === 'SYNCED') {
+      res.status(409).json({
+        success: false,
+        error:   'Cannot retry: this article is APPROVED and already SYNCED to SAP. VLM extraction would overwrite manually approved data.',
+        approvalStatus: record.approvalStatus,
+        sapSyncStatus:  record.sapSyncStatus,
+      });
       return;
     }
 
@@ -2061,6 +2075,8 @@ export const retrySrmFailedAll = async (req: Request, res: Response): Promise<vo
       source:           'SRM',
       extractionStatus: 'SRM_IMPORT',
       imageUrl:         { not: null },
+      // Never touch articles that are already APPROVED + SYNCED to SAP
+      NOT: { approvalStatus: 'APPROVED', sapSyncStatus: 'SYNCED' },
     };
     if (division) where.division = { equals: division, mode: 'insensitive' };
 
