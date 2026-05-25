@@ -116,6 +116,38 @@ export const triggerBatch = async (req: Request, res: Response): Promise<void> =
     }
   }
 
+  // ── Duplicate presentation guard ───────────────────────────────────────
+  // Only allow extraction for design numbers that don't already exist in DB.
+  // If ALL requested design numbers are already present, reject the whole request.
+  const pptNo = body.presentation_no.trim();
+  const requestedDesigns = body.images.map((img) => img.design_number.trim());
+
+  const existingDesigns = await prisma.extractionResultFlat.findMany({
+    where: {
+      pptNumber:    pptNo,
+      designNumber: { in: requestedDesigns },
+    },
+    select: { designNumber: true },
+  });
+
+  const existingDesignSet = new Set(existingDesigns.map((r) => r.designNumber).filter(Boolean) as string[]);
+  const newDesigns = requestedDesigns.filter((d) => !existingDesignSet.has(d));
+
+  if (newDesigns.length === 0) {
+    res.status(409).json({
+      success: false,
+      error: `All ${requestedDesigns.length} design(s) for presentation ${pptNo} already exist in the database. No new extraction needed.`,
+      existingDesigns: [...existingDesignSet],
+    });
+    return;
+  }
+
+  // Filter images to only those with new design numbers
+  if (existingDesignSet.size > 0) {
+    console.log(`[SrmHook] Presentation ${pptNo}: skipping ${existingDesignSet.size} already-existing design(s), extracting ${newDesigns.length} new.`);
+    body.images = body.images.filter((img) => !existingDesignSet.has(img.design_number.trim()));
+  }
+
   // ── Create job ─────────────────────────────────────────────────────────
   const jobId = generateJobId();
   const total = body.images.length;

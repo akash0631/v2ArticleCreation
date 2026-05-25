@@ -1877,6 +1877,20 @@ export const syncSrmByRef = async (req: Request, res: Response): Promise<void> =
 
     const cleanRef = refNo.trim().toUpperCase();
 
+    // ── Duplicate presentation guard ─────────────────────────────────────
+    // Block re-sync if this presentation already has records in extraction_results_flat.
+    const existingCount = await prisma.extractionResultFlat.count({
+      where: { pptNumber: cleanRef },
+    });
+    if (existingCount > 0) {
+      res.status(409).json({
+        success: false,
+        error: `Presentation ${cleanRef} already has ${existingCount} record(s) in the database. Re-extraction is not allowed to prevent duplicates.`,
+        existingCount,
+      });
+      return;
+    }
+
     const { syncSinglePresentation } = await import('../services/srmSyncService');
     console.log(`[Admin] Single PPT sync triggered for: ${cleanRef}`);
 
