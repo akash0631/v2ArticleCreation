@@ -1,6 +1,6 @@
-import { notification } from 'antd';
-import { addNotification } from '../../../shared/services/notifications/notificationStore';
 import { saveAs } from 'file-saver';
+import { notification } from '@/lib/message';
+import { addNotification } from '../../../shared/services/notifications/notificationStore';
 import type { ExtractedRow } from '../../../shared/types/extraction/ExtractionTypes';
 import type { ExportResult, ExportMessage } from '../../../shared/types/worker.types';
 
@@ -23,7 +23,7 @@ export const exportToExcel = (rows: ExtractedRow[]): Promise<void> => {
       } else {
         notification.error({
           message: 'Failed to export data',
-          description: event.data.error || 'Unknown error occurred'
+          description: event.data.error || 'Unknown error occurred',
         });
         reject(new Error(event.data.error));
       }

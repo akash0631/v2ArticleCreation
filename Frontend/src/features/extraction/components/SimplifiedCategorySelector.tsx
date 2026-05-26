@@ -3,20 +3,28 @@
  * Fetches departments and categories from the hierarchy API.
  * Falls back to hardcoded data if the API is unavailable.
  */
-
 import { useState, useEffect, useMemo } from 'react';
-import { Select, Card, Typography, Tag, Button, Spin } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { RotateCw, Info } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+} from '@/shared/components/ui-tw';
 import { APP_CONFIG } from '../../../constants/app/config';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-
-// Hardcoded fallback (used if API is empty / unreachable)
 export const SIMPLIFIED_HIERARCHY: Record<string, string[]> = {
-  'Kids':   ['KB-SETS', 'KB-L', 'KB-U', 'KBW-U', 'KBW-L', 'KBW-SETS', 'KG-L', 'KG-U', 'KGW-U', 'KGW-L', 'IB', 'IG', 'KI', 'KIW', 'KB', 'KBW', 'KG'],
-  'Ladies': ['LU', 'LL', 'LK&L', 'LN&L', 'LW'],
-  'MENS':   ['MU', 'MS-U', 'MS-L', 'MW', 'MO', 'MS-IW', 'ML'],
+  Kids: ['KB-SETS', 'KB-L', 'KB-U', 'KBW-U', 'KBW-L', 'KBW-SETS', 'KG-L', 'KG-U', 'KGW-U', 'KGW-L', 'IB', 'IG', 'KI', 'KIW', 'KB', 'KBW', 'KG'],
+  Ladies: ['LU', 'LL', 'LK&L', 'LN&L', 'LW'],
+  MENS: ['MU', 'MS-U', 'MS-L', 'MW', 'MO', 'MS-IW', 'ML'],
 };
 
 export interface SimplifiedCategory {
@@ -40,8 +48,8 @@ const normalizeDivision = (division?: string): string | null => {
 };
 
 const parseSubDivisions = (rawSubDivision: unknown): string[] => {
-  if (Array.isArray(rawSubDivision)) return rawSubDivision.map(v => String(v).trim()).filter(Boolean);
-  if (typeof rawSubDivision === 'string') return rawSubDivision.split(',').map(v => v.trim()).filter(Boolean);
+  if (Array.isArray(rawSubDivision)) return rawSubDivision.map((v) => String(v).trim()).filter(Boolean);
+  if (typeof rawSubDivision === 'string') return rawSubDivision.split(',').map((v) => v.trim()).filter(Boolean);
   return [];
 };
 
@@ -50,9 +58,10 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
   selectedCategory,
 }) => {
   const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>(selectedCategory?.department);
-  const [selectedMajorCategory, setSelectedMajorCategory] = useState<string | undefined>(selectedCategory?.majorCategory);
+  const [selectedMajorCategory, setSelectedMajorCategory] = useState<string | undefined>(
+    selectedCategory?.majorCategory,
+  );
 
-  // DB-driven hierarchy (falls back to hardcoded)
   const [hierarchy, setHierarchy] = useState<Record<string, string[]>>(SIMPLIFIED_HIERARCHY);
   const [hierarchyLoading, setHierarchyLoading] = useState(true);
 
@@ -61,8 +70,8 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
     fetch(`${APP_CONFIG.api.baseURL}/user/hierarchy`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
         if (!data?.data?.departments?.length) return;
         const map: Record<string, string[]> = {};
         for (const dept of data.data.departments) {
@@ -72,7 +81,7 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
         }
         if (Object.keys(map).length) setHierarchy(map);
       })
-      .catch(() => {/* keep fallback */})
+      .catch(() => {})
       .finally(() => setHierarchyLoading(false));
   }, []);
 
@@ -94,7 +103,7 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
     : Object.keys(hierarchy);
 
   const majorCategories = selectedDepartment
-    ? (hierarchy[selectedDepartment] || []).filter(cat => {
+    ? (hierarchy[selectedDepartment] || []).filter((cat) => {
         if (!creatorScope.isCreator) return true;
         if (creatorScope.allowedSubDivisions.length === 0) return true;
         return creatorScope.allowedSubDivisions.includes(cat);
@@ -131,88 +140,89 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
 
   if (selectedDepartment && selectedMajorCategory) {
     return (
-      <Card className="category-summary" style={{ borderRadius: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Card className="category-summary rounded-xl">
+        <CardContent className="flex items-center justify-between p-6">
           <div>
-            <Title level={4} style={{ margin: 0, color: '#FF6F61' }}>
-              {selectedMajorCategory}
-            </Title>
-            <Text type="secondary">{selectedDepartment} → {selectedMajorCategory}</Text>
-            <div style={{ marginTop: 8 }}>
-              <Tag color="blue" className="selection-badge">Sub-Division Selected</Tag>
+            <h4 className="m-0 text-xl font-semibold text-primary">{selectedMajorCategory}</h4>
+            <span className="text-sm text-muted-foreground">
+              {selectedDepartment} → {selectedMajorCategory}
+            </span>
+            <div className="mt-2">
+              <Badge variant="info" className="selection-badge">
+                Sub-Division Selected
+              </Badge>
             </div>
           </div>
           {!creatorScope.isSingleScopedCreator ? (
-            <Button icon={<ReloadOutlined />} onClick={handleReset} className="btn-secondary">
+            <Button variant="outline" onClick={handleReset} className="btn-secondary">
+              <RotateCw />
               Change Sub-Division
             </Button>
           ) : (
-            <Tag color="orange">Fixed Scope</Tag>
+            <Badge variant="warning">Fixed Scope</Badge>
           )}
-        </div>
+        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card
-      title={
-        <span style={{ color: '#FF6F61', fontWeight: 600 }}>
-          <InfoCircleOutlined style={{ marginRight: 8 }} />
+    <Card className="category-selector rounded-xl">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-primary">
+          <Info className="h-4 w-4" />
           Select Category (Simplified)
-        </span>
-      }
-      className="category-selector"
-      style={{ borderRadius: 12 }}
-    >
-      <Spin spinning={hierarchyLoading} tip="Loading categories...">
-        <div style={{ display: 'grid', gap: 16 }}>
-          <div>
-            <Text strong style={{ display: 'block', marginBottom: 8 }}>1. Choose Division</Text>
-            <Select
-              placeholder="Select division (Kids, Ladies, MENS)"
-              value={selectedDepartment}
-              onChange={handleDepartmentChange}
-              style={{ width: '100%' }}
-              size="large"
-              allowClear={!creatorScope.restrictedDivision}
-              disabled={!!creatorScope.restrictedDivision || hierarchyLoading}
-            >
-              {departments.map(dept => (
-                <Option key={dept} value={dept}>{dept}</Option>
-              ))}
-            </Select>
-          </div>
-
-          {selectedDepartment && (
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Spinner spinning={hierarchyLoading} tip="Loading categories...">
+          <div className="grid gap-4">
             <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>2. Choose Sub-Division</Text>
+              <span className="mb-2 block font-medium">1. Choose Division</span>
               <Select
-                placeholder="Select sub-division (Tops, Bottoms, etc.)"
-                value={selectedMajorCategory}
-                onChange={setSelectedMajorCategory}
-                style={{ width: '100%' }}
-                size="large"
-                allowClear
-                showSearch
-                filterOption={(input, option) =>
-                  String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-                }
+                value={selectedDepartment}
+                onValueChange={handleDepartmentChange}
+                disabled={!!creatorScope.restrictedDivision || hierarchyLoading}
               >
-                {majorCategories.map(cat => (
-                  <Option key={cat} value={cat}>{cat}</Option>
-                ))}
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select division (Kids, Ladies, MENS)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
-          )}
 
-          {selectedDepartment && !selectedMajorCategory && (
-            <div style={{ padding: 12, background: '#e6f7ff', borderRadius: 8, border: '1px solid #91d5ff' }}>
-              <Text type="secondary">ℹ️ Select a major category to proceed</Text>
-            </div>
-          )}
-        </div>
-      </Spin>
+            {selectedDepartment && (
+              <div>
+                <span className="mb-2 block font-medium">2. Choose Sub-Division</span>
+                <Select value={selectedMajorCategory} onValueChange={setSelectedMajorCategory}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select sub-division (Tops, Bottoms, etc.)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {majorCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedDepartment && !selectedMajorCategory && (
+              <div className="rounded-lg border border-sky-300 bg-sky-50 p-3">
+                <span className="text-sm text-sky-900">Select a major category to proceed</span>
+              </div>
+            )}
+          </div>
+        </Spinner>
+      </CardContent>
     </Card>
   );
 };
