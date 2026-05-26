@@ -1020,8 +1020,7 @@ const ArticleCard = React.memo(({
                                         <tbody>
                                             {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText, isMandatory }) => {
                                                 const currentValue = getValue(field);
-                                                // "-" is treated as no real value — mandatory fields show "Required" instead
-                                                const isEffectivelyEmpty = !currentValue || currentValue === '-';
+                                                const isEffectivelyEmpty = !currentValue || currentValue.trim() === '';
                                                 const isEmpty = isEffectivelyEmpty;
                                                 const isEditing = editingField === field;
                                                 const artNum = getArtNum(schemaKey, field, isEffectivelyEmpty ? null : currentValue);
@@ -1119,8 +1118,7 @@ const ArticleCard = React.memo(({
                                                                     onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
                                                                     getPopupContainer={() => document.body}
                                                                 >
-                                                                    {/* Filter "-" from mandatory field dropdowns — it is not a real value */}
-                                                                    {values.filter(v => !isMandatory || v.shortForm !== '-').map(v => (
+                                                                    {values.map(v => (
                                                                         <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
                                                                     ))}
                                                                 </Select>

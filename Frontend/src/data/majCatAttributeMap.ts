@@ -300,7 +300,14 @@ export function getMajCatAllowedValues(
   if (excelAttr && majorCategory) {
     const gridVals = getMajCatGridEntry(majorCategory, excelAttr);
     if (gridVals && gridVals.length > 0) {
-      return gridVals.map((v) => ({ shortForm: v, fullForm: v }));
+      // If the only value is '-', it means "no specific constraint — use global values
+      // but keep '-' as a valid selectable N/A option".
+      const onlyDash = gridVals.length === 1 && gridVals[0] === '-';
+      if (!onlyDash) {
+        // Specific values configured — return them directly (always include '-' if present)
+        return gridVals.map((v) => ({ shortForm: v, fullForm: v }));
+      }
+      // Fall through to global values, but remember to prepend '-'
     }
   }
 
@@ -310,9 +317,24 @@ export function getMajCatAllowedValues(
   if (!dbField) return null;
 
   const values = getCachedValues(fallbackDiv, dbField);
-  if (!values || values.length === 0) return null;
 
-  return values.map((v) => ({ shortForm: v, fullForm: v }));
+  // Check if the majcat grid has '-' for this field — if so, prepend it as N/A option
+  const hasDashInGrid = (() => {
+    if (!excelAttr || !majorCategory) return false;
+    const gridVals = getMajCatGridEntry(majorCategory, excelAttr);
+    return gridVals !== null && gridVals.includes('-');
+  })();
+
+  if (!values || values.length === 0) {
+    return hasDashInGrid ? [{ shortForm: '-', fullForm: '-' }] : null;
+  }
+
+  const result = values.map((v) => ({ shortForm: v, fullForm: v }));
+  // Prepend '-' so user can always clear/mark as N/A when the grid allows it
+  if (hasDashInGrid && !result.some(v => v.shortForm === '-')) {
+    result.unshift({ shortForm: '-', fullForm: '-' });
+  }
+  return result;
 }
 
 /**
