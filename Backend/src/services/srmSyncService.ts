@@ -25,6 +25,7 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 import { VLMService } from './vlm/vlmService';
 import { mvgrMappingService } from './mvgrMappingService';
@@ -496,7 +497,9 @@ async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCatego
 
       // Rebuild article description with the newly populated fields
       if (updatedRow) {
-        const artDesc = buildArticleDescription(updatedRow as any);
+        const artDesc = buildArticleDescription(updatedRow as any, 40, {
+          excludeFields: await getExcludedDescriptionFields((updatedRow as any).majorCategory) as any,
+        });
         if (artDesc) {
           await prisma.extractionResultFlat.update({
             where: { id: flatId },
@@ -603,7 +606,9 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
 
   // Build article description from available fields
   try {
-    const artDesc = buildArticleDescription(flat as any);
+    const artDesc = buildArticleDescription(flat as any, 40, {
+      excludeFields: await getExcludedDescriptionFields((flat as any).majorCategory) as any,
+    });
     if (artDesc) {
       await prisma.extractionResultFlat.update({
         where: { id: flat.id },

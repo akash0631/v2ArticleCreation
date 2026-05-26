@@ -12,6 +12,7 @@ import { storageService } from '../services/storageService';
 import { getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { duplicateForKidsDivision } from '../services/kidsDivisionDuplicationService';
 import { createVariantsForGeneric } from '../services/variantCreationService';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
@@ -419,8 +420,10 @@ export class EnhancedExtractionController {
             const seg = getSegmentByCategoryAndMrp(updatedRow.majorCategory, updatedRow.mrp);
             if (seg) derivedStep2.segment = seg;
 
-            // Article Description (built from extracted attributes)
-            const artDesc = buildArticleDescription(updatedRow as any);
+            // Article Description — only include fields visible in the article card for this major category
+            const artDesc = buildArticleDescription(updatedRow as any, 40, {
+              excludeFields: await getExcludedDescriptionFields(updatedRow.majorCategory) as any,
+            });
             if (artDesc) derivedStep2.articleDescription = artDesc;
 
             if (Object.keys(derivedStep2).length > 0) {

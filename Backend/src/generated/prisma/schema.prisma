@@ -909,6 +909,55 @@ model Article360Flat {
   @@schema("360article")
 }
 
+// ── Raw Articles ─────────────────────────────────────────────────────────────
+
+enum RawArticleStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@schema("public")
+}
+
+/// Raw SRM article data exactly as received from the SRM API.
+/// unique_key = presentation_no + image_url — prevents duplicate imports.
+/// status tracks the processing pipeline state for each article.
+model RawArticle {
+  id String @id @default(uuid())
+
+  // SRM fields (as received)
+  presentationNo           String    @map("presentation_no") @db.VarChar(100)
+  vendorCode               String?   @map("vendor_code") @db.VarChar(50)
+  vendorName               String?   @map("vendor_name") @db.VarChar(200)
+  division                 String?   @db.VarChar(100)
+  subDivision              String?   @map("sub_division") @db.VarChar(100)
+  majorCategory            String?   @map("major_category") @db.VarChar(200)
+  presentationReceivedDate DateTime? @map("presentation_received_date")
+  designNumber             String?   @map("design_number") @db.VarChar(255)
+  fabric                   String?   @db.VarChar(100)
+  noOfColors               Int?      @map("no_of_colors")
+  price                    Decimal?  @db.Decimal(10, 2)
+  imageUrl                 String?   @map("image_url")
+
+  // Dedup key: presentation_no + image_url (set on insert, never changed)
+  uniqueKey String @unique @map("unique_key")
+
+  // Processing state
+  status RawArticleStatus @default(PENDING)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([presentationNo])
+  @@index([status])
+  @@index([division])
+  @@index([vendorCode])
+  @@index([createdAt])
+  @@map("raw_articles")
+  @@schema("public")
+}
+
 // ── SRM Sync Audit Logs ──────────────────────────────────────────────────────
 
 /// One row per cron/admin/webhook sync execution

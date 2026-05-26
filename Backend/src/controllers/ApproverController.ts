@@ -10,6 +10,7 @@ import { syncArticlesToSapViaRfc } from '../services/zmmArtCreationService';
 import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
 import { storageService, type WatermarkLabel } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { prismaClient as prisma } from '../utils/prisma';
 import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
@@ -368,7 +369,9 @@ export class ApproverController {
             const idsToNull: string[] = [];
 
             for (const row of rows) {
-                const computedDescription = buildArticleDescription(row as any);
+                const computedDescription = buildArticleDescription(row as any, 40, {
+                    excludeFields: await getExcludedDescriptionFields((row as any).majorCategory) as any,
+                });
                 const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
 
                 if ((computedDescription || null) === (currentDescription || null)) continue;
@@ -1577,11 +1580,15 @@ export class ApproverController {
 
             // Article Description: merge ordered attribute values with '-' separator,
             // max 40 chars, starting from yarn1 and skipping empty values.
+            // collar is only included when it is visible in the article card for this major category.
             const descriptionSource: any = {};
             for (const field of ARTICLE_DESCRIPTION_SOURCE_FIELDS) {
                 descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
             }
-            data.articleDescription = buildArticleDescription(descriptionSource);
+            const majCatForDescCheck = data.majorCategory ?? (existingItem as any).majorCategory;
+            data.articleDescription = buildArticleDescription(descriptionSource, 40, {
+                excludeFields: await getExcludedDescriptionFields(majCatForDescCheck) as any,
+            });
 
             const updated = await prisma.extractionResultFlat.update({
                 where: { id },

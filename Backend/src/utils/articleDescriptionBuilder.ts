@@ -4,6 +4,10 @@
  * Field order defined by user-confirmed sequence (47 fields).
  * Joined with '-', sliced to 40 chars from the front.
  * BODY STYLE is mapped to the `pattern` column in ExtractionResultFlat.
+ *
+ * Pass `excludeFields` to skip specific fields for a given article context.
+ * Example: collar is only included when it is visible in the article card
+ * for the given major category (checked via categoryFieldVisibility helper).
  */
 
 type ArticleDescriptionSource = {
@@ -14,7 +18,7 @@ type ArticleDescriptionSource = {
   mFab2?: unknown;           // WEAVE 02
   lycra?: unknown;           // M_LYCRA
   neck?: unknown;            // M_NECK_TYPE
-  collar?: unknown;          // M_COLLAR_TYPE
+  collar?: unknown;          // M_COLLAR_TYPE  (conditionally included — see excludeFields)
   sleeve?: unknown;          // M_SLEEVES_MAIN_STYLE
   sleeveFold?: unknown;      // M_SLEEVE_FOLD
   pocketType?: unknown;      // M_POCKET
@@ -26,6 +30,11 @@ type ArticleDescriptionSource = {
   embroidery?: unknown;      // M_EMB_TYPE
   embroideryType?: unknown;  // M_EMBROIDERY_STYLE
   wash?: unknown;            // M_WASH
+};
+
+export type ArticleDescriptionOptions = {
+  /** Fields to skip regardless of their value (e.g. collar when not visible for the major category) */
+  excludeFields?: ReadonlySet<keyof ArticleDescriptionSource>;
 };
 
 const ARTICLE_DESCRIPTION_MAX_LENGTH = 40;
@@ -67,12 +76,18 @@ const toShortToken = (value: unknown): string | null => {
 
 export const buildArticleDescription = (
   source: ArticleDescriptionSource,
-  maxLength: number = ARTICLE_DESCRIPTION_MAX_LENGTH
+  maxLength: number = ARTICLE_DESCRIPTION_MAX_LENGTH,
+  options?: ArticleDescriptionOptions
 ): string | null => {
+  const exclude = options?.excludeFields;
+
   // Collect all non-empty tokens in the fixed sequence order
   const tokens: string[] = [];
 
   for (const field of ARTICLE_DESCRIPTION_FIELDS) {
+    // Skip fields that are not visible for this article's major category
+    if (exclude?.has(field)) continue;
+
     const token = toShortToken(source[field]);
     if (token) tokens.push(token);
   }

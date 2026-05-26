@@ -671,6 +671,26 @@ exports.Prisma.Article360FlatScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.RawArticleScalarFieldEnum = {
+  id: 'id',
+  presentationNo: 'presentationNo',
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  division: 'division',
+  subDivision: 'subDivision',
+  majorCategory: 'majorCategory',
+  presentationReceivedDate: 'presentationReceivedDate',
+  designNumber: 'designNumber',
+  fabric: 'fabric',
+  noOfColors: 'noOfColors',
+  price: 'price',
+  imageUrl: 'imageUrl',
+  uniqueKey: 'uniqueKey',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SrmSyncRunScalarFieldEnum = {
   id: 'id',
   triggeredBy: 'triggeredBy',
@@ -1113,6 +1133,20 @@ exports.Prisma.Article360FlatOrderByRelevanceFieldEnum = {
   userEmail: 'userEmail'
 };
 
+exports.Prisma.RawArticleOrderByRelevanceFieldEnum = {
+  id: 'id',
+  presentationNo: 'presentationNo',
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  division: 'division',
+  subDivision: 'subDivision',
+  majorCategory: 'majorCategory',
+  designNumber: 'designNumber',
+  fabric: 'fabric',
+  imageUrl: 'imageUrl',
+  uniqueKey: 'uniqueKey'
+};
+
 exports.Prisma.SrmSyncRunOrderByRelevanceFieldEnum = {
   id: 'id',
   triggeredBy: 'triggeredBy',
@@ -1178,6 +1212,13 @@ exports.ChangeAction = exports.$Enums.ChangeAction = {
   DELETE: 'DELETE'
 };
 
+exports.RawArticleStatus = exports.$Enums.RawArticleStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+};
+
 exports.Prisma.ModelName = {
   Department: 'Department',
   SubDepartment: 'SubDepartment',
@@ -1204,6 +1245,7 @@ exports.Prisma.ModelName = {
   SapFieldConfig: 'SapFieldConfig',
   SapAttributeValue: 'SapAttributeValue',
   Article360Flat: 'Article360Flat',
+  RawArticle: 'RawArticle',
   SrmSyncRun: 'SrmSyncRun',
   SrmSyncRunItem: 'SrmSyncRunItem'
 };

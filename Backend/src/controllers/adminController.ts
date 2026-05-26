@@ -9,6 +9,7 @@ import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
 import { invalidateMandatoryGridCache, invalidateMajCatVisibleCache } from '../services/zmmArtCreationService';
+import { invalidateFieldVisibilityCache } from '../utils/categoryFieldVisibility';
 import path from 'path';
 import fs from 'fs';
 
@@ -2493,6 +2494,7 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
 
     // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
     invalidateMajCatVisibleCache();
+    invalidateFieldVisibilityCache(); // also flush description-builder collar visibility cache
 
     console.log(`[MajCatGrid] Done — ${totalRows} ACT rows inserted, ${inactiveSkipped} IN-ACT skipped, ${categoriesCount} major categories, ${attributesCount} attr slots`);
 
@@ -2792,6 +2794,7 @@ export const uploadMandatoryGrid = async (req: Request, res: Response): Promise<
 
     // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
     invalidateMandatoryGridCache();
+    invalidateFieldVisibilityCache(); // also flush description-builder collar visibility cache
 
     console.log(`[MandatoryGrid] Done — ${categoriesCount} major categories, ${Object.keys(colMeta).length} SAP columns, ${activeCount} active mappings`);
 
