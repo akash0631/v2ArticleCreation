@@ -1,188 +1,217 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Checkbox, Tag, Select, Input, AutoComplete, Spin, Button, Tooltip, message, Modal } from 'antd';
-import { FileTextOutlined, AppstoreAddOutlined, RocketOutlined, InfoCircleOutlined, TeamOutlined, CopyOutlined } from '@ant-design/icons';
+import { FileText, LayoutGrid, Rocket, Info, Users, Copy } from 'lucide-react';
+import {
+  Autocomplete,
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Tag,
+  Tooltip,
+  type AutocompleteOption,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
-import { getMajCatAllowedValues, SCHEMA_KEY_TO_EXCEL_ATTR, SCHEMA_KEY_TO_DB_FIELD, normalizeMajorCategory } from '../../../data/majCatAttributeMap';
+import {
+  getMajCatAllowedValues,
+  SCHEMA_KEY_TO_EXCEL_ATTR,
+  SCHEMA_KEY_TO_DB_FIELD,
+  normalizeMajorCategory,
+} from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttributeGroups, getCachedAttributeGroups, preloadCategoryAttributes, getCachedCategoryAttributes, invalidateValuesCache } from '../../../services/articleConfigService';
+import {
+  preloadAttributeValues,
+  getCachedValues,
+  isValuesCached,
+  preloadAttributeGroups,
+  getCachedAttributeGroups,
+  preloadCategoryAttributes,
+  getCachedCategoryAttributes,
+  invalidateValuesCache,
+} from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import VariantSubTable from './VariantSubTable';
 
-// Module-level BOM cache: category → promise of data (shared across all card instances)
-// Prevents N duplicate fetches when multiple rows share the same majorCategory.
+// Module-level BOM cache (shared across card instances)
 const bomCache = new Map<string, Promise<Record<string, Record<string, string>>>>();
 
 const fetchBomMap = (category: string): Promise<Record<string, Record<string, string>>> => {
-    const existing = bomCache.get(category);
-    if (existing) return existing;
-    const token = localStorage.getItem('authToken');
-    const p = fetch(`${APP_CONFIG.api.baseURL}/approver/bom-art-numbers/${encodeURIComponent(category)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-        .then(r => r.json())
-        .then(res => (res?.data as Record<string, Record<string, string>>) ?? {})
-        .catch(() => ({}));
-    bomCache.set(category, p);
-    return p;
+  const existing = bomCache.get(category);
+  if (existing) return existing;
+  const token = localStorage.getItem('authToken');
+  const p = fetch(`${APP_CONFIG.api.baseURL}/approver/bom-art-numbers/${encodeURIComponent(category)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then((r) => r.json())
+    .then((res) => (res?.data as Record<string, Record<string, string>>) ?? {})
+    .catch(() => ({}));
+  bomCache.set(category, p);
+  return p;
 };
 
-const { Option } = Select;
-
-// Labels derived from SCHEMA_KEY_TO_EXCEL_ATTR so they always match the Excel exactly.
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
 
-// Attributes grouped exactly as in the Excel mandatory grid (4 groups)
-// freeText: true → renders as text input and is always visible (no dropdown/allowedValues check)
 const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string; schemaKey: string; freeText?: boolean }[] }[] = [
-    {
-        group: 'FAB',
-        color: '#e6f4ff',
-        fields: [
-            { field: 'yarn1',          schemaKey: 'yarn_01' },
-            { field: 'mainMvgr',       schemaKey: 'main_mvgr' },
-            { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
-            { field: 'weave',          schemaKey: 'weave' },
-            { field: 'mFab2',          schemaKey: 'm_fab2' },
-            { field: 'composition',    schemaKey: 'composition' },
-            { field: 'fCount',         schemaKey: 'f_count' },
-            { field: 'fConstruction',  schemaKey: 'f_construction' },
-            { field: 'lycra',          schemaKey: 'lycra_non_lycra' },
-            { field: 'finish',         schemaKey: 'finish' },
-            { field: 'gsm',            schemaKey: 'gsm' },
-            { field: 'fOunce',         schemaKey: 'f_ounce' },
-            { field: 'fWidth',         schemaKey: 'f_width' },
-            { field: 'fabDiv',         schemaKey: 'fab_div' },
-            { field: 'shade',          schemaKey: 'shade',           freeText: true },
-            { field: 'weight',         schemaKey: 'weight',          freeText: true },
-        ],
-    },
-    {
-        group: 'BODY',
-        color: '#f6ffed',
-        fields: [
-            { field: 'collar',         schemaKey: 'collar' },
-            { field: 'collarStyle',    schemaKey: 'collar_style' },
-            { field: 'neckDetails',    schemaKey: 'neck_details' },
-            { field: 'neck',           schemaKey: 'neck' },
-            { field: 'placket',        schemaKey: 'placket' },
-            { field: 'fatherBelt',     schemaKey: 'father_belt' },
-            { field: 'childBelt',      schemaKey: 'child_belt' },
-            { field: 'sleeve',         schemaKey: 'sleeve' },
-            { field: 'sleeveFold',     schemaKey: 'sleeve_fold' },
-            { field: 'bottomFold',     schemaKey: 'bottom_fold' },
-            { field: 'noOfPocket',     schemaKey: 'no_of_pocket' },
-            { field: 'pocketType',     schemaKey: 'pocket_type' },
-            { field: 'extraPocket',    schemaKey: 'extra_pocket' },
-            { field: 'fit',            schemaKey: 'fit' },
-            { field: 'pattern',        schemaKey: 'body_style' },
-            { field: 'length',         schemaKey: 'length' },
-            { field: 'frontOpenStyle', schemaKey: 'front_open_style', freeText: true },
-        ],
-    },
-    {
-        group: 'VA ACC.',
-        color: '#fff7e6',
-        fields: [
-            { field: 'drawcord',       schemaKey: 'drawcord' },
-            { field: 'dcShape',        schemaKey: 'dc_shape' },
-            { field: 'button',         schemaKey: 'button' },
-            { field: 'btnColour',      schemaKey: 'btn_colour' },
-            { field: 'zipper',         schemaKey: 'zipper' },
-            { field: 'zipColour',      schemaKey: 'zip_colour' },
-            { field: 'patchesType',    schemaKey: 'patches_type' },
-            { field: 'patches',        schemaKey: 'patches' },
-            { field: 'htrfType',       schemaKey: 'htrf_type' },
-            { field: 'htrfStyle',      schemaKey: 'htrf_style' },
-        ],
-    },
-    {
-        group: 'VA PRCS',
-        color: '#fff0f6',
-        fields: [
-            { field: 'printType',      schemaKey: 'print_type' },
-            { field: 'printStyle',     schemaKey: 'print_style' },
-            { field: 'printPlacement', schemaKey: 'print_placement' },
-            { field: 'embroidery',     schemaKey: 'embroidery' },
-            { field: 'embroideryType', schemaKey: 'embroidery_type' },
-            { field: 'embPlacement',   schemaKey: 'emb_placement' },
-            { field: 'wash',           schemaKey: 'wash' },
-        ],
-    },
-    {
-        group: 'BUSINESS',
-        color: '#f9f0ff',
-        fields: [
-            { field: 'ageGroup',           schemaKey: 'age_group' },
-            { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
-            { field: 'segment',            schemaKey: 'segment',           freeText: true },
-            { field: 'mvgrBrandVendor',    schemaKey: 'mvgr_brand_vendor', freeText: true },
-        ],
-    },
+  {
+    group: 'FAB',
+    color: '#e6f4ff',
+    fields: [
+      { field: 'yarn1', schemaKey: 'yarn_01' },
+      { field: 'mainMvgr', schemaKey: 'main_mvgr' },
+      { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
+      { field: 'weave', schemaKey: 'weave' },
+      { field: 'mFab2', schemaKey: 'm_fab2' },
+      { field: 'composition', schemaKey: 'composition' },
+      { field: 'fCount', schemaKey: 'f_count' },
+      { field: 'fConstruction', schemaKey: 'f_construction' },
+      { field: 'lycra', schemaKey: 'lycra_non_lycra' },
+      { field: 'finish', schemaKey: 'finish' },
+      { field: 'gsm', schemaKey: 'gsm' },
+      { field: 'fOunce', schemaKey: 'f_ounce' },
+      { field: 'fWidth', schemaKey: 'f_width' },
+      { field: 'fabDiv', schemaKey: 'fab_div' },
+      { field: 'shade', schemaKey: 'shade', freeText: true },
+      { field: 'weight', schemaKey: 'weight', freeText: true },
+    ],
+  },
+  {
+    group: 'BODY',
+    color: '#f6ffed',
+    fields: [
+      { field: 'collar', schemaKey: 'collar' },
+      { field: 'collarStyle', schemaKey: 'collar_style' },
+      { field: 'neckDetails', schemaKey: 'neck_details' },
+      { field: 'neck', schemaKey: 'neck' },
+      { field: 'placket', schemaKey: 'placket' },
+      { field: 'fatherBelt', schemaKey: 'father_belt' },
+      { field: 'childBelt', schemaKey: 'child_belt' },
+      { field: 'sleeve', schemaKey: 'sleeve' },
+      { field: 'sleeveFold', schemaKey: 'sleeve_fold' },
+      { field: 'bottomFold', schemaKey: 'bottom_fold' },
+      { field: 'noOfPocket', schemaKey: 'no_of_pocket' },
+      { field: 'pocketType', schemaKey: 'pocket_type' },
+      { field: 'extraPocket', schemaKey: 'extra_pocket' },
+      { field: 'fit', schemaKey: 'fit' },
+      { field: 'pattern', schemaKey: 'body_style' },
+      { field: 'length', schemaKey: 'length' },
+      { field: 'frontOpenStyle', schemaKey: 'front_open_style', freeText: true },
+    ],
+  },
+  {
+    group: 'VA ACC.',
+    color: '#fff7e6',
+    fields: [
+      { field: 'drawcord', schemaKey: 'drawcord' },
+      { field: 'dcShape', schemaKey: 'dc_shape' },
+      { field: 'button', schemaKey: 'button' },
+      { field: 'btnColour', schemaKey: 'btn_colour' },
+      { field: 'zipper', schemaKey: 'zipper' },
+      { field: 'zipColour', schemaKey: 'zip_colour' },
+      { field: 'patchesType', schemaKey: 'patches_type' },
+      { field: 'patches', schemaKey: 'patches' },
+      { field: 'htrfType', schemaKey: 'htrf_type' },
+      { field: 'htrfStyle', schemaKey: 'htrf_style' },
+    ],
+  },
+  {
+    group: 'VA PRCS',
+    color: '#fff0f6',
+    fields: [
+      { field: 'printType', schemaKey: 'print_type' },
+      { field: 'printStyle', schemaKey: 'print_style' },
+      { field: 'printPlacement', schemaKey: 'print_placement' },
+      { field: 'embroidery', schemaKey: 'embroidery' },
+      { field: 'embroideryType', schemaKey: 'embroidery_type' },
+      { field: 'embPlacement', schemaKey: 'emb_placement' },
+      { field: 'wash', schemaKey: 'wash' },
+    ],
+  },
+  {
+    group: 'BUSINESS',
+    color: '#f9f0ff',
+    fields: [
+      { field: 'ageGroup', schemaKey: 'age_group' },
+      { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
+      { field: 'segment', schemaKey: 'segment', freeText: true },
+      { field: 'mvgrBrandVendor', schemaKey: 'mvgr_brand_vendor', freeText: true },
+    ],
+  },
 ];
 
-// Builds ATTRIBUTE_GROUPS from API-driven AttributeGroupEntry list.
-// Falls back to the hardcoded ATTRIBUTE_GROUPS if API returns nothing.
 const GROUP_COLORS: Record<string, string> = {
-    'FAB': '#e6f4ff', 'BODY': '#f6ffed', 'VA ACC.': '#fff7e6', 'VA PRCS': '#fff0f6', 'BUSINESS': '#f9f0ff',
+  FAB: '#e6f4ff',
+  BODY: '#f6ffed',
+  'VA ACC.': '#fff7e6',
+  'VA PRCS': '#fff0f6',
+  BUSINESS: '#f9f0ff',
 };
 const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 
 type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 
 function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
-    const map = new Map<string, CardGroup['fields']>();
-    for (const e of entries) {
-        const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
-        if (!dbField) continue;
-        if (!map.has(e.group)) map.set(e.group, []);
-        map.get(e.group)!.push({
-            field: dbField,
-            schemaKey: e.key,
-            freeText: e.type === 'TEXT' ? true : undefined,
-        });
-    }
-    const built = GROUP_ORDER.filter(g => map.has(g)).map(g => ({
-        group: g,
-        color: GROUP_COLORS[g] || '#f0f0f0',
-        fields: map.get(g)!,
-    }));
-    return built.length > 0 ? built : ATTRIBUTE_GROUPS;
+  const map = new Map<string, CardGroup['fields']>();
+  for (const e of entries) {
+    const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
+    if (!dbField) continue;
+    if (!map.has(e.group)) map.set(e.group, []);
+    map.get(e.group)!.push({ field: dbField, schemaKey: e.key, freeText: e.type === 'TEXT' ? true : undefined });
+  }
+  const built = GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({
+    group: g,
+    color: GROUP_COLORS[g] || '#f0f0f0',
+    fields: map.get(g)!,
+  }));
+  return built.length > 0 ? built : ATTRIBUTE_GROUPS;
 }
 
 export interface ApproverArticleListProps {
-    items: ApproverItem[];
-    majorCategory: string;
-    loading: boolean;
-    selectedRowKeys: React.Key[];
-    onSelectionChange: (keys: React.Key[]) => void;
-    onEdit: (item: ApproverItem) => void;
-    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
-    onCreateFabricArticle: (item: ApproverItem) => void;
-    onCreateBodyArticle: (item: ApproverItem) => void;
-    onProceedFGArticle: (item: ApproverItem) => void;
-    onDuplicate: (item: ApproverItem) => Promise<void>;
-    attributes: MasterAttribute[];
-    onRefresh: () => void;
-    pathType?: 'old' | 'new' | 'rejected' | 'created';
-    serverPagination: {
-        total: number;
-        current: number;
-        pageSize: number;
-        onChange: (page: number) => void;
-    };
+  items: ApproverItem[];
+  majorCategory: string;
+  loading: boolean;
+  selectedRowKeys: React.Key[];
+  onSelectionChange: (keys: React.Key[]) => void;
+  onEdit: (item: ApproverItem) => void;
+  onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
+  onCreateFabricArticle: (item: ApproverItem) => void;
+  onCreateBodyArticle: (item: ApproverItem) => void;
+  onProceedFGArticle: (item: ApproverItem) => void;
+  onDuplicate: (item: ApproverItem) => Promise<void>;
+  attributes: MasterAttribute[];
+  onRefresh: () => void;
+  pathType?: 'old' | 'new' | 'rejected' | 'created';
+  serverPagination: {
+    total: number;
+    current: number;
+    pageSize: number;
+    onChange: (page: number) => void;
+  };
 }
 
 const getDisplayStatus = (item: ApproverItem) => {
-    if (item.approvalStatus === 'REJECTED') return { label: 'REJECTED', color: '#ff4d4f' };
-    if (item.sapSyncStatus === 'FAILED') return { label: 'FAILED', color: '#ff4d4f' };
-    if (item.approvalStatus === 'APPROVED' && item.sapSyncStatus === 'SYNCED') return { label: 'DONE', color: '#52c41a' };
-    return { label: 'PENDING', color: '#faad14' };
+  if (item.approvalStatus === 'REJECTED') return { label: 'REJECTED', color: '#ff4d4f' };
+  if (item.sapSyncStatus === 'FAILED') return { label: 'FAILED', color: '#ff4d4f' };
+  if (item.approvalStatus === 'APPROVED' && item.sapSyncStatus === 'SYNCED')
+    return { label: 'DONE', color: '#52c41a' };
+  return { label: 'PENDING', color: '#faad14' };
 };
 
 // ── Single article card ───────────────────────────────────────────────────────
-const ArticleCard = React.memo(({
+const ArticleCard = React.memo(
+  ({
     item,
     isSelected,
     onToggleSelect,
@@ -195,7 +224,7 @@ const ArticleCard = React.memo(({
     onRefresh,
     cardGroups,
     pathType,
-}: {
+  }: {
     item: ApproverItem;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
@@ -208,220 +237,218 @@ const ArticleCard = React.memo(({
     onRefresh: () => void;
     cardGroups: CardGroup[];
     pathType?: 'old' | 'new' | 'rejected' | 'created';
-}) => {
+  }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
     const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
 
-    // When the parent item prop updates (e.g. after fetchItems or a post-save state merge),
-    // drop any localValues entries whose value now matches the item prop — they're stale overrides.
-    // This ensures the card always reflects the authoritative server value after a re-fetch.
     const prevItemRef = React.useRef<ApproverItem>(item);
     React.useEffect(() => {
-        const prev = prevItemRef.current;
-        prevItemRef.current = item;
-        if (prev === item) return; // same reference — no change
-        setLocalValues(local => {
-            const next: Record<string, string | null> = {};
-            for (const [k, v] of Object.entries(local)) {
-                // Keep the override only if item didn't change for this key.
-                // Once item reflects the saved value, the override is redundant.
-                const itemVal = (item as any)[k] ?? null;
-                const strItemVal = itemVal === null ? null : String(itemVal);
-                if (strItemVal !== (v === null ? null : String(v ?? ''))) {
-                    // item changed to something different from our local edit — server wins
-                    // (don't keep the local override)
-                } else {
-                    next[k] = v;
-                }
-            }
-            return next;
-        });
-    // Only run when item identity changes (reference change from setItems in parent)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      const prev = prevItemRef.current;
+      prevItemRef.current = item;
+      if (prev === item) return;
+      setLocalValues((local) => {
+        const next: Record<string, string | null> = {};
+        for (const [k, v] of Object.entries(local)) {
+          const itemVal = (item as any)[k] ?? null;
+          const strItemVal = itemVal === null ? null : String(itemVal);
+          if (strItemVal !== (v === null ? null : String(v ?? ''))) {
+            // server wins
+          } else {
+            next[k] = v;
+          }
+        }
+        return next;
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item]);
 
-    // Auto-persist MRP when it is null in DB but rate is present.
-    // Guards: PENDING only, user must own the article's division (prevents 403 division-mismatch loop).
+    // Auto-persist MRP when null in DB but rate is present
     React.useEffect(() => {
-        if (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') return;
-
-        // Only save if the current user can edit this article (division match or ADMIN)
-        try {
-            const raw = localStorage.getItem('user');
-            if (raw) {
-                const u = JSON.parse(raw);
-                if (u.role !== 'ADMIN' && u.division && item.division && u.division !== item.division) return;
-            }
-        } catch { /* ignore parse errors */ }
-
-        const storedMrp = parseFloat(String((item as any).mrp ?? ''));
-        if (!isNaN(storedMrp) && storedMrp > 1) return;
-        const rate = parseFloat(String((item as any).rate ?? ''));
-        if (isNaN(rate) || rate <= 0) return;
-        const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
-        setLocalValues(prev => ({ ...prev, mrp: calculated }));
-        onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') return;
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u.role !== 'ADMIN' && u.division && item.division && u.division !== item.division) return;
+        }
+      } catch {
+        /* ignore */
+      }
+      const storedMrp = parseFloat(String((item as any).mrp ?? ''));
+      if (!isNaN(storedMrp) && storedMrp > 1) return;
+      const rate = parseFloat(String((item as any).rate ?? ''));
+      if (isNaN(rate) || rate <= 0) return;
+      const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
+      setLocalValues((prev) => ({ ...prev, mrp: calculated }));
+      onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id]);
 
-    // Normalize majorCategory: use local edit when available, otherwise fall back to item prop
     const effectiveMajCat = useMemo(() => {
-        const raw = (localValues['majorCategory'] !== undefined ? localValues['majorCategory'] : item.majorCategory) || '';
-        return normalizeMajorCategory(raw, item.division);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      const raw = (localValues['majorCategory'] !== undefined ? localValues['majorCategory'] : item.majorCategory) || '';
+      return normalizeMajorCategory(raw, item.division);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localValues['majorCategory'], item.majorCategory, item.division]);
 
-    // Tracks when the attribute values cache has loaded so visibleAttrs re-computes
     const [cacheReady, setCacheReady] = useState(false);
-    // Tracks when per-category enabled/required config has loaded
     const [catConfigReady, setCatConfigReady] = useState(false);
 
-    // Flat attribute list derived from the active card groups
-    const attributeFields = useMemo(() =>
-        cardGroups.flatMap(g =>
-            g.fields.map(a => ({ ...a, label: f(a.schemaKey), group: g.group, groupColor: g.color, freeText: a.freeText ?? false }))
+    const attributeFields = useMemo(
+      () =>
+        cardGroups.flatMap((g) =>
+          g.fields.map((a) => ({ ...a, label: f(a.schemaKey), group: g.group, groupColor: g.color, freeText: a.freeText ?? false })),
         ),
-    [cardGroups]);
+      [cardGroups],
+    );
 
-    // Compute attributes per-card from this article's own majorCategory
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
-        if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
-
-        // DB-driven config (set via Attribute Mapping in Admin Panel)
-        const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
-        const mandatoryKeys: Set<string> = dbConfig?.required ?? new Set();
-
-        const visible = attributeFields
-            .map(af => {
-                // If DB config exists, only show enabled attributes
-                if (dbConfig?.configured) {
-                    if (!dbConfig.enabled.has(af.schemaKey)) return null;
-                    const values = getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
-                    return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
-                }
-                // No DB config yet — show all fields
-                const values = af.freeText ? [] : (getMajCatAllowedValues(item.division || '', af.schemaKey) ?? []);
-                return { field: af.field, label: af.label, schemaKey: af.schemaKey, group: af.group, groupColor: af.groupColor, values, freeText: af.freeText ?? false };
-            })
-            .filter((af): af is NonNullable<typeof af> => af !== null);
-
-        return { visibleAttrs: visible, mandatoryKeys };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
+      const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
+      const mk: Set<string> = dbConfig?.required ?? new Set();
+      const visible = attributeFields
+        .map((af) => {
+          if (dbConfig?.configured) {
+            if (!dbConfig.enabled.has(af.schemaKey)) return null;
+            const values = getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
+            return {
+              field: af.field,
+              label: af.label,
+              schemaKey: af.schemaKey,
+              group: af.group,
+              groupColor: af.groupColor,
+              values,
+              freeText: af.freeText ?? false,
+            };
+          }
+          const values = af.freeText ? [] : getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
+          return {
+            field: af.field,
+            label: af.label,
+            schemaKey: af.schemaKey,
+            group: af.group,
+            groupColor: af.groupColor,
+            values,
+            freeText: af.freeText ?? false,
+          };
+        })
+        .filter((af): af is NonNullable<typeof af> => af !== null);
+      return { visibleAttrs: visible, mandatoryKeys: mk };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [effectiveMajCat, cacheReady, catConfigReady, attributeFields]);
+
     const [editingField, setEditingField] = useState<string | null>(null);
 
-    // Vendor name autocomplete state
-    const [vendorOptions, setVendorOptions] = useState<{ value: string; label: React.ReactNode; vendorCode: string }[]>([]);
+    // Vendor autocomplete state
+    const [vendorQuery, setVendorQuery] = useState('');
+    const [vendorOptions, setVendorOptions] = useState<AutocompleteOption[]>([]);
     const [vendorSearching, setVendorSearching] = useState(false);
     const vendorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Per-attribute manual overrides for Art # (user-editable)
     const [attrArticleNums, setAttrArticleNums] = useState<Record<string, string>>(() => {
-        try { return JSON.parse((item as any).attrArticleNums || '{}'); } catch { return {}; }
+      try {
+        return JSON.parse((item as any).attrArticleNums || '{}');
+      } catch {
+        return {};
+      }
     });
-    // BOM grid map for auto Art # lookup: { excelAttrName: { mvgrValue: sapCd } }
     const [bomMap, setBomMap] = useState<Record<string, Record<string, string>>>({});
 
     useEffect(() => {
-        if (!item.division) return;
-        // If cache exists but is missing impAtrbt2, it was built from a stale backend
-        // response (before the imp_atrbt2→impAtrbt2 mapping fix). Invalidate and re-fetch.
-        if (isValuesCached(item.division) && getCachedValues(item.division, 'impAtrbt2') === null) {
-            invalidateValuesCache(item.division);
-        }
-        preloadAttributeValues(item.division)
-            .then(() => setCacheReady(true))
-            .catch(() => setCacheReady(true));
+      if (!item.division) return;
+      if (isValuesCached(item.division) && getCachedValues(item.division, 'impAtrbt2') === null) {
+        invalidateValuesCache(item.division);
+      }
+      preloadAttributeValues(item.division)
+        .then(() => setCacheReady(true))
+        .catch(() => setCacheReady(true));
     }, [item.division]);
 
     useEffect(() => {
-        if (!effectiveMajCat) return;
-        // Check cache first to avoid a flash
-        if (getCachedCategoryAttributes(effectiveMajCat)) {
-            setCatConfigReady(true);
-            return;
-        }
-        preloadCategoryAttributes(effectiveMajCat)
-            .then(() => setCatConfigReady(true))
-            .catch(() => setCatConfigReady(true));
+      if (!effectiveMajCat) return;
+      if (getCachedCategoryAttributes(effectiveMajCat)) {
+        setCatConfigReady(true);
+        return;
+      }
+      preloadCategoryAttributes(effectiveMajCat)
+        .then(() => setCatConfigReady(true))
+        .catch(() => setCatConfigReady(true));
     }, [effectiveMajCat]);
 
     useEffect(() => {
-        if (!effectiveMajCat) return;
-        let cancelled = false;
-        fetchBomMap(effectiveMajCat).then(data => {
-            if (!cancelled) setBomMap(data);
-        });
-        return () => { cancelled = true; };
+      if (!effectiveMajCat) return;
+      let cancelled = false;
+      fetchBomMap(effectiveMajCat).then((data) => {
+        if (!cancelled) setBomMap(data);
+      });
+      return () => {
+        cancelled = true;
+      };
     }, [effectiveMajCat]);
 
-    // Compute Art # for a field: auto-lookup from bomMap, fallback to manual override
-    const getArtNum = useCallback((schemaKey: string, field: string, currentValue: string | null): string => {
+    const getArtNum = useCallback(
+      (schemaKey: string, field: string, currentValue: string | null): string => {
         const excelAttrName = SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey];
         if (excelAttrName && currentValue && bomMap[excelAttrName]?.[currentValue]) {
-            return bomMap[excelAttrName][currentValue];
+          return bomMap[excelAttrName][currentValue];
         }
         return attrArticleNums[field] || '';
-    }, [bomMap, attrArticleNums]);
+      },
+      [bomMap, attrArticleNums],
+    );
 
     const saveAttrArticleNum = (field: string, val: string) => {
-        const updated = { ...attrArticleNums, [field]: val };
-        setAttrArticleNums(updated);
-        const attrUpdates = { attrArticleNums: JSON.stringify(updated) };
-        onSave({ ...item, ...attrUpdates } as any, attrUpdates);
+      const updated = { ...attrArticleNums, [field]: val };
+      setAttrArticleNums(updated);
+      const attrUpdates = { attrArticleNums: JSON.stringify(updated) };
+      onSave({ ...item, ...attrUpdates } as any, attrUpdates);
     };
+
     const [failedImg, setFailedImg] = useState(false);
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
-    // Prevent infinite retry: only attempt a signed-URL refresh once per card mount.
     const refreshAttempted = React.useRef(false);
 
-    const FAB_FIELDS = useMemo(() =>
-        (cardGroups.find(g => g.group === 'FAB')?.fields ?? []).filter(f => !f.freeText),
-    [cardGroups]);
-    const BODY_FIELDS = useMemo(() =>
-        (cardGroups.find(g => g.group === 'BODY')?.fields ?? []).filter(f => !f.freeText),
-    [cardGroups]);
+    const FAB_FIELDS = useMemo(
+      () => (cardGroups.find((g) => g.group === 'FAB')?.fields ?? []).filter((f) => !f.freeText),
+      [cardGroups],
+    );
+    const BODY_FIELDS = useMemo(
+      () => (cardGroups.find((g) => g.group === 'BODY')?.fields ?? []).filter((f) => !f.freeText),
+      [cardGroups],
+    );
 
-    // Helper: get current value of a field (local edit takes priority over item)
-    const getFieldVal = useCallback((field: string) => {
+    const getFieldVal = useCallback(
+      (field: string) => {
         const v = localValues[field] !== undefined ? localValues[field] : (item as any)[field];
         return v ? String(v).trim() : null;
-    }, [localValues, item]);
+      },
+      [localValues, item],
+    );
 
-    // Reactively rebuild fabric/body descriptions whenever mandatory fields or item changes.
-    // Reading localValues inside the setLocalValues updater (not as a dep) breaks the
-    // getFieldVal → localValues → effect → setLocalValues → localValues circular loop.
     React.useEffect(() => {
-        if (item.approvalStatus !== 'PENDING') return;
-        if (mandatoryKeys.size === 0) return;
-
-        setLocalValues(prev => {
-            const getVal = (field: string) => {
-                const v = prev[field] !== undefined ? prev[field] : (item as any)[field];
-                return v ? String(v).trim() : null;
-            };
-
-            const fabParts = FAB_FIELDS
-                .filter(f => mandatoryKeys.has(f.schemaKey))
-                .map(f => getVal(f.field))
-                .filter(Boolean) as string[];
-            const bodyParts = BODY_FIELDS
-                .filter(f => mandatoryKeys.has(f.schemaKey))
-                .map(f => getVal(f.field))
-                .filter(Boolean) as string[];
-
-            const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
-            const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
-
-            const updates: Record<string, string | null> = {};
-            if (newFabDesc !== null && newFabDesc !== prev['fabricArticleDescription']) updates['fabricArticleDescription'] = newFabDesc;
-            if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
-            return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
-        });
-    }, [mandatoryKeys, item]);
+      if (item.approvalStatus !== 'PENDING') return;
+      if (mandatoryKeys.size === 0) return;
+      setLocalValues((prev) => {
+        const getVal = (field: string) => {
+          const v = prev[field] !== undefined ? prev[field] : (item as any)[field];
+          return v ? String(v).trim() : null;
+        };
+        const fabParts = FAB_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
+          .map((f) => getVal(f.field))
+          .filter(Boolean) as string[];
+        const bodyParts = BODY_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
+          .map((f) => getVal(f.field))
+          .filter(Boolean) as string[];
+        const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
+        const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
+        const updates: Record<string, string | null> = {};
+        if (newFabDesc !== null && newFabDesc !== prev['fabricArticleDescription']) updates['fabricArticleDescription'] = newFabDesc;
+        if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
+        return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+      });
+    }, [mandatoryKeys, item, FAB_FIELDS, BODY_FIELDS]);
 
     const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
     const status = getDisplayStatus(item);
@@ -430,964 +457,968 @@ const ArticleCard = React.memo(({
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
 
     const handleImgError = useCallback(async () => {
-        // If the refreshed URL also failed, give up — don't loop.
-        if (refreshAttempted.current) {
-            setFailedImg(true);
-            return;
-        }
-        refreshAttempted.current = true;
-        // Hide first so we can remount <img> with the refreshed URL (forces browser re-fetch).
+      if (refreshAttempted.current) {
         setFailedImg(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/image/${item.id}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data?.url) {
-                // Non-signed public URLs: add cache-bust so remounted <img> re-fetches.
-                // Signed URLs (X-Amz-Signature) must not be modified.
-                const base = data.url as string;
-                const freshUrl = base.includes('X-Amz-Signature')
-                    ? base
-                    : base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
-                setRefreshedUrl(freshUrl);
-                setFailedImg(false);
-            }
-        } catch { /* ignore */ }
+        return;
+      }
+      refreshAttempted.current = true;
+      setFailedImg(true);
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/image/${item.id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.url) {
+          const base = data.url as string;
+          const freshUrl = base.includes('X-Amz-Signature')
+            ? base
+            : base + (base.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+          setRefreshedUrl(freshUrl);
+          setFailedImg(false);
+        }
+      } catch {
+        /* ignore */
+      }
     }, [item.id]);
 
     const calcMrpFromRate = (rate: number): number => Math.ceil((rate * 1.47) / 25) * 25;
 
     const getValue = (field: string): string | null => {
-        if (field in localValues) return localValues[field];
-        if (field === 'mrp') {
-            const stored = (item as any).mrp;
-            const storedNum = parseFloat(String(stored ?? ''));
-            if ((isNaN(storedNum) || storedNum <= 1)) {
-                const rate = parseFloat(String((item as any).rate ?? ''));
-                if (!isNaN(rate) && rate > 0) return String(calcMrpFromRate(rate));
-            }
+      if (field in localValues) return localValues[field];
+      if (field === 'mrp') {
+        const stored = (item as any).mrp;
+        const storedNum = parseFloat(String(stored ?? ''));
+        if (isNaN(storedNum) || storedNum <= 1) {
+          const rate = parseFloat(String((item as any).rate ?? ''));
+          if (!isNaN(rate) && rate > 0) return String(calcMrpFromRate(rate));
         }
-        return (item as any)[field] ?? null;
+      }
+      return (item as any)[field] ?? null;
     };
 
     const searchVendors = (q: string) => {
-        if (vendorDebounceRef.current) clearTimeout(vendorDebounceRef.current);
-        if (!q || q.trim().length < 2) { setVendorOptions([]); return; }
-        vendorDebounceRef.current = setTimeout(async () => {
-            setVendorSearching(true);
-            try {
-                const token = localStorage.getItem('authToken');
-                const res = await fetch(
-                    `${APP_CONFIG.api.baseURL}/approver/vendor-search?q=${encodeURIComponent(q.trim())}`,
-                    { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-                );
-                const json = await res.json();
-                const opts = (json.data ?? []).map((v: { vendorCode: string; vendorName: string; vendorCity?: string }) => ({
-                    value: v.vendorName,
-                    vendorCode: v.vendorCode,
-                    label: (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <span style={{ fontWeight: 500 }}>{v.vendorName}</span>
-                            <span style={{ color: '#8c8c8c', fontSize: 11 }}>{v.vendorCity ?? ''}</span>
-                        </div>
-                    ),
-                }));
-                setVendorOptions(opts);
-            } catch {
-                setVendorOptions([]);
-            } finally {
-                setVendorSearching(false);
-            }
-        }, 300);
+      setVendorQuery(q);
+      if (vendorDebounceRef.current) clearTimeout(vendorDebounceRef.current);
+      if (!q || q.trim().length < 2) {
+        setVendorOptions([]);
+        return;
+      }
+      vendorDebounceRef.current = setTimeout(async () => {
+        setVendorSearching(true);
+        try {
+          const token = localStorage.getItem('authToken');
+          const res = await fetch(
+            `${APP_CONFIG.api.baseURL}/approver/vendor-search?q=${encodeURIComponent(q.trim())}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+          );
+          const json = await res.json();
+          const opts = (json.data ?? []).map(
+            (v: { vendorCode: string; vendorName: string; vendorCity?: string }) => ({
+              value: v.vendorName,
+              vendorCode: v.vendorCode,
+              label: (
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium">{v.vendorName}</span>
+                  <span className="text-[11px] text-muted-foreground">{v.vendorCity ?? ''}</span>
+                </div>
+              ),
+            }),
+          );
+          setVendorOptions(opts);
+        } catch {
+          setVendorOptions([]);
+        } finally {
+          setVendorSearching(false);
+        }
+      }, 300);
     };
 
     const handleSave = (field: string, value: string | null) => {
-        if (field === 'vendorCode' && value) {
-            const trimmed = value.trim();
-            if (!/^\d{6}$/.test(trimmed)) {
-                message.error('Vendor Code must be exactly 6 digits');
-                setEditingField(null);
-                return;
-            }
+      if (field === 'vendorCode' && value) {
+        const trimmed = value.trim();
+        if (!/^\d{6}$/.test(trimmed)) {
+          message.error('Vendor Code must be exactly 6 digits');
+          setEditingField(null);
+          return;
         }
-        if (field === 'vendorName' && !value?.trim()) {
-            message.error('Vendor Name is required');
-            setEditingField(null);
-            return;
-        }
-        const updates: Record<string, string | null> = { [field]: value };
-        if (field === 'rate') {
-            const rate = parseFloat(String(value ?? ''));
-            if (!isNaN(rate) && rate > 0) {
-                updates['mrp'] = String(calcMrpFromRate(rate));
-            }
-        }
-        if (field === 'majorCategory' && value) {
-            const newMcCode = getMcCodeByMajorCategory(value);
-            if (newMcCode) updates['mcCode'] = newMcCode;
-        }
-        setLocalValues(prev => ({ ...prev, ...updates }));
+      }
+      if (field === 'vendorName' && !value?.trim()) {
+        message.error('Vendor Name is required');
         setEditingField(null);
-        onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+        return;
+      }
+      const updates: Record<string, string | null> = { [field]: value };
+      if (field === 'rate') {
+        const rate = parseFloat(String(value ?? ''));
+        if (!isNaN(rate) && rate > 0) updates['mrp'] = String(calcMrpFromRate(rate));
+      }
+      if (field === 'majorCategory' && value) {
+        const newMcCode = getMcCodeByMajorCategory(value);
+        if (newMcCode) updates['mcCode'] = newMcCode;
+      }
+      setLocalValues((prev) => ({ ...prev, ...updates }));
+      setEditingField(null);
+      onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
     };
 
-    const borderColor = item.approvalStatus === 'APPROVED' ? '#b7eb8f'
-        : item.approvalStatus === 'REJECTED' ? '#ffa39e'
-        : '#e8e8e8';
-    const bgColor = item.approvalStatus === 'APPROVED' ? '#f6ffed'
-        : item.approvalStatus === 'REJECTED' ? '#fff1f0'
-        : '#fff';
+    const borderColor =
+      item.approvalStatus === 'APPROVED' ? '#b7eb8f' : item.approvalStatus === 'REJECTED' ? '#ffa39e' : '#e8e8e8';
+    const bgColor =
+      item.approvalStatus === 'APPROVED' ? '#f6ffed' : item.approvalStatus === 'REJECTED' ? '#fff1f0' : '#fff';
+
+    // Compute markdown + active groups for render
+    const groupMap: Record<string, { color: string; attrs: typeof visibleAttrs }> = {};
+    for (const attr of visibleAttrs) {
+      if (!groupMap[attr.group]) groupMap[attr.group] = { color: attr.groupColor, attrs: [] };
+      groupMap[attr.group].attrs.push(attr);
+    }
+    const activeGroups = ATTRIBUTE_GROUPS.filter((g) => groupMap[g.group]);
+
+    const rateVal = String(getValue('rate') ?? '').trim();
+    const mrpVal = String(getValue('mrp') ?? '').trim();
+    const rateNum = parseFloat(rateVal);
+    const mrpNum = parseFloat(mrpVal);
+    const markdown =
+      !isNaN(rateNum) && !isNaN(mrpNum) && mrpNum > 0 ? (((mrpNum - rateNum) / mrpNum) * 100).toFixed(1) + '%' : '—';
+
+    const renderFabBodyField = (
+      field: string,
+      label: string,
+      autoFillFn?: () => void,
+      maxLen?: number,
+    ) => {
+      const displayVal = localValues[field] !== undefined ? localValues[field] : (item as any)[field];
+      const isEditingThis = editingField === `bot_${field}`;
+      const saveVal = (raw: string | null) => {
+        const v = raw || null;
+        handleSave(field, maxLen && v ? v.slice(0, maxLen) : v);
+      };
+      return (
+        <div
+          className="cursor-pointer border-t border-border bg-muted/40 px-2 py-1"
+          style={{ cursor: isLocked ? 'default' : 'pointer', background: isEditingThis ? '#e6f7ff' : undefined }}
+          onClick={() => {
+            if (!isLocked && !isEditingThis) setEditingField(`bot_${field}`);
+          }}
+        >
+          <div className="mb-0.5 flex items-center gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+            {autoFillFn && !isLocked && (
+              <span
+                className="cursor-pointer text-[9px] text-indigo-600 underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  autoFillFn();
+                }}
+              >
+                Auto-fill
+              </span>
+            )}
+          </div>
+          {isEditingThis ? (
+            <Input
+              autoFocus
+              defaultValue={displayVal || ''}
+              className="h-7 px-1 text-[11px]"
+              maxLength={maxLen}
+              onKeyDown={(e) => e.key === 'Enter' && saveVal((e.target as HTMLInputElement).value)}
+              onBlur={(e) => saveVal(e.target.value)}
+            />
+          ) : (
+            <div className="truncate text-[11px]" style={{ color: displayVal ? '#1a1a1a' : '#bfbfbf' }}>
+              {displayVal || (isLocked ? '—' : 'Click to fill')}
+            </div>
+          )}
+        </div>
+      );
+    };
 
     return (
-        <>
-        <div style={{
-            display: 'flex',
-            border: `1px solid ${borderColor}`,
-            borderRadius: 8,
-            background: bgColor,
-            marginBottom: 10,
-            overflow: 'hidden',
-        }}>
-            {/* ── Left: checkbox + image ── */}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                padding: '10px 8px',
-                borderRight: '1px solid #f0f0f0',
-                background: 'rgba(0,0,0,0.01)',
-                flexShrink: 0,
-            }}>
-                <Checkbox
-                    checked={isSelected}
-                    disabled={item.approvalStatus === 'REJECTED'}
-                    onChange={() => onToggleSelect(item.id)}
+      <>
+        <div
+          className="mb-2.5 flex overflow-hidden rounded-lg border"
+          style={{ borderColor, background: bgColor }}
+        >
+          {/* Left: checkbox + image */}
+          <div className="flex shrink-0 flex-col items-center gap-1.5 border-r border-border bg-black/[0.01] px-2 py-2.5">
+            <Checkbox
+              checked={isSelected}
+              disabled={item.approvalStatus === 'REJECTED'}
+              onCheckedChange={() => onToggleSelect(item.id)}
+            />
+            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-md bg-muted">
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  alt=""
+                  width={72}
+                  height={72}
+                  className="block cursor-pointer object-cover"
+                  onError={handleImgError}
+                  onClick={() => setImgModalOpen(true)}
                 />
-                <div style={{
-                    width: 72, height: 72, borderRadius: 6, overflow: 'hidden',
-                    background: '#f5f5f5', flexShrink: 0,
-                }}>
-                    {imgUrl ? (
-                        <img
-                            src={imgUrl}
-                            alt=""
-                            width={72} height={72}
-                            style={{ objectFit: 'cover', cursor: 'pointer', display: 'block' }}
-                            onError={handleImgError}
-                            onClick={() => setImgModalOpen(true)}
-                        />
-                    ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#999' }}>
-                            No Img
-                        </div>
-                    )}
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                  No Img
                 </div>
+              )}
             </div>
+          </div>
 
-            {/* ── Right: header info + all attribute rows ── */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Header: 6 info fields horizontal, then attributes below */}
-                <div style={{ padding: '6px 12px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    {/* Status + division on the same top line, right-aligned */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <Tag style={{ fontSize: 10, lineHeight: '16px', padding: '0 6px', margin: 0, background: status.color + '22', color: status.color, border: `1px solid ${status.color}44` }}>
-                            {status.label}
-                        </Tag>
-                        {item.sapSyncMessage && (
-                            <Tooltip
-                                title={
-                                    <div style={{ fontSize: 12, color: '#1a1a1a', maxHeight: 260, overflowY: 'auto' }}>
-                                        <div style={{ fontWeight: 700, marginBottom: 6, color: '#cf1322', fontSize: 13 }}>
-                                            ⚠ SAP Remark
-                                        </div>
-                                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                                            {item.sapSyncMessage}
-                                        </div>
-                                    </div>
-                                }
-                                placement="bottomLeft"
-                                color="#fff"
-                                overlayStyle={{ maxWidth: 480, zIndex: 9999 }}
-                                overlayInnerStyle={{
-                                    background: '#fff',
-                                    border: '1px solid #ffccc7',
-                                    borderRadius: 8,
-                                    boxShadow: '0 6px 24px rgba(0,0,0,0.18)',
-                                    padding: '10px 14px',
-                                }}
-                                getPopupContainer={() => document.body}
-                            >
-                                <InfoCircleOutlined style={{ fontSize: 14, color: '#cf1322', cursor: 'pointer', flexShrink: 0 }} />
-                            </Tooltip>
-                        )}
-                        <span style={{ fontSize: 11, color: '#8c8c8c' }}>
-                            {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
-                        </span>
-                        <span style={{ fontSize: 11, color: '#595959', marginLeft: 'auto' }}>
-                            {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
-                            {item.rate != null && `  ·  ₹${item.rate}`}
-                            {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
-                            {item.createdAt && (
-                                <span style={{ marginLeft: 8, color: '#8c8c8c' }}>
-                                    · {new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </span>
-                            )}
-                        </span>
-                        {item.pptNumber && (
-                            <span style={{ fontSize: 10, color: '#fff', background: '#6366f1', borderRadius: 4, padding: '1px 6px', marginLeft: 6, fontWeight: 600, letterSpacing: '0.3px', flexShrink: 0 }}>
-                                {item.pptNumber}
-                            </span>
-                        )}
-                        {/* Duplicate button — only for KIDS division, PENDING status, New Articles page */}
-                        {pathType === 'new' &&
-                            item.approvalStatus === 'PENDING' &&
-                            item.division?.toUpperCase() === 'KIDS' && (
-                            <Button
-                                size="small"
-                                icon={<CopyOutlined />}
-                                onClick={() => setDupConfirmOpen(true)}
-                                style={{ marginLeft: 8, fontSize: 11, height: 22, padding: '0 8px', flexShrink: 0, background: '#e6f7ff', color: '#0958d9', border: '1px solid #91caff' }}
-                            >
-                                Duplicate
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* 6 horizontal info fields — click to edit */}
-                    <div style={{ display: 'flex', gap: 0, borderTop: '1px solid #f0f0f0' }}>
-                        {([
-                            { label: 'MAJOR CATEGORY',        field: 'majorCategory',              bold: true,  color: '#2f54eb',  editable: true,  required: false },
-                            { label: 'ARTICLE NUMBER',        field: 'articleNumber',               bold: true,  color: item.sapArticleId ? '#389e0d' : '#1d39c4', editable: !item.sapArticleId, required: false },
-                            { label: 'VENDOR CODE',           field: 'vendorCode',                  bold: false, color: '#1a1a1a', editable: true,  required: true  },
-                            { label: 'VENDOR NAME',           field: 'vendorName',                  bold: false, color: '#1a1a1a', editable: true,  required: true  },
-                            { label: 'ARTICLE DESC',          field: 'articleDescription',          bold: false, color: '#595959', editable: true,  required: false },
-                            { label: 'REFERENCE ARTICLE',     field: 'referenceArticleNumber',      bold: false, color: '#1a1a1a', editable: true,  required: false },
-                            { label: 'REFERENCE ARTICLE DESC',field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true,  required: false },
-                        ] as { label: string; field: string; bold: boolean; color: string; editable: boolean; required: boolean }[]).map(({ label, field, bold, color, editable, required }, i) => {
-                            const value = field === 'articleNumber'
-                                ? (item.sapArticleId || (item as any)[field])
-                                : field === 'majorCategory'
-                                ? effectiveMajCat || (item as any)[field]
-                                : (item as any)[field];
-                            const displayVal = localValues[field] !== undefined ? localValues[field] : value;
-                            const isEditingThis = editingField === `hdr_${field}`;
-                            const canEdit = editable && !isLocked;
-                            const isEmpty = !displayVal;
-                            const showRequiredError = required && isEmpty && !isLocked;
-                            return (
-                                <div key={i} style={{
-                                    flex: i >= 4 ? 2 : 1,
-                                    padding: '5px 10px',
-                                    borderRight: i < 6 ? '1px solid #f0f0f0' : 'none',
-                                    minWidth: 0,
-                                    cursor: canEdit ? 'pointer' : 'default',
-                                    background: isEditingThis ? '#e6f7ff' : 'transparent',
-                                }}
-                                onClick={() => { if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`); }}
-                                >
-                                    <div style={{ fontSize: 9, color: showRequiredError ? '#ff4d4f' : '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2, fontWeight: 600 }}>
-                                        {label}{required && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
-                                    </div>
-                                    {isEditingThis && field === 'majorCategory' ? (
-                                        <Select
-                                            autoFocus
-                                            size="small"
-                                            showSearch
-                                            defaultOpen
-                                            defaultValue={displayVal || undefined}
-                                            style={{ width: '100%', fontSize: 12 }}
-                                            optionFilterProp="children"
-                                            onChange={(val) => handleSave(field, val || null)}
-                                            onBlur={() => setEditingField(null)}
-                                        >
-                                            {getMajorCategoriesByDivision(item.division || '').map(cat => (
-                                                <Option key={cat} value={cat}>{cat}</Option>
-                                            ))}
-                                        </Select>
-                                    ) : isEditingThis && field === 'vendorName' ? (
-                                        <AutoComplete
-                                            autoFocus
-                                            defaultOpen
-                                            size="small"
-                                            defaultValue={displayVal || ''}
-                                            options={vendorOptions}
-                                            style={{ width: '100%', fontSize: 12 }}
-                                            notFoundContent={vendorSearching ? <Spin size="small" /> : null}
-                                            onChange={(val) => searchVendors(val)}
-                                            onSelect={(val: string, option: any) => {
-                                                // Save vendor name
-                                                handleSave('vendorName', val || null);
-                                                // Auto-fill vendor code
-                                                if (option.vendorCode) {
-                                                    setLocalValues(prev => ({ ...prev, vendorCode: option.vendorCode }));
-                                                    onSave(
-                                                        { ...item, vendorCode: option.vendorCode } as ApproverItem,
-                                                        { vendorCode: option.vendorCode } as Record<string, unknown>
-                                                    );
-                                                }
-                                                setVendorOptions([]);
-                                            }}
-                                            onBlur={(e) => {
-                                                const val = (e.target as HTMLInputElement).value;
-                                                if (val) handleSave('vendorName', val);
-                                                else setEditingField(null);
-                                                setVendorOptions([]);
-                                            }}
-                                        />
-                                    ) : isEditingThis ? (
-                                        <Input
-                                            autoFocus
-                                            size="small"
-                                            defaultValue={displayVal || ''}
-                                            style={{ fontSize: 12, padding: '0 4px' }}
-                                            onPressEnter={(e) => handleSave(field, (e.target as HTMLInputElement).value || null)}
-                                            onBlur={(e) => handleSave(field, e.target.value || null)}
-                                        />
-                                    ) : (
-                                        <div style={{ fontSize: 12, fontWeight: 400, color: displayVal ? color : showRequiredError ? '#fa8c16' : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontStyle: showRequiredError ? 'italic' : 'normal' }}>
-                                            {displayVal || (showRequiredError ? 'Required' : canEdit ? 'Click to fill' : '—')}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Attribute groups — side by side columns */}
-                {visibleAttrs.length > 0 ? (() => {
-                    // Build a map: group → attrs
-                    const groupMap: Record<string, { color: string; attrs: typeof visibleAttrs }> = {};
-                    for (const attr of visibleAttrs) {
-                        if (!groupMap[attr.group]) groupMap[attr.group] = { color: attr.groupColor, attrs: [] };
-                        groupMap[attr.group].attrs.push(attr);
+          {/* Right: header info + attributes */}
+          <div className="min-w-0 flex-1">
+            <div className="border-b border-border pl-3 pr-3 pt-1.5">
+              <div className="mb-1 flex items-center gap-1.5">
+                <Tag
+                  style={{
+                    background: status.color + '22',
+                    color: status.color,
+                    borderColor: status.color + '44',
+                  }}
+                  className="m-0 px-1.5 text-[10px] leading-[16px]"
+                >
+                  {status.label}
+                </Tag>
+                {item.sapSyncMessage && (
+                  <Tooltip
+                    title={
+                      <div className="max-h-[260px] overflow-y-auto text-xs text-foreground">
+                        <div className="mb-1.5 text-[13px] font-bold text-red-700">⚠ SAP Remark</div>
+                        <div className="whitespace-pre-wrap leading-relaxed">{item.sapSyncMessage}</div>
+                      </div>
                     }
-                    const activeGroups = ATTRIBUTE_GROUPS.filter(g => groupMap[g.group]);
-
-                    // BOM fields — always shown
-                    const rateVal = String(getValue('rate') ?? '').trim();
-                    const mrpVal  = String(getValue('mrp')  ?? '').trim();
-                    const rateNum = parseFloat(rateVal);
-                    const mrpNum  = parseFloat(mrpVal);
-                    const markdown = (!isNaN(rateNum) && !isNaN(mrpNum) && mrpNum > 0)
-                        ? (((mrpNum - rateNum) / mrpNum) * 100).toFixed(1) + '%'
-                        : '—';
-
-                    return (
-                        <div style={{ display: 'flex', borderTop: '2px solid #bfbfbf', alignItems: 'flex-start', gap: 4, padding: 4, background: '#e8e8e8' }}>
-                            {activeGroups.map((g) => (
-                                <div key={g.group} style={{
-                                    flex: 1,
-                                    minWidth: 0,
-                                    border: '1.5px solid #b0b0b0',
-                                    borderRadius: 6,
-                                    overflow: 'hidden',
-                                    background: '#fff',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                }}>
-                                    {/* Group header */}
-                                    <div style={{
-                                        padding: '4px 10px',
-                                        fontSize: 10,
-                                        fontWeight: 700,
-                                        letterSpacing: '1px',
-                                        textTransform: 'uppercase',
-                                        background: g.color,
-                                        color: '#595959',
-                                        borderBottom: '1px solid #e8e8e8',
-                                    }}>
-                                        {g.group}
-                                    </div>
-                                    {/* Attribute rows for this group */}
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <tbody>
-                                            {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText }) => {
-                                                const currentValue = getValue(field);
-                                                // '-' counts as filled; only truly empty/null is unfilled
-                                                const isEmpty = !currentValue;
-                                                const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
-                                                const isEditing = editingField === field;
-                                                const artNum = getArtNum(schemaKey, field, currentValue);
-                                                const isEditingArtNum = editingField === `artnum_${field}`;
-                                                return (
-                                                    <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                        {/* Attribute label */}
-                                                        <td style={{
-                                                            padding: '4px 8px',
-                                                            fontSize: 11,
-                                                            fontWeight: isMandatory ? 600 : 400,
-                                                            color: isMandatory ? '#262626' : '#595959',
-                                                            background: '#fafafa',
-                                                            borderRight: '1px solid #f0f0f0',
-                                                            whiteSpace: 'nowrap',
-                                                            verticalAlign: 'middle',
-                                                            maxWidth: 120,
-                                                            overflow: 'hidden',
-                                                            textOverflow: 'ellipsis',
-                                                        }}>
-                                                            {isMandatory && <span style={{ color: '#ff4d4f', marginRight: 2 }}>*</span>}
-                                                            {label}
-                                                        </td>
-                                                        {/* Art # column — hidden for freeText fields (no BOM lookup needed) */}
-                                                        {!freeText && (
-                                                            <td
-                                                                style={{
-                                                                    padding: '3px 6px',
-                                                                    borderRight: '1px solid #f0f0f0',
-                                                                    verticalAlign: 'middle',
-                                                                    background: isEditingArtNum ? '#e6f7ff' : '#fafafa',
-                                                                    cursor: isLocked ? 'default' : 'pointer',
-                                                                    minWidth: 70,
-                                                                    maxWidth: 90,
-                                                                }}
-                                                                onClick={() => { if (!isLocked && !isEditingArtNum) setEditingField(`artnum_${field}`); }}
-                                                            >
-                                                                {isEditingArtNum ? (
-                                                                    <Input
-                                                                        autoFocus size="small"
-                                                                        defaultValue={artNum}
-                                                                        style={{ fontSize: 10, padding: '0 4px', width: '100%' }}
-                                                                        onPressEnter={(e) => { saveAttrArticleNum(field, (e.target as HTMLInputElement).value); setEditingField(null); }}
-                                                                        onBlur={(e) => { saveAttrArticleNum(field, e.target.value); setEditingField(null); }}
-                                                                    />
-                                                                ) : (
-                                                                    <span style={{ fontSize: 10, color: artNum ? '#1d39c4' : '#d9d9d9', fontStyle: artNum ? 'normal' : 'italic' }}>
-                                                                        {artNum || 'Art #'}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                        )}
-                                                        <td
-                                                            colSpan={freeText ? 2 : 1}
-                                                            style={{
-                                                                padding: '3px 8px',
-                                                                cursor: isLocked ? 'default' : 'pointer',
-                                                                background: isEditing ? '#e6f7ff'
-                                                                    : isEmpty && isMandatory ? '#fff7e6'
-                                                                    : 'transparent',
-                                                                verticalAlign: 'middle',
-                                                            }}
-                                                            onClick={() => { if (!isLocked && !isEditing) setEditingField(field); }}
-                                                        >
-                                                            {freeText ? (
-                                                                /* Free-text: render as plain text input */
-                                                                isEditing ? (
-                                                                    <Input
-                                                                        autoFocus
-                                                                        size="small"
-                                                                        defaultValue={currentValue || ''}
-                                                                        style={{ fontSize: 11, width: '100%' }}
-                                                                        onPressEnter={(e) => handleSave(field, (e.target as HTMLInputElement).value || null)}
-                                                                        onBlur={(e) => handleSave(field, e.target.value || null)}
-                                                                    />
-                                                                ) : (
-                                                                    <span style={{
-                                                                        fontSize: 11,
-                                                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
-                                                                        fontStyle: isEmpty ? 'italic' : 'normal',
-                                                                    }}>
-                                                                        {currentValue || '—'}
-                                                                    </span>
-                                                                )
-                                                            ) : isEditing ? (
-                                                                /* Dropdown: predefined allowed values */
-                                                                <Select
-                                                                    autoFocus
-                                                                    showSearch
-                                                                    allowClear
-                                                                    open
-                                                                    size="small"
-                                                                    defaultValue={currentValue || undefined}
-                                                                    style={{ width: '100%', minWidth: 120 }}
-                                                                    optionFilterProp="children"
-                                                                    onChange={(val) => handleSave(field, val ?? null)}
-                                                                    onDropdownVisibleChange={(open) => { if (!open) setEditingField(null); }}
-                                                                    getPopupContainer={() => document.body}
-                                                                >
-                                                                    {values.map(v => (
-                                                                        <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
-                                                                    ))}
-                                                                </Select>
-                                                            ) : (
-                                                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                                    <span style={{
-                                                                        fontSize: 11,
-                                                                        color: isEmpty ? (isMandatory ? '#fa8c16' : '#bfbfbf') : '#1a1a1a',
-                                                                        fontStyle: isEmpty ? 'italic' : 'normal',
-                                                                        flex: 1,
-                                                                    }}>
-                                                                        {currentValue || (isMandatory ? 'Required' : '—')}
-                                                                    </span>
-                                                                    {currentValue && !isLocked && (
-                                                                        <span
-                                                                            onClick={(e) => { e.stopPropagation(); handleSave(field, null); }}
-                                                                            style={{ color: '#bfbfbf', fontSize: 10, cursor: 'pointer', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}
-                                                                            title="Clear"
-                                                                        >✕</span>
-                                                                    )}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-
-                                    {/* FAB group: fabric article no + desc + button */}
-                                    {g.group === 'FAB' && (() => {
-                                        const renderField = (field: string, label: string, autoFillFn?: () => void, maxLen?: number) => {
-                                            const displayVal = localValues[field] !== undefined ? localValues[field] : (item as any)[field];
-                                            const isEditingThis = editingField === `bot_${field}`;
-                                            const saveVal = (raw: string | null) => {
-                                                const v = raw || null;
-                                                handleSave(field, maxLen && v ? v.slice(0, maxLen) : v);
-                                            };
-                                            return (
-                                                <div
-                                                    style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0', cursor: isLocked ? 'default' : 'pointer', background: isEditingThis ? '#e6f7ff' : '#fafafa' }}
-                                                    onClick={() => { if (!isLocked && !isEditingThis) setEditingField(`bot_${field}`); }}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
-                                                        <span style={{ fontSize: 9, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>{label}</span>
-                                                        {autoFillFn && !isLocked && <span style={{ fontSize: 9, color: '#6366f1', cursor: 'pointer', textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); autoFillFn(); }}>Auto-fill</span>}
-                                                    </div>
-                                                    {isEditingThis ? (
-                                                        <Input autoFocus size="small" defaultValue={displayVal || ''} style={{ fontSize: 11, padding: '0 4px' }}
-                                                            maxLength={maxLen}
-                                                            onPressEnter={(e) => saveVal((e.target as HTMLInputElement).value)}
-                                                            onBlur={(e) => saveVal(e.target.value)} />
-                                                    ) : (
-                                                        <div style={{ fontSize: 11, color: displayVal ? '#1a1a1a' : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                            {displayVal || (isLocked ? '—' : 'Click to fill')}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        };
-                                        const fabAutoFill = () => {
-                                            const parts = FAB_FIELDS.filter(f => mandatoryKeys.has(f.schemaKey))
-                                                .map(f => { const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field]; return v ? String(v).trim() : null; })
-                                                .filter(Boolean);
-                                            if (parts.length > 0) handleSave('fabricArticleDescription', parts.join('-').slice(0, 40));
-                                        };
-                                        return (
-                                            <>
-                                                {renderField('fabricArticleNumber', 'FABRIC ARTICLE NO.')}
-                                                {renderField('fabricArticleDescription', 'FABRIC ARTICLE DESC', fabAutoFill, 40)}
-                                                <div style={{ padding: '5px 8px', borderTop: '1px solid #f0f0f0' }}>
-                                                    <Button icon={<FileTextOutlined />} onClick={() => onCreateFabricArticle(item)}
-                                                        style={{ background: '#e8e8ff', color: '#4b4acf', border: '1px solid #c7c7f5', fontWeight: 500, fontSize: 11, width: '100%', height: 28 }}>
-                                                        Create Fabric Article
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-
-                                    {/* BODY group: body article no + desc + button */}
-                                    {g.group === 'BODY' && (() => {
-                                        const renderField = (field: string, label: string, autoFillFn?: () => void, maxLen?: number) => {
-                                            const displayVal = localValues[field] !== undefined ? localValues[field] : (item as any)[field];
-                                            const isEditingThis = editingField === `bot_${field}`;
-                                            const saveVal = (raw: string | null) => {
-                                                const v = raw || null;
-                                                handleSave(field, maxLen && v ? v.slice(0, maxLen) : v);
-                                            };
-                                            return (
-                                                <div
-                                                    style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0', cursor: isLocked ? 'default' : 'pointer', background: isEditingThis ? '#e6f7ff' : '#fafafa' }}
-                                                    onClick={() => { if (!isLocked && !isEditingThis) setEditingField(`bot_${field}`); }}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
-                                                        <span style={{ fontSize: 9, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>{label}</span>
-                                                        {autoFillFn && !isLocked && <span style={{ fontSize: 9, color: '#6366f1', cursor: 'pointer', textDecoration: 'underline' }} onClick={(e) => { e.stopPropagation(); autoFillFn(); }}>Auto-fill</span>}
-                                                    </div>
-                                                    {isEditingThis ? (
-                                                        <Input autoFocus size="small" defaultValue={displayVal || ''} style={{ fontSize: 11, padding: '0 4px' }}
-                                                            maxLength={maxLen}
-                                                            onPressEnter={(e) => saveVal((e.target as HTMLInputElement).value)}
-                                                            onBlur={(e) => saveVal(e.target.value)} />
-                                                    ) : (
-                                                        <div style={{ fontSize: 11, color: displayVal ? '#1a1a1a' : '#bfbfbf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                            {displayVal || (isLocked ? '—' : 'Click to fill')}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        };
-                                        const bodyAutoFill = () => {
-                                            const parts = BODY_FIELDS.filter(f => mandatoryKeys.has(f.schemaKey))
-                                                .map(f => { const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field]; return v ? String(v).trim() : null; })
-                                                .filter(Boolean);
-                                            if (parts.length > 0) handleSave('bodyArticleDescription', parts.join('-').slice(0, 40));
-                                        };
-                                        return (
-                                            <>
-                                                {renderField('bodyArticle', 'BODY ARTICLE NO.')}
-                                                {renderField('bodyArticleDescription', 'BODY ARTICLE DESC', bodyAutoFill, 40)}
-                                                <div style={{ padding: '5px 8px', borderTop: '1px solid #f0f0f0' }}>
-                                                    <Button icon={<AppstoreAddOutlined />} onClick={() => onCreateBodyArticle(item)}
-                                                        style={{ background: '#f0eaff', color: '#6d3fbd', border: '1px solid #d9c8f7', fontWeight: 500, fontSize: 11, width: '100%', height: 28 }}>
-                                                        Create Body Article
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            ))}
-
-                            {/* BOM group — always shown */}
-                            <div style={{ flex: 1, minWidth: 120, border: '1.5px solid #b0b0b0', borderRadius: 6, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-                                <div style={{
-                                    padding: '4px 10px',
-                                    fontSize: 10, fontWeight: 700, letterSpacing: '1px',
-                                    textTransform: 'uppercase',
-                                    background: '#f9f0ff', color: '#595959',
-                                    borderBottom: '1px solid #e8e8e8',
-                                }}>
-                                    BOM
-                                </div>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <tbody>
-                                        {[
-                                            { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: false },
-                                            { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
-                                            { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
-                                            { label: 'IMP_ATBT-1',  field: 'macroMvgr',  editable: true,  mandatory: true  },
-                                            { label: 'IMP_ATRBT-2', field: 'impAtrbt2',  editable: true,  mandatory: true  },
-                                        ].map(({ label, field, editable, mandatory }) => {
-                                            const isEditingBom = editingField === `bom_${field}`;
-                                            const val = field === '_markdown' ? markdown
-                                                : String(getValue(field) ?? '').trim() || '—';
-                                            const isEmpty = val === '—';
-                                            const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
-                                            const dropdownOptions: string[] = isDropdown
-                                                ? field === 'impAtrbt2'
-                                                    ? (attributes.find(a => a.key === 'imp_atrbt2')?.allowedValues.map(v => v.shortForm) ?? getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
-                                                    : (getCachedValues(item.division ?? '', field) ?? [])
-                                                : [];
-                                            return (
-                                                <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                    <td style={{
-                                                        padding: '4px 8px', fontSize: 11, fontWeight: 400,
-                                                        color: mandatory && isEmpty && !isLocked ? '#ff4d4f' : '#595959',
-                                                        background: '#fafafa',
-                                                        borderRight: '1px solid #f0f0f0', whiteSpace: 'nowrap',
-                                                        verticalAlign: 'middle',
-                                                    }}>
-                                                        {label}{mandatory && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: '3px 8px', verticalAlign: 'middle',
-                                                            cursor: editable && !isLocked ? 'pointer' : 'default',
-                                                            background: isEditingBom ? '#e6f7ff' : 'transparent',
-                                                        }}
-                                                        onClick={() => { if (editable && !isLocked && !isEditingBom) setEditingField(`bom_${field}`); }}
-                                                    >
-                                                        {isEditingBom && isDropdown ? (
-                                                            <Select
-                                                                autoFocus
-                                                                showSearch
-                                                                allowClear
-                                                                defaultOpen
-                                                                size="small"
-                                                                value={val === '—' ? undefined : val}
-                                                                style={{ width: '100%', minWidth: 140 }}
-                                                                optionFilterProp="children"
-                                                                onSelect={(v: string) => { handleSave(field, v ?? null); }}
-                                                                onClear={() => { handleSave(field, null); }}
-                                                                onBlur={() => setEditingField(null)}
-                                                                getPopupContainer={() => document.body}
-                                                            >
-                                                                {dropdownOptions.map(v => (
-                                                                    <Option key={v} value={v}>{v}</Option>
-                                                                ))}
-                                                            </Select>
-                                                        ) : isEditingBom ? (
-                                                            <Input
-                                                                autoFocus size="small"
-                                                                defaultValue={val === '—' ? '' : val}
-                                                                style={{ fontSize: 11, width: '100%' }}
-                                                                onPressEnter={(e) => handleSave(field, (e.target as HTMLInputElement).value || null)}
-                                                                onBlur={(e) => handleSave(field, e.target.value || null)}
-                                                            />
-                                                        ) : (
-                                                            <span style={{
-                                                                fontSize: 11,
-                                                                color: field === '_markdown' ? '#7c3aed'
-                                                                    : mandatory && isEmpty && !isLocked ? '#fa8c16'
-                                                                    : isEmpty ? '#bfbfbf' : '#1a1a1a',
-                                                                fontStyle: mandatory && isEmpty && !isLocked ? 'italic' : 'normal',
-                                                                fontWeight: field === '_markdown' ? 600 : 400,
-                                                            }}>
-                                                                {mandatory && isEmpty && !isLocked ? 'Required' : val}
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    );
-                })() : (
-                    <div style={{ padding: '12px 16px', color: '#8c8c8c', fontSize: 12 }}>
-                        {effectiveMajCat ? `No attributes defined for ${effectiveMajCat}` : 'No major category set.'}
-                    </div>
+                    side="bottom"
+                  >
+                    <Info className="h-3.5 w-3.5 shrink-0 cursor-pointer text-red-700" />
+                  </Tooltip>
                 )}
+                <span className="text-[11px] text-muted-foreground">
+                  {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
+                </span>
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
+                  {item.rate != null && `  ·  ₹${item.rate}`}
+                  {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
+                  {item.createdAt && (
+                    <span className="ml-2 text-muted-foreground">
+                      ·{' '}
+                      {new Date(item.createdAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  )}
+                </span>
+                {item.pptNumber && (
+                  <Badge className="ml-1.5 shrink-0 bg-indigo-500 px-1.5 py-0 text-[10px] font-semibold tracking-wider text-white">
+                    {item.pptNumber}
+                  </Badge>
+                )}
+                {pathType === 'new' && item.approvalStatus === 'PENDING' && item.division?.toUpperCase() === 'KIDS' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDupConfirmOpen(true)}
+                    className="ml-1.5 h-[22px] shrink-0 border-sky-300 bg-sky-50 px-2 text-[11px] text-sky-700"
+                  >
+                    <Copy />
+                    Duplicate
+                  </Button>
+                )}
+              </div>
 
-                {/* ── Proceed for FG Article Creation — only shown when article number is not yet assigned ── */}
-                {!item.articleNumber && (() => {
-                    const effectiveVendorCode = localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
-                    const vendorCodeMissing = !effectiveVendorCode;
-                    return (
-                        <div style={{ padding: '8px 12px', borderTop: '1px solid #e8e8e8', background: '#fafafa' }}>
-                            <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
-                                <Button
-                                    icon={<RocketOutlined />}
-                                    disabled={vendorCodeMissing}
-                                    onClick={() => onProceedFGArticle(item)}
-                                    style={{ background: vendorCodeMissing ? '#f5f5f5' : '#fff0ee', color: vendorCodeMissing ? '#bfbfbf' : '#c94f44', border: `1px solid ${vendorCodeMissing ? '#d9d9d9' : '#f5c2bc'}`, fontWeight: 600, fontSize: 13, width: '100%', height: 36 }}
-                                >
-                                    Proceed for FG Article Creation
-                                </Button>
-                            </Tooltip>
-                        </div>
-                    );
-                })()}
-
-                {/* ── Variants section — only for generic articles ── */}
-                {item.isGeneric && (
-                    <div style={{ borderTop: '1px solid #e8e8e8' }}>
-                        {/* Toggle button */}
-                        <div
-                            style={{
-                                padding: '6px 12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                cursor: 'pointer',
-                                background: showVariants ? '#e6f4ff' : '#fafafa',
-                                userSelect: 'none',
-                            }}
-                            onClick={() => setShowVariants(v => !v)}
+              {/* 7 horizontal info fields — click to edit */}
+              <div className="flex border-t border-border">
+                {(
+                  [
+                    { label: 'MAJOR CATEGORY', field: 'majorCategory', bold: true, color: '#2f54eb', editable: true, required: false },
+                    {
+                      label: 'ARTICLE NUMBER',
+                      field: 'articleNumber',
+                      bold: true,
+                      color: item.sapArticleId ? '#389e0d' : '#1d39c4',
+                      editable: !item.sapArticleId,
+                      required: false,
+                    },
+                    { label: 'VENDOR CODE', field: 'vendorCode', bold: false, color: '#1a1a1a', editable: true, required: true },
+                    { label: 'VENDOR NAME', field: 'vendorName', bold: false, color: '#1a1a1a', editable: true, required: true },
+                    { label: 'ARTICLE DESC', field: 'articleDescription', bold: false, color: '#595959', editable: true, required: false },
+                    { label: 'REFERENCE ARTICLE', field: 'referenceArticleNumber', bold: false, color: '#1a1a1a', editable: true, required: false },
+                    { label: 'REFERENCE ARTICLE DESC', field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true, required: false },
+                  ] as {
+                    label: string;
+                    field: string;
+                    bold: boolean;
+                    color: string;
+                    editable: boolean;
+                    required: boolean;
+                  }[]
+                ).map(({ label, field, color, editable, required }, i) => {
+                  const value =
+                    field === 'articleNumber'
+                      ? item.sapArticleId || (item as any)[field]
+                      : field === 'majorCategory'
+                      ? effectiveMajCat || (item as any)[field]
+                      : (item as any)[field];
+                  const displayVal = localValues[field] !== undefined ? localValues[field] : value;
+                  const isEditingThis = editingField === `hdr_${field}`;
+                  const canEdit = editable && !isLocked;
+                  const isEmpty = !displayVal;
+                  const showRequiredError = required && isEmpty && !isLocked;
+                  return (
+                    <div
+                      key={i}
+                      className="min-w-0 border-r border-border px-2.5 py-1 last:border-r-0"
+                      style={{
+                        flex: i >= 4 ? 2 : 1,
+                        cursor: canEdit ? 'pointer' : 'default',
+                        background: isEditingThis ? '#e6f7ff' : 'transparent',
+                      }}
+                      onClick={() => {
+                        if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`);
+                      }}
+                    >
+                      <div
+                        className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider"
+                        style={{ color: showRequiredError ? '#ff4d4f' : '#8c8c8c' }}
+                      >
+                        {label}
+                        {required && <span className="ml-0.5 text-red-500">*</span>}
+                      </div>
+                      {isEditingThis && field === 'majorCategory' ? (
+                        <Select
+                          defaultValue={displayVal || undefined}
+                          onValueChange={(val) => handleSave(field, val || null)}
                         >
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#1d39c4', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <TeamOutlined />
-                                Variants
-                            </span>
-                            <span style={{ fontSize: 11, color: '#8c8c8c' }}>
-                                {showVariants ? '▲ Hide' : '▼ Show'}
-                            </span>
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getMajorCategoriesByDivision(item.division || '').map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : isEditingThis && field === 'vendorName' ? (
+                        <Autocomplete
+                          autoFocus
+                          value={vendorQuery || displayVal || ''}
+                          onChange={searchVendors}
+                          options={vendorOptions}
+                          notFoundContent={vendorSearching ? <Spinner size="sm" /> : null}
+                          onSelect={(val, option) => {
+                            handleSave('vendorName', val || null);
+                            if (option.vendorCode) {
+                              setLocalValues((prev) => ({ ...prev, vendorCode: option.vendorCode }));
+                              onSave(
+                                { ...item, vendorCode: option.vendorCode } as ApproverItem,
+                                { vendorCode: option.vendorCode } as Record<string, unknown>,
+                              );
+                            }
+                            setVendorOptions([]);
+                            setVendorQuery('');
+                          }}
+                          onBlur={(e) => {
+                            const val = (e.target as HTMLInputElement).value;
+                            if (val) handleSave('vendorName', val);
+                            else setEditingField(null);
+                            setVendorOptions([]);
+                            setVendorQuery('');
+                          }}
+                          className="text-xs"
+                        />
+                      ) : isEditingThis ? (
+                        <Input
+                          autoFocus
+                          defaultValue={displayVal || ''}
+                          className="h-7 px-1 text-xs"
+                          onKeyDown={(e) =>
+                            e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
+                          }
+                          onBlur={(e) => handleSave(field, e.target.value || null)}
+                        />
+                      ) : (
+                        <div
+                          className="truncate text-xs"
+                          style={{
+                            color: displayVal ? color : showRequiredError ? '#fa8c16' : '#bfbfbf',
+                            fontStyle: showRequiredError ? 'italic' : 'normal',
+                          }}
+                        >
+                          {displayVal || (showRequiredError ? 'Required' : canEdit ? 'Click to fill' : '—')}
                         </div>
-
-                        {/* Variant table — rendered only when expanded */}
-                        {showVariants && (
-                            <VariantSubTable
-                                genericId={item.id}
-                                genericRecord={item}
-                                attributes={attributes}
-                                onRefresh={onRefresh}
-                                pathType={pathType}
-                            />
-                        )}
+                      )}
                     </div>
-                )}
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Attribute groups */}
+            {visibleAttrs.length > 0 ? (
+              <div className="flex items-start gap-1 border-t-2 border-neutral-400 bg-neutral-200 p-1">
+                {activeGroups.map((g) => (
+                  <div
+                    key={g.group}
+                    className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-neutral-300 bg-background shadow-sm"
+                  >
+                    <div
+                      className="border-b border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                      style={{ background: g.color }}
+                    >
+                      {g.group}
+                    </div>
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText }) => {
+                          const currentValue = getValue(field);
+                          const isEmpty = !currentValue;
+                          const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
+                          const isEditing = editingField === field;
+                          const artNum = getArtNum(schemaKey, field, currentValue);
+                          const isEditingArtNum = editingField === `artnum_${field}`;
+                          return (
+                            <tr key={field} className="border-b border-neutral-100 last:border-b-0">
+                              <td
+                                className="overflow-hidden truncate whitespace-nowrap border-r border-border bg-muted/40 px-2 py-1 align-middle text-[11px]"
+                                style={{
+                                  fontWeight: isMandatory ? 600 : 400,
+                                  color: isMandatory ? '#262626' : '#595959',
+                                  maxWidth: 120,
+                                }}
+                              >
+                                {isMandatory && <span className="mr-0.5 text-red-500">*</span>}
+                                {label}
+                              </td>
+                              {!freeText && (
+                                <td
+                                  className="border-r border-border bg-muted/40 px-1.5 py-0.5 align-middle"
+                                  style={{
+                                    cursor: isLocked ? 'default' : 'pointer',
+                                    background: isEditingArtNum ? '#e6f7ff' : undefined,
+                                    minWidth: 70,
+                                    maxWidth: 90,
+                                  }}
+                                  onClick={() => {
+                                    if (!isLocked && !isEditingArtNum) setEditingField(`artnum_${field}`);
+                                  }}
+                                >
+                                  {isEditingArtNum ? (
+                                    <Input
+                                      autoFocus
+                                      defaultValue={artNum}
+                                      className="h-6 w-full px-1 text-[10px]"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          saveAttrArticleNum(field, (e.target as HTMLInputElement).value);
+                                          setEditingField(null);
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        saveAttrArticleNum(field, e.target.value);
+                                        setEditingField(null);
+                                      }}
+                                    />
+                                  ) : (
+                                    <span
+                                      className="text-[10px]"
+                                      style={{
+                                        color: artNum ? '#1d39c4' : '#d9d9d9',
+                                        fontStyle: artNum ? 'normal' : 'italic',
+                                      }}
+                                    >
+                                      {artNum || 'Art #'}
+                                    </span>
+                                  )}
+                                </td>
+                              )}
+                              <td
+                                colSpan={freeText ? 2 : 1}
+                                className="px-2 py-0.5 align-middle"
+                                style={{
+                                  cursor: isLocked ? 'default' : 'pointer',
+                                  background: isEditing
+                                    ? '#e6f7ff'
+                                    : isEmpty && isMandatory
+                                    ? '#fff7e6'
+                                    : 'transparent',
+                                }}
+                                onClick={() => {
+                                  if (!isLocked && !isEditing) setEditingField(field);
+                                }}
+                              >
+                                {freeText ? (
+                                  isEditing ? (
+                                    <Input
+                                      autoFocus
+                                      defaultValue={currentValue || ''}
+                                      className="h-6 w-full text-[11px]"
+                                      onKeyDown={(e) =>
+                                        e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
+                                      }
+                                      onBlur={(e) => handleSave(field, e.target.value || null)}
+                                    />
+                                  ) : (
+                                    <span
+                                      className="text-[11px]"
+                                      style={{
+                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
+                                        fontStyle: isEmpty ? 'italic' : 'normal',
+                                      }}
+                                    >
+                                      {currentValue || '—'}
+                                    </span>
+                                  )
+                                ) : isEditing ? (
+                                  <Select
+                                    defaultValue={currentValue || undefined}
+                                    onValueChange={(val) => handleSave(field, val ?? null)}
+                                  >
+                                    <SelectTrigger className="h-6 w-full min-w-[120px] text-[11px]">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {values.map((v) => (
+                                        <SelectItem key={v.shortForm} value={v.shortForm}>
+                                          {v.shortForm}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <span
+                                      className="flex-1 text-[11px]"
+                                      style={{
+                                        color: isEmpty ? (isMandatory ? '#fa8c16' : '#bfbfbf') : '#1a1a1a',
+                                        fontStyle: isEmpty ? 'italic' : 'normal',
+                                      }}
+                                    >
+                                      {currentValue || (isMandatory ? 'Required' : '—')}
+                                    </span>
+                                    {currentValue && !isLocked && (
+                                      <span
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSave(field, null);
+                                        }}
+                                        className="shrink-0 cursor-pointer px-0.5 text-[10px] leading-none text-muted-foreground"
+                                        title="Clear"
+                                      >
+                                        ✕
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {g.group === 'FAB' && (
+                      <>
+                        {renderFabBodyField('fabricArticleNumber', 'FABRIC ARTICLE NO.')}
+                        {renderFabBodyField(
+                          'fabricArticleDescription',
+                          'FABRIC ARTICLE DESC',
+                          () => {
+                            const parts = FAB_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
+                              .map((f) => {
+                                const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field];
+                                return v ? String(v).trim() : null;
+                              })
+                              .filter(Boolean);
+                            if (parts.length > 0) handleSave('fabricArticleDescription', parts.join('-').slice(0, 40));
+                          },
+                          40,
+                        )}
+                        <div className="border-t border-border px-2 py-1.5">
+                          <Button
+                            onClick={() => onCreateFabricArticle(item)}
+                            className="h-7 w-full border border-indigo-300 bg-indigo-50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+                          >
+                            <FileText />
+                            Create Fabric Article
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                    {g.group === 'BODY' && (
+                      <>
+                        {renderFabBodyField('bodyArticle', 'BODY ARTICLE NO.')}
+                        {renderFabBodyField(
+                          'bodyArticleDescription',
+                          'BODY ARTICLE DESC',
+                          () => {
+                            const parts = BODY_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
+                              .map((f) => {
+                                const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field];
+                                return v ? String(v).trim() : null;
+                              })
+                              .filter(Boolean);
+                            if (parts.length > 0) handleSave('bodyArticleDescription', parts.join('-').slice(0, 40));
+                          },
+                          40,
+                        )}
+                        <div className="border-t border-border px-2 py-1.5">
+                          <Button
+                            onClick={() => onCreateBodyArticle(item)}
+                            className="h-7 w-full border border-purple-300 bg-purple-50 text-[11px] font-medium text-purple-700 hover:bg-purple-100"
+                          >
+                            <LayoutGrid />
+                            Create Body Article
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+
+                {/* BOM group — always shown */}
+                <div className="min-w-[120px] flex-1 overflow-hidden rounded-md border border-neutral-300 bg-background shadow-sm">
+                  <div className="border-b border-border bg-purple-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    BOM
+                  </div>
+                  <table className="w-full border-collapse">
+                    <tbody>
+                      {[
+                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: false },
+                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true },
+                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false },
+                        { label: 'IMP_ATBT-1', field: 'macroMvgr', editable: true, mandatory: true },
+                        { label: 'IMP_ATRBT-2', field: 'impAtrbt2', editable: true, mandatory: true },
+                      ].map(({ label, field, editable, mandatory }) => {
+                        const isEditingBom = editingField === `bom_${field}`;
+                        const val = field === '_markdown' ? markdown : String(getValue(field) ?? '').trim() || '—';
+                        const isEmpty = val === '—';
+                        const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
+                        const dropdownOptions: string[] = isDropdown
+                          ? field === 'impAtrbt2'
+                            ? attributes.find((a) => a.key === 'imp_atrbt2')?.allowedValues.map((v) => v.shortForm) ??
+                              getCachedValues(item.division ?? '', 'impAtrbt2') ??
+                              []
+                            : getCachedValues(item.division ?? '', field) ?? []
+                          : [];
+                        return (
+                          <tr key={field} className="border-b border-neutral-100 last:border-b-0">
+                            <td
+                              className="whitespace-nowrap border-r border-border bg-muted/40 px-2 py-1 align-middle text-[11px]"
+                              style={{ color: mandatory && isEmpty && !isLocked ? '#ff4d4f' : '#595959' }}
+                            >
+                              {label}
+                              {mandatory && <span className="ml-0.5 text-red-500">*</span>}
+                            </td>
+                            <td
+                              className="px-2 py-0.5 align-middle"
+                              style={{
+                                cursor: editable && !isLocked ? 'pointer' : 'default',
+                                background: isEditingBom ? '#e6f7ff' : 'transparent',
+                              }}
+                              onClick={() => {
+                                if (editable && !isLocked && !isEditingBom) setEditingField(`bom_${field}`);
+                              }}
+                            >
+                              {isEditingBom && isDropdown ? (
+                                <Select
+                                  defaultValue={val === '—' ? undefined : val}
+                                  onValueChange={(v) => handleSave(field, v ?? null)}
+                                >
+                                  <SelectTrigger className="h-6 w-full min-w-[140px] text-[11px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {dropdownOptions.map((v) => (
+                                      <SelectItem key={v} value={v}>
+                                        {v}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : isEditingBom ? (
+                                <Input
+                                  autoFocus
+                                  defaultValue={val === '—' ? '' : val}
+                                  className="h-6 w-full text-[11px]"
+                                  onKeyDown={(e) =>
+                                    e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
+                                  }
+                                  onBlur={(e) => handleSave(field, e.target.value || null)}
+                                />
+                              ) : (
+                                <span
+                                  className="text-[11px]"
+                                  style={{
+                                    color:
+                                      field === '_markdown'
+                                        ? '#7c3aed'
+                                        : mandatory && isEmpty && !isLocked
+                                        ? '#fa8c16'
+                                        : isEmpty
+                                        ? '#bfbfbf'
+                                        : '#1a1a1a',
+                                    fontStyle: mandatory && isEmpty && !isLocked ? 'italic' : 'normal',
+                                    fontWeight: field === '_markdown' ? 600 : 400,
+                                  }}
+                                >
+                                  {mandatory && isEmpty && !isLocked ? 'Required' : val}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 py-3 text-xs text-muted-foreground">
+                {effectiveMajCat ? `No attributes defined for ${effectiveMajCat}` : 'No major category set.'}
+              </div>
+            )}
+
+            {/* Proceed for FG Article Creation */}
+            {!item.articleNumber &&
+              (() => {
+                const effectiveVendorCode = localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
+                const vendorCodeMissing = !effectiveVendorCode;
+                return (
+                  <div className="border-t border-border bg-muted/40 px-3 py-2">
+                    <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
+                      <Button
+                        disabled={vendorCodeMissing}
+                        onClick={() => onProceedFGArticle(item)}
+                        className="h-9 w-full text-[13px] font-semibold"
+                        style={{
+                          background: vendorCodeMissing ? '#f5f5f5' : '#fff0ee',
+                          color: vendorCodeMissing ? '#bfbfbf' : '#c94f44',
+                          border: `1px solid ${vendorCodeMissing ? '#d9d9d9' : '#f5c2bc'}`,
+                        }}
+                      >
+                        <Rocket />
+                        Proceed for FG Article Creation
+                      </Button>
+                    </Tooltip>
+                  </div>
+                );
+              })()}
+
+            {/* Variants */}
+            {item.isGeneric && (
+              <div className="border-t border-border">
+                <div
+                  className="flex cursor-pointer select-none items-center justify-between px-3 py-1.5"
+                  style={{ background: showVariants ? '#e6f4ff' : 'rgb(250 250 250)' }}
+                  onClick={() => setShowVariants((v) => !v)}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
+                    <Users className="h-3.5 w-3.5" />
+                    Variants
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">{showVariants ? '▲ Hide' : '▼ Show'}</span>
+                </div>
+                {showVariants && (
+                  <VariantSubTable
+                    genericId={item.id}
+                    genericRecord={item}
+                    attributes={attributes}
+                    onRefresh={onRefresh}
+                    pathType={pathType}
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Image preview modal */}
-        <Modal
-            open={imgModalOpen}
-            onCancel={() => setImgModalOpen(false)}
-            footer={null}
-            centered
-            width="auto"
-            styles={{ body: { padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' } }}
-            title={item.imageName || 'Image Preview'}
-        >
-            <img
+        {/* Image preview */}
+        <Dialog open={imgModalOpen} onOpenChange={setImgModalOpen}>
+          <DialogContent className="w-auto max-w-[90vw] p-0">
+            <DialogHeader className="px-6 pt-4">
+              <DialogTitle>{item.imageName || 'Image Preview'}</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center p-4">
+              <img
                 src={imgUrl || ''}
                 alt={item.imageName || 'preview'}
-                style={{ maxWidth: '80vw', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
-            />
-        </Modal>
+                className="block max-h-[80vh] max-w-[80vw] object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
-        {/* Duplicate confirmation modal */}
-        <Modal
-            open={dupConfirmOpen}
-            onCancel={() => { if (!duplicating) setDupConfirmOpen(false); }}
-            title="Confirm Duplicate"
-            centered
-            destroyOnHidden
-            footer={[
-                <Button
-                    key="cancel"
-                    onClick={() => setDupConfirmOpen(false)}
-                    disabled={duplicating}
-                >
-                    Cancel
-                </Button>,
-                <Button
-                    key="continue"
-                    type="primary"
-                    loading={duplicating}
-                    onClick={async () => {
-                        setDuplicating(true);
-                        try {
-                            await onDuplicate(item);
-                        } catch (err) {
-                            message.error(err instanceof Error ? err.message : 'Failed to duplicate article');
-                        } finally {
-                            setDuplicating(false);
-                            setDupConfirmOpen(false);
-                        }
-                    }}
-                >
-                    Continue
-                </Button>,
-            ]}
-        >
-            <p style={{ margin: 0 }}>
-                A new copy of this article will be created with all the same values. Do you want to continue?
-            </p>
-        </Modal>
-        </>
+        {/* Duplicate confirmation */}
+        <Dialog open={dupConfirmOpen} onOpenChange={(o) => !duplicating && setDupConfirmOpen(o)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Duplicate</DialogTitle>
+            </DialogHeader>
+            <p className="m-0">A new copy of this article will be created with all the same values. Do you want to continue?</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDupConfirmOpen(false)} disabled={duplicating}>
+                Cancel
+              </Button>
+              <Button
+                disabled={duplicating}
+                onClick={async () => {
+                  setDuplicating(true);
+                  try {
+                    await onDuplicate(item);
+                  } catch (err) {
+                    message.error(err instanceof Error ? err.message : 'Failed to duplicate article');
+                  } finally {
+                    setDuplicating(false);
+                    setDupConfirmOpen(false);
+                  }
+                }}
+              >
+                {duplicating ? 'Duplicating…' : 'Continue'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
-});
+  },
+);
+
+ArticleCard.displayName = 'ArticleCard';
 
 // ── List ─────────────────────────────────────────────────────────────────────
 export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
-    items,
-    majorCategory,
-    loading,
-    selectedRowKeys,
-    onSelectionChange,
-    onEdit: _onEdit,
-    onSave,
-    onCreateFabricArticle,
-    onCreateBodyArticle,
-    onProceedFGArticle,
-    onDuplicate,
-    attributes,
-    onRefresh,
-    pathType,
-    serverPagination,
+  items,
+  loading,
+  selectedRowKeys,
+  onSelectionChange,
+  onEdit: _onEdit,
+  onSave,
+  onCreateFabricArticle,
+  onCreateBodyArticle,
+  onProceedFGArticle,
+  attributes,
+  onRefresh,
+  pathType,
+  serverPagination,
 }) => {
-    // Load attribute groups from DB once; fall back to hardcoded ATTRIBUTE_GROUPS.
-    const [cardGroups, setCardGroups] = useState<CardGroup[]>(() => {
-        const cached = getCachedAttributeGroups();
-        return cached && cached.length > 0 ? buildCardGroups(cached) : ATTRIBUTE_GROUPS;
-    });
+  const [cardGroups, setCardGroups] = useState<CardGroup[]>(() => {
+    const cached = getCachedAttributeGroups();
+    return cached && cached.length > 0 ? buildCardGroups(cached) : ATTRIBUTE_GROUPS;
+  });
 
-    useEffect(() => {
-        preloadAttributeGroups().then(entries => {
-            if (entries.length > 0) setCardGroups(buildCardGroups(entries));
-        }).catch(() => {/* keep hardcoded fallback */});
-    }, []);
+  useEffect(() => {
+    preloadAttributeGroups()
+      .then((entries) => {
+        if (entries.length > 0) setCardGroups(buildCardGroups(entries));
+      })
+      .catch(() => {
+        /* keep hardcoded fallback */
+      });
+  }, []);
 
-    const handleToggleSelect = useCallback((id: string) => {
-        onSelectionChange(
-            selectedRowKeys.includes(id)
-                ? selectedRowKeys.filter(k => k !== id)
-                : [...selectedRowKeys, id]
-        );
-    }, [selectedRowKeys, onSelectionChange]);
+  const handleToggleSelect = useCallback(
+    (id: string) => {
+      onSelectionChange(
+        selectedRowKeys.includes(id) ? selectedRowKeys.filter((k) => k !== id) : [...selectedRowKeys, id],
+      );
+    },
+    [selectedRowKeys, onSelectionChange],
+  );
 
-    const handleToggleAll = useCallback(() => {
-        const ids = items.filter(i => i.approvalStatus !== 'REJECTED').map(i => i.id);
-        const allOn = ids.every(id => selectedRowKeys.includes(id));
-        onSelectionChange(allOn ? [] : ids);
-    }, [items, selectedRowKeys, onSelectionChange]);
+  const handleToggleAll = useCallback(() => {
+    const ids = items.filter((i) => i.approvalStatus !== 'REJECTED').map((i) => i.id);
+    const allOn = ids.every((id) => selectedRowKeys.includes(id));
+    onSelectionChange(allOn ? [] : ids);
+  }, [items, selectedRowKeys, onSelectionChange]);
 
-    const handleDuplicate = useCallback(async (item: ApproverItem): Promise<void> => {
-        const token = localStorage.getItem('authToken');
-        const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${item.id}/duplicate`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-            const data = await res.json().catch(() => null);
-            throw new Error(data?.error || 'Failed to duplicate article');
-        }
-        message.success('Article duplicated successfully');
-        onRefresh();
-    }, [onRefresh]);
+  const handleDuplicate = useCallback(
+    async (item: ApproverItem): Promise<void> => {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${item.id}/duplicate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || 'Failed to duplicate article');
+      }
+      message.success('Article duplicated successfully');
+      onRefresh();
+    },
+    [onRefresh],
+  );
 
-    if (loading) {
-        return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
-    }
-
-    if (items.length === 0) {
-        return <div style={{ textAlign: 'center', padding: 60, color: '#8c8c8c' }}>No articles found.</div>;
-    }
-
-    const eligibleIds = items.filter(i => i.approvalStatus !== 'REJECTED').map(i => i.id);
-    const allSelected = eligibleIds.length > 0 && eligibleIds.every(id => selectedRowKeys.includes(id));
-
+  if (loading) {
     return (
-        <div style={{ paddingBottom: 300 }}>
-            {/* Select-all bar */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '6px 12px', marginBottom: 8,
-                background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6,
-            }}>
-                <Checkbox checked={allSelected} onChange={handleToggleAll}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#595959' }}>Select All on Page</span>
-                </Checkbox>
-                {selectedRowKeys.length > 0 && (
-                    <Tag color="gold">{selectedRowKeys.length} selected</Tag>
-                )}
-            </div>
-
-            {/* Cards */}
-            {items.map(item => (
-                <ArticleCard
-                    key={item.id}
-                    item={item}
-                    isSelected={selectedRowKeys.includes(item.id)}
-                    onToggleSelect={handleToggleSelect}
-                    onSave={onSave}
-                    onCreateFabricArticle={onCreateFabricArticle}
-                    onCreateBodyArticle={onCreateBodyArticle}
-                    onProceedFGArticle={onProceedFGArticle}
-                    onDuplicate={handleDuplicate}
-                    attributes={attributes}
-                    onRefresh={onRefresh}
-                    cardGroups={cardGroups}
-                    pathType={pathType}
-                />
-            ))}
-
-            {/* Pagination */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                    {((serverPagination.current - 1) * serverPagination.pageSize) + 1}–{Math.min(serverPagination.current * serverPagination.pageSize, serverPagination.total)} of {serverPagination.total}
-                </span>
-                <button
-                    onClick={() => serverPagination.onChange(serverPagination.current - 1)}
-                    disabled={serverPagination.current <= 1}
-                    style={{ border: '1px solid #d9d9d9', borderRadius: 4, background: '#fff', padding: '2px 8px', cursor: serverPagination.current <= 1 ? 'not-allowed' : 'pointer', opacity: serverPagination.current <= 1 ? 0.5 : 1 }}
-                >‹</button>
-                <span style={{ fontSize: 12, fontWeight: 600 }}>{serverPagination.current}</span>
-                <button
-                    onClick={() => serverPagination.onChange(serverPagination.current + 1)}
-                    disabled={serverPagination.current * serverPagination.pageSize >= serverPagination.total}
-                    style={{ border: '1px solid #d9d9d9', borderRadius: 4, background: '#fff', padding: '2px 8px', cursor: serverPagination.current * serverPagination.pageSize >= serverPagination.total ? 'not-allowed' : 'pointer', opacity: serverPagination.current * serverPagination.pageSize >= serverPagination.total ? 0.5 : 1 }}
-                >›</button>
-            </div>
-        </div>
+      <div className="py-16 text-center">
+        <Spinner size="lg" />
+      </div>
     );
+  }
+
+  if (items.length === 0) {
+    return <div className="py-16 text-center text-muted-foreground">No articles found.</div>;
+  }
+
+  const eligibleIds = items.filter((i) => i.approvalStatus !== 'REJECTED').map((i) => i.id);
+  const allSelected = eligibleIds.length > 0 && eligibleIds.every((id) => selectedRowKeys.includes(id));
+
+  return (
+    <div className="pb-[300px]">
+      <div className="mb-2 flex items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-1.5">
+        <Checkbox checked={allSelected} onCheckedChange={handleToggleAll} />
+        <span className="text-xs font-semibold text-muted-foreground">Select All on Page</span>
+        {selectedRowKeys.length > 0 && <Badge variant="warning">{selectedRowKeys.length} selected</Badge>}
+      </div>
+
+      {items.map((item) => (
+        <ArticleCard
+          key={item.id}
+          item={item}
+          isSelected={selectedRowKeys.includes(item.id)}
+          onToggleSelect={handleToggleSelect}
+          onSave={onSave}
+          onCreateFabricArticle={onCreateFabricArticle}
+          onCreateBodyArticle={onCreateBodyArticle}
+          onProceedFGArticle={onProceedFGArticle}
+          onDuplicate={handleDuplicate}
+          attributes={attributes}
+          onRefresh={onRefresh}
+          cardGroups={cardGroups}
+          pathType={pathType}
+        />
+      ))}
+
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <span className="text-xs text-muted-foreground">
+          {(serverPagination.current - 1) * serverPagination.pageSize + 1}–
+          {Math.min(serverPagination.current * serverPagination.pageSize, serverPagination.total)} of{' '}
+          {serverPagination.total}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => serverPagination.onChange(serverPagination.current - 1)}
+          disabled={serverPagination.current <= 1}
+        >
+          ‹
+        </Button>
+        <span className="text-xs font-semibold">{serverPagination.current}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => serverPagination.onChange(serverPagination.current + 1)}
+          disabled={serverPagination.current * serverPagination.pageSize >= serverPagination.total}
+        >
+          ›
+        </Button>
+      </div>
+    </div>
+  );
 };
