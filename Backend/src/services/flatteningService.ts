@@ -3,6 +3,7 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { parseNumericValue } from '../utils/mrpCalculator';
 import { mvgrMappingService } from './mvgrMappingService';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { normalizeVendorCode } from '../utils/vendorCode';
 import { upsert360ArticleFlatRow } from '../utils/mirror360Flat';
@@ -54,7 +55,7 @@ export class FlatteningService {
             select: { vendorCode: true }
         });
 
-        const flatData = this.mapToFlatStructure(job, existingFlat?.vendorCode || null);
+        const flatData = await this.mapToFlatStructure(job, existingFlat?.vendorCode || null);
 
         // Upsert to flat table (create or update)
         const flatRecord = await prisma.extractionResultFlat.upsert({
@@ -72,7 +73,7 @@ export class FlatteningService {
     /**
      * Map extraction job to flat structure
      */
-    private mapToFlatStructure(job: any, existingVendorCode: string | null = null): any {
+    private async mapToFlatStructure(job: any, existingVendorCode: string | null = null): Promise<any> {
         const resultsMap = new Map();
 
         // Build map of attribute key -> value
@@ -247,6 +248,8 @@ export class FlatteningService {
                 embroidery:     resultsMap.get('embroidery'),
                 embroideryType: resultsMap.get('embroidery_type'),
                 wash:           resultsMap.get('wash'),
+            }, 40, {
+                excludeFields: await getExcludedDescriptionFields(rawMajorCategory) as any,
             }),
             fashionGrid: resultsMap.get('fashion_grid') || resultsMap.get('fashiongrid') || null,
             articleType: resultsMap.get('article_type') || resultsMap.get('articletype') || null,

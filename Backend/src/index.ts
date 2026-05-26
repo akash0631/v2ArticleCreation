@@ -37,6 +37,7 @@ import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
 import { syncFromSrm, recoverRecentSrmVlmEnrichment } from './services/srmSyncService';
 import srmHookRoutes from './routes/srmHook';
+import testApiRoutes from './routes/testApi';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
 
 const app = express();
@@ -229,6 +230,12 @@ app.use('/api/srm-hook', srmHookRoutes);
 app.use('/api/admin', authenticate, requireAdmin, auditLog, adminRoutes);
 
 // ═══════════════════════════════════════════════════════
+// TEST API ROUTES (Admin role required)
+// Raw-articles pipeline staging endpoints.
+// ═══════════════════════════════════════════════════════
+app.use('/api/test-api', authenticate, requireAdmin, testApiRoutes);
+
+// ═══════════════════════════════════════════════════════
 // USER ROUTES (Authentication required + Audit logging)
 // ═══════════════════════════════════════════════════════
 app.use('/api/user', authenticate, requireUser, auditLog, userExtractionRoutes);
@@ -371,12 +378,10 @@ app.use(errorHandler);
     // Run backfills once in the background — does not block startup
     ApproverController.runStartupBackfills();
 
-    // SRM startup recovery — enriches any records from the last 48 h that are still
-    // at SRM_IMPORT (e.g. server restarted mid fire-and-forget enrichment task).
-    // Old records are never touched; runs fully in the background.
-    recoverRecentSrmVlmEnrichment().catch(err =>
-      console.error('[SRM Recovery] Startup recovery error:', err?.message)
-    );
+    // SRM startup recovery — DISABLED
+    // recoverRecentSrmVlmEnrichment().catch(err =>
+    //   console.error('[SRM Recovery] Startup recovery error:', err?.message)
+    // );
 
     // SRM Sync Scheduler — fires at 12:00 PM and 8:00 PM IST (UTC+5:30) daily.
     // Uses a 30-second tick so a slow/busy server never drifts past the :00 minute window.

@@ -730,6 +730,26 @@
         "hsn code":  61112000
     },
     {
+        "mc code":  136170101,
+        "mc des":  "IBW_FLC_B_SUIT",
+        "hsn code":  61112000
+    },
+    {
+        "mc code":  136180101,
+        "mc des":  "IBW_PLFL_B_SUIT",
+        "hsn code":  61112000
+    },
+    {
+        "mc code":  136190101,
+        "mc des":  "IBW_SHRN_B_SUIT",
+        "hsn code":  61112000
+    },
+    {
+        "mc code":  136200101,
+        "mc des":  "IBW_WLN_B_SUIT",
+        "hsn code":  61112000
+    },
+    {
         "mc code":  126170101,
         "mc des":  "LW_GLOVES",
         "hsn code":  61169200

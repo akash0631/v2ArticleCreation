@@ -139,6 +139,13 @@ export type SapAttributeValue = $Result.DefaultSelection<Prisma.$SapAttributeVal
  */
 export type Article360Flat = $Result.DefaultSelection<Prisma.$Article360FlatPayload>
 /**
+ * Model RawArticle
+ * Raw SRM article data exactly as received from the SRM API.
+ * unique_key = presentation_no + image_url — prevents duplicate imports.
+ * status tracks the processing pipeline state for each article.
+ */
+export type RawArticle = $Result.DefaultSelection<Prisma.$RawArticlePayload>
+/**
  * Model SrmSyncRun
  * One row per cron/admin/webhook sync execution
  */
@@ -223,6 +230,16 @@ export const SapSyncStatus: {
 
 export type SapSyncStatus = (typeof SapSyncStatus)[keyof typeof SapSyncStatus]
 
+
+export const RawArticleStatus: {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+};
+
+export type RawArticleStatus = (typeof RawArticleStatus)[keyof typeof RawArticleStatus]
+
 }
 
 export type AttributeType = $Enums.AttributeType
@@ -252,6 +269,10 @@ export const ApprovalStatus: typeof $Enums.ApprovalStatus
 export type SapSyncStatus = $Enums.SapSyncStatus
 
 export const SapSyncStatus: typeof $Enums.SapSyncStatus
+
+export type RawArticleStatus = $Enums.RawArticleStatus
+
+export const RawArticleStatus: typeof $Enums.RawArticleStatus
 
 /**
  * ##  Prisma Client ʲˢ
@@ -620,6 +641,16 @@ export class PrismaClient<
     * ```
     */
   get article360Flat(): Prisma.Article360FlatDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.rawArticle`: Exposes CRUD operations for the **RawArticle** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RawArticles
+    * const rawArticles = await prisma.rawArticle.findMany()
+    * ```
+    */
+  get rawArticle(): Prisma.RawArticleDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.srmSyncRun`: Exposes CRUD operations for the **SrmSyncRun** model.
@@ -1105,6 +1136,7 @@ export namespace Prisma {
     SapFieldConfig: 'SapFieldConfig',
     SapAttributeValue: 'SapAttributeValue',
     Article360Flat: 'Article360Flat',
+    RawArticle: 'RawArticle',
     SrmSyncRun: 'SrmSyncRun',
     SrmSyncRunItem: 'SrmSyncRunItem'
   };
@@ -1125,7 +1157,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "masterVendorDetail" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat" | "srmSyncRun" | "srmSyncRunItem"
+      modelProps: "department" | "subDepartment" | "category" | "masterAttribute" | "attributeAllowedValue" | "categoryAttribute" | "extractionJob" | "extractionResult" | "extractionResultFlat" | "mvgrLookup" | "masterVendorDetail" | "user" | "auditLog" | "apiKey" | "changeHistory" | "costSummary" | "article360" | "articleFab" | "articleBody" | "articleVaAcc" | "articleVaPrcs" | "articleBom" | "sapFieldConfig" | "sapAttributeValue" | "article360Flat" | "rawArticle" | "srmSyncRun" | "srmSyncRunItem"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2979,6 +3011,80 @@ export namespace Prisma {
           }
         }
       }
+      RawArticle: {
+        payload: Prisma.$RawArticlePayload<ExtArgs>
+        fields: Prisma.RawArticleFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RawArticleFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RawArticleFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          findFirst: {
+            args: Prisma.RawArticleFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RawArticleFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          findMany: {
+            args: Prisma.RawArticleFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>[]
+          }
+          create: {
+            args: Prisma.RawArticleCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          createMany: {
+            args: Prisma.RawArticleCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RawArticleCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>[]
+          }
+          delete: {
+            args: Prisma.RawArticleDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          update: {
+            args: Prisma.RawArticleUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          deleteMany: {
+            args: Prisma.RawArticleDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RawArticleUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RawArticleUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>[]
+          }
+          upsert: {
+            args: Prisma.RawArticleUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RawArticlePayload>
+          }
+          aggregate: {
+            args: Prisma.RawArticleAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRawArticle>
+          }
+          groupBy: {
+            args: Prisma.RawArticleGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RawArticleGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RawArticleCountArgs<ExtArgs>
+            result: $Utils.Optional<RawArticleCountAggregateOutputType> | number
+          }
+        }
+      }
       SrmSyncRun: {
         payload: Prisma.$SrmSyncRunPayload<ExtArgs>
         fields: Prisma.SrmSyncRunFieldRefs
@@ -3244,6 +3350,7 @@ export namespace Prisma {
     sapFieldConfig?: SapFieldConfigOmit
     sapAttributeValue?: SapAttributeValueOmit
     article360Flat?: Article360FlatOmit
+    rawArticle?: RawArticleOmit
     srmSyncRun?: SrmSyncRunOmit
     srmSyncRunItem?: SrmSyncRunItemOmit
   }
@@ -35950,6 +36057,1195 @@ export namespace Prisma {
 
 
   /**
+   * Model RawArticle
+   */
+
+  export type AggregateRawArticle = {
+    _count: RawArticleCountAggregateOutputType | null
+    _avg: RawArticleAvgAggregateOutputType | null
+    _sum: RawArticleSumAggregateOutputType | null
+    _min: RawArticleMinAggregateOutputType | null
+    _max: RawArticleMaxAggregateOutputType | null
+  }
+
+  export type RawArticleAvgAggregateOutputType = {
+    noOfColors: number | null
+    price: Decimal | null
+  }
+
+  export type RawArticleSumAggregateOutputType = {
+    noOfColors: number | null
+    price: Decimal | null
+  }
+
+  export type RawArticleMinAggregateOutputType = {
+    id: string | null
+    presentationNo: string | null
+    vendorCode: string | null
+    vendorName: string | null
+    division: string | null
+    subDivision: string | null
+    majorCategory: string | null
+    presentationReceivedDate: Date | null
+    designNumber: string | null
+    fabric: string | null
+    noOfColors: number | null
+    price: Decimal | null
+    imageUrl: string | null
+    uniqueKey: string | null
+    status: $Enums.RawArticleStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RawArticleMaxAggregateOutputType = {
+    id: string | null
+    presentationNo: string | null
+    vendorCode: string | null
+    vendorName: string | null
+    division: string | null
+    subDivision: string | null
+    majorCategory: string | null
+    presentationReceivedDate: Date | null
+    designNumber: string | null
+    fabric: string | null
+    noOfColors: number | null
+    price: Decimal | null
+    imageUrl: string | null
+    uniqueKey: string | null
+    status: $Enums.RawArticleStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RawArticleCountAggregateOutputType = {
+    id: number
+    presentationNo: number
+    vendorCode: number
+    vendorName: number
+    division: number
+    subDivision: number
+    majorCategory: number
+    presentationReceivedDate: number
+    designNumber: number
+    fabric: number
+    noOfColors: number
+    price: number
+    imageUrl: number
+    uniqueKey: number
+    status: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RawArticleAvgAggregateInputType = {
+    noOfColors?: true
+    price?: true
+  }
+
+  export type RawArticleSumAggregateInputType = {
+    noOfColors?: true
+    price?: true
+  }
+
+  export type RawArticleMinAggregateInputType = {
+    id?: true
+    presentationNo?: true
+    vendorCode?: true
+    vendorName?: true
+    division?: true
+    subDivision?: true
+    majorCategory?: true
+    presentationReceivedDate?: true
+    designNumber?: true
+    fabric?: true
+    noOfColors?: true
+    price?: true
+    imageUrl?: true
+    uniqueKey?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RawArticleMaxAggregateInputType = {
+    id?: true
+    presentationNo?: true
+    vendorCode?: true
+    vendorName?: true
+    division?: true
+    subDivision?: true
+    majorCategory?: true
+    presentationReceivedDate?: true
+    designNumber?: true
+    fabric?: true
+    noOfColors?: true
+    price?: true
+    imageUrl?: true
+    uniqueKey?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RawArticleCountAggregateInputType = {
+    id?: true
+    presentationNo?: true
+    vendorCode?: true
+    vendorName?: true
+    division?: true
+    subDivision?: true
+    majorCategory?: true
+    presentationReceivedDate?: true
+    designNumber?: true
+    fabric?: true
+    noOfColors?: true
+    price?: true
+    imageUrl?: true
+    uniqueKey?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RawArticleAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RawArticle to aggregate.
+     */
+    where?: RawArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RawArticles to fetch.
+     */
+    orderBy?: RawArticleOrderByWithRelationInput | RawArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RawArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RawArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RawArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RawArticles
+    **/
+    _count?: true | RawArticleCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RawArticleAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RawArticleSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RawArticleMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RawArticleMaxAggregateInputType
+  }
+
+  export type GetRawArticleAggregateType<T extends RawArticleAggregateArgs> = {
+        [P in keyof T & keyof AggregateRawArticle]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRawArticle[P]>
+      : GetScalarType<T[P], AggregateRawArticle[P]>
+  }
+
+
+
+
+  export type RawArticleGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RawArticleWhereInput
+    orderBy?: RawArticleOrderByWithAggregationInput | RawArticleOrderByWithAggregationInput[]
+    by: RawArticleScalarFieldEnum[] | RawArticleScalarFieldEnum
+    having?: RawArticleScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RawArticleCountAggregateInputType | true
+    _avg?: RawArticleAvgAggregateInputType
+    _sum?: RawArticleSumAggregateInputType
+    _min?: RawArticleMinAggregateInputType
+    _max?: RawArticleMaxAggregateInputType
+  }
+
+  export type RawArticleGroupByOutputType = {
+    id: string
+    presentationNo: string
+    vendorCode: string | null
+    vendorName: string | null
+    division: string | null
+    subDivision: string | null
+    majorCategory: string | null
+    presentationReceivedDate: Date | null
+    designNumber: string | null
+    fabric: string | null
+    noOfColors: number | null
+    price: Decimal | null
+    imageUrl: string | null
+    uniqueKey: string
+    status: $Enums.RawArticleStatus
+    createdAt: Date
+    updatedAt: Date
+    _count: RawArticleCountAggregateOutputType | null
+    _avg: RawArticleAvgAggregateOutputType | null
+    _sum: RawArticleSumAggregateOutputType | null
+    _min: RawArticleMinAggregateOutputType | null
+    _max: RawArticleMaxAggregateOutputType | null
+  }
+
+  type GetRawArticleGroupByPayload<T extends RawArticleGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RawArticleGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RawArticleGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RawArticleGroupByOutputType[P]>
+            : GetScalarType<T[P], RawArticleGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RawArticleSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    presentationNo?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    division?: boolean
+    subDivision?: boolean
+    majorCategory?: boolean
+    presentationReceivedDate?: boolean
+    designNumber?: boolean
+    fabric?: boolean
+    noOfColors?: boolean
+    price?: boolean
+    imageUrl?: boolean
+    uniqueKey?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rawArticle"]>
+
+  export type RawArticleSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    presentationNo?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    division?: boolean
+    subDivision?: boolean
+    majorCategory?: boolean
+    presentationReceivedDate?: boolean
+    designNumber?: boolean
+    fabric?: boolean
+    noOfColors?: boolean
+    price?: boolean
+    imageUrl?: boolean
+    uniqueKey?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rawArticle"]>
+
+  export type RawArticleSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    presentationNo?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    division?: boolean
+    subDivision?: boolean
+    majorCategory?: boolean
+    presentationReceivedDate?: boolean
+    designNumber?: boolean
+    fabric?: boolean
+    noOfColors?: boolean
+    price?: boolean
+    imageUrl?: boolean
+    uniqueKey?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rawArticle"]>
+
+  export type RawArticleSelectScalar = {
+    id?: boolean
+    presentationNo?: boolean
+    vendorCode?: boolean
+    vendorName?: boolean
+    division?: boolean
+    subDivision?: boolean
+    majorCategory?: boolean
+    presentationReceivedDate?: boolean
+    designNumber?: boolean
+    fabric?: boolean
+    noOfColors?: boolean
+    price?: boolean
+    imageUrl?: boolean
+    uniqueKey?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type RawArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "presentationNo" | "vendorCode" | "vendorName" | "division" | "subDivision" | "majorCategory" | "presentationReceivedDate" | "designNumber" | "fabric" | "noOfColors" | "price" | "imageUrl" | "uniqueKey" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["rawArticle"]>
+
+  export type $RawArticlePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RawArticle"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      presentationNo: string
+      vendorCode: string | null
+      vendorName: string | null
+      division: string | null
+      subDivision: string | null
+      majorCategory: string | null
+      presentationReceivedDate: Date | null
+      designNumber: string | null
+      fabric: string | null
+      noOfColors: number | null
+      price: Prisma.Decimal | null
+      imageUrl: string | null
+      uniqueKey: string
+      status: $Enums.RawArticleStatus
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["rawArticle"]>
+    composites: {}
+  }
+
+  type RawArticleGetPayload<S extends boolean | null | undefined | RawArticleDefaultArgs> = $Result.GetResult<Prisma.$RawArticlePayload, S>
+
+  type RawArticleCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RawArticleFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RawArticleCountAggregateInputType | true
+    }
+
+  export interface RawArticleDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RawArticle'], meta: { name: 'RawArticle' } }
+    /**
+     * Find zero or one RawArticle that matches the filter.
+     * @param {RawArticleFindUniqueArgs} args - Arguments to find a RawArticle
+     * @example
+     * // Get one RawArticle
+     * const rawArticle = await prisma.rawArticle.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RawArticleFindUniqueArgs>(args: SelectSubset<T, RawArticleFindUniqueArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RawArticle that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RawArticleFindUniqueOrThrowArgs} args - Arguments to find a RawArticle
+     * @example
+     * // Get one RawArticle
+     * const rawArticle = await prisma.rawArticle.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RawArticleFindUniqueOrThrowArgs>(args: SelectSubset<T, RawArticleFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RawArticle that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleFindFirstArgs} args - Arguments to find a RawArticle
+     * @example
+     * // Get one RawArticle
+     * const rawArticle = await prisma.rawArticle.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RawArticleFindFirstArgs>(args?: SelectSubset<T, RawArticleFindFirstArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RawArticle that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleFindFirstOrThrowArgs} args - Arguments to find a RawArticle
+     * @example
+     * // Get one RawArticle
+     * const rawArticle = await prisma.rawArticle.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RawArticleFindFirstOrThrowArgs>(args?: SelectSubset<T, RawArticleFindFirstOrThrowArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RawArticles that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RawArticles
+     * const rawArticles = await prisma.rawArticle.findMany()
+     * 
+     * // Get first 10 RawArticles
+     * const rawArticles = await prisma.rawArticle.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const rawArticleWithIdOnly = await prisma.rawArticle.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RawArticleFindManyArgs>(args?: SelectSubset<T, RawArticleFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RawArticle.
+     * @param {RawArticleCreateArgs} args - Arguments to create a RawArticle.
+     * @example
+     * // Create one RawArticle
+     * const RawArticle = await prisma.rawArticle.create({
+     *   data: {
+     *     // ... data to create a RawArticle
+     *   }
+     * })
+     * 
+     */
+    create<T extends RawArticleCreateArgs>(args: SelectSubset<T, RawArticleCreateArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RawArticles.
+     * @param {RawArticleCreateManyArgs} args - Arguments to create many RawArticles.
+     * @example
+     * // Create many RawArticles
+     * const rawArticle = await prisma.rawArticle.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RawArticleCreateManyArgs>(args?: SelectSubset<T, RawArticleCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RawArticles and returns the data saved in the database.
+     * @param {RawArticleCreateManyAndReturnArgs} args - Arguments to create many RawArticles.
+     * @example
+     * // Create many RawArticles
+     * const rawArticle = await prisma.rawArticle.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RawArticles and only return the `id`
+     * const rawArticleWithIdOnly = await prisma.rawArticle.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RawArticleCreateManyAndReturnArgs>(args?: SelectSubset<T, RawArticleCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RawArticle.
+     * @param {RawArticleDeleteArgs} args - Arguments to delete one RawArticle.
+     * @example
+     * // Delete one RawArticle
+     * const RawArticle = await prisma.rawArticle.delete({
+     *   where: {
+     *     // ... filter to delete one RawArticle
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RawArticleDeleteArgs>(args: SelectSubset<T, RawArticleDeleteArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RawArticle.
+     * @param {RawArticleUpdateArgs} args - Arguments to update one RawArticle.
+     * @example
+     * // Update one RawArticle
+     * const rawArticle = await prisma.rawArticle.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RawArticleUpdateArgs>(args: SelectSubset<T, RawArticleUpdateArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RawArticles.
+     * @param {RawArticleDeleteManyArgs} args - Arguments to filter RawArticles to delete.
+     * @example
+     * // Delete a few RawArticles
+     * const { count } = await prisma.rawArticle.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RawArticleDeleteManyArgs>(args?: SelectSubset<T, RawArticleDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RawArticles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RawArticles
+     * const rawArticle = await prisma.rawArticle.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RawArticleUpdateManyArgs>(args: SelectSubset<T, RawArticleUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RawArticles and returns the data updated in the database.
+     * @param {RawArticleUpdateManyAndReturnArgs} args - Arguments to update many RawArticles.
+     * @example
+     * // Update many RawArticles
+     * const rawArticle = await prisma.rawArticle.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RawArticles and only return the `id`
+     * const rawArticleWithIdOnly = await prisma.rawArticle.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RawArticleUpdateManyAndReturnArgs>(args: SelectSubset<T, RawArticleUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RawArticle.
+     * @param {RawArticleUpsertArgs} args - Arguments to update or create a RawArticle.
+     * @example
+     * // Update or create a RawArticle
+     * const rawArticle = await prisma.rawArticle.upsert({
+     *   create: {
+     *     // ... data to create a RawArticle
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RawArticle we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RawArticleUpsertArgs>(args: SelectSubset<T, RawArticleUpsertArgs<ExtArgs>>): Prisma__RawArticleClient<$Result.GetResult<Prisma.$RawArticlePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RawArticles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleCountArgs} args - Arguments to filter RawArticles to count.
+     * @example
+     * // Count the number of RawArticles
+     * const count = await prisma.rawArticle.count({
+     *   where: {
+     *     // ... the filter for the RawArticles we want to count
+     *   }
+     * })
+    **/
+    count<T extends RawArticleCountArgs>(
+      args?: Subset<T, RawArticleCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RawArticleCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RawArticle.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RawArticleAggregateArgs>(args: Subset<T, RawArticleAggregateArgs>): Prisma.PrismaPromise<GetRawArticleAggregateType<T>>
+
+    /**
+     * Group by RawArticle.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RawArticleGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RawArticleGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RawArticleGroupByArgs['orderBy'] }
+        : { orderBy?: RawArticleGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RawArticleGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRawArticleGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RawArticle model
+   */
+  readonly fields: RawArticleFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RawArticle.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RawArticleClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RawArticle model
+   */
+  interface RawArticleFieldRefs {
+    readonly id: FieldRef<"RawArticle", 'String'>
+    readonly presentationNo: FieldRef<"RawArticle", 'String'>
+    readonly vendorCode: FieldRef<"RawArticle", 'String'>
+    readonly vendorName: FieldRef<"RawArticle", 'String'>
+    readonly division: FieldRef<"RawArticle", 'String'>
+    readonly subDivision: FieldRef<"RawArticle", 'String'>
+    readonly majorCategory: FieldRef<"RawArticle", 'String'>
+    readonly presentationReceivedDate: FieldRef<"RawArticle", 'DateTime'>
+    readonly designNumber: FieldRef<"RawArticle", 'String'>
+    readonly fabric: FieldRef<"RawArticle", 'String'>
+    readonly noOfColors: FieldRef<"RawArticle", 'Int'>
+    readonly price: FieldRef<"RawArticle", 'Decimal'>
+    readonly imageUrl: FieldRef<"RawArticle", 'String'>
+    readonly uniqueKey: FieldRef<"RawArticle", 'String'>
+    readonly status: FieldRef<"RawArticle", 'RawArticleStatus'>
+    readonly createdAt: FieldRef<"RawArticle", 'DateTime'>
+    readonly updatedAt: FieldRef<"RawArticle", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RawArticle findUnique
+   */
+  export type RawArticleFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter, which RawArticle to fetch.
+     */
+    where: RawArticleWhereUniqueInput
+  }
+
+  /**
+   * RawArticle findUniqueOrThrow
+   */
+  export type RawArticleFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter, which RawArticle to fetch.
+     */
+    where: RawArticleWhereUniqueInput
+  }
+
+  /**
+   * RawArticle findFirst
+   */
+  export type RawArticleFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter, which RawArticle to fetch.
+     */
+    where?: RawArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RawArticles to fetch.
+     */
+    orderBy?: RawArticleOrderByWithRelationInput | RawArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RawArticles.
+     */
+    cursor?: RawArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RawArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RawArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RawArticles.
+     */
+    distinct?: RawArticleScalarFieldEnum | RawArticleScalarFieldEnum[]
+  }
+
+  /**
+   * RawArticle findFirstOrThrow
+   */
+  export type RawArticleFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter, which RawArticle to fetch.
+     */
+    where?: RawArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RawArticles to fetch.
+     */
+    orderBy?: RawArticleOrderByWithRelationInput | RawArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RawArticles.
+     */
+    cursor?: RawArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RawArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RawArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RawArticles.
+     */
+    distinct?: RawArticleScalarFieldEnum | RawArticleScalarFieldEnum[]
+  }
+
+  /**
+   * RawArticle findMany
+   */
+  export type RawArticleFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter, which RawArticles to fetch.
+     */
+    where?: RawArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RawArticles to fetch.
+     */
+    orderBy?: RawArticleOrderByWithRelationInput | RawArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RawArticles.
+     */
+    cursor?: RawArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RawArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RawArticles.
+     */
+    skip?: number
+    distinct?: RawArticleScalarFieldEnum | RawArticleScalarFieldEnum[]
+  }
+
+  /**
+   * RawArticle create
+   */
+  export type RawArticleCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * The data needed to create a RawArticle.
+     */
+    data: XOR<RawArticleCreateInput, RawArticleUncheckedCreateInput>
+  }
+
+  /**
+   * RawArticle createMany
+   */
+  export type RawArticleCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RawArticles.
+     */
+    data: RawArticleCreateManyInput | RawArticleCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RawArticle createManyAndReturn
+   */
+  export type RawArticleCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * The data used to create many RawArticles.
+     */
+    data: RawArticleCreateManyInput | RawArticleCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RawArticle update
+   */
+  export type RawArticleUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * The data needed to update a RawArticle.
+     */
+    data: XOR<RawArticleUpdateInput, RawArticleUncheckedUpdateInput>
+    /**
+     * Choose, which RawArticle to update.
+     */
+    where: RawArticleWhereUniqueInput
+  }
+
+  /**
+   * RawArticle updateMany
+   */
+  export type RawArticleUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RawArticles.
+     */
+    data: XOR<RawArticleUpdateManyMutationInput, RawArticleUncheckedUpdateManyInput>
+    /**
+     * Filter which RawArticles to update
+     */
+    where?: RawArticleWhereInput
+    /**
+     * Limit how many RawArticles to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RawArticle updateManyAndReturn
+   */
+  export type RawArticleUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * The data used to update RawArticles.
+     */
+    data: XOR<RawArticleUpdateManyMutationInput, RawArticleUncheckedUpdateManyInput>
+    /**
+     * Filter which RawArticles to update
+     */
+    where?: RawArticleWhereInput
+    /**
+     * Limit how many RawArticles to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RawArticle upsert
+   */
+  export type RawArticleUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * The filter to search for the RawArticle to update in case it exists.
+     */
+    where: RawArticleWhereUniqueInput
+    /**
+     * In case the RawArticle found by the `where` argument doesn't exist, create a new RawArticle with this data.
+     */
+    create: XOR<RawArticleCreateInput, RawArticleUncheckedCreateInput>
+    /**
+     * In case the RawArticle was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RawArticleUpdateInput, RawArticleUncheckedUpdateInput>
+  }
+
+  /**
+   * RawArticle delete
+   */
+  export type RawArticleDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+    /**
+     * Filter which RawArticle to delete.
+     */
+    where: RawArticleWhereUniqueInput
+  }
+
+  /**
+   * RawArticle deleteMany
+   */
+  export type RawArticleDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RawArticles to delete
+     */
+    where?: RawArticleWhereInput
+    /**
+     * Limit how many RawArticles to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RawArticle without action
+   */
+  export type RawArticleDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RawArticle
+     */
+    select?: RawArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RawArticle
+     */
+    omit?: RawArticleOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Model SrmSyncRun
    */
 
@@ -38898,6 +40194,29 @@ export namespace Prisma {
   export type Article360FlatScalarFieldEnum = (typeof Article360FlatScalarFieldEnum)[keyof typeof Article360FlatScalarFieldEnum]
 
 
+  export const RawArticleScalarFieldEnum: {
+    id: 'id',
+    presentationNo: 'presentationNo',
+    vendorCode: 'vendorCode',
+    vendorName: 'vendorName',
+    division: 'division',
+    subDivision: 'subDivision',
+    majorCategory: 'majorCategory',
+    presentationReceivedDate: 'presentationReceivedDate',
+    designNumber: 'designNumber',
+    fabric: 'fabric',
+    noOfColors: 'noOfColors',
+    price: 'price',
+    imageUrl: 'imageUrl',
+    uniqueKey: 'uniqueKey',
+    status: 'status',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RawArticleScalarFieldEnum = (typeof RawArticleScalarFieldEnum)[keyof typeof RawArticleScalarFieldEnum]
+
+
   export const SrmSyncRunScalarFieldEnum: {
     id: 'id',
     triggeredBy: 'triggeredBy',
@@ -39439,6 +40758,23 @@ export namespace Prisma {
   export type Article360FlatOrderByRelevanceFieldEnum = (typeof Article360FlatOrderByRelevanceFieldEnum)[keyof typeof Article360FlatOrderByRelevanceFieldEnum]
 
 
+  export const RawArticleOrderByRelevanceFieldEnum: {
+    id: 'id',
+    presentationNo: 'presentationNo',
+    vendorCode: 'vendorCode',
+    vendorName: 'vendorName',
+    division: 'division',
+    subDivision: 'subDivision',
+    majorCategory: 'majorCategory',
+    designNumber: 'designNumber',
+    fabric: 'fabric',
+    imageUrl: 'imageUrl',
+    uniqueKey: 'uniqueKey'
+  };
+
+  export type RawArticleOrderByRelevanceFieldEnum = (typeof RawArticleOrderByRelevanceFieldEnum)[keyof typeof RawArticleOrderByRelevanceFieldEnum]
+
+
   export const SrmSyncRunOrderByRelevanceFieldEnum: {
     id: 'id',
     triggeredBy: 'triggeredBy',
@@ -39638,6 +40974,20 @@ export namespace Prisma {
    * Reference to a field of type 'ChangeAction[]'
    */
   export type ListEnumChangeActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ChangeAction[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'RawArticleStatus'
+   */
+  export type EnumRawArticleStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RawArticleStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'RawArticleStatus[]'
+   */
+  export type ListEnumRawArticleStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RawArticleStatus[]'>
     
 
 
@@ -42912,6 +44262,121 @@ export namespace Prisma {
     userEmail?: StringNullableWithAggregatesFilter<"Article360Flat"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Article360Flat"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Article360Flat"> | Date | string
+  }
+
+  export type RawArticleWhereInput = {
+    AND?: RawArticleWhereInput | RawArticleWhereInput[]
+    OR?: RawArticleWhereInput[]
+    NOT?: RawArticleWhereInput | RawArticleWhereInput[]
+    id?: StringFilter<"RawArticle"> | string
+    presentationNo?: StringFilter<"RawArticle"> | string
+    vendorCode?: StringNullableFilter<"RawArticle"> | string | null
+    vendorName?: StringNullableFilter<"RawArticle"> | string | null
+    division?: StringNullableFilter<"RawArticle"> | string | null
+    subDivision?: StringNullableFilter<"RawArticle"> | string | null
+    majorCategory?: StringNullableFilter<"RawArticle"> | string | null
+    presentationReceivedDate?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    designNumber?: StringNullableFilter<"RawArticle"> | string | null
+    fabric?: StringNullableFilter<"RawArticle"> | string | null
+    noOfColors?: IntNullableFilter<"RawArticle"> | number | null
+    price?: DecimalNullableFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: StringNullableFilter<"RawArticle"> | string | null
+    uniqueKey?: StringFilter<"RawArticle"> | string
+    status?: EnumRawArticleStatusFilter<"RawArticle"> | $Enums.RawArticleStatus
+    createdAt?: DateTimeFilter<"RawArticle"> | Date | string
+    updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
+  }
+
+  export type RawArticleOrderByWithRelationInput = {
+    id?: SortOrder
+    presentationNo?: SortOrder
+    vendorCode?: SortOrderInput | SortOrder
+    vendorName?: SortOrderInput | SortOrder
+    division?: SortOrderInput | SortOrder
+    subDivision?: SortOrderInput | SortOrder
+    majorCategory?: SortOrderInput | SortOrder
+    presentationReceivedDate?: SortOrderInput | SortOrder
+    designNumber?: SortOrderInput | SortOrder
+    fabric?: SortOrderInput | SortOrder
+    noOfColors?: SortOrderInput | SortOrder
+    price?: SortOrderInput | SortOrder
+    imageUrl?: SortOrderInput | SortOrder
+    uniqueKey?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _relevance?: RawArticleOrderByRelevanceInput
+  }
+
+  export type RawArticleWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    uniqueKey?: string
+    AND?: RawArticleWhereInput | RawArticleWhereInput[]
+    OR?: RawArticleWhereInput[]
+    NOT?: RawArticleWhereInput | RawArticleWhereInput[]
+    presentationNo?: StringFilter<"RawArticle"> | string
+    vendorCode?: StringNullableFilter<"RawArticle"> | string | null
+    vendorName?: StringNullableFilter<"RawArticle"> | string | null
+    division?: StringNullableFilter<"RawArticle"> | string | null
+    subDivision?: StringNullableFilter<"RawArticle"> | string | null
+    majorCategory?: StringNullableFilter<"RawArticle"> | string | null
+    presentationReceivedDate?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    designNumber?: StringNullableFilter<"RawArticle"> | string | null
+    fabric?: StringNullableFilter<"RawArticle"> | string | null
+    noOfColors?: IntNullableFilter<"RawArticle"> | number | null
+    price?: DecimalNullableFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: StringNullableFilter<"RawArticle"> | string | null
+    status?: EnumRawArticleStatusFilter<"RawArticle"> | $Enums.RawArticleStatus
+    createdAt?: DateTimeFilter<"RawArticle"> | Date | string
+    updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
+  }, "id" | "uniqueKey">
+
+  export type RawArticleOrderByWithAggregationInput = {
+    id?: SortOrder
+    presentationNo?: SortOrder
+    vendorCode?: SortOrderInput | SortOrder
+    vendorName?: SortOrderInput | SortOrder
+    division?: SortOrderInput | SortOrder
+    subDivision?: SortOrderInput | SortOrder
+    majorCategory?: SortOrderInput | SortOrder
+    presentationReceivedDate?: SortOrderInput | SortOrder
+    designNumber?: SortOrderInput | SortOrder
+    fabric?: SortOrderInput | SortOrder
+    noOfColors?: SortOrderInput | SortOrder
+    price?: SortOrderInput | SortOrder
+    imageUrl?: SortOrderInput | SortOrder
+    uniqueKey?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: RawArticleCountOrderByAggregateInput
+    _avg?: RawArticleAvgOrderByAggregateInput
+    _max?: RawArticleMaxOrderByAggregateInput
+    _min?: RawArticleMinOrderByAggregateInput
+    _sum?: RawArticleSumOrderByAggregateInput
+  }
+
+  export type RawArticleScalarWhereWithAggregatesInput = {
+    AND?: RawArticleScalarWhereWithAggregatesInput | RawArticleScalarWhereWithAggregatesInput[]
+    OR?: RawArticleScalarWhereWithAggregatesInput[]
+    NOT?: RawArticleScalarWhereWithAggregatesInput | RawArticleScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"RawArticle"> | string
+    presentationNo?: StringWithAggregatesFilter<"RawArticle"> | string
+    vendorCode?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    vendorName?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    division?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    subDivision?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    majorCategory?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    presentationReceivedDate?: DateTimeNullableWithAggregatesFilter<"RawArticle"> | Date | string | null
+    designNumber?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    fabric?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    noOfColors?: IntNullableWithAggregatesFilter<"RawArticle"> | number | null
+    price?: DecimalNullableWithAggregatesFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    uniqueKey?: StringWithAggregatesFilter<"RawArticle"> | string
+    status?: EnumRawArticleStatusWithAggregatesFilter<"RawArticle"> | $Enums.RawArticleStatus
+    createdAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
   }
 
   export type SrmSyncRunWhereInput = {
@@ -46953,6 +48418,146 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type RawArticleCreateInput = {
+    id?: string
+    presentationNo: string
+    vendorCode?: string | null
+    vendorName?: string | null
+    division?: string | null
+    subDivision?: string | null
+    majorCategory?: string | null
+    presentationReceivedDate?: Date | string | null
+    designNumber?: string | null
+    fabric?: string | null
+    noOfColors?: number | null
+    price?: Decimal | DecimalJsLike | number | string | null
+    imageUrl?: string | null
+    uniqueKey: string
+    status?: $Enums.RawArticleStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RawArticleUncheckedCreateInput = {
+    id?: string
+    presentationNo: string
+    vendorCode?: string | null
+    vendorName?: string | null
+    division?: string | null
+    subDivision?: string | null
+    majorCategory?: string | null
+    presentationReceivedDate?: Date | string | null
+    designNumber?: string | null
+    fabric?: string | null
+    noOfColors?: number | null
+    price?: Decimal | DecimalJsLike | number | string | null
+    imageUrl?: string | null
+    uniqueKey: string
+    status?: $Enums.RawArticleStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RawArticleUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    presentationNo?: StringFieldUpdateOperationsInput | string
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    presentationReceivedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabric?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfColors?: NullableIntFieldUpdateOperationsInput | number | null
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    uniqueKey?: StringFieldUpdateOperationsInput | string
+    status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RawArticleUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    presentationNo?: StringFieldUpdateOperationsInput | string
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    presentationReceivedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabric?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfColors?: NullableIntFieldUpdateOperationsInput | number | null
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    uniqueKey?: StringFieldUpdateOperationsInput | string
+    status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RawArticleCreateManyInput = {
+    id?: string
+    presentationNo: string
+    vendorCode?: string | null
+    vendorName?: string | null
+    division?: string | null
+    subDivision?: string | null
+    majorCategory?: string | null
+    presentationReceivedDate?: Date | string | null
+    designNumber?: string | null
+    fabric?: string | null
+    noOfColors?: number | null
+    price?: Decimal | DecimalJsLike | number | string | null
+    imageUrl?: string | null
+    uniqueKey: string
+    status?: $Enums.RawArticleStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RawArticleUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    presentationNo?: StringFieldUpdateOperationsInput | string
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    presentationReceivedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabric?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfColors?: NullableIntFieldUpdateOperationsInput | number | null
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    uniqueKey?: StringFieldUpdateOperationsInput | string
+    status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RawArticleUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    presentationNo?: StringFieldUpdateOperationsInput | string
+    vendorCode?: NullableStringFieldUpdateOperationsInput | string | null
+    vendorName?: NullableStringFieldUpdateOperationsInput | string | null
+    division?: NullableStringFieldUpdateOperationsInput | string | null
+    subDivision?: NullableStringFieldUpdateOperationsInput | string | null
+    majorCategory?: NullableStringFieldUpdateOperationsInput | string | null
+    presentationReceivedDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    designNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    fabric?: NullableStringFieldUpdateOperationsInput | string | null
+    noOfColors?: NullableIntFieldUpdateOperationsInput | number | null
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    uniqueKey?: StringFieldUpdateOperationsInput | string
+    status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SrmSyncRunCreateInput = {
     id?: string
     triggeredBy?: string
@@ -49874,6 +51479,99 @@ export namespace Prisma {
     userId?: SortOrder
   }
 
+  export type EnumRawArticleStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.RawArticleStatus | EnumRawArticleStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRawArticleStatusFilter<$PrismaModel> | $Enums.RawArticleStatus
+  }
+
+  export type RawArticleOrderByRelevanceInput = {
+    fields: RawArticleOrderByRelevanceFieldEnum | RawArticleOrderByRelevanceFieldEnum[]
+    sort: SortOrder
+    search: string
+  }
+
+  export type RawArticleCountOrderByAggregateInput = {
+    id?: SortOrder
+    presentationNo?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    division?: SortOrder
+    subDivision?: SortOrder
+    majorCategory?: SortOrder
+    presentationReceivedDate?: SortOrder
+    designNumber?: SortOrder
+    fabric?: SortOrder
+    noOfColors?: SortOrder
+    price?: SortOrder
+    imageUrl?: SortOrder
+    uniqueKey?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RawArticleAvgOrderByAggregateInput = {
+    noOfColors?: SortOrder
+    price?: SortOrder
+  }
+
+  export type RawArticleMaxOrderByAggregateInput = {
+    id?: SortOrder
+    presentationNo?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    division?: SortOrder
+    subDivision?: SortOrder
+    majorCategory?: SortOrder
+    presentationReceivedDate?: SortOrder
+    designNumber?: SortOrder
+    fabric?: SortOrder
+    noOfColors?: SortOrder
+    price?: SortOrder
+    imageUrl?: SortOrder
+    uniqueKey?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RawArticleMinOrderByAggregateInput = {
+    id?: SortOrder
+    presentationNo?: SortOrder
+    vendorCode?: SortOrder
+    vendorName?: SortOrder
+    division?: SortOrder
+    subDivision?: SortOrder
+    majorCategory?: SortOrder
+    presentationReceivedDate?: SortOrder
+    designNumber?: SortOrder
+    fabric?: SortOrder
+    noOfColors?: SortOrder
+    price?: SortOrder
+    imageUrl?: SortOrder
+    uniqueKey?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RawArticleSumOrderByAggregateInput = {
+    noOfColors?: SortOrder
+    price?: SortOrder
+  }
+
+  export type EnumRawArticleStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.RawArticleStatus | EnumRawArticleStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRawArticleStatusWithAggregatesFilter<$PrismaModel> | $Enums.RawArticleStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRawArticleStatusFilter<$PrismaModel>
+    _max?: NestedEnumRawArticleStatusFilter<$PrismaModel>
+  }
+
   export type SrmSyncRunOrderByRelevanceInput = {
     fields: SrmSyncRunOrderByRelevanceFieldEnum | SrmSyncRunOrderByRelevanceFieldEnum[]
     sort: SortOrder
@@ -51226,6 +52924,10 @@ export namespace Prisma {
     update?: XOR<XOR<SapFieldConfigUpdateToOneWithWhereWithoutValuesInput, SapFieldConfigUpdateWithoutValuesInput>, SapFieldConfigUncheckedUpdateWithoutValuesInput>
   }
 
+  export type EnumRawArticleStatusFieldUpdateOperationsInput = {
+    set?: $Enums.RawArticleStatus
+  }
+
   export type SrmSyncRunItemCreateNestedManyWithoutRunInput = {
     create?: XOR<SrmSyncRunItemCreateWithoutRunInput, SrmSyncRunItemUncheckedCreateWithoutRunInput> | SrmSyncRunItemCreateWithoutRunInput[] | SrmSyncRunItemUncheckedCreateWithoutRunInput[]
     connectOrCreate?: SrmSyncRunItemCreateOrConnectWithoutRunInput | SrmSyncRunItemCreateOrConnectWithoutRunInput[]
@@ -51720,6 +53422,23 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumChangeActionFilter<$PrismaModel>
     _max?: NestedEnumChangeActionFilter<$PrismaModel>
+  }
+
+  export type NestedEnumRawArticleStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.RawArticleStatus | EnumRawArticleStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRawArticleStatusFilter<$PrismaModel> | $Enums.RawArticleStatus
+  }
+
+  export type NestedEnumRawArticleStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.RawArticleStatus | EnumRawArticleStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.RawArticleStatus[] | ListEnumRawArticleStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumRawArticleStatusWithAggregatesFilter<$PrismaModel> | $Enums.RawArticleStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumRawArticleStatusFilter<$PrismaModel>
+    _max?: NestedEnumRawArticleStatusFilter<$PrismaModel>
   }
 
   export type SubDepartmentCreateWithoutDepartmentInput = {

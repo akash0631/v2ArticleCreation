@@ -78,6 +78,26 @@ export default function Admin() {
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
   const [vendorSyncing, setVendorSyncing] = useState(false);
 
+  // Test API — raw_articles staging
+  const [testPptNo, setTestPptNo] = useState('');
+  const [testFetching, setTestFetching] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ppt_no: string;
+    imageCount: number;
+    inserted: number;
+    skipped: number;
+    errors: number;
+    presentation?: {
+      vendor_code: string;
+      vendor_name: string;
+      division: string;
+      sub_division: string;
+      major_category: string;
+      status: string;
+    };
+  } | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
   // Maj-Cat Grid
   interface MajCatGridMeta {
     uploadedAt?: string;
@@ -203,6 +223,34 @@ export default function Admin() {
       message.error(err?.message || 'Failed to fetch presentation');
     } finally {
       setPptSyncing(false);
+    }
+  };
+
+  const runTestApiFetch = async () => {
+    const ref = testPptNo.trim().toUpperCase();
+    if (!ref) { message.warning('Enter a PPT number first (e.g. PRES-00831)'); return; }
+    setTestFetching(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/test-api/fetch-presentation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ ppt_no: ref }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch presentation');
+      setTestResult(data);
+      message.success(`Saved ${data.inserted} row(s) to raw_articles for ${ref}`);
+    } catch (err: any) {
+      setTestError(err?.message || 'Failed to fetch presentation');
+      message.error(err?.message || 'Failed to fetch presentation');
+    } finally {
+      setTestFetching(false);
     }
   };
 
@@ -1003,6 +1051,84 @@ export default function Admin() {
                     <>
                       <span style={{ color: '#8c8c8c' }}>·</span>
                       <span><strong style={{ color: '#722ed1' }}>{pptResult.vlmQueued}</strong> queued for VLM extraction</span>
+                    </>
+                  )}
+                </div>
+              }
+            />
+          )}
+        </Card>
+
+        {/* Test API — Fetch Presentation to raw_articles */}
+        <Card
+          title={<span><SearchOutlined style={{ marginRight: 8 }} />Test API — Fetch Presentation to Raw Articles</span>}
+          style={{ marginBottom: 24 }}
+          styles={{ header: { background: '#fffbe6', borderBottom: '1px solid #ffe58f' } }}
+        >
+          <div style={{ marginBottom: 12, color: '#595959', fontSize: 13 }}>
+            Fetch a single SRM presentation by PPT No and save all its images to the{' '}
+            <code style={{ background: '#f5f5f5', padding: '1px 5px', borderRadius: 3 }}>raw_articles</code>{' '}
+            staging table with status <strong>PENDING</strong>. No VLM extraction is triggered.
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Input
+              placeholder="e.g. PRES-00831"
+              value={testPptNo}
+              onChange={e => { setTestPptNo(e.target.value.toUpperCase()); setTestResult(null); setTestError(null); }}
+              onPressEnter={runTestApiFetch}
+              style={{ maxWidth: 220, fontFamily: 'monospace', fontWeight: 600 }}
+              disabled={testFetching}
+              allowClear
+            />
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              loading={testFetching}
+              onClick={runTestApiFetch}
+              disabled={!testPptNo.trim()}
+              style={{ background: '#faad14', borderColor: '#faad14' }}
+            >
+              {testFetching ? 'Fetching...' : 'Fetch to Raw Articles'}
+            </Button>
+          </div>
+
+          {testError && (
+            <Alert
+              type="error"
+              showIcon
+              message="Error"
+              description={testError}
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
+          {testResult && (
+            <Alert
+              type={testResult.errors > 0 ? 'warning' : 'success'}
+              showIcon
+              icon={<CheckCircleOutlined />}
+              message={
+                <span>
+                  <strong>{testResult.ppt_no}</strong>
+                  <span style={{ fontWeight: 400, color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>
+                    {testResult.imageCount} image{testResult.imageCount !== 1 ? 's' : ''} in presentation
+                  </span>
+                  {testResult.presentation && (
+                    <span style={{ fontWeight: 400, color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>
+                      · {testResult.presentation.division} · {testResult.presentation.major_category}
+                    </span>
+                  )}
+                </span>
+              }
+              description={
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+                  <span><strong style={{ color: '#389e0d' }}>{testResult.inserted}</strong> new rows inserted (PENDING)</span>
+                  <span style={{ color: '#8c8c8c' }}>·</span>
+                  <span><strong>{testResult.skipped}</strong> already existed (skipped)</span>
+                  {testResult.errors > 0 && (
+                    <>
+                      <span style={{ color: '#8c8c8c' }}>·</span>
+                      <span><strong style={{ color: '#cf1322' }}>{testResult.errors}</strong> errors</span>
                     </>
                   )}
                 </div>
