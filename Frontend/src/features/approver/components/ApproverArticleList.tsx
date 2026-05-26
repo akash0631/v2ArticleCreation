@@ -8,6 +8,7 @@ import { preloadAttributeValues, getCachedValues, isValuesCached, preloadAttribu
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import VariantSubTable from './VariantSubTable';
 
 // Module-level BOM cache: category → promise of data (shared across all card instances)
@@ -520,6 +521,19 @@ const ArticleCard = React.memo(({
     const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
     const status = getDisplayStatus(item);
 
+    // Division is non-editable for APPROVER/CATEGORY_HEAD users who are locked to a specific division
+    const canEditDivision = useMemo(() => {
+        if (isLocked) return false;
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) {
+                const u = JSON.parse(raw);
+                if ((u.role === 'APPROVER' || u.role === 'CATEGORY_HEAD') && !!u.division) return false;
+            }
+        } catch { /* ignore */ }
+        return true;
+    }, [isLocked]);
+
     const imgSrc = refreshedUrl || item.imageUrl;
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
 
@@ -723,8 +737,82 @@ const ArticleCard = React.memo(({
                                 <InfoCircleOutlined style={{ fontSize: 14, color: '#cf1322', cursor: 'pointer', flexShrink: 0 }} />
                             </Tooltip>
                         )}
-                        <span style={{ fontSize: 11, color: '#8c8c8c' }}>
-                            {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
+                        <span style={{ fontSize: 11, color: '#8c8c8c', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            {/* ── Editable Division ── */}
+                            {editingField === 'topbar_division' ? (
+                                <Select
+                                    autoFocus
+                                    open
+                                    size="small"
+                                    value={(localValues['division'] ?? item.division) || undefined}
+                                    placeholder="Select division"
+                                    style={{ fontSize: 11, width: 110 }}
+                                    onChange={(val) => {
+                                        // Changing division resets subDivision (no longer valid)
+                                        const updates = { division: val || null, subDivision: null as string | null };
+                                        setLocalValues(prev => ({ ...prev, ...updates }));
+                                        setEditingField(null);
+                                        onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+                                    }}
+                                    onBlur={() => setEditingField(null)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    getPopupContainer={() => document.body}
+                                >
+                                    <Option value="LADIES">LADIES</Option>
+                                    <Option value="MENS">MENS</Option>
+                                    <Option value="KIDS">KIDS</Option>
+                                </Select>
+                            ) : (
+                                <span
+                                    style={{
+                                        cursor: canEditDivision ? 'pointer' : 'default',
+                                        borderBottom: canEditDivision ? '1px dashed #d9d9d9' : 'none',
+                                        color: (localValues['division'] ?? item.division) ? '#8c8c8c' : '#bfbfbf',
+                                        fontStyle: (localValues['division'] ?? item.division) ? 'normal' : 'italic',
+                                    }}
+                                    onClick={() => { if (canEditDivision) setEditingField('topbar_division'); }}
+                                >
+                                    {formatDivisionLabel(localValues['division'] ?? item.division) || (canEditDivision ? 'set division' : '—')}
+                                </span>
+                            )}
+                            <span style={{ color: '#bfbfbf' }}> › </span>
+                            {editingField === 'topbar_subDivision' ? (
+                                <Select
+                                    autoFocus
+                                    open
+                                    size="small"
+                                    value={(localValues['subDivision'] ?? item.subDivision) || undefined}
+                                    placeholder="Select sub-division"
+                                    style={{ fontSize: 11, width: 120 }}
+                                    onChange={(val) => handleSave('subDivision', val || null)}
+                                    onBlur={() => setEditingField(null)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    getPopupContainer={() => document.body}
+                                >
+                                    {(() => {
+                                        const effectiveDiv = (localValues['division'] ?? item.division) || '';
+                                        let hierKey = '';
+                                        if (effectiveDiv.match(/LADIES|WOMEN/i)) hierKey = 'Ladies';
+                                        else if (effectiveDiv.match(/KIDS/i)) hierKey = 'Kids';
+                                        else if (effectiveDiv.match(/MEN/i)) hierKey = 'MENS';
+                                        return (SIMPLIFIED_HIERARCHY[hierKey] || []).map((sd: string) => (
+                                            <Option key={sd} value={sd}>{sd}</Option>
+                                        ));
+                                    })()}
+                                </Select>
+                            ) : (
+                                <span
+                                    style={{
+                                        cursor: isLocked ? 'default' : 'pointer',
+                                        borderBottom: isLocked ? 'none' : '1px dashed #d9d9d9',
+                                        color: (localValues['subDivision'] ?? item.subDivision) ? '#8c8c8c' : '#bfbfbf',
+                                        fontStyle: (localValues['subDivision'] ?? item.subDivision) ? 'normal' : 'italic',
+                                    }}
+                                    onClick={() => { if (!isLocked) setEditingField('topbar_subDivision'); }}
+                                >
+                                    {(localValues['subDivision'] ?? item.subDivision) || (isLocked ? '—' : 'set sub-div')}
+                                </span>
+                            )}
                         </span>
                         <span style={{ fontSize: 11, color: '#595959', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             {/* Editable Design No inline */}
