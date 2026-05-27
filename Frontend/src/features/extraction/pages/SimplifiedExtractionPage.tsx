@@ -1,95 +1,75 @@
 /**
  * Simplified Extraction Page
- * 
+ *
  * Workflow:
  * 1. Select Division → Category (Upper/Lower/Sets/Denim)
  * 2. Upload images (no metadata form)
  * 3. Auto-start batch extraction
  * 4. Show only validated results
- * 5. Go straight to batch processing page
- * 
- * This runs alongside the original ExtractionPage for rollback capability.
  */
-
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from 'react';
+import { Eraser, Download, CheckCircle2, Upload as UploadIcon, Bot, LayoutGrid } from 'lucide-react';
 import {
-  Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
-} from "antd";
-import {
-  ClearOutlined, DownloadOutlined,
-  CheckCircleOutlined, UploadOutlined, RobotOutlined, AppstoreOutlined
-} from "@ant-design/icons";
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Progress,
+  Statistic,
+  Steps,
+} from '@/shared/components/ui-tw';
+import { SimplifiedCategorySelector } from '../components/SimplifiedCategorySelector';
+import type { SimplifiedCategory } from '../components/SimplifiedCategorySelector';
+import { UploadArea } from '../components';
+import { AttributeTable } from '../components/AttributeTable';
+import ExportManager from '../components/ExportManager';
+import { useImageExtraction } from '../../../shared/hooks/extraction/useImageExtraction';
+import type { SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
+import { MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
+import { getMajCatAllowedValues, getMajCatMandatoryKeys } from '../../../data/majCatAttributeMap';
+import { preloadAttributeValues } from '../../../services/articleConfigService';
 
-import { SimplifiedCategorySelector } from "../components/SimplifiedCategorySelector";
-import type { SimplifiedCategory } from "../components/SimplifiedCategorySelector";
-import { UploadArea } from "../components";
-import { AttributeTable } from "../components/AttributeTable";
-import ExportManager from "../components/ExportManager";
-import { useImageExtraction } from "../../../shared/hooks/extraction/useImageExtraction";
-import type { SchemaItem } from "../../../shared/types/extraction/ExtractionTypes";
-import { MAJOR_CATEGORY_ALLOWED_VALUES } from "../../../data/majorCategoryMcCodeMap";
-import { getMajCatAllowedValues, getMajCatMandatoryKeys } from "../../../data/majCatAttributeMap";
-import { preloadAttributeValues } from "../../../services/articleConfigService";
+import './ExtractionPage.css';
+import '../../../styles/App.css';
 
-import "./ExtractionPage.css";
-import "../../../styles/App.css";
-
-const { Title, Text } = Typography;
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:5001/api" : "/api");
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
 
 const KEY_ALIASES: Record<string, string> = {
   neck_details: 'neck_detail',
   colour: 'color',
   child_belt: 'child_belt_detail',
   lycra_non_lycra: 'lycra_non\nlycra',
-  patches_type: 'patch_type'
+  patches_type: 'patch_type',
 };
 
 const ATTRIBUTE_VALUE_CORRECTIONS: Record<string, Record<string, string>> = {
-  weave: {
-    CH_TWL: 'CHN_TWL',
-    CHINA_TWL: 'CHN_TWL'
-  },
-  m_fab2: {
-    '3': '3/1'
-  }
+  weave: { CH_TWL: 'CHN_TWL', CHINA_TWL: 'CHN_TWL' },
+  m_fab2: { '3': '3/1' },
 };
 
 const normalizeAllowedValues = (attributeKey: string, allowedValues: any[] = []) => {
   const normalizedKey = String(attributeKey || '').trim().toLowerCase();
   const correctionMap = ATTRIBUTE_VALUE_CORRECTIONS[normalizedKey] || {};
   const deduped = new Map<string, { shortForm: string; fullForm: string }>();
-
   for (const item of allowedValues) {
     const shortFormRaw = String(item?.shortForm ?? item?.value ?? '').trim();
     const fullFormRaw = String(item?.fullForm ?? shortFormRaw).trim();
-
-    if (!shortFormRaw && !fullFormRaw) {
-      continue;
-    }
-
+    if (!shortFormRaw && !fullFormRaw) continue;
     const correctedShortForm = correctionMap[shortFormRaw] || shortFormRaw;
     const key = correctedShortForm.toUpperCase();
-
-    if (!key) {
-      continue;
-    }
-
+    if (!key) continue;
     if (!deduped.has(key)) {
-      deduped.set(key, {
-        shortForm: correctedShortForm,
-        fullForm: fullFormRaw || correctedShortForm
-      });
+      deduped.set(key, { shortForm: correctedShortForm, fullForm: fullFormRaw || correctedShortForm });
     }
   }
-
   return Array.from(deduped.values());
 };
 
-
 const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
-  // ── Header / identity fields ──────────────────────────────────────────────
   {
     key: 'division',
     label: 'Division',
@@ -97,93 +77,73 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
     allowedValues: [
       { shortForm: 'MEN', fullForm: 'MENS' },
       { shortForm: 'KIDS', fullForm: 'KIDS' },
-      { shortForm: 'LADIES', fullForm: 'LADIES' }
-    ]
+      { shortForm: 'LADIES', fullForm: 'LADIES' },
+    ],
   },
-  { key: 'sub_division',                  label: 'Sub-Division',                  type: 'text' },
-  { key: 'major_category',                label: 'Major Category',                type: 'select', allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES },
-  { key: 'design_number',                 label: 'Design Number',                 type: 'text' },
-  { key: 'vendor_name',                   label: 'Vendor Name',                   type: 'text' },
-  { key: 'reference_article_number',      label: 'Reference Article Number',      type: 'text' },
+  { key: 'sub_division', label: 'Sub-Division', type: 'text' },
+  { key: 'major_category', label: 'Major Category', type: 'select', allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES },
+  { key: 'design_number', label: 'Design Number', type: 'text' },
+  { key: 'vendor_name', label: 'Vendor Name', type: 'text' },
+  { key: 'reference_article_number', label: 'Reference Article Number', type: 'text' },
   { key: 'reference_article_description', label: 'Reference Article Description', type: 'text', required: false },
-  { key: 'rate',                          label: 'Rate/Price',                    type: 'text' },
-  { key: 'mrp',                           label: 'MRP',                           type: 'text' },
-  { key: 'imp_atrbt_2',                   label: 'IMP_ATRBT-2',                   type: 'text' },
-
-  // ── FAB ──────────────────────────────────────────────────────────────────
-  { key: 'macro_mvgr',       label: 'IMP ATBT-1',           type: 'select' },
-  { key: 'yarn_01',          label: 'M_YARN',               type: 'select' },
-  { key: 'main_mvgr',        label: 'FAB_MAIN_MVGR-1',      type: 'select' },
-  { key: 'fabric_main_mvgr', label: 'FAB-MAIN-MVGR-2',      type: 'select' },
-  { key: 'weave',            label: 'WEAVE 01',             type: 'select' },
-  { key: 'm_fab2',           label: 'WEAVE 02',             type: 'select' },
-  { key: 'composition',      label: 'M_COMPOSITION',        type: 'select' },
-  { key: 'f_count',          label: 'M_COUNT',              type: 'select' },
-  { key: 'f_construction',   label: 'M_CONSTRUCTION',       type: 'select' },
-  { key: 'lycra_non_lycra',  label: 'M_LYCRA',              type: 'select' },
-  { key: 'finish',           label: 'M_FINISH',             type: 'select' },
-  { key: 'gsm',              label: 'M_GSM',                type: 'select' },
-  { key: 'f_ounce',          label: 'M_OUNZ',               type: 'select' },
-  { key: 'f_width',          label: 'M_WIDTH',              type: 'select' },
-  { key: 'fab_div',          label: 'M_FAB_DIV',            type: 'select' },
-
-  // ── BODY ─────────────────────────────────────────────────────────────────
-  { key: 'collar',        label: 'M_COLLAR_TYPE',        type: 'select' },
-  { key: 'collar_style',  label: 'M_COLLAR_STYLE',       type: 'select' },
-  { key: 'neck_details',  label: 'M_NECK_STYLE',         type: 'select' },
-  { key: 'neck',          label: 'M_NECK_TYPE',          type: 'select' },
-  { key: 'placket',       label: 'M_PLACKET',            type: 'select' },
-  { key: 'father_belt',   label: 'M_BLT_TYPE',           type: 'select' },
-  { key: 'sleeve',        label: 'M_SLEEVES_MAIN_STYLE', type: 'select' },
-  { key: 'sleeve_fold',   label: 'M_SLEEVE_FOLD',        type: 'select' },
-  { key: 'bottom_fold',   label: 'M_BTM_FOLD',           type: 'select' },
-  { key: 'no_of_pocket',  label: 'M_NO_OF_POCKET',       type: 'select' },
-  { key: 'pocket_type',   label: 'M_POCKET',             type: 'select' },
-  { key: 'extra_pocket',  label: 'M_EXTRA_POCKET',       type: 'select' },
-  { key: 'fit',           label: 'M_FIT',                type: 'select' },
-  { key: 'body_style',    label: 'BODY STYLE',           type: 'select' },
-  { key: 'length',        label: 'M_LENGTH',             type: 'select' },
-
-  // ── VA ACC. ──────────────────────────────────────────────────────────────
-  { key: 'drawcord',     label: 'M_DC_STYLE',    type: 'select' },
-  { key: 'dc_shape',     label: 'M_DC_SHAPE',    type: 'select' },
-  { key: 'button',       label: 'M_BTN_TYPE',    type: 'select' },
-  { key: 'btn_colour',   label: 'M_BTN_CLR',     type: 'select' },
-  { key: 'zipper',       label: 'M_ZIP_TYPE',    type: 'select' },
-  { key: 'zip_colour',   label: 'M_ZIP_COL',     type: 'select' },
+  { key: 'rate', label: 'Rate/Price', type: 'text' },
+  { key: 'mrp', label: 'MRP', type: 'text' },
+  { key: 'imp_atrbt_2', label: 'IMP_ATRBT-2', type: 'text' },
+  { key: 'macro_mvgr', label: 'IMP ATBT-1', type: 'select' },
+  { key: 'yarn_01', label: 'M_YARN', type: 'select' },
+  { key: 'main_mvgr', label: 'FAB_MAIN_MVGR-1', type: 'select' },
+  { key: 'fabric_main_mvgr', label: 'FAB-MAIN-MVGR-2', type: 'select' },
+  { key: 'weave', label: 'WEAVE 01', type: 'select' },
+  { key: 'm_fab2', label: 'WEAVE 02', type: 'select' },
+  { key: 'composition', label: 'M_COMPOSITION', type: 'select' },
+  { key: 'f_count', label: 'M_COUNT', type: 'select' },
+  { key: 'f_construction', label: 'M_CONSTRUCTION', type: 'select' },
+  { key: 'lycra_non_lycra', label: 'M_LYCRA', type: 'select' },
+  { key: 'finish', label: 'M_FINISH', type: 'select' },
+  { key: 'gsm', label: 'M_GSM', type: 'select' },
+  { key: 'f_ounce', label: 'M_OUNZ', type: 'select' },
+  { key: 'f_width', label: 'M_WIDTH', type: 'select' },
+  { key: 'fab_div', label: 'M_FAB_DIV', type: 'select' },
+  { key: 'collar', label: 'M_COLLAR_TYPE', type: 'select' },
+  { key: 'collar_style', label: 'M_COLLAR_STYLE', type: 'select' },
+  { key: 'neck_details', label: 'M_NECK_STYLE', type: 'select' },
+  { key: 'neck', label: 'M_NECK_TYPE', type: 'select' },
+  { key: 'placket', label: 'M_PLACKET', type: 'select' },
+  { key: 'father_belt', label: 'M_BLT_TYPE', type: 'select' },
+  { key: 'sleeve', label: 'M_SLEEVES_MAIN_STYLE', type: 'select' },
+  { key: 'sleeve_fold', label: 'M_SLEEVE_FOLD', type: 'select' },
+  { key: 'bottom_fold', label: 'M_BTM_FOLD', type: 'select' },
+  { key: 'no_of_pocket', label: 'M_NO_OF_POCKET', type: 'select' },
+  { key: 'pocket_type', label: 'M_POCKET', type: 'select' },
+  { key: 'extra_pocket', label: 'M_EXTRA_POCKET', type: 'select' },
+  { key: 'fit', label: 'M_FIT', type: 'select' },
+  { key: 'body_style', label: 'BODY STYLE', type: 'select' },
+  { key: 'length', label: 'M_LENGTH', type: 'select' },
+  { key: 'drawcord', label: 'M_DC_STYLE', type: 'select' },
+  { key: 'dc_shape', label: 'M_DC_SHAPE', type: 'select' },
+  { key: 'button', label: 'M_BTN_TYPE', type: 'select' },
+  { key: 'btn_colour', label: 'M_BTN_CLR', type: 'select' },
+  { key: 'zipper', label: 'M_ZIP_TYPE', type: 'select' },
+  { key: 'zip_colour', label: 'M_ZIP_COL', type: 'select' },
   { key: 'patches_type', label: 'M_PATCH_STYLE', type: 'select' },
-  { key: 'patches',      label: 'M_PATCHE_TYPE', type: 'select' },
-
-  // ── VA PRCS ──────────────────────────────────────────────────────────────
-  { key: 'print_type',       label: 'M_PRINT_TYPE',        type: 'select' },
-  { key: 'print_style',      label: 'M_PRINT_STYLE',       type: 'select' },
-  { key: 'print_placement',  label: 'M_PRINT_PLACEMENT',   type: 'select' },
-  { key: 'embroidery',       label: 'M_EMB_TYPE',          type: 'select' },
-  { key: 'embroidery_type',  label: 'M_EMBROIDERY_STYLE',  type: 'select' },
-  { key: 'wash',             label: 'M_WASH',              type: 'select' },
+  { key: 'patches', label: 'M_PATCHE_TYPE', type: 'select' },
+  { key: 'print_type', label: 'M_PRINT_TYPE', type: 'select' },
+  { key: 'print_style', label: 'M_PRINT_STYLE', type: 'select' },
+  { key: 'print_placement', label: 'M_PRINT_PLACEMENT', type: 'select' },
+  { key: 'embroidery', label: 'M_EMB_TYPE', type: 'select' },
+  { key: 'embroidery_type', label: 'M_EMBROIDERY_STYLE', type: 'select' },
+  { key: 'wash', label: 'M_WASH', type: 'select' },
 ];
 
 const parseSubDivisions = (rawSubDivision: unknown): string[] => {
-  if (Array.isArray(rawSubDivision)) {
-    return rawSubDivision
-      .map((value) => String(value).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof rawSubDivision === 'string') {
-    return rawSubDivision
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-  }
-
+  if (Array.isArray(rawSubDivision)) return rawSubDivision.map((value) => String(value).trim()).filter(Boolean);
+  if (typeof rawSubDivision === 'string') return rawSubDivision.split(',').map((value) => value.trim()).filter(Boolean);
   return [];
 };
 
 const getLocalUserScope = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const subDivisions = parseSubDivisions(user.subDivision);
-
   return {
     role: user.role,
     division: user.division,
@@ -202,6 +162,7 @@ const SimplifiedExtractionPage = () => {
   const [selectedImage, setSelectedImage] = useState<{ url: string; name?: string } | null>(null);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [manualNavigation, setManualNavigation] = useState(false);
+  const [missingFieldsDialog, setMissingFieldsDialog] = useState<{ rowName: string; missingLabels: string[] }[] | null>(null);
   const creatorScope = getLocalUserScope();
 
   const {
@@ -213,7 +174,7 @@ const SimplifiedExtractionPage = () => {
     extractAllPending,
     clearAll,
     updateRowAttribute,
-    removeRow
+    removeRow,
   } = useImageExtraction();
 
   useEffect(() => {
@@ -221,16 +182,10 @@ const SimplifiedExtractionPage = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed?.selectedCategory) {
-          setSelectedCategory(parsed.selectedCategory);
-        }
-        // Never restore 'extraction' step — the rows-loaded effect handles that.
-        // Restoring it when rows are empty causes a permanently blank page.
-        if (parsed?.currentStep && parsed.currentStep !== 'extraction') {
-          setCurrentStep(parsed.currentStep);
-        }
+        if (parsed?.selectedCategory) setSelectedCategory(parsed.selectedCategory);
+        if (parsed?.currentStep && parsed.currentStep !== 'extraction') setCurrentStep(parsed.currentStep);
       } catch {
-        // ignore invalid storage
+        /* ignore */
       }
     }
   }, []);
@@ -238,63 +193,48 @@ const SimplifiedExtractionPage = () => {
   const isBatchComplete = stats && stats.total > 0 && stats.done === stats.total;
 
   useEffect(() => {
-    if (extractedRows.length > 0 && !manualNavigation) {
-      setCurrentStep('extraction');
-    }
+    if (extractedRows.length > 0 && !manualNavigation) setCurrentStep('extraction');
   }, [extractedRows.length, manualNavigation]);
 
   useEffect(() => {
-    localStorage.setItem(
-      'simplifiedExtractionState',
-      JSON.stringify({ selectedCategory, currentStep })
-    );
+    localStorage.setItem('simplifiedExtractionState', JSON.stringify({ selectedCategory, currentStep }));
   }, [selectedCategory, currentStep]);
 
+  const handleCategorySelect = useCallback(
+    (category: SimplifiedCategory | null) => {
+      setSelectedCategory(category);
+      setSimplifiedSchema(baseSchema);
+      if (category) {
+        setManualNavigation(false);
+        setTimeout(() => setCurrentStep('upload'), 300);
+      }
+    },
+    [baseSchema],
+  );
 
-  // Handle category selection
-  const handleCategorySelect = useCallback((category: SimplifiedCategory | null) => {
-    setSelectedCategory(category);
-    setSimplifiedSchema(baseSchema);
-    if (category) {
-      setManualNavigation(false);
-      setTimeout(() => setCurrentStep('upload'), 300);
-    }
-  }, [baseSchema]);
-
-  // Auto-detect Creator scope
   useEffect(() => {
-    // Only auto-select if we haven't manually reset/navigated away
     if (manualNavigation) return;
-
     try {
       const userStr = localStorage.getItem('user');
       if (!userStr) return;
-
       const user = JSON.parse(userStr);
       if (user.role === 'CREATOR' && user.division) {
-        // Normalize division for UI labels
         let normalizedDept = user.division;
         const upperDept = user.division.toUpperCase();
         if (upperDept === 'MEN' || upperDept === 'MENS') normalizedDept = 'MENS';
         else if (upperDept === 'KIDS') normalizedDept = 'Kids';
         else if (upperDept === 'LADIES') normalizedDept = 'Ladies';
-
         const allowedSubDivisions = parseSubDivisions(user.subDivision);
-
-        // Only auto-select if not already selected to avoid infinite loops/flicker
         if (!selectedCategory && allowedSubDivisions.length === 1) {
           const autoCategory = {
             department: normalizedDept,
             majorCategory: allowedSubDivisions[0],
-            displayName: `${normalizedDept} - ${allowedSubDivisions[0]}`
+            displayName: `${normalizedDept} - ${allowedSubDivisions[0]}`,
           };
-
           setSelectedCategory(autoCategory);
           setSimplifiedSchema(baseSchema);
           setCurrentStep('upload');
-          console.log(`🚀 Auto-selected scope for Creator: ${autoCategory.displayName}`);
         } else if (!selectedCategory && allowedSubDivisions.length > 1) {
-          // Multi-subdivision creators should choose the correct one manually.
           setCurrentStep('category');
         }
       }
@@ -308,53 +248,31 @@ const SimplifiedExtractionPage = () => {
       try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${API_BASE_URL}/user/attributes?includeValues=true`, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         });
-
-        if (!response.ok) {
-          console.warn('Failed to load master attributes for dropdowns');
-          return;
-        }
-
+        if (!response.ok) return;
         const payload = await response.json();
         const attributes = payload?.data || [];
         const allowedMap = new Map<string, any[]>(
-          attributes.map((attr: any) => [String(attr.key).toLowerCase(), attr.allowedValues || []])
+          attributes.map((attr: any) => [String(attr.key).toLowerCase(), attr.allowedValues || []]),
         );
-
         const schemaWithAllowed = BASE_SIMPLIFIED_SCHEMA.map((item) => {
           const keyLower = item.key.toLowerCase();
-
-          // Enforce mc code list (mc des) for major category (do not override from backend)
           if (keyLower === 'major_category') {
-            return {
-              ...item,
-              allowedValues: normalizeAllowedValues(item.key, MAJOR_CATEGORY_ALLOWED_VALUES)
-            };
+            return { ...item, allowedValues: normalizeAllowedValues(item.key, MAJOR_CATEGORY_ALLOWED_VALUES) };
           }
-
           const aliasKey = KEY_ALIASES[keyLower] || keyLower;
           const fetchedAllowed = allowedMap.get(keyLower) || allowedMap.get(aliasKey);
           return {
             ...item,
-            allowedValues: normalizeAllowedValues(
-              item.key,
-              (fetchedAllowed && fetchedAllowed.length > 0)
-              ? fetchedAllowed
-              : (item.allowedValues || [])
-            )
+            allowedValues: normalizeAllowedValues(item.key, fetchedAllowed && fetchedAllowed.length > 0 ? fetchedAllowed : item.allowedValues || []),
           };
         });
-
         setBaseSchema(schemaWithAllowed);
       } catch (error) {
         console.warn('Failed to load allowed values for simplified schema', error);
       }
     };
-
     loadAllowedValues();
   }, []);
 
@@ -370,63 +288,52 @@ const SimplifiedExtractionPage = () => {
     const filtered = baseSchema.map((item) => {
       const majCatValues = getMajCatAllowedValues(division, item.key);
       const isRequired = mandatoryKeys.has(item.key);
-      return {
-        ...item,
-        ...(majCatValues ? { allowedValues: majCatValues } : {}),
-        required: isRequired
-      };
+      return { ...item, ...(majCatValues ? { allowedValues: majCatValues } : {}), required: isRequired };
     });
     setSimplifiedSchema(filtered);
   }, [baseSchema, selectedCategory]);
 
-  // When a user adds a custom value not in the master list, update the local schema immediately
   const handleAddToSchema = useCallback((attributeKey: string, value: string) => {
-    setSimplifiedSchema(prev => prev.map(item => {
-      if (item.key !== attributeKey) return item;
-      const normalizedIncoming = normalizeAllowedValues(attributeKey, [{ shortForm: value, fullForm: value }])[0];
-      if (!normalizedIncoming) return item;
-      const alreadyExists = item.allowedValues?.some(
-        v => (v.shortForm || '').toLowerCase() === normalizedIncoming.shortForm.toLowerCase()
-      );
-      if (alreadyExists) return item;
-      return {
-        ...item,
-        allowedValues: [...(item.allowedValues || []), normalizedIncoming]
-      };
-    }));
+    setSimplifiedSchema((prev) =>
+      prev.map((item) => {
+        if (item.key !== attributeKey) return item;
+        const normalizedIncoming = normalizeAllowedValues(attributeKey, [{ shortForm: value, fullForm: value }])[0];
+        if (!normalizedIncoming) return item;
+        const alreadyExists = item.allowedValues?.some((v) => (v.shortForm || '').toLowerCase() === normalizedIncoming.shortForm.toLowerCase());
+        if (alreadyExists) return item;
+        return { ...item, allowedValues: [...(item.allowedValues || []), normalizedIncoming] };
+      }),
+    );
   }, []);
 
-  // When rate changes, auto-compute MRP = rate * 1.47 rounded up to next multiple of 25.
-  // MRP field remains editable — user can override at any time.
-  const handleAttributeChange = useCallback((rowId: string, attributeKey: string, value: string | number | null) => {
-    updateRowAttribute(rowId, attributeKey, value);
-    if (attributeKey === 'rate') {
-      const rate = parseFloat(String(value ?? ''));
-      if (!isNaN(rate) && rate > 0) {
-        const mrp = Math.ceil((rate * 1.47) / 25) * 25;
-        updateRowAttribute(rowId, 'mrp', mrp);
+  const handleAttributeChange = useCallback(
+    (rowId: string, attributeKey: string, value: string | number | null) => {
+      updateRowAttribute(rowId, attributeKey, value);
+      if (attributeKey === 'rate') {
+        const rate = parseFloat(String(value ?? ''));
+        if (!isNaN(rate) && rate > 0) {
+          const mrp = Math.ceil((rate * 1.47) / 25) * 25;
+          updateRowAttribute(rowId, 'mrp', mrp);
+        }
       }
-    }
-  }, [updateRowAttribute]);
+    },
+    [updateRowAttribute],
+  );
 
-  // Handle image upload - move to extraction step
-  const handleImagesUpload = useCallback(async (fileList: File[]) => {
-    await addImages(fileList);
-    if (fileList.length > 0) {
-      setManualNavigation(false);
-      setCurrentStep('extraction');
-    }
-  }, [addImages]);
+  const handleImagesUpload = useCallback(
+    async (fileList: File[]) => {
+      await addImages(fileList);
+      if (fileList.length > 0) {
+        setManualNavigation(false);
+        setCurrentStep('extraction');
+      }
+    },
+    [addImages],
+  );
 
-  // Auto-start extraction when images are ready
   const handleStartBatch = useCallback(() => {
     if (selectedCategory && extractAllPending) {
-      extractAllPending(
-        simplifiedSchema,
-        selectedCategory.displayName,
-        `${selectedCategory.department}-${selectedCategory.majorCategory}`,
-        {} // No metadata
-      );
+      extractAllPending(simplifiedSchema, selectedCategory.displayName, `${selectedCategory.department}-${selectedCategory.majorCategory}`, {});
     }
   }, [selectedCategory, extractAllPending, simplifiedSchema]);
 
@@ -436,67 +343,25 @@ const SimplifiedExtractionPage = () => {
       setExportModalVisible(true);
       return;
     }
-
-    type MissingInfo = { rowName: string; missingLabels: string[] };
-    const missing: MissingInfo[] = [];
-
+    const missing: { rowName: string; missingLabels: string[] }[] = [];
     for (const row of extractedRows) {
       const missingLabels: string[] = [];
       for (const item of mandatoryItems) {
         const attr = row.attributes?.[item.key];
         const val = attr?.schemaValue ?? attr?.rawValue;
-        if (val === null || val === undefined || String(val).trim() === '') {
-          missingLabels.push(item.label);
-        }
+        if (val === null || val === undefined || String(val).trim() === '') missingLabels.push(item.label);
       }
-      if (missingLabels.length > 0) {
-        missing.push({ rowName: row.originalFileName || row.id, missingLabels });
-      }
+      if (missingLabels.length > 0) missing.push({ rowName: row.originalFileName || row.id, missingLabels });
     }
-
     if (missing.length === 0) {
       setExportModalVisible(true);
       return;
     }
-
-    Modal.error({
-      title: 'Mandatory Fields Missing',
-      width: 560,
-      content: (
-        <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-          <p style={{ marginBottom: 12, color: '#595959' }}>
-            The following rows are missing mandatory fields required for article creation. Please fill them before exporting.
-          </p>
-          {missing.map(({ rowName, missingLabels }) => (
-            <div key={rowName} style={{ marginBottom: 10 }}>
-              <strong style={{ fontSize: 12 }}>{rowName}</strong>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                {missingLabels.map((label) => (
-                  <span
-                    key={label}
-                    style={{
-                      background: '#fff1f0',
-                      border: '1px solid #ffa39e',
-                      borderRadius: 3,
-                      padding: '1px 6px',
-                      fontSize: 11,
-                      color: '#cf1322'
-                    }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
-    });
+    setMissingFieldsDialog(missing);
   }, [simplifiedSchema, extractedRows]);
 
   const handleStartOver = () => {
     const isRestrictedCreator = creatorScope.isSingleScopedCreator;
-
     setManualNavigation(isRestrictedCreator ? false : true);
     clearAll();
     setCurrentStep(isRestrictedCreator ? 'upload' : 'category');
@@ -505,8 +370,7 @@ const SimplifiedExtractionPage = () => {
   };
 
   const handleBackToCategory = () => {
-    if (creatorScope.isSingleScopedCreator) return; // Block back only for single-scope creators
-
+    if (creatorScope.isSingleScopedCreator) return;
     setManualNavigation(true);
     setSelectedCategory(null);
     setCurrentStep('category');
@@ -524,328 +388,251 @@ const SimplifiedExtractionPage = () => {
     setImageModalVisible(true);
   }, []);
 
+  const stepIndex = (() => {
+    const isRestricted = creatorScope.isSingleScopedCreator;
+    if (isRestricted) return currentStep === 'upload' ? 0 : 1;
+    return currentStep === 'category' ? 0 : currentStep === 'upload' ? 1 : 2;
+  })();
+
+  const stepItems = (() => {
+    const items = [
+      { title: 'Select Category', icon: <LayoutGrid className="h-4 w-4" /> },
+      { title: 'Upload Images', icon: <UploadIcon className="h-4 w-4" /> },
+      { title: 'Auto-Extract', icon: <Bot className="h-4 w-4" /> },
+    ];
+    return creatorScope.isSingleScopedCreator ? items.slice(1) : items;
+  })();
+
   return (
     <div className="extraction-scroll-page">
-        <div className="content-wrapper">
-          {/* Header */}
-          <Card size="small" style={{ marginBottom: 12, background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)', border: 'none' }}>
-            <div style={{ textAlign: 'center' }}>
-              <Title level={3} style={{ color: 'white', margin: 0 }}>
-                🚀 Simplified AI Fashion Extraction
-              </Title>
-              <Text style={{ color: 'rgba(255,255,255,0.9)' }}>
-                Division → Category → Upload → Auto-Extract (42 attributes)
-              </Text>
-            </div>
-          </Card>
+      <div className="content-wrapper">
+        <Card className="mb-3 border-none" style={{ background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)' }}>
+          <CardContent className="py-4 text-center">
+            <h1 className="m-0 text-2xl font-semibold text-white">Simplified AI Fashion Extraction</h1>
+            <span className="text-white/90">Division → Category → Upload → Auto-Extract (42 attributes)</span>
+          </CardContent>
+        </Card>
 
-          {/* Step Indicator */}
-          <Card size="small" className="steps-card" style={{ marginBottom: 12, padding: '8px 12px' }}>
-            <Steps
-              size="small"
-              current={
-                (() => {
-                  const isRestricted = creatorScope.isSingleScopedCreator;
-                  if (isRestricted) {
-                    return currentStep === 'upload' ? 0 : 1;
-                  }
-                  return currentStep === 'category' ? 0 : currentStep === 'upload' ? 1 : 2;
-                })()
-              }
-              items={(() => {
-                const isRestricted = creatorScope.isSingleScopedCreator;
-                const items = [
-                  { title: 'Select Category', icon: <AppstoreOutlined /> },
-                  { title: 'Upload Images', icon: <UploadOutlined /> },
-                  { title: 'Auto-Extract', icon: <RobotOutlined /> }
-                ];
-                return isRestricted ? items.slice(1) : items;
-              })()}
-            />
-          </Card>
+        <Card className="steps-card mb-3">
+          <CardContent className="px-3 py-2">
+            <Steps current={stepIndex} items={stepItems} />
+          </CardContent>
+        </Card>
 
-          <div className="main-grid">
-            <div className="left-panel">
-              {/* Step 1: Category Selection */}
-              {currentStep === 'category' && (
-                <Card className="step-card" style={{
-                  border: '2px solid #7DB9B6',
-                  boxShadow: '0 8px 32px rgba(125, 185, 182, 0.18)',
-                  padding: '16px'
-                }}>
-                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <Title level={4} style={{ color: '#7DB9B6', marginBottom: 4 }}>
-                      Step 1: Select Division
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: '13px' }}>
-                      Choose Division → Sub-Division (Upper/Lower/Sets/Denim)
-                    </Text>
+        <div className="main-grid">
+          <div className="left-panel">
+            {currentStep === 'category' && (
+              <Card className="step-card border-2 border-[#7DB9B6] p-4 shadow-lg">
+                <div className="mb-4 text-center">
+                  <h4 className="mb-1 text-lg font-semibold text-[#7DB9B6]">Step 1: Select Division</h4>
+                  <span className="text-[13px] text-muted-foreground">Choose Division → Sub-Division (Upper/Lower/Sets/Denim)</span>
+                </div>
+                <SimplifiedCategorySelector
+                  key={selectedCategory?.displayName || 'none'}
+                  selectedCategory={selectedCategory}
+                  onCategorySelect={handleCategorySelect}
+                />
+              </Card>
+            )}
+
+            {currentStep === 'upload' && (
+              <Card className="step-card border-2 border-[#E6C79C] p-4 shadow-lg">
+                <div className="mb-4 text-center">
+                  <h4 className="mb-1 text-lg font-semibold text-[#CFAF7F]">Step 2: Upload Images</h4>
+                  <span className="text-[13px] text-muted-foreground">
+                    Selected: <strong>{selectedCategory?.displayName}</strong> | Upload images to auto-start extraction
+                  </span>
+                </div>
+
+                {!creatorScope.isSingleScopedCreator && (
+                  <div className="mb-3">
+                    <Button onClick={handleBackToCategory} variant="link" size="sm" className="pl-0">
+                      ← Back to Category Selection
+                    </Button>
                   </div>
-                  <SimplifiedCategorySelector
-                    key={selectedCategory?.displayName || 'none'}
-                    selectedCategory={selectedCategory}
-                    onCategorySelect={handleCategorySelect}
-                  />
-                </Card>
-              )}
+                )}
 
-              {/* Step 2: Image Upload */}
-              {currentStep === 'upload' && (
-                <Card className="step-card" style={{
-                  border: '2px solid #E6C79C',
-                  boxShadow: '0 8px 32px rgba(230, 199, 156, 0.18)',
-                  padding: '16px'
-                }}>
-                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <Title level={4} style={{ color: '#CFAF7F', marginBottom: 4 }}>
-                      📸 Step 2: Upload Images
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: '13px' }}>
-                      Selected: <strong>{selectedCategory?.displayName}</strong> |
-                      Upload images to auto-start extraction
-                    </Text>
-                  </div>
+                <Alert
+                  type="info"
+                  showIcon
+                  className="mb-4"
+                  message="Simplified Workflow Active"
+                  description="No metadata form required. Extraction will start automatically after upload with fixed 42 attributes."
+                />
 
-                  {!creatorScope.isSingleScopedCreator && (
-                    <div style={{ marginBottom: 12 }}>
-                      <Button
-                        onClick={handleBackToCategory}
-                        type="link"
-                        size="small"
-                        style={{ paddingLeft: 0 }}
-                      >
-                        ← Back to Category Selection
-                      </Button>
-                    </div>
-                  )}
-
-                  <Alert
-                    message="Simplified Workflow Active"
-                    description="No metadata form required. Extraction will start automatically after upload with fixed 42 attributes."
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-
-                  <UploadArea onUpload={async (_file: File, fileList: File[]) => {
+                <UploadArea
+                  onUpload={async (_file: File, fileList: File[]) => {
                     await handleImagesUpload(fileList);
                     return false;
-                  }} />
-                </Card>
-              )}
+                  }}
+                />
+              </Card>
+            )}
 
-              {/* Step 3: Extraction Results */}
-              {currentStep === 'extraction' && extractedRows.length > 0 && (
-                <Card className="step-card" style={{
-                  border: '2px solid #A7B6D9',
-                  boxShadow: '0 8px 32px rgba(167, 182, 217, 0.18)',
-                  padding: '12px 16px'
-                }}>
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <div>
-                        <Title level={5} style={{ color: '#7F8EB8', margin: 0, display: 'inline-block', marginRight: 12 }}>
-                          🤖 Step 3: Auto-Extraction Results
-                        </Title>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {selectedCategory?.displayName} | {extractedRows.length} images | 42 attributes
-                        </Text>
+            {currentStep === 'extraction' && extractedRows.length > 0 && (
+              <Card className="step-card border-2 border-[#A7B6D9] px-4 py-3 shadow-lg">
+                <div className="mb-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <h5 className="m-0 mr-3 inline-block text-base font-semibold text-[#7F8EB8]">Step 3: Auto-Extraction Results</h5>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedCategory?.displayName} | {extractedRows.length} images | 42 attributes
+                      </span>
+                    </div>
+                    {stats && (
+                      <div className="flex items-center gap-4 text-xs">
+                        <span>
+                          <span className="font-bold text-[#7BAF7A]">{stats.done}</span> Done
+                        </span>
+                        <span>
+                          <span className="font-bold text-[#CFAF7F]">{stats.pending}</span> Pending
+                        </span>
+                        <span>
+                          <span className="font-bold text-[#7F8EB8]">{Math.round(stats.successRate)}%</span> Success
+                        </span>
                       </div>
-                      {stats && (
-                        <Space size="middle">
-                          <Text style={{ fontSize: '12px' }}>
-                            <span style={{ color: '#7BAF7A', fontWeight: 'bold' }}>{stats.done}</span> Done
-                          </Text>
-                          <Text style={{ fontSize: '12px' }}>
-                            <span style={{ color: '#CFAF7F', fontWeight: 'bold' }}>{stats.pending}</span> Pending
-                          </Text>
-                          <Text style={{ fontSize: '12px' }}>
-                            <span style={{ color: '#7F8EB8', fontWeight: 'bold' }}>{Math.round(stats.successRate)}%</span> Success
-                          </Text>
-                        </Space>
-                      )}
-                    </div>
+                    )}
                   </div>
+                </div>
 
-                  {/* Processing Status */}
-                  {(stats.pending > 0 && !isExtracting) && (
-                    <div style={{ marginBottom: 12 }}>
-                      <Alert
-                        message="Ready to Extract"
-                        description={`${stats.pending} image(s) ready for AI extraction. Click "Start Batch" to begin.`}
-                        type="info"
-                        showIcon
-                      />
-                    </div>
-                  )}
-
-                  {isExtracting && !isBatchComplete && (
-                    <div style={{ marginBottom: 12 }}>
-                      <Progress
-                        percent={Math.round(progress)}
-                        status="active"
-                        strokeColor={{ from: '#7DB9B6', to: '#E6C79C' }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Stats Summary */}
-                  {isBatchComplete && (
-                    <Alert
-                      message="Extraction Complete!"
-                      description={
-                        <Row gutter={16} style={{ marginTop: 8 }}>
-                          <Col span={8}>
-                            <Statistic
-                              title="Processed"
-                              value={stats.done}
-                              prefix={<CheckCircleOutlined />}
-                              valueStyle={{ fontSize: '20px', color: '#7BAF7A' }}
-                            />
-                          </Col>
-                          <Col span={8}>
-                            <Statistic
-                              title="Success Rate"
-                              value={Math.round(stats.successRate)}
-                              suffix="%"
-                              valueStyle={{ fontSize: '20px', color: '#7F8EB8' }}
-                            />
-                          </Col>
-                          <Col span={8}>
-                            <Statistic
-                              title="Auto-Validated"
-                              value="Enabled"
-                              valueStyle={{ fontSize: '16px', color: '#7F8EB8' }}
-                            />
-                          </Col>
-                        </Row>
-                      }
-                      type="success"
-                      showIcon
-                      style={{ marginBottom: 12 }}
-                    />
-                  )}
-
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                    <Button
-                      onClick={() => {
-                        setManualNavigation(true);
-                        setCurrentStep('upload');
-                      }}
-                      type="link"
-                      size="small"
-                      style={{ paddingLeft: 0 }}
-                    >
-                      ← Back to Upload
-                    </Button>
-                    <Space>
-                      {!isExtracting && stats.pending > 0 && (
-                        <Button
-                          type="primary"
-                          icon={<RobotOutlined />}
-                          onClick={handleStartBatch}
-                          size="large"
-                          style={{
-                            background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)',
-                            border: 'none',
-                            fontWeight: 600
-                          }}
-                        >
-                          Start Batch ({stats.pending})
-                        </Button>
-                      )}
-                      <Button
-                        icon={<DownloadOutlined />}
-                        type="primary"
-                        disabled={stats?.done === 0}
-                        onClick={handleExportClick}
-                      >
-                        Export Results
-                      </Button>
-                      {stats && stats.done === stats.total && stats.total > 0 && (
-                        <Button
-                          onClick={handleGoHome}
-                        >
-                          Go Home
-                        </Button>
-                      )}
-                      <Button
-                        icon={<ClearOutlined />}
-                        onClick={handleStartOver}
-                        danger
-                      >
-                        Start Over
-                      </Button>
-                    </Space>
-                  </div>
-
-                  {/* Results Table */}
-                  <div style={{
-                    background: '#fafafa',
-                    padding: '12px',
-                    borderRadius: 8,
-                    marginBottom: 12
-                  }}>
-                    <Text strong>📊 Extraction Results</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Results are validated automatically. Low-confidence values are hidden.
-                    </Text>
-                  </div>
-
-                  <AttributeTable
-                    extractedRows={extractedRows}
-                    schema={simplifiedSchema}
-                    selectedRowKeys={[]}
-                    onSelectionChange={() => { }}
-                    onAttributeChange={handleAttributeChange}
-                    onDeleteRow={removeRow}
-                    onImageClick={handleImageClick}
-                    onReExtract={() => { }}
-                    onAddToSchema={handleAddToSchema}
-                    isExtracting={isExtracting}
+                {stats.pending > 0 && !isExtracting && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="mb-3"
+                    message="Ready to Extract"
+                    description={`${stats.pending} image(s) ready for AI extraction. Click "Start Batch" to begin.`}
                   />
-                </Card>
-              )}
-            </div>
+                )}
+
+                {isExtracting && !isBatchComplete && (
+                  <Progress value={Math.round(progress)} indicatorClassName="bg-gradient-to-r from-[#7DB9B6] to-[#E6C79C]" className="mb-3" />
+                )}
+
+                {isBatchComplete && (
+                  <Alert
+                    type="success"
+                    showIcon
+                    className="mb-3"
+                    message="Extraction Complete!"
+                    description={
+                      <div className="mt-2 grid grid-cols-3 gap-4">
+                        <Statistic title="Processed" value={stats.done} prefix={<CheckCircle2 className="h-4 w-4" />} valueStyle={{ fontSize: 20, color: '#7BAF7A' }} />
+                        <Statistic title="Success Rate" value={Math.round(stats.successRate)} suffix="%" valueStyle={{ fontSize: 20, color: '#7F8EB8' }} />
+                        <Statistic title="Auto-Validated" value="Enabled" valueStyle={{ fontSize: 16, color: '#7F8EB8' }} />
+                      </div>
+                    }
+                  />
+                )}
+
+                <div className="mb-3 flex items-center justify-between">
+                  <Button
+                    onClick={() => {
+                      setManualNavigation(true);
+                      setCurrentStep('upload');
+                    }}
+                    variant="link"
+                    size="sm"
+                    className="pl-0"
+                  >
+                    ← Back to Upload
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    {!isExtracting && stats.pending > 0 && (
+                      <Button size="lg" onClick={handleStartBatch} className="border-none font-semibold" style={{ background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)' }}>
+                        <Bot />
+                        Start Batch ({stats.pending})
+                      </Button>
+                    )}
+                    <Button disabled={stats?.done === 0} onClick={handleExportClick}>
+                      <Download />
+                      Export Results
+                    </Button>
+                    {stats && stats.done === stats.total && stats.total > 0 && (
+                      <Button variant="outline" onClick={handleGoHome}>
+                        Go Home
+                      </Button>
+                    )}
+                    <Button variant="destructive" onClick={handleStartOver}>
+                      <Eraser />
+                      Start Over
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mb-3 rounded-lg bg-muted/40 p-3">
+                  <strong>Extraction Results</strong>
+                  <br />
+                  <span className="text-xs text-muted-foreground">Results are validated automatically. Low-confidence values are hidden.</span>
+                </div>
+
+                <AttributeTable
+                  extractedRows={extractedRows}
+                  schema={simplifiedSchema}
+                  selectedRowKeys={[]}
+                  onSelectionChange={() => {}}
+                  onAttributeChange={handleAttributeChange}
+                  onDeleteRow={removeRow}
+                  onImageClick={handleImageClick}
+                  onReExtract={() => {}}
+                  onAddToSchema={handleAddToSchema}
+                  isExtracting={isExtracting}
+                />
+              </Card>
+            )}
           </div>
         </div>
+      </div>
 
-      <Modal
-        title={selectedImage?.name || "Image Preview"}
-        open={imageModalVisible}
-        onCancel={() => setImageModalVisible(false)}
-        footer={null}
-        width={720}
-        centered
-      >
-        <div style={{ textAlign: 'center' }}>
-          <Image
-            src={selectedImage?.url || ""}
-            alt={selectedImage?.name || "Product Image"}
-            style={{ maxWidth: '100%', maxHeight: '60vh' }}
-            preview={{
-              mask: 'Click to zoom',
-            }}
+      <Dialog open={imageModalVisible} onOpenChange={setImageModalVisible}>
+        <DialogContent className="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>{selectedImage?.name || 'Image Preview'}</DialogTitle>
+          </DialogHeader>
+          <div className="text-center">
+            <img src={selectedImage?.url || ''} alt={selectedImage?.name || 'Product Image'} className="mx-auto max-h-[60vh] max-w-full" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exportModalVisible} onOpenChange={setExportModalVisible}>
+        <DialogContent className="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>Export Results</DialogTitle>
+          </DialogHeader>
+          <ExportManager
+            extractedRows={extractedRows}
+            schema={simplifiedSchema}
+            categoryName={selectedCategory?.displayName}
+            onClose={() => setExportModalVisible(false)}
           />
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        title="Export Results"
-        open={exportModalVisible}
-        onCancel={() => setExportModalVisible(false)}
-        footer={null}
-        width={720}
-        centered
-      >
-        <ExportManager
-          extractedRows={extractedRows}
-          schema={simplifiedSchema}
-          categoryName={selectedCategory?.displayName}
-          onClose={() => setExportModalVisible(false)}
-        />
-      </Modal>
+      <Dialog open={!!missingFieldsDialog} onOpenChange={(o) => !o && setMissingFieldsDialog(null)}>
+        <DialogContent className="max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Mandatory Fields Missing</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[360px] overflow-y-auto">
+            <p className="mb-3 text-muted-foreground">
+              The following rows are missing mandatory fields required for article creation. Please fill them before exporting.
+            </p>
+            {missingFieldsDialog?.map(({ rowName, missingLabels }) => (
+              <div key={rowName} className="mb-2.5">
+                <strong className="text-xs">{rowName}</strong>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {missingLabels.map((label) => (
+                    <span key={label} className="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

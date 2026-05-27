@@ -116,3 +116,4 @@ export type { MultiSelectOption } from './multi-select';
 export { Autocomplete } from './autocomplete';
 export type { AutocompleteOption } from './autocomplete';
 export { DatePicker, RangePicker } from './date-picker';
+export { Steps } from './steps';

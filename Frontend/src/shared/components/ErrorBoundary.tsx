@@ -1,9 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Alert, Button, Card, Typography } from "antd";
-import { ReloadOutlined, BugOutlined } from "@ant-design/icons";
+import { RotateCw, Bug } from "lucide-react";
+import { Alert, Button, Card, CardContent } from "@/shared/components/ui-tw";
 import { logger } from "../../utils/common/logger";
-
-const { Title, Paragraph, Text } = Typography;
 
 interface Props {
   children: ReactNode;
@@ -25,11 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null,
-    };
+    return { hasError: true, error, errorInfo: null };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -39,103 +33,65 @@ export class ErrorBoundary extends Component<Props, State> {
       componentStack: errorInfo.componentStack,
       errorBoundary: true,
     });
-
-    this.setState({
-      error,
-      errorInfo,
-    });
-
-    // Custom error handler
+    this.setState({ error, errorInfo });
     this.props.onError?.(error, errorInfo);
   }
 
-  private handleReload = () => {
-    window.location.reload();
-  };
+  private handleReload = () => window.location.reload();
 
-  private handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
-  };
+  private handleReset = () => this.setState({ hasError: false, error: null, errorInfo: null });
 
   public render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
+      if (this.props.fallback) return this.props.fallback;
 
       return (
         <div
-          style={{
-            padding: "24px",
-            minHeight: "400px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          className="flex min-h-[400px] items-center justify-center p-6"
           role="alertdialog"
           aria-live="assertive"
         >
-          <Card style={{ maxWidth: "500px", width: "100%" }}>
-            <div style={{ textAlign: "center" }}>
-              <BugOutlined
-                style={{
-                  fontSize: "48px",
-                  color: "#ff4d4f",
-                  marginBottom: "16px",
-                }}
-                aria-label="Error icon"
-              />
+          <Card className="w-full max-w-[500px]">
+            <CardContent className="pt-6 text-center">
+              <Bug className="mx-auto mb-4 h-12 w-12 text-red-500" aria-label="Error icon" />
 
-              <Title level={3}>Something went wrong</Title>
+              <h3 className="mb-2 text-xl font-semibold">Something went wrong</h3>
 
-              <Paragraph type="secondary">
-                We're sorry! An unexpected error occurred in the application.
-                The error has been logged and our team will investigate.
-              </Paragraph>
+              <p className="mb-4 text-sm text-muted-foreground">
+                We're sorry! An unexpected error occurred in the application. The error has been logged and our team
+                will investigate.
+              </p>
 
               <Alert
+                type="error"
+                showIcon
                 message="Error Details"
                 description={
                   <div>
-                    <Text code>{this.state.error?.message}</Text>
-                    {process.env.NODE_ENV === "development" &&
-                      this.state.errorInfo && (
-                        <details style={{ marginTop: "8px" }}>
-                          <summary>Component Stack (Development Only)</summary>
-                          <pre
-                            style={{
-                              fontSize: "12px",
-                              background: "#f5f5f5",
-                              padding: "8px",
-                              borderRadius: "4px",
-                              marginTop: "8px",
-                              overflow: "auto",
-                              maxHeight: "200px",
-                            }}
-                          >
-                            {this.state.errorInfo.componentStack}
-                          </pre>
-                        </details>
-                      )}
+                    <code className="rounded bg-muted px-1 text-xs">{this.state.error?.message}</code>
+                    {process.env.NODE_ENV === "development" && this.state.errorInfo && (
+                      <details className="mt-2">
+                        <summary>Component Stack (Development Only)</summary>
+                        <pre className="mt-2 max-h-[200px] overflow-auto rounded bg-muted p-2 text-xs">
+                          {this.state.errorInfo.componentStack}
+                        </pre>
+                      </details>
+                    )}
                   </div>
                 }
-                type="error"
-                style={{ textAlign: "left", marginBottom: "16px" }}
+                className="mb-4 text-left"
               />
 
-              <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                <Button type="primary" icon={<ReloadOutlined />} onClick={this.handleReload}>
+              <div className="flex justify-center gap-2">
+                <Button onClick={this.handleReload}>
+                  <RotateCw />
                   Reload Page
                 </Button>
-                <Button onClick={this.handleReset}>
+                <Button variant="outline" onClick={this.handleReset}>
                   Try Again
                 </Button>
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
       );

@@ -1,21 +1,35 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Upload as UploadIcon, Zap, Download, Trash2, Camera, Inbox } from 'lucide-react';
 import {
-  App, Card, Button, Form, Select, Radio, Upload, Input, Row, Col,
-  Typography, Space, Spin, Alert, Image, Divider, Tag,
-  Empty, Progress,
-} from 'antd';
-import {
-  UploadOutlined, ThunderboltOutlined, DownloadOutlined, DeleteOutlined,
-  CameraOutlined, InboxOutlined,
-} from '@ant-design/icons';
-import type { RcFile } from 'antd/es/upload';
-
-const { Title, Text, Paragraph } = Typography;
-const { Dragger } = Upload;
-const { TextArea } = Input;
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Empty,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  Input,
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Spinner,
+  Tag,
+  Textarea,
+} from '@/shared/components/ui-tw';
+import { cn } from '@/lib/utils';
+import { message } from '@/lib/message';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
-// Strip /api suffix to get the server root — used to resolve /uploads/... image paths
 const SERVER_BASE = API_BASE.replace(/\/api$/, '');
 
 interface GeneratedImage {
@@ -37,6 +51,13 @@ const BODYTYPE_OPTIONS = [
   { label: 'Lower Body', value: 'Lower-Body' },
 ];
 
+const BROACH_PLACEMENT_OPTIONS = [
+  { label: 'Left Chest', value: 'left chest' },
+  { label: 'Right Chest', value: 'right chest' },
+  { label: 'Center', value: 'center' },
+  { label: 'Collar', value: 'collar' },
+];
+
 const VIEW_LABELS: Record<string, string> = {
   front: 'Front',
   back: 'Back',
@@ -44,24 +65,49 @@ const VIEW_LABELS: Record<string, string> = {
   closeup: 'Closeup',
 };
 
+interface FormValues {
+  gender: string;
+  bodytype: string;
+  imagesCount: string;
+  broach_placement?: string;
+  color_name?: string;
+  special_instructions?: string;
+}
+
 export default function ModelGenerationPage() {
-  const { message } = App.useApp();
-  const [form] = Form.useForm();
-  const [designFiles, setDesignFiles] = useState<RcFile[]>([]);
-  const [patternFile, setPatternFile] = useState<RcFile | null>(null);
-  const [broachFile, setBroachFile] = useState<RcFile | null>(null);
+  const form = useForm<FormValues>({
+    defaultValues: {
+      gender: 'female',
+      bodytype: 'Full-Body',
+      imagesCount: '1',
+      broach_placement: '',
+      color_name: '',
+      special_instructions: '',
+    },
+  });
+
+  const [designFiles, setDesignFiles] = useState<File[]>([]);
+  const [patternFile, setPatternFile] = useState<File | null>(null);
+  const [broachFile, setBroachFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<GeneratedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const designInputRef = useRef<HTMLInputElement>(null);
+  const patternInputRef = useRef<HTMLInputElement>(null);
+  const broachInputRef = useRef<HTMLInputElement>(null);
 
   const startFakeProgress = () => {
     setProgress(0);
     let p = 0;
     progressTimerRef.current = setInterval(() => {
       p += Math.random() * 4;
-      if (p >= 90) { clearInterval(progressTimerRef.current!); p = 90; }
+      if (p >= 90) {
+        clearInterval(progressTimerRef.current!);
+        p = 90;
+      }
       setProgress(Math.round(p));
     }, 800);
   };
@@ -72,19 +118,12 @@ export default function ModelGenerationPage() {
     setTimeout(() => setProgress(0), 800);
   };
 
-  const handleGenerate = async () => {
-    try {
-      await form.validateFields();
-    } catch {
-      return;
-    }
-
+  const handleGenerate = async (values: FormValues) => {
     if (!designFiles.length) {
       message.error('Please upload at least one garment image.');
       return;
     }
 
-    const values = form.getFieldsValue();
     setError(null);
     setResults([]);
     setLoading(true);
@@ -92,7 +131,7 @@ export default function ModelGenerationPage() {
 
     try {
       const formData = new FormData();
-      designFiles.forEach(f => formData.append('designs', f));
+      designFiles.forEach((f) => formData.append('designs', f));
       if (patternFile) formData.append('pattern', patternFile);
       if (broachFile) formData.append('broach', broachFile);
       formData.append('gender', values.gender);
@@ -143,215 +182,381 @@ export default function ModelGenerationPage() {
     }
   };
 
-  const beforeUpload = (setter: (f: RcFile) => void) => (file: RcFile) => {
-    setter(file);
-    return false;
-  };
-
-  const addDesign = (file: RcFile) => {
-    setDesignFiles(prev => [...prev, file]);
-    return false;
+  const handleDesignDrop = (files: FileList | null) => {
+    if (!files) return;
+    setDesignFiles((prev) => [...prev, ...Array.from(files)]);
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <CameraOutlined style={{ marginRight: 10, color: '#1677ff' }} />
+    <div className="mx-auto max-w-[1200px] px-4 py-6">
+      <div className="mb-6">
+        <h1 className="m-0 flex items-center gap-2.5 text-2xl font-semibold">
+          <Camera className="h-6 w-6 text-sky-500" />
           AI Model Generation
-        </Title>
-        <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Upload garment images and generate professional fashion model photos using AI.
-        </Paragraph>
+        </p>
       </div>
 
-      <Row gutter={24}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[9fr_15fr]">
         {/* LEFT — Config Panel */}
-        <Col xs={24} lg={9}>
-          <Card title="Generation Settings" style={{ position: 'sticky', top: 80 }}>
-            <Form form={form} layout="vertical" initialValues={{ gender: 'female', bodytype: 'Full-Body', imagesCount: '1' }}>
-              {/* Garment Images */}
-              <Form.Item label={<Text strong>Garment Images</Text>} required>
-                <Dragger
-                  accept="image/*"
-                  multiple
-                  beforeUpload={addDesign}
-                  showUploadList={false}
-                  style={{ padding: '8px 0' }}
-                >
-                  <p className="ant-upload-drag-icon" style={{ margin: '8px 0' }}>
-                    <InboxOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-                  </p>
-                  <p className="ant-upload-text" style={{ fontSize: 13 }}>Click or drag garment images here</p>
-                </Dragger>
-                {designFiles.length > 0 && (
-                  <div style={{ marginTop: 8 }}>
-                    {designFiles.map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: f.name }}>{f.name}</Text>
-                        <Button size="small" type="text" icon={<DeleteOutlined />} danger onClick={() => setDesignFiles(prev => prev.filter((_, j) => j !== i))} />
-                      </div>
-                    ))}
+        <Card className="sticky top-20 self-start">
+          <CardHeader>
+            <CardTitle className="text-base">Generation Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleGenerate)} className="flex flex-col gap-4">
+                {/* Garment Images */}
+                <FormItem>
+                  <FormLabel>Garment Images *</FormLabel>
+                  <div
+                    onDragEnter={() => setIsDragging(true)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      handleDesignDrop(e.dataTransfer.files);
+                    }}
+                    onClick={() => designInputRef.current?.click()}
+                    className={cn(
+                      'cursor-pointer rounded-md border-2 border-dashed py-3 text-center transition-colors',
+                      isDragging ? 'border-sky-500 bg-sky-50' : 'border-border bg-muted/30 hover:bg-muted/50',
+                    )}
+                  >
+                    <Inbox className="mx-auto my-2 h-7 w-7 text-sky-500" />
+                    <p className="text-[13px]">Click or drag garment images here</p>
                   </div>
+                  <input
+                    ref={designInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleDesignDrop(e.target.files)}
+                  />
+                  {designFiles.length > 0 && (
+                    <div className="mt-2">
+                      {designFiles.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-border py-1">
+                          <span className="truncate text-xs" title={f.name}>
+                            {f.name}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive"
+                            onClick={() => setDesignFiles((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENDER_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bodytype"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Body Type</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BODYTYPE_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="imagesCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Views</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="imagesCount"
+                              value="1"
+                              checked={field.value === '1'}
+                              onChange={() => field.onChange('1')}
+                            />
+                            <span className="text-sm">Single (Front only)</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="imagesCount"
+                              value="4"
+                              checked={field.value === '4'}
+                              onChange={() => field.onChange('4')}
+                            />
+                            <span className="text-sm">All Views (Front / Back / Side / Closeup)</span>
+                          </label>
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Separator>Optional</Separator>
+
+                <FormItem>
+                  <FormLabel>Pattern Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={patternInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setPatternFile(e.target.files?.[0] || null)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => patternInputRef.current?.click()}>
+                      <UploadIcon />
+                      {patternFile ? patternFile.name : 'Upload Pattern'}
+                    </Button>
+                    {patternFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setPatternFile(null)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Accessory / Broach Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={broachInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setBroachFile(e.target.files?.[0] || null)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => broachInputRef.current?.click()}>
+                      <UploadIcon />
+                      {broachFile ? broachFile.name : 'Upload Accessory'}
+                    </Button>
+                    {broachFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setBroachFile(null)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="broach_placement"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Broach Placement</FormLabel>
+                      <FormControl>
+                        <Select value={field.value || ''} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="e.g. left chest" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BROACH_PLACEMENT_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="color_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color Name (optional lock)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Navy Blue" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="special_instructions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Special Instructions</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} placeholder="Any specific requirements..." {...field} value={field.value ?? ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit" size="lg" className="w-full" disabled={loading || !designFiles.length}>
+                  <Zap />
+                  {loading ? 'Generating...' : 'Generate Models'}
+                </Button>
+
+                {loading && progress > 0 && (
+                  <Progress
+                    value={progress}
+                    indicatorClassName="bg-gradient-to-r from-sky-500 to-emerald-500"
+                    className="mt-3"
+                  />
                 )}
-              </Form.Item>
-
-              <Form.Item name="gender" label={<Text strong>Gender</Text>} rules={[{ required: true }]}>
-                <Select options={GENDER_OPTIONS} />
-              </Form.Item>
-
-              <Form.Item name="bodytype" label={<Text strong>Body Type</Text>} rules={[{ required: true }]}>
-                <Select options={BODYTYPE_OPTIONS} />
-              </Form.Item>
-
-              <Form.Item name="imagesCount" label={<Text strong>Views</Text>}>
-                <Radio.Group>
-                  <Radio value="1">Single (Front only)</Radio>
-                  <Radio value="4">All Views (Front / Back / Side / Closeup)</Radio>
-                </Radio.Group>
-              </Form.Item>
-
-              <Divider style={{ margin: '8px 0 16px' }}>Optional</Divider>
-
-              <Form.Item label={<Text>Pattern Image</Text>}>
-                <Upload accept="image/*" beforeUpload={beforeUpload(f => setPatternFile(f))} showUploadList={false} maxCount={1}>
-                  <Button icon={<UploadOutlined />} size="small">
-                    {patternFile ? patternFile.name : 'Upload Pattern'}
-                  </Button>
-                </Upload>
-                {patternFile && (
-                  <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setPatternFile(null)} style={{ marginLeft: 4 }} />
-                )}
-              </Form.Item>
-
-              <Form.Item label={<Text>Accessory / Broach Image</Text>}>
-                <Upload accept="image/*" beforeUpload={beforeUpload(f => setBroachFile(f))} showUploadList={false} maxCount={1}>
-                  <Button icon={<UploadOutlined />} size="small">
-                    {broachFile ? broachFile.name : 'Upload Accessory'}
-                  </Button>
-                </Upload>
-                {broachFile && (
-                  <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setBroachFile(null)} style={{ marginLeft: 4 }} />
-                )}
-              </Form.Item>
-
-              <Form.Item name="broach_placement" label={<Text>Broach Placement</Text>}>
-                <Select allowClear placeholder="e.g. left chest" options={[
-                  { label: 'Left Chest', value: 'left chest' },
-                  { label: 'Right Chest', value: 'right chest' },
-                  { label: 'Center', value: 'center' },
-                  { label: 'Collar', value: 'collar' },
-                ]} />
-              </Form.Item>
-
-              <Form.Item name="color_name" label={<Text>Color Name (optional lock)</Text>}>
-                <Input placeholder="e.g. Navy Blue" />
-              </Form.Item>
-
-              <Form.Item name="special_instructions" label={<Text>Special Instructions</Text>}>
-                <TextArea rows={2} placeholder="Any specific requirements..." />
-              </Form.Item>
-
-              <Button
-                type="primary"
-                block
-                size="large"
-                icon={<ThunderboltOutlined />}
-                onClick={handleGenerate}
-                loading={loading}
-                disabled={!designFiles.length}
-              >
-                {loading ? 'Generating...' : 'Generate Models'}
-              </Button>
-
-              {loading && progress > 0 && (
-                <Progress percent={progress} size="small" style={{ marginTop: 12 }} strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }} />
-              )}
+              </form>
             </Form>
-          </Card>
-        </Col>
+          </CardContent>
+        </Card>
 
         {/* RIGHT — Results Panel */}
-        <Col xs={24} lg={15}>
+        <div>
           {error && (
-            <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} style={{ marginBottom: 16 }} />
+            <Alert type="error" showIcon className="mb-4">
+              <div className="flex items-start justify-between gap-2">
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="text-muted-foreground">
+                  ✕
+                </button>
+              </div>
+            </Alert>
           )}
 
           {loading && (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <Spin size="large" />
-              <Paragraph type="secondary" style={{ marginTop: 16 }}>
+            <div className="py-16 text-center">
+              <Spinner size="lg" />
+              <p className="mt-4 text-sm text-muted-foreground">
                 AI is generating your fashion models. This may take 30–90 seconds...
-              </Paragraph>
+              </p>
             </div>
           )}
 
           {!loading && results.length === 0 && !error && (
-            <Card style={{ minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <Text type="secondary">
-                    Upload garment images and click <strong>Generate Models</strong> to get started.
-                  </Text>
-                }
-              />
+            <Card className="flex min-h-[400px] items-center justify-center">
+              <CardContent className="pt-6">
+                <Empty
+                  description={
+                    <span className="text-muted-foreground">
+                      Upload garment images and click <strong>Generate Models</strong> to get started.
+                    </span>
+                  }
+                />
+              </CardContent>
             </Card>
           )}
 
           {!loading && results.length > 0 && (
-            <Card
-              title={
-                <Space>
-                  <Text strong>{results.length} Generated Image{results.length !== 1 ? 's' : ''}</Text>
-                </Space>
-              }
-              extra={
-                <Button icon={<DownloadOutlined />} size="small" onClick={downloadAll}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">
+                  {results.length} Generated Image{results.length !== 1 ? 's' : ''}
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={downloadAll}>
+                  <Download />
                   Download All
                 </Button>
-              }
-            >
-              <Row gutter={[16, 16]}>
-                {results.map((img, i) => (
-                  <Col key={i} xs={24} sm={12} md={8}>
-                    <Card
-                      hoverable
-                      cover={
-                        <Image
-                          src={`${SERVER_BASE}${img.url}`}
-                          alt={`${img.file} - ${img.view}`}
-                          style={{ objectFit: 'cover', width: '100%', aspectRatio: '2/3' }}
-                          preview={{ mask: 'Preview' }}
-                        />
-                      }
-                      actions={[
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                  {results.map((img, i) => (
+                    <Card key={i} className="overflow-hidden transition-shadow hover:shadow-md">
+                      <img
+                        src={`${SERVER_BASE}${img.url}`}
+                        alt={`${img.file} - ${img.view}`}
+                        className="aspect-[2/3] w-full object-cover"
+                      />
+                      <CardContent className="px-3 py-2">
+                        <div className="flex flex-col gap-0.5">
+                          <Tag className="bg-sky-50 text-[11px] text-sky-700">{VIEW_LABELS[img.view] || img.view}</Tag>
+                          <span className="truncate text-[11px] text-muted-foreground" title={img.file}>
+                            {img.file}
+                          </span>
+                        </div>
+                      </CardContent>
+                      <div className="border-t border-border px-3 py-1.5">
                         <Button
-                          key="dl"
-                          type="text"
-                          icon={<DownloadOutlined />}
-                          size="small"
-                          onClick={() => downloadImage(`${SERVER_BASE}${img.url}`, `${img.file.split('.')[0]}_${img.view.replace(/\s+/g, '_')}.png`)}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start"
+                          onClick={() =>
+                            downloadImage(
+                              `${SERVER_BASE}${img.url}`,
+                              `${img.file.split('.')[0]}_${img.view.replace(/\s+/g, '_')}.png`,
+                            )
+                          }
                         >
+                          <Download />
                           Download
-                        </Button>,
-                      ]}
-                      styles={{ body: { padding: '8px 12px' } }}
-                    >
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                        <Tag color="blue" style={{ fontSize: 11 }}>{VIEW_LABELS[img.view] || img.view}</Tag>
-                        <Text type="secondary" style={{ fontSize: 11 }} ellipsis={{ tooltip: img.file }}>
-                          {img.file}
-                        </Text>
-                      </Space>
+                        </Button>
+                      </div>
                     </Card>
-                  </Col>
-                ))}
-              </Row>
+                  ))}
+                </div>
+              </CardContent>
             </Card>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
     </div>
   );
 }

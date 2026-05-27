@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { message, Modal } from "antd";
+import { message } from "@/lib/message";
 import { addNotification } from "../../services/notifications/notificationStore";
 import { BackendApiService } from "../../../services/api/backendApi";
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -337,11 +337,9 @@ export const useImageExtraction = () => {
           msg.toLowerCase().includes('cloud storage');
 
         if (isUploadFailure) {
-          Modal.error({
-            title: 'Image Upload Failed',
-            content: `The image "${row.originalFileName}" could not be uploaded to cloud storage. The article was not created. Please check your connection and try again.`,
-            okText: 'OK',
-          });
+          message.error(
+            `Image Upload Failed — "${row.originalFileName}" could not be uploaded to cloud storage. The article was not created. Please check your connection and try again.`,
+          );
         } else {
           message.error(`Extraction failed for ${row.originalFileName}: ${msg}`);
         }

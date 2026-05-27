@@ -1,8 +1,6 @@
 // Modern App Root with Clean Architecture
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, App as AntdApp } from 'antd';
-import { antdTheme } from './theme';
 
 // App Configuration
 import { AppProviders } from './app/providers/AppProviders';
@@ -99,12 +97,10 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider theme={antdTheme}>
-      <AntdApp>
-      <AppProviders>
-        <ErrorBoundary>
-          <Toaster />
-          <Router>
+    <AppProviders>
+      <ErrorBoundary>
+        <Toaster />
+        <Router>
             <Routes>
               {/* Public Routes - No MainLayout */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -290,11 +286,9 @@ const App: React.FC = () => {
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-          </Router>
-        </ErrorBoundary>
-      </AppProviders>
-      </AntdApp>
-    </ConfigProvider>
+        </Router>
+      </ErrorBoundary>
+    </AppProviders>
   );
 };
 
