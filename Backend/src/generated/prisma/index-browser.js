@@ -686,7 +686,14 @@ exports.Prisma.RawArticleScalarFieldEnum = {
   price: 'price',
   imageUrl: 'imageUrl',
   uniqueKey: 'uniqueKey',
+  source: 'source',
   status: 'status',
+  retryCount: 'retryCount',
+  errorMessage: 'errorMessage',
+  extractedData: 'extractedData',
+  extractedAt: 'extractedAt',
+  flatId: 'flatId',
+  lockedUntil: 'lockedUntil',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -1144,7 +1151,10 @@ exports.Prisma.RawArticleOrderByRelevanceFieldEnum = {
   designNumber: 'designNumber',
   fabric: 'fabric',
   imageUrl: 'imageUrl',
-  uniqueKey: 'uniqueKey'
+  uniqueKey: 'uniqueKey',
+  source: 'source',
+  errorMessage: 'errorMessage',
+  flatId: 'flatId'
 };
 
 exports.Prisma.SrmSyncRunOrderByRelevanceFieldEnum = {
@@ -1216,7 +1226,8 @@ exports.RawArticleStatus = exports.$Enums.RawArticleStatus = {
   PENDING: 'PENDING',
   PROCESSING: 'PROCESSING',
   COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
+  FAILED: 'FAILED',
+  PERM_FAILED: 'PERM_FAILED'
 };
 
 exports.Prisma.ModelName = {

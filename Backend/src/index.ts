@@ -39,6 +39,7 @@ import { syncFromSrm, recoverRecentSrmVlmEnrichment } from './services/srmSyncSe
 import srmHookRoutes from './routes/srmHook';
 import testApiRoutes from './routes/testApi';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
+import { runRawArticleExtraction, isExtractionRunning } from './services/rawArticleExtractionService';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -378,7 +379,6 @@ app.use(errorHandler);
     // Run backfills once in the background — does not block startup
     ApproverController.runStartupBackfills();
 
-    // SRM startup recovery — DISABLED
     // recoverRecentSrmVlmEnrichment().catch(err =>
     //   console.error('[SRM Recovery] Startup recovery error:', err?.message)
     // );
@@ -422,6 +422,31 @@ app.use(errorHandler);
         }
       }
     }, 60_000);
+
+    // raw_articles Extraction Cron — runs every 10 minutes AND immediately on startup.
+    // Picks up PENDING / FAILED rows (up to 10 per run), runs VLM, pushes to extraction_results_flat.
+    // The worker has an internal guard so overlapping runs are safely skipped.
+    const rawExtractTick = () => {
+      if (isExtractionRunning()) {
+        console.log('[RawExtract Cron] Skipped — previous run still in progress');
+        return;
+      }
+      runRawArticleExtraction('CRON')
+        .then(r => {
+          if (r.claimed > 0) {
+            console.log(`[RawExtract Cron] ✅ claimed:${r.claimed} completed:${r.completed} failed:${r.failed} errors:${r.errors}`);
+          } else {
+            console.log('[RawExtract Cron] ✔ No PENDING/FAILED rows — nothing to process');
+          }
+        })
+        .catch(err => console.error('[RawExtract Cron] ❌ Unhandled error:', err?.message));
+    };
+
+    // Fire immediately on startup (catches any rows that were PENDING before restart)
+    setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
+
+    // Then repeat every 10 minutes
+    setInterval(rawExtractTick, 10 * 60_000);
 
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {

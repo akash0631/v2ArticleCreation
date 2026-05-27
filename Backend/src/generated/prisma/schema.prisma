@@ -916,13 +916,15 @@ enum RawArticleStatus {
   PROCESSING
   COMPLETED
   FAILED
+  PERM_FAILED
 
   @@schema("public")
 }
 
 /// Raw SRM article data exactly as received from the SRM API.
-/// unique_key = presentation_no + image_url — prevents duplicate imports.
-/// status tracks the processing pipeline state for each article.
+/// unique_key = presentation_no + design_number + image_url — prevents duplicate imports.
+/// status tracks the processing pipeline state: PENDING → PROCESSING → COMPLETED | FAILED → PERM_FAILED
+/// source: ADMIN_MANUAL (admin panel fetch) | CRON_SYNC (12PM/8PM SRM cron)
 model RawArticle {
   id String @id @default(uuid())
 
@@ -940,11 +942,22 @@ model RawArticle {
   price                    Decimal?  @db.Decimal(10, 2)
   imageUrl                 String?   @map("image_url")
 
-  // Dedup key: presentation_no + image_url (set on insert, never changed)
+  // Dedup key: presentation_no::design_number::image_url (set on insert, never changed)
   uniqueKey String @unique @map("unique_key")
+
+  // Who staged this row: ADMIN_MANUAL (admin panel) or CRON_SYNC (12PM/8PM SRM cron)
+  source String? @map("source") @db.VarChar(50)
 
   // Processing state
   status RawArticleStatus @default(PENDING)
+
+  // Extraction pipeline columns
+  retryCount    Int       @default(0) @map("retry_count")
+  errorMessage  String?   @map("error_message")
+  extractedData Json?     @map("extracted_data")
+  extractedAt   DateTime? @map("extracted_at")
+  flatId        String?   @map("flat_id") // FK ref to extraction_results_flat
+  lockedUntil   DateTime? @map("locked_until") // worker lock expiry
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -954,6 +967,8 @@ model RawArticle {
   @@index([division])
   @@index([vendorCode])
   @@index([createdAt])
+  @@index([source])
+  @@index([status, retryCount, lockedUntil])
   @@map("raw_articles")
   @@schema("public")
 }
