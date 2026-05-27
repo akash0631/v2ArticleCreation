@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert, Upload, Progress, Input } from 'antd';
+import { Card, Row, Col, Statistic, Button, message, Table, Empty, Spin, Popconfirm, Tag, Descriptions, Alert, Upload, Progress, Input, DatePicker } from 'antd';
+import dayjs, { Dayjs } from 'dayjs';
 import {
   UserOutlined,
   CloudUploadOutlined,
@@ -27,6 +28,7 @@ interface SrmSyncResult {
   skipped: number;
   errors: number;
   total: number;
+  staged?: number;   // rows staged to raw_articles (new pipeline, after 26 May 2026)
   completedAt?: string;
   ranAt?: string;
 }
@@ -79,24 +81,37 @@ export default function Admin() {
   const [vendorSyncing, setVendorSyncing] = useState(false);
 
   // Test API — raw_articles staging
-  const [testPptNo, setTestPptNo] = useState('');
+  const RAW_ARTICLES_MIN_DATE = dayjs('2026-05-27'); // hard cutoff — no dates before this
+
+  // Fetch mode: 'date' = by date range | 'ppt' = by PPT number
+  const [testFetchMode, setTestFetchMode] = useState<'date' | 'ppt'>('date');
+  const [testAfterDate, setTestAfterDate] = useState<Dayjs | null>(RAW_ARTICLES_MIN_DATE);
+  const [testPptInput, setTestPptInput] = useState('');
   const [testFetching, setTestFetching] = useState(false);
   const [testResult, setTestResult] = useState<{
-    ppt_no: string;
-    imageCount: number;
+    // date-mode fields
+    after_date?: string;
+    total_from_api?: number;
+    date_filtered?: number;
+    matched?: number;
+    // ppt-mode fields
+    ppt_no?: string;
+    // shared
     inserted: number;
     skipped: number;
     errors: number;
-    presentation?: {
-      vendor_code: string;
-      vendor_name: string;
-      division: string;
-      sub_division: string;
-      major_category: string;
-      status: string;
-    };
+    message?: string;
   } | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+
+  // Pipeline status
+  const [pipelineStatus, setPipelineStatus] = useState<{
+    PENDING: number; PROCESSING: number; COMPLETED: number;
+    FAILED: number; PERM_FAILED: number; total: number;
+  } | null>(null);
+  const [pipelineStatusLoading, setPipelineStatusLoading] = useState(false);
+  const [extractionRunning, setExtractionRunning] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState<string | null>(null);
 
   // Maj-Cat Grid
   interface MajCatGridMeta {
@@ -226,31 +241,93 @@ export default function Admin() {
     }
   };
 
+  const loadPipelineStatus = useCallback(async () => {
+    setPipelineStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/test-api/pipeline-status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load pipeline status');
+      setPipelineStatus(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load pipeline status');
+    } finally {
+      setPipelineStatusLoading(false);
+    }
+  }, []);
+
   const runTestApiFetch = async () => {
-    const ref = testPptNo.trim().toUpperCase();
-    if (!ref) { message.warning('Enter a PPT number first (e.g. PRES-00831)'); return; }
+    if (testFetchMode === 'date') {
+      if (!testAfterDate) { message.warning('Select a date first'); return; }
+    } else {
+      if (!testPptInput.trim()) { message.warning('Enter a PPT number first (e.g. PRES-00831)'); return; }
+    }
+
     setTestFetching(true);
     setTestResult(null);
     setTestError(null);
     try {
       const token = localStorage.getItem('authToken');
-      const res = await fetch(`${APP_CONFIG.api.baseURL}/test-api/fetch-presentation`, {
+
+      let url: string;
+      let body: object;
+
+      if (testFetchMode === 'date') {
+        url  = `${APP_CONFIG.api.baseURL}/test-api/fetch-presentation`;
+        body = { after_date: testAfterDate!.format('YYYY-MM-DD') };
+      } else {
+        url  = `${APP_CONFIG.api.baseURL}/test-api/fetch-by-ppt`;
+        body = { ppt_no: testPptInput.trim().toUpperCase() };
+      }
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ ppt_no: ref }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch presentation');
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch presentations');
       setTestResult(data);
-      message.success(`Saved ${data.inserted} row(s) to raw_articles for ${ref}`);
+      message.success(`${data.inserted} new row(s) saved to raw_articles`);
+      // Refresh pipeline status after fetch
+      loadPipelineStatus();
     } catch (err: any) {
-      setTestError(err?.message || 'Failed to fetch presentation');
-      message.error(err?.message || 'Failed to fetch presentation');
+      setTestError(err?.message || 'Failed to fetch presentations');
+      message.error(err?.message || 'Failed to fetch presentations');
     } finally {
       setTestFetching(false);
+    }
+  };
+
+  const triggerExtraction = async () => {
+    setExtractionRunning(true);
+    setExtractionMessage(null);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/test-api/run-extraction`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start extraction');
+      setExtractionMessage(data.message);
+      message.success(data.message);
+      // Poll pipeline status every 15s for 3 min
+      let polls = 0;
+      const pollInterval = setInterval(async () => {
+        polls++;
+        await loadPipelineStatus();
+        if (polls >= 12) clearInterval(pollInterval);
+      }, 15000);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to start extraction');
+    } finally {
+      setExtractionRunning(false);
     }
   };
 
@@ -283,8 +360,9 @@ export default function Admin() {
         }, 15000);
       } else {
         // Synchronous response — read counts directly
-        setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total });
-        message.success(`SRM sync complete — ${data.inserted} new, ${data.skipped} already exist`);
+        setSrmLastResult({ inserted: data.inserted, skipped: data.skipped, errors: data.errors, total: data.total, staged: data.staged ?? 0 });
+        const stagedMsg = (data.staged ?? 0) > 0 ? `, ${data.staged} staged to raw_articles` : '';
+        message.success(`SRM sync complete — ${data.inserted} inserted${stagedMsg}, ${data.skipped} skipped`);
         await loadSrmStatus();
       }
     } catch (err: any) {
@@ -560,6 +638,7 @@ export default function Admin() {
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
     loadHierarchyExcelStatus();
+    loadPipelineStatus();
     // Cleanup: stop any active SRM status polling when component unmounts
     return () => {
       if (srmPollRef.current) {
@@ -905,7 +984,10 @@ export default function Admin() {
                     }
                     description={
                       <span>
-                        <strong style={{ color: '#389e0d' }}>{srmLastResult.inserted}</strong> new records inserted&nbsp;&nbsp;·&nbsp;&nbsp;
+                        <strong style={{ color: '#389e0d' }}>{srmLastResult.inserted}</strong> records inserted (old pipeline)&nbsp;&nbsp;·&nbsp;&nbsp;
+                        {(srmLastResult.staged ?? 0) > 0 && (
+                          <><strong style={{ color: '#1677ff' }}>{srmLastResult.staged}</strong> staged to raw_articles (new pipeline)&nbsp;&nbsp;·&nbsp;&nbsp;</>
+                        )}
                         <strong>{srmLastResult.skipped}</strong> already existed (skipped)&nbsp;&nbsp;·&nbsp;&nbsp;
                         <strong style={{ color: srmLastResult.errors > 0 ? '#cf1322' : undefined }}>{srmLastResult.errors}</strong> errors&nbsp;&nbsp;·&nbsp;&nbsp;
                         <strong>{srmLastResult.total}</strong> total from SRM API
@@ -1059,66 +1141,141 @@ export default function Admin() {
           )}
         </Card>
 
-        {/* Test API — Fetch Presentation to raw_articles */}
+        {/* raw_articles Pipeline — Fetch + Status + Run Extraction */}
         <Card
-          title={<span><SearchOutlined style={{ marginRight: 8 }} />Test API — Fetch Presentation to Raw Articles</span>}
+          title={<span><SearchOutlined style={{ marginRight: 8 }} />raw_articles Pipeline</span>}
           style={{ marginBottom: 24 }}
           styles={{ header: { background: '#fffbe6', borderBottom: '1px solid #ffe58f' } }}
-        >
-          <div style={{ marginBottom: 12, color: '#595959', fontSize: 13 }}>
-            Fetch a single SRM presentation by PPT No and save all its images to the{' '}
-            <code style={{ background: '#f5f5f5', padding: '1px 5px', borderRadius: 3 }}>raw_articles</code>{' '}
-            staging table with status <strong>PENDING</strong>. No VLM extraction is triggered.
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <Input
-              placeholder="e.g. PRES-00831"
-              value={testPptNo}
-              onChange={e => { setTestPptNo(e.target.value.toUpperCase()); setTestResult(null); setTestError(null); }}
-              onPressEnter={runTestApiFetch}
-              style={{ maxWidth: 220, fontFamily: 'monospace', fontWeight: 600 }}
-              disabled={testFetching}
-              allowClear
-            />
-            <Button
-              type="primary"
-              icon={<SearchOutlined />}
-              loading={testFetching}
-              onClick={runTestApiFetch}
-              disabled={!testPptNo.trim()}
-              style={{ background: '#faad14', borderColor: '#faad14' }}
-            >
-              {testFetching ? 'Fetching...' : 'Fetch to Raw Articles'}
+          extra={
+            <Button icon={<ReloadOutlined />} size="small" onClick={loadPipelineStatus} loading={pipelineStatusLoading}>
+              Refresh Status
             </Button>
+          }
+        >
+          {/* ── Pipeline Status Row ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>Pipeline Status</div>
+            {pipelineStatus ? (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Tag color="gold"   style={{ fontSize: 13, padding: '2px 10px' }}>PENDING: <strong>{pipelineStatus.PENDING}</strong></Tag>
+                <Tag color="blue"   style={{ fontSize: 13, padding: '2px 10px' }}>PROCESSING: <strong>{pipelineStatus.PROCESSING}</strong></Tag>
+                <Tag color="green"  style={{ fontSize: 13, padding: '2px 10px' }}>COMPLETED: <strong>{pipelineStatus.COMPLETED}</strong></Tag>
+                <Tag color="red"    style={{ fontSize: 13, padding: '2px 10px' }}>FAILED: <strong>{pipelineStatus.FAILED}</strong></Tag>
+                <Tag color="purple" style={{ fontSize: 13, padding: '2px 10px' }}>PERM_FAILED: <strong>{pipelineStatus.PERM_FAILED}</strong></Tag>
+                <Tag style={{ fontSize: 13, padding: '2px 10px' }}>TOTAL: <strong>{pipelineStatus.total}</strong></Tag>
+                <Popconfirm
+                  title="Run VLM Extraction?"
+                  description={`This will process up to 10 PENDING/FAILED rows, run VLM on each image, and push results to extraction_results_flat. Runs in background.`}
+                  onConfirm={triggerExtraction}
+                  okText="Yes, run now"
+                  cancelText="Cancel"
+                  disabled={(pipelineStatus.PENDING + pipelineStatus.FAILED) === 0}
+                >
+                  <Button
+                    type="primary"
+                    icon={<SyncOutlined spin={extractionRunning} />}
+                    loading={extractionRunning}
+                    disabled={(pipelineStatus.PENDING + pipelineStatus.FAILED) === 0}
+                    style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                  >
+                    {extractionRunning ? 'Starting...' : `Run Extraction (${pipelineStatus.PENDING + pipelineStatus.FAILED} queued)`}
+                  </Button>
+                </Popconfirm>
+              </div>
+            ) : (
+              <Spin spinning={pipelineStatusLoading}><span style={{ color: '#8c8c8c', fontSize: 13 }}>Loading pipeline status...</span></Spin>
+            )}
+            {extractionMessage && (
+              <Alert type="info" showIcon message={extractionMessage} style={{ marginTop: 10 }} />
+            )}
+          </div>
+
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Fetch Presentations to raw_articles</div>
+            <div style={{ color: '#595959', fontSize: 12, marginBottom: 10 }}>
+              Saves SRM presentations to <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3 }}>raw_articles</code> as <strong>PENDING</strong> — no VLM triggered.
+              {testFetchMode === 'date' && (
+                <span style={{ color: '#faad14', marginLeft: 6 }}>⚠ Only dates on or after <strong>27 May 2026</strong> allowed.</span>
+              )}
+            </div>
+
+            {/* Mode toggle */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <Button
+                size="small"
+                type={testFetchMode === 'date' ? 'primary' : 'default'}
+                onClick={() => { setTestFetchMode('date'); setTestResult(null); setTestError(null); }}
+              >
+                By Date
+              </Button>
+              <Button
+                size="small"
+                type={testFetchMode === 'ppt' ? 'primary' : 'default'}
+                onClick={() => { setTestFetchMode('ppt'); setTestResult(null); setTestError(null); }}
+              >
+                By PPT Number
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {testFetchMode === 'date' ? (
+                <DatePicker
+                  value={testAfterDate}
+                  onChange={val => { setTestAfterDate(val); setTestResult(null); setTestError(null); }}
+                  format="DD MMM YYYY"
+                  placeholder="Received on or after"
+                  style={{ width: 180 }}
+                  disabled={testFetching}
+                  disabledDate={d => d && d.isBefore(RAW_ARTICLES_MIN_DATE, 'day')}
+                  allowClear={false}
+                />
+              ) : (
+                <Input
+                  placeholder="e.g. PRES-00831"
+                  value={testPptInput}
+                  onChange={e => { setTestPptInput(e.target.value.toUpperCase()); setTestResult(null); setTestError(null); }}
+                  onPressEnter={runTestApiFetch}
+                  style={{ maxWidth: 200, fontFamily: 'monospace', fontWeight: 600 }}
+                  disabled={testFetching}
+                  allowClear
+                />
+              )}
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                loading={testFetching}
+                onClick={runTestApiFetch}
+                disabled={testFetchMode === 'date' ? !testAfterDate : !testPptInput.trim()}
+                style={{ background: '#faad14', borderColor: '#faad14' }}
+              >
+                {testFetching ? 'Fetching...' : 'Fetch to Raw Articles'}
+              </Button>
+            </div>
           </div>
 
           {testError && (
-            <Alert
-              type="error"
-              showIcon
-              message="Error"
-              description={testError}
-              style={{ marginBottom: 12 }}
-            />
+            <Alert type="error" showIcon message="Error" description={testError} style={{ marginTop: 10 }} />
           )}
 
           {testResult && (
             <Alert
-              type={testResult.errors > 0 ? 'warning' : 'success'}
+              type={testResult.errors > 0 ? 'warning' : (testResult.matched ?? testResult.inserted) === 0 ? 'info' : 'success'}
               showIcon
               icon={<CheckCircleOutlined />}
+              style={{ marginTop: 10 }}
               message={
-                <span>
-                  <strong>{testResult.ppt_no}</strong>
-                  <span style={{ fontWeight: 400, color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>
-                    {testResult.imageCount} image{testResult.imageCount !== 1 ? 's' : ''} in presentation
-                  </span>
-                  {testResult.presentation && (
+                testFetchMode === 'date' ? (
+                  <span>
+                    Results for <strong>{testResult.after_date}</strong> onwards
                     <span style={{ fontWeight: 400, color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>
-                      · {testResult.presentation.division} · {testResult.presentation.major_category}
+                      · {(testResult.total_from_api ?? 0).toLocaleString()} total from API
+                      · {(testResult.date_filtered ?? 0).toLocaleString()} too old
+                      · <strong>{(testResult.matched ?? 0).toLocaleString()}</strong> matched
                     </span>
-                  )}
-                </span>
+                  </span>
+                ) : (
+                  <span>Results for <strong>{testResult.ppt_no}</strong> · <strong>{testResult.matched ?? 0}</strong> rows in SRM API</span>
+                )
               }
               description={
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
@@ -1126,10 +1283,11 @@ export default function Admin() {
                   <span style={{ color: '#8c8c8c' }}>·</span>
                   <span><strong>{testResult.skipped}</strong> already existed (skipped)</span>
                   {testResult.errors > 0 && (
-                    <>
-                      <span style={{ color: '#8c8c8c' }}>·</span>
-                      <span><strong style={{ color: '#cf1322' }}>{testResult.errors}</strong> errors</span>
-                    </>
+                    <><span style={{ color: '#8c8c8c' }}>·</span>
+                    <span><strong style={{ color: '#cf1322' }}>{testResult.errors}</strong> errors</span></>
+                  )}
+                  {testResult.message && (
+                    <span style={{ color: '#8c8c8c', fontStyle: 'italic' }}>{testResult.message}</span>
                   )}
                 </div>
               }

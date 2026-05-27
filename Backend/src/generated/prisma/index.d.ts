@@ -141,8 +141,9 @@ export type Article360Flat = $Result.DefaultSelection<Prisma.$Article360FlatPayl
 /**
  * Model RawArticle
  * Raw SRM article data exactly as received from the SRM API.
- * unique_key = presentation_no + image_url — prevents duplicate imports.
- * status tracks the processing pipeline state for each article.
+ * unique_key = presentation_no + design_number + image_url — prevents duplicate imports.
+ * status tracks the processing pipeline state: PENDING → PROCESSING → COMPLETED | FAILED → PERM_FAILED
+ * source: ADMIN_MANUAL (admin panel fetch) | CRON_SYNC (12PM/8PM SRM cron)
  */
 export type RawArticle = $Result.DefaultSelection<Prisma.$RawArticlePayload>
 /**
@@ -235,7 +236,8 @@ export const RawArticleStatus: {
   PENDING: 'PENDING',
   PROCESSING: 'PROCESSING',
   COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
+  FAILED: 'FAILED',
+  PERM_FAILED: 'PERM_FAILED'
 };
 
 export type RawArticleStatus = (typeof RawArticleStatus)[keyof typeof RawArticleStatus]
@@ -36071,11 +36073,13 @@ export namespace Prisma {
   export type RawArticleAvgAggregateOutputType = {
     noOfColors: number | null
     price: Decimal | null
+    retryCount: number | null
   }
 
   export type RawArticleSumAggregateOutputType = {
     noOfColors: number | null
     price: Decimal | null
+    retryCount: number | null
   }
 
   export type RawArticleMinAggregateOutputType = {
@@ -36093,7 +36097,13 @@ export namespace Prisma {
     price: Decimal | null
     imageUrl: string | null
     uniqueKey: string | null
+    source: string | null
     status: $Enums.RawArticleStatus | null
+    retryCount: number | null
+    errorMessage: string | null
+    extractedAt: Date | null
+    flatId: string | null
+    lockedUntil: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -36113,7 +36123,13 @@ export namespace Prisma {
     price: Decimal | null
     imageUrl: string | null
     uniqueKey: string | null
+    source: string | null
     status: $Enums.RawArticleStatus | null
+    retryCount: number | null
+    errorMessage: string | null
+    extractedAt: Date | null
+    flatId: string | null
+    lockedUntil: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -36133,7 +36149,14 @@ export namespace Prisma {
     price: number
     imageUrl: number
     uniqueKey: number
+    source: number
     status: number
+    retryCount: number
+    errorMessage: number
+    extractedData: number
+    extractedAt: number
+    flatId: number
+    lockedUntil: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -36143,11 +36166,13 @@ export namespace Prisma {
   export type RawArticleAvgAggregateInputType = {
     noOfColors?: true
     price?: true
+    retryCount?: true
   }
 
   export type RawArticleSumAggregateInputType = {
     noOfColors?: true
     price?: true
+    retryCount?: true
   }
 
   export type RawArticleMinAggregateInputType = {
@@ -36165,7 +36190,13 @@ export namespace Prisma {
     price?: true
     imageUrl?: true
     uniqueKey?: true
+    source?: true
     status?: true
+    retryCount?: true
+    errorMessage?: true
+    extractedAt?: true
+    flatId?: true
+    lockedUntil?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -36185,7 +36216,13 @@ export namespace Prisma {
     price?: true
     imageUrl?: true
     uniqueKey?: true
+    source?: true
     status?: true
+    retryCount?: true
+    errorMessage?: true
+    extractedAt?: true
+    flatId?: true
+    lockedUntil?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -36205,7 +36242,14 @@ export namespace Prisma {
     price?: true
     imageUrl?: true
     uniqueKey?: true
+    source?: true
     status?: true
+    retryCount?: true
+    errorMessage?: true
+    extractedData?: true
+    extractedAt?: true
+    flatId?: true
+    lockedUntil?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -36312,7 +36356,14 @@ export namespace Prisma {
     price: Decimal | null
     imageUrl: string | null
     uniqueKey: string
+    source: string | null
     status: $Enums.RawArticleStatus
+    retryCount: number
+    errorMessage: string | null
+    extractedData: JsonValue | null
+    extractedAt: Date | null
+    flatId: string | null
+    lockedUntil: Date | null
     createdAt: Date
     updatedAt: Date
     _count: RawArticleCountAggregateOutputType | null
@@ -36351,7 +36402,14 @@ export namespace Prisma {
     price?: boolean
     imageUrl?: boolean
     uniqueKey?: boolean
+    source?: boolean
     status?: boolean
+    retryCount?: boolean
+    errorMessage?: boolean
+    extractedData?: boolean
+    extractedAt?: boolean
+    flatId?: boolean
+    lockedUntil?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36371,7 +36429,14 @@ export namespace Prisma {
     price?: boolean
     imageUrl?: boolean
     uniqueKey?: boolean
+    source?: boolean
     status?: boolean
+    retryCount?: boolean
+    errorMessage?: boolean
+    extractedData?: boolean
+    extractedAt?: boolean
+    flatId?: boolean
+    lockedUntil?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36391,7 +36456,14 @@ export namespace Prisma {
     price?: boolean
     imageUrl?: boolean
     uniqueKey?: boolean
+    source?: boolean
     status?: boolean
+    retryCount?: boolean
+    errorMessage?: boolean
+    extractedData?: boolean
+    extractedAt?: boolean
+    flatId?: boolean
+    lockedUntil?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36411,12 +36483,19 @@ export namespace Prisma {
     price?: boolean
     imageUrl?: boolean
     uniqueKey?: boolean
+    source?: boolean
     status?: boolean
+    retryCount?: boolean
+    errorMessage?: boolean
+    extractedData?: boolean
+    extractedAt?: boolean
+    flatId?: boolean
+    lockedUntil?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type RawArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "presentationNo" | "vendorCode" | "vendorName" | "division" | "subDivision" | "majorCategory" | "presentationReceivedDate" | "designNumber" | "fabric" | "noOfColors" | "price" | "imageUrl" | "uniqueKey" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["rawArticle"]>
+  export type RawArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "presentationNo" | "vendorCode" | "vendorName" | "division" | "subDivision" | "majorCategory" | "presentationReceivedDate" | "designNumber" | "fabric" | "noOfColors" | "price" | "imageUrl" | "uniqueKey" | "source" | "status" | "retryCount" | "errorMessage" | "extractedData" | "extractedAt" | "flatId" | "lockedUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["rawArticle"]>
 
   export type $RawArticlePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "RawArticle"
@@ -36436,7 +36515,14 @@ export namespace Prisma {
       price: Prisma.Decimal | null
       imageUrl: string | null
       uniqueKey: string
+      source: string | null
       status: $Enums.RawArticleStatus
+      retryCount: number
+      errorMessage: string | null
+      extractedData: Prisma.JsonValue | null
+      extractedAt: Date | null
+      flatId: string | null
+      lockedUntil: Date | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["rawArticle"]>
@@ -36876,7 +36962,14 @@ export namespace Prisma {
     readonly price: FieldRef<"RawArticle", 'Decimal'>
     readonly imageUrl: FieldRef<"RawArticle", 'String'>
     readonly uniqueKey: FieldRef<"RawArticle", 'String'>
+    readonly source: FieldRef<"RawArticle", 'String'>
     readonly status: FieldRef<"RawArticle", 'RawArticleStatus'>
+    readonly retryCount: FieldRef<"RawArticle", 'Int'>
+    readonly errorMessage: FieldRef<"RawArticle", 'String'>
+    readonly extractedData: FieldRef<"RawArticle", 'Json'>
+    readonly extractedAt: FieldRef<"RawArticle", 'DateTime'>
+    readonly flatId: FieldRef<"RawArticle", 'String'>
+    readonly lockedUntil: FieldRef<"RawArticle", 'DateTime'>
     readonly createdAt: FieldRef<"RawArticle", 'DateTime'>
     readonly updatedAt: FieldRef<"RawArticle", 'DateTime'>
   }
@@ -40209,7 +40302,14 @@ export namespace Prisma {
     price: 'price',
     imageUrl: 'imageUrl',
     uniqueKey: 'uniqueKey',
+    source: 'source',
     status: 'status',
+    retryCount: 'retryCount',
+    errorMessage: 'errorMessage',
+    extractedData: 'extractedData',
+    extractedAt: 'extractedAt',
+    flatId: 'flatId',
+    lockedUntil: 'lockedUntil',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -40769,7 +40869,10 @@ export namespace Prisma {
     designNumber: 'designNumber',
     fabric: 'fabric',
     imageUrl: 'imageUrl',
-    uniqueKey: 'uniqueKey'
+    uniqueKey: 'uniqueKey',
+    source: 'source',
+    errorMessage: 'errorMessage',
+    flatId: 'flatId'
   };
 
   export type RawArticleOrderByRelevanceFieldEnum = (typeof RawArticleOrderByRelevanceFieldEnum)[keyof typeof RawArticleOrderByRelevanceFieldEnum]
@@ -44282,7 +44385,14 @@ export namespace Prisma {
     price?: DecimalNullableFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
     imageUrl?: StringNullableFilter<"RawArticle"> | string | null
     uniqueKey?: StringFilter<"RawArticle"> | string
+    source?: StringNullableFilter<"RawArticle"> | string | null
     status?: EnumRawArticleStatusFilter<"RawArticle"> | $Enums.RawArticleStatus
+    retryCount?: IntFilter<"RawArticle"> | number
+    errorMessage?: StringNullableFilter<"RawArticle"> | string | null
+    extractedData?: JsonNullableFilter<"RawArticle">
+    extractedAt?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    flatId?: StringNullableFilter<"RawArticle"> | string | null
+    lockedUntil?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
     createdAt?: DateTimeFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
   }
@@ -44302,7 +44412,14 @@ export namespace Prisma {
     price?: SortOrderInput | SortOrder
     imageUrl?: SortOrderInput | SortOrder
     uniqueKey?: SortOrder
+    source?: SortOrderInput | SortOrder
     status?: SortOrder
+    retryCount?: SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    extractedData?: SortOrderInput | SortOrder
+    extractedAt?: SortOrderInput | SortOrder
+    flatId?: SortOrderInput | SortOrder
+    lockedUntil?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _relevance?: RawArticleOrderByRelevanceInput
@@ -44326,7 +44443,14 @@ export namespace Prisma {
     noOfColors?: IntNullableFilter<"RawArticle"> | number | null
     price?: DecimalNullableFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
     imageUrl?: StringNullableFilter<"RawArticle"> | string | null
+    source?: StringNullableFilter<"RawArticle"> | string | null
     status?: EnumRawArticleStatusFilter<"RawArticle"> | $Enums.RawArticleStatus
+    retryCount?: IntFilter<"RawArticle"> | number
+    errorMessage?: StringNullableFilter<"RawArticle"> | string | null
+    extractedData?: JsonNullableFilter<"RawArticle">
+    extractedAt?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    flatId?: StringNullableFilter<"RawArticle"> | string | null
+    lockedUntil?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
     createdAt?: DateTimeFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
   }, "id" | "uniqueKey">
@@ -44346,7 +44470,14 @@ export namespace Prisma {
     price?: SortOrderInput | SortOrder
     imageUrl?: SortOrderInput | SortOrder
     uniqueKey?: SortOrder
+    source?: SortOrderInput | SortOrder
     status?: SortOrder
+    retryCount?: SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    extractedData?: SortOrderInput | SortOrder
+    extractedAt?: SortOrderInput | SortOrder
+    flatId?: SortOrderInput | SortOrder
+    lockedUntil?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: RawArticleCountOrderByAggregateInput
@@ -44374,7 +44505,14 @@ export namespace Prisma {
     price?: DecimalNullableWithAggregatesFilter<"RawArticle"> | Decimal | DecimalJsLike | number | string | null
     imageUrl?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
     uniqueKey?: StringWithAggregatesFilter<"RawArticle"> | string
+    source?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
     status?: EnumRawArticleStatusWithAggregatesFilter<"RawArticle"> | $Enums.RawArticleStatus
+    retryCount?: IntWithAggregatesFilter<"RawArticle"> | number
+    errorMessage?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    extractedData?: JsonNullableWithAggregatesFilter<"RawArticle">
+    extractedAt?: DateTimeNullableWithAggregatesFilter<"RawArticle"> | Date | string | null
+    flatId?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
+    lockedUntil?: DateTimeNullableWithAggregatesFilter<"RawArticle"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
   }
@@ -48433,7 +48571,14 @@ export namespace Prisma {
     price?: Decimal | DecimalJsLike | number | string | null
     imageUrl?: string | null
     uniqueKey: string
+    source?: string | null
     status?: $Enums.RawArticleStatus
+    retryCount?: number
+    errorMessage?: string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: Date | string | null
+    flatId?: string | null
+    lockedUntil?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48453,7 +48598,14 @@ export namespace Prisma {
     price?: Decimal | DecimalJsLike | number | string | null
     imageUrl?: string | null
     uniqueKey: string
+    source?: string | null
     status?: $Enums.RawArticleStatus
+    retryCount?: number
+    errorMessage?: string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: Date | string | null
+    flatId?: string | null
+    lockedUntil?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48473,7 +48625,14 @@ export namespace Prisma {
     price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     uniqueKey?: StringFieldUpdateOperationsInput | string
+    source?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    retryCount?: IntFieldUpdateOperationsInput | number
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48493,7 +48652,14 @@ export namespace Prisma {
     price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     uniqueKey?: StringFieldUpdateOperationsInput | string
+    source?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    retryCount?: IntFieldUpdateOperationsInput | number
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48513,7 +48679,14 @@ export namespace Prisma {
     price?: Decimal | DecimalJsLike | number | string | null
     imageUrl?: string | null
     uniqueKey: string
+    source?: string | null
     status?: $Enums.RawArticleStatus
+    retryCount?: number
+    errorMessage?: string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: Date | string | null
+    flatId?: string | null
+    lockedUntil?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48533,7 +48706,14 @@ export namespace Prisma {
     price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     uniqueKey?: StringFieldUpdateOperationsInput | string
+    source?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    retryCount?: IntFieldUpdateOperationsInput | number
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48553,7 +48733,14 @@ export namespace Prisma {
     price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     uniqueKey?: StringFieldUpdateOperationsInput | string
+    source?: NullableStringFieldUpdateOperationsInput | string | null
     status?: EnumRawArticleStatusFieldUpdateOperationsInput | $Enums.RawArticleStatus
+    retryCount?: IntFieldUpdateOperationsInput | number
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    extractedData?: NullableJsonNullValueInput | InputJsonValue
+    extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    flatId?: NullableStringFieldUpdateOperationsInput | string | null
+    lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -51507,7 +51694,14 @@ export namespace Prisma {
     price?: SortOrder
     imageUrl?: SortOrder
     uniqueKey?: SortOrder
+    source?: SortOrder
     status?: SortOrder
+    retryCount?: SortOrder
+    errorMessage?: SortOrder
+    extractedData?: SortOrder
+    extractedAt?: SortOrder
+    flatId?: SortOrder
+    lockedUntil?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -51515,6 +51709,7 @@ export namespace Prisma {
   export type RawArticleAvgOrderByAggregateInput = {
     noOfColors?: SortOrder
     price?: SortOrder
+    retryCount?: SortOrder
   }
 
   export type RawArticleMaxOrderByAggregateInput = {
@@ -51532,7 +51727,13 @@ export namespace Prisma {
     price?: SortOrder
     imageUrl?: SortOrder
     uniqueKey?: SortOrder
+    source?: SortOrder
     status?: SortOrder
+    retryCount?: SortOrder
+    errorMessage?: SortOrder
+    extractedAt?: SortOrder
+    flatId?: SortOrder
+    lockedUntil?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -51552,7 +51753,13 @@ export namespace Prisma {
     price?: SortOrder
     imageUrl?: SortOrder
     uniqueKey?: SortOrder
+    source?: SortOrder
     status?: SortOrder
+    retryCount?: SortOrder
+    errorMessage?: SortOrder
+    extractedAt?: SortOrder
+    flatId?: SortOrder
+    lockedUntil?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -51560,6 +51767,7 @@ export namespace Prisma {
   export type RawArticleSumOrderByAggregateInput = {
     noOfColors?: SortOrder
     price?: SortOrder
+    retryCount?: SortOrder
   }
 
   export type EnumRawArticleStatusWithAggregatesFilter<$PrismaModel = never> = {

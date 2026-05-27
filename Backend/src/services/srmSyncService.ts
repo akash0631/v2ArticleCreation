@@ -30,6 +30,7 @@ import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 import { VLMService } from './vlm/vlmService';
 import { mvgrMappingService } from './mvgrMappingService';
 import { storageService } from './storageService';
+import { upsertRawArticleFromSrm, RAW_PIPELINE_CUTOFF } from './rawArticleExtractionService';
 
 const SRM_API_BASE = 'https://pymdqnnwwxrgeolvgvgv.supabase.co/functions/v1/srm-presentation-images-api';
 const SRM_API_KEY = process.env.SRM_API_KEY || 'v2@123';
@@ -71,6 +72,7 @@ interface SyncResult {
   skipped: number;
   errors: number;
   total: number;
+  staged: number;   // rows staged to raw_articles (new pipeline, after cutoff)
 }
 
 export interface EnrichResult {
@@ -170,7 +172,9 @@ export async function enrichSrmRowWithVlmAdmin(
   imageUrl: string,
   majorCategory: string | null,
 ): Promise<boolean> {
-  return enrichSrmRowWithVlm(flatId, imageUrl, majorCategory);
+  // Pass checkRawPipelineOwnership=false — the raw_articles cron IS the pipeline;
+  // it must never skip itself due to its own ownership guard.
+  return enrichSrmRowWithVlm(flatId, imageUrl, majorCategory, false);
 }
 
 // Module-level schema cache — masterAttribute rows rarely change, no need to re-query
@@ -347,7 +351,57 @@ const VLM_MAX_ATTEMPTS = 3;
 // Backoff between retry attempts (multiplied by attempt number: 3s, 6s)
 const VLM_RETRY_BACKOFF_MS = 3000;
 
-async function enrichSrmRowWithVlm(flatId: string, imageUrl: string, majorCategory: string | null): Promise<boolean> {
+async function enrichSrmRowWithVlm(
+  flatId: string,
+  imageUrl: string,
+  majorCategory: string | null,
+  /** Set false when called directly from rawArticleExtractionService — skip the ownership guard */
+  checkRawPipelineOwnership = true,
+): Promise<boolean> {
+  // ── Guard: skip if this record is already COMPLETED ───────────────────────
+  const currentRecord = await prisma.extractionResultFlat.findUnique({
+    where: { id: flatId },
+    select: { extractionStatus: true },
+  });
+  if (currentRecord?.extractionStatus === 'COMPLETED') {
+    console.log(`[SRM VLM] Skipping ${flatId} — already COMPLETED`);
+    return true;
+  }
+
+  // ── Guard: skip if raw_articles pipeline owns this flat record ───────────────
+  // Prevents double-VLM race condition when both the SRM sync cron (12PM/8PM)
+  // and the raw_articles extraction cron try to enrich the same record.
+  // We only apply this check when called from srmSyncService (checkRawPipelineOwnership=true);
+  // when called from rawArticleExtractionService itself we skip the check to avoid
+  // the cron blocking itself.
+  if (checkRawPipelineOwnership) {
+    const rawArticleOwner = await prisma.rawArticle.findFirst({
+      where: {
+        flatId,
+        status: { in: ['PENDING', 'PROCESSING', 'COMPLETED'] },
+      },
+      select: { id: true, status: true },
+    });
+    if (rawArticleOwner) {
+      console.log(`[SRM VLM] Skipping ${flatId} — owned by raw_articles pipeline (row: ${rawArticleOwner.id}, status: ${rawArticleOwner.status})`);
+      return true;
+    }
+  }
+
+  // ── Guard: skip if the same public image URL is already COMPLETED in another record ─
+  const sameImageCompleted = await prisma.extractionResultFlat.findFirst({
+    where: {
+      imageUrl,
+      extractionStatus: 'COMPLETED',
+      id: { not: flatId },
+    },
+    select: { id: true },
+  });
+  if (sameImageCompleted) {
+    console.log(`[SRM VLM] Skipping ${flatId} — imageUrl already extracted in record ${sameImageCompleted.id}`);
+    return true;
+  }
+
   console.log(`[SRM VLM] Starting enrichment for ${flatId} | category: ${majorCategory} | url: ${imageUrl.slice(0, 100)}`);
 
   // ── Step 1: fetch image (once — no retry, fast-fail) ──────────────────────
@@ -537,6 +591,17 @@ async function insertRowAndReturn(row: SrmRow): Promise<{ id: string; imageUrl: 
   return insertRow(row);
 }
 
+/**
+ * Public export — used by rawArticleExtractionService to create a flat record
+ * from a raw_articles row without going through the full SRM sync flow.
+ */
+export async function insertRawArticleAsFlat(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
+  return insertRow(row);
+}
+
+/** Exported type so rawArticleExtractionService can build SrmRow objects */
+export type { SrmRow };
+
 async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
   const categoryId = await resolveCategoryId(row.major_category, row.division);
 
@@ -669,7 +734,7 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
 export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'CRON'): Promise<SyncResult> {
   console.log(`[SRM Sync] Starting sync (triggeredBy=${triggeredBy})...`);
   const startedAt = new Date();
-  const result: SyncResult = { inserted: 0, skipped: 0, errors: 0, total: 0 };
+  const result: SyncResult = { inserted: 0, skipped: 0, errors: 0, total: 0, staged: 0 };
 
   // ── Create persistent run record ──────────────────────────────────────────
   const run = await prisma.srmSyncRun.create({
@@ -702,23 +767,32 @@ export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'C
   result.total = rows.length;
   console.log(`[SRM Sync] Fetched ${rows.length} records from SRM API`);
 
-  // Collect IDs that need VLM enrichment — run AFTER the insert loop to avoid concurrent API calls
-  const toEnrich: Array<{ id: string; imageUrl: string; majorCategory: string | null }> = [];
-
   for (const row of rows) {
     try {
-      // ── Use immutable srmOriginalDesignNumber as dedup key ─────────────
+      // ── Skip presentations on or before the cutoff ────────────────────────
+      // Old presentations (≤ 26 May 2026) are synced manually via Admin "By PPT Number".
+      // The cron only handles new presentations that arrived after the cutoff.
+      const receivedDate = row.presentation_received_date
+        ? new Date(row.presentation_received_date) : null;
+
+      if (!receivedDate || receivedDate <= RAW_PIPELINE_CUTOFF) {
+        result.skipped++;
+        itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: null, action: 'SKIPPED', errorMessage: null });
+        continue;
+      }
+
+      // ── New presentation (after 26 May 2026): stage to raw_articles ──────
+      // Check if a flat record already exists (created by a previous extraction run)
       const existing = await findExisting(row.presentation_no, row.design_number);
+
       if (existing) {
-        // Record exists — patch any fields the API now provides that we didn't have before
+        // Flat record already exists — patch any missing fields only.
+        // Do NOT trigger VLM here — raw_articles extraction cron owns that.
         const patch: Record<string, any> = {};
-        if (row.image_url && !existing.imageUrl)
-          patch.imageUrl = row.image_url;
+        if (row.image_url && !existing.imageUrl) patch.imageUrl = row.image_url;
         const normCode = normaliseVendorCode(row.vendor_code);
-        if (normCode && existing.vendorCode !== normCode)
-          patch.vendorCode = normCode;
-        if (row.vendor_name && !existing.vendorName)
-          patch.vendorName = row.vendor_name;
+        if (normCode && existing.vendorCode !== normCode) patch.vendorCode = normCode;
+        if (row.vendor_name && !existing.vendorName) patch.vendorName = row.vendor_name;
 
         if (Object.keys(patch).length > 0) {
           if (patch.imageUrl) {
@@ -727,9 +801,6 @@ export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'C
           }
           await prisma.extractionResultFlat.update({ where: { id: existing.id }, data: patch });
           void mirror360FlatUpdate(existing.id, patch);
-          if (patch.imageUrl) {
-            toEnrich.push({ id: existing.id, imageUrl: patch.imageUrl, majorCategory: row.major_category || null });
-          }
           console.log(`[SRM Sync] Patched [${Object.keys(patch).join(', ')}] for: ${row.presentation_no} / ${row.design_number}`);
           result.inserted++;
           itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: existing.id, action: 'PATCHED', errorMessage: null });
@@ -737,17 +808,18 @@ export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'C
           result.skipped++;
           itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: existing.id, action: 'SKIPPED', errorMessage: null });
         }
-        continue;
+      } else {
+        // No flat record — stage to raw_articles (PENDING), 10-min cron handles VLM
+        const staged = await upsertRawArticleFromSrm(row, 'CRON_SYNC');
+        if (staged === 'inserted') {
+          result.staged++;
+          console.log(`[SRM Sync] Staged to raw_articles: ${row.presentation_no} / ${row.design_number}`);
+          itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: null, action: 'STAGED', errorMessage: null });
+        } else {
+          result.skipped++;
+          itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: null, action: 'SKIPPED', errorMessage: null });
+        }
       }
-
-      // ── New article — insert ───────────────────────────────────────────
-      const flat = await insertRowAndReturn(row);
-      result.inserted++;
-      console.log(`[SRM Sync] Inserted: ${row.presentation_no} / ${row.design_number} → flat_id=${flat?.id}`);
-      if (flat && flat.imageUrl) {
-        toEnrich.push({ id: flat.id, imageUrl: flat.imageUrl, majorCategory: row.major_category || null });
-      }
-      itemLogs.push({ runId: run.id, pptNumber: row.presentation_no, srmDesignNumber: row.design_number, flatId: flat?.id ?? null, action: 'INSERTED', errorMessage: null });
 
     } catch (err: any) {
       result.errors++;
@@ -775,26 +847,13 @@ export async function syncFromSrm(triggeredBy: 'CRON' | 'ADMIN' | 'WEBHOOK' = 'C
     },
   });
 
-  console.log(`[SRM Sync] Done — inserted: ${result.inserted - patched}, patched: ${patched}, skipped: ${result.skipped}, errors: ${result.errors} | Run: ${run.id}`);
+  console.log(`[SRM Sync] Done — inserted: ${result.inserted - patched}, patched: ${patched}, staged: ${result.staged}, skipped: ${result.skipped}, errors: ${result.errors} | Run: ${run.id}`);
 
   // Cache the in-memory result for the status endpoint
   _lastSyncResult = { ...result, completedAt: new Date().toISOString(), ranAt: startedAt.toISOString() };
 
-  // Enrich sequentially in the background
-  if (toEnrich.length > 0) {
-    console.log(`[SRM Sync] Queuing VLM enrichment for ${toEnrich.length} records...`);
-    void (async () => {
-      let enriched = 0;
-      for (const item of toEnrich) {
-        await enrichSrmRowWithVlm(item.id, item.imageUrl, item.majorCategory);
-        enriched++;
-        if (enriched < toEnrich.length) {
-          await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
-        }
-      }
-      console.log(`[SRM Sync] VLM enrichment complete — ${enriched}/${toEnrich.length} processed`);
-    })();
-  }
+  // VLM enrichment is now handled entirely by the raw_articles extraction cron (every 10 min).
+  // The 12PM/8PM sync cron only stages rows to raw_articles — no direct VLM calls here.
 
   return result;
 }
@@ -825,7 +884,8 @@ export async function recoverRecentSrmVlmEnrichment(): Promise<void> {
       imageUrl: { not: null },
       createdAt: { gte: cutoff },
     },
-    select: { id: true, imageUrl: true, majorCategory: true },
+    select: { id: true, imageUrl: true, majorCategory: true, pptNumber: true,
+              srmOriginalDesignNumber: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -840,20 +900,61 @@ export async function recoverRecentSrmVlmEnrichment(): Promise<void> {
   void (async () => {
     let enriched = 0;
     let failed = 0;
+    let requeued = 0;
+
     for (let i = 0; i < records.length; i++) {
       const rec = records[i];
       if (!rec.imageUrl) continue;
+
       try {
+        // ── New pipeline records (after cutoff): re-queue via raw_articles ──
+        // If a server restart killed the extraction worker mid-run, the flat record
+        // stays at SRM_IMPORT. Rather than running VLM directly here, we ensure a
+        // raw_articles PENDING row exists so the 10-min extraction cron picks it up.
+        if (rec.createdAt > RAW_PIPELINE_CUTOFF) {
+          const existingRaw = await prisma.rawArticle.findFirst({
+            where: { flatId: rec.id },
+            select: { id: true, status: true },
+          });
+
+          if (existingRaw) {
+            // raw_articles row exists — extraction cron will handle it
+            console.log(`[SRM Recovery] Skipping flat ${rec.id} — already in raw_articles (status: ${existingRaw.status})`);
+            requeued++;
+          } else {
+            // No raw_articles row — create one so the cron picks it up
+            const uniqueKey = `${rec.pptNumber ?? ''}::${rec.srmOriginalDesignNumber ?? ''}::${rec.imageUrl}`;
+            await prisma.rawArticle.upsert({
+              where:  { uniqueKey },
+              update: {},   // already exists, leave it
+              create: {
+                presentationNo: rec.pptNumber ?? '',
+                designNumber:   rec.srmOriginalDesignNumber ?? null,
+                imageUrl:       rec.imageUrl,
+                uniqueKey,
+                source:         'CRON_SYNC',
+                flatId:         rec.id,
+                status:         'PENDING',
+              },
+            });
+            console.log(`[SRM Recovery] Re-queued flat ${rec.id} → new raw_articles PENDING row`);
+            requeued++;
+          }
+          continue;
+        }
+
+        // ── Old pipeline records (before cutoff): run VLM directly ──────────
         const success = await enrichSrmRowWithVlm(rec.id, rec.imageUrl, rec.majorCategory);
         if (success) enriched++; else failed++;
       } catch {
         failed++;
       }
+
       if (i < records.length - 1) {
         await new Promise(r => setTimeout(r, VLM_ENRICH_DELAY_MS));
       }
     }
-    console.log(`[SRM Recovery] Complete — enriched: ${enriched}, failed: ${failed} (of ${records.length})`);
+    console.log(`[SRM Recovery] Complete — enriched: ${enriched}, requeued: ${requeued}, failed: ${failed} (of ${records.length})`);
   })();
 }
 
