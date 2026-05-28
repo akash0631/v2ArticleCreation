@@ -35,7 +35,6 @@ import { cacheService } from './services/cacheService';
 import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
-import { syncFromSrm, recoverRecentSrmVlmEnrichment } from './services/srmSyncService';
 import srmHookRoutes from './routes/srmHook';
 import testApiRoutes from './routes/testApi';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
@@ -382,28 +381,6 @@ app.use(errorHandler);
     // recoverRecentSrmVlmEnrichment().catch(err =>
     //   console.error('[SRM Recovery] Startup recovery error:', err?.message)
     // );
-
-    // SRM Sync Scheduler — fires at 12:00 PM and 8:00 PM IST (UTC+5:30) daily.
-    // Uses a 30-second tick so a slow/busy server never drifts past the :00 minute window.
-    // VLM extraction runs only for newly inserted records — existing records are never re-enriched.
-    let lastSrmSyncKey = '';
-    setInterval(() => {
-      const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-      const h = istNow.getUTCHours();
-      const m = istNow.getUTCMinutes();
-
-      // Accept :00 or :01 to survive setInterval drift
-      if ((m === 0 || m === 1) && (h === 12 || h === 20)) {
-        const key = `${istNow.toISOString().slice(0, 10)}-${h}`;
-        if (key !== lastSrmSyncKey) {
-          lastSrmSyncKey = key;
-          console.log(`[SRM Cron] Starting scheduled sync at IST ${h}:00`);
-          syncFromSrm()
-            .then(r => console.log(`[SRM Cron] Sync complete — inserted:${r.inserted} skipped:${r.skipped} errors:${r.errors}`))
-            .catch(err => console.error('[SRM Cron] Sync failed:', err?.message));
-        }
-      }
-    }, 30_000);
 
     // Vendor Master Sync Scheduler — fires once daily at 2:00 AM IST (UTC+5:30).
     let lastVendorSyncKey = '';

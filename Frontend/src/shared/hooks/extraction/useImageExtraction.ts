@@ -220,6 +220,9 @@ export const useImageExtraction = () => {
           });
         } else {
           // Fall back to legacy extraction without metadata
+          // Still pass department/subDepartment parsed from categoryCode so the backend
+          // (a) finds the correct DB category and (b) can override flat fields after flattening.
+          const legacyScope = parseSelectedScope(categoryCode, categoryName);
           console.log(`📦 Using legacy extraction without metadata`);
           result = await backendApi.extractFromBase64({
             image: base64Image,
@@ -227,7 +230,9 @@ export const useImageExtraction = () => {
             categoryName: categoryName ?? "",
             discoveryMode: discoveryEnabled === true, // Explicit boolean check
             fileName: row.originalFileName,
-            folderName
+            folderName,
+            ...(legacyScope.division    ? { department:     legacyScope.division    } : {}),
+            ...(legacyScope.subDivision ? { subDepartment:  legacyScope.subDivision } : {}),
           });
         }
 
