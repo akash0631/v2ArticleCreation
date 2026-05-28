@@ -3,9 +3,10 @@
  * Fetches departments and categories from the hierarchy API.
  * Falls back to hardcoded data if the API is unavailable.
  *
- * Always shows Division + Sub-Division dropdowns so the user can see and
- * change them at any time. A "Continue to Upload →" button appears once both
- * are chosen and the user must click it explicitly to proceed.
+ * If the user's role has a division pre-assigned (CREATOR etc.), the Division
+ * field is shown as a read-only label — no dropdown needed.
+ * Only the Sub-Division dropdown is shown for selection.
+ * A "Continue to Upload →" button appears once Sub-Division is chosen.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -54,7 +55,8 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
   selectedCategory,
 }) => {
   const [selectedDepartment, setSelectedDepartment] = useState<string | undefined>(selectedCategory?.department);
-  const [selectedMajorCategory, setSelectedMajorCategory] = useState<string | undefined>(selectedCategory?.majorCategory);
+  // Sub-division is now selected in Step 2 (Upload page), not here
+  const selectedMajorCategory = undefined;
 
   // DB-driven hierarchy (falls back to hardcoded)
   const [hierarchy, setHierarchy] = useState<Record<string, string[]>>(SIMPLIFIED_HIERARCHY);
@@ -118,76 +120,69 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
 
   const handleDepartmentChange = (value: string) => {
     setSelectedDepartment(value);
-    setSelectedMajorCategory(undefined);
     onCategorySelect(null); // clear parent selection when division changes
   };
 
-  const handleMajorCategoryChange = (value: string) => {
-    setSelectedMajorCategory(value);
-    onCategorySelect(null); // clear parent selection until user clicks Continue
-  };
-
   const handleContinue = () => {
-    if (!selectedDepartment || !selectedMajorCategory) return;
+    if (!selectedDepartment) return;
+    // Sub-division is chosen in Step 2; pass empty string here, it gets filled later
     onCategorySelect({
       department: selectedDepartment,
-      majorCategory: selectedMajorCategory,
-      displayName: `${selectedDepartment} - ${selectedMajorCategory}`,
+      majorCategory: '',
+      displayName: selectedDepartment,
     });
   };
 
-  const canContinue = !!selectedDepartment && !!selectedMajorCategory;
+  // Division is auto-assigned from role — no dropdown needed in that case
+  const hasPinnedDivision = !!creatorScope.defaultDivision;
+  const canContinue = !!selectedDepartment;
 
   return (
     <Spin spinning={hierarchyLoading} tip="Loading categories...">
       <div style={{ display: 'grid', gap: 20 }}>
 
-        {/* Division */}
+        {/* Division — static label if role has a division, dropdown for Admin */}
         <div>
           <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
             1. Division
           </Text>
-          <Select
-            placeholder="Select Division (Kids, Ladies, MENS)"
-            value={selectedDepartment}
-            onChange={handleDepartmentChange}
-            style={{ width: '100%' }}
-            size="large"
-            allowClear
-            disabled={hierarchyLoading}
-            showSearch
-            filterOption={(input, option) =>
-              String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          >
-            {departments.map(dept => (
-              <Option key={dept} value={dept}>{dept}</Option>
-            ))}
-          </Select>
-        </div>
-
-        {/* Sub-Division */}
-        <div>
-          <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-            2. Sub-Division
-          </Text>
-          <Select
-            placeholder={selectedDepartment ? 'Select Sub-Division (MU, MW, LU, LW…)' : 'Select Division first'}
-            value={selectedMajorCategory}
-            onChange={handleMajorCategoryChange}
-            style={{ width: '100%' }}
-            size="large"
-            allowClear
-            showSearch
-            disabled={!selectedDepartment || hierarchyLoading}
-            filterOption={(input, option) =>
-              String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-          >
-            {majorCategories.map(cat => (
-              <Option key={cat} value={cat}>{cat}</Option>
-            ))}
-          </Select>
+          {hasPinnedDivision ? (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: '#f5f5f5',
+                border: '1px solid #d9d9d9',
+                borderRadius: 8,
+                fontSize: 15,
+                color: '#262626',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span style={{ color: '#8c8c8c', fontSize: 13 }}>Auto-filled from your role:</span>
+              <strong>{selectedDepartment}</strong>
+            </div>
+          ) : (
+            <Select
+              placeholder="Select Division (Kids, Ladies, MENS)"
+              value={selectedDepartment}
+              onChange={handleDepartmentChange}
+              style={{ width: '100%' }}
+              size="large"
+              allowClear
+              disabled={hierarchyLoading}
+              showSearch
+              filterOption={(input, option) =>
+                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {departments.map(dept => (
+                <Option key={dept} value={dept}>{dept}</Option>
+              ))}
+            </Select>
+          )}
         </div>
 
         {/* Continue button */}
@@ -210,8 +205,8 @@ export const SimplifiedCategorySelector: React.FC<SimplifiedCategorySelectorProp
           }}
         >
           {canContinue
-            ? `Continue to Upload → ${selectedDepartment} · ${selectedMajorCategory}`
-            : 'Select Division and Sub-Division to continue'}
+            ? `Continue to Upload → ${selectedDepartment}`
+            : 'Select Division to continue'}
         </Button>
       </div>
     </Spin>

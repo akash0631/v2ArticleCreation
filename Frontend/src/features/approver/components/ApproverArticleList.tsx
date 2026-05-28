@@ -841,9 +841,9 @@ const ArticleCard = React.memo(({
                             {item.vendorName}
                             {item.rate != null && `  ·  ₹${item.rate}`}
                             {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
-                            {item.createdAt && (
+                            {(pathType === 'created' ? item.updatedAt : item.createdAt) && (
                                 <span style={{ marginLeft: 4, color: '#8c8c8c' }}>
-                                    · {new Date(item.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    · {new Date((pathType === 'created' ? item.updatedAt : item.createdAt)!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </span>
                             )}
                         </span>

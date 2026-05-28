@@ -208,16 +208,21 @@ export class FlatteningService {
             vendorCode: normalizedVendorCode,
 
             // Hierarchy Mapping
-            // Priority: watcher/user-provided division > JSON lookup by majorCategory > category hierarchy > AI extracted
+            // Priority: watcher/user-provided > user-selected (resultsMap) > JSON lookup by majorCategory > category hierarchy
+            // NOTE: resultsMap.get('division') holds the user's selected division (e.g. 'LADIES') stored
+            // as an extraction attribute during the simplified flow. It must take priority over
+            // getDivisionByMajorCategory() which would derive MENS from a major category like MW_TEES_FS
+            // even when the user explicitly chose LADIES.
             division: (job.watcherDivision as string | null | undefined)
               || (job.division as string | null | undefined)
+              || resultsMap.get('division')
               || getDivisionByMajorCategory(rawMajorCategory)
               || job.category?.subDepartment?.department?.name
-              || resultsMap.get('division')
               || null,
-            // Priority: watcher/user-provided subDivision > JSON lookup by majorCategory > category hierarchy
+            // Priority: watcher/user-provided > user-selected (resultsMap) > JSON lookup by majorCategory > category hierarchy
             subDivision: (job.watcherSubDivision as string | null | undefined)
               || (job.subDivision as string | null | undefined)
+              || resultsMap.get('sub_division')
               || getSubDivisionByMajorCategory(rawMajorCategory)
               || job.category?.subDepartment?.code
               || null,

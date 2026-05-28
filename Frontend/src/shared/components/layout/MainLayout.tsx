@@ -80,8 +80,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       { key: '/dashboard', icon: <HomeOutlined />, label: 'Home' },
     ];
 
-    // Only show Products to ADMIN
-    if (userData?.role === 'ADMIN') {
+    // Show Products to ADMIN and CREATOR
+    if (userData?.role === 'ADMIN' || userData?.role === 'CREATOR') {
       menuItems.push({ key: '/products', icon: <ShoppingOutlined />, label: 'Products' });
     }
 

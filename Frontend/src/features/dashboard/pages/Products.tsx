@@ -698,7 +698,11 @@ export default function Products() {
             <Button size="small" onClick={() => handleViewDetails(row)}>
               Details
             </Button>
-            {canEditRow(row) ? (
+            {isCreatorLike ? (
+              <Button size="small" disabled title="Editing is not allowed for Creator role">
+                Edit
+              </Button>
+            ) : canEditRow(row) ? (
               <Button size="small" onClick={() => handleOpenEdit(row)}>
                 Edit
               </Button>
