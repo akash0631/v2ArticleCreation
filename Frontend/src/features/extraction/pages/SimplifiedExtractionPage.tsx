@@ -363,15 +363,17 @@ const SimplifiedExtractionPage = () => {
 
   // Handle image upload - move to extraction step
   const handleImagesUpload = useCallback(async (fileList: File[]) => {
+    if (!selectedSubDivision) return; // block upload if no sub-division selected
     await addImages(fileList);
     if (fileList.length > 0) {
       setManualNavigation(false);
       setCurrentStep('extraction');
     }
-  }, [addImages]);
+  }, [addImages, selectedSubDivision]);
 
   // Auto-start extraction when images are ready
   const handleStartBatch = useCallback(() => {
+    if (!selectedSubDivision) return; // block extraction if no sub-division selected
     if (selectedCategory && extractAllPending) {
       const subDiv = selectedSubDivision ?? selectedCategory.majorCategory;
       extractAllPending(
@@ -726,9 +728,11 @@ const SimplifiedExtractionPage = () => {
                           type="primary"
                           icon={<RobotOutlined />}
                           onClick={handleStartBatch}
+                          disabled={!selectedSubDivision}
+                          title={!selectedSubDivision ? 'Go back and select a Sub-Division first' : undefined}
                           size="large"
                           style={{
-                            background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)',
+                            background: selectedSubDivision ? 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)' : undefined,
                             border: 'none',
                             fontWeight: 600
                           }}

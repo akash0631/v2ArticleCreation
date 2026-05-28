@@ -546,7 +546,9 @@ export class EnhancedExtractionController {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
-        if (currentUser?.subDivision) {
+        // Use the user's selected sub-division from the request (dropdown selection).
+        // Only fall back to profile sub-division if nothing was selected AND it's a single value.
+        if (!enforcedSubDepartment && currentUser?.subDivision && !String(currentUser.subDivision).includes(',')) {
           enforcedSubDepartment = currentUser.subDivision;
         }
       }
@@ -790,8 +792,19 @@ export class EnhancedExtractionController {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
-        if (currentUser?.subDivision) {
+        // Use the user's selected sub-division from the request (dropdown selection).
+        // Only fall back to profile sub-division if nothing was selected AND it's a single value.
+        if (!enforcedSubDepartment && currentUser?.subDivision && !String(currentUser.subDivision).includes(',')) {
           enforcedSubDepartment = currentUser.subDivision;
+        }
+        // Block extraction entirely if sub-division is still not resolved for CREATOR role
+        if (!enforcedSubDepartment) {
+          res.status(400).json({
+            success: false,
+            error: 'Sub-Division is required. Please select a Sub-Division before extracting.',
+            timestamp: Date.now()
+          });
+          return;
         }
       }
 
