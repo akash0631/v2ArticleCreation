@@ -8,8 +8,9 @@ import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
 import { syncArticlesToSapViaRfc } from '../services/zmmArtCreationService';
 import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
-import { storageService } from '../services/storageService';
+import { storageService, type WatermarkLabel } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { prismaClient as prisma } from '../utils/prisma';
 import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
@@ -148,11 +149,12 @@ export class ApproverController {
 
             // Include articles with matching subDivision OR with null/empty subDivision
             // (articles extracted without category assignment should still be visible).
-            // SRM records bypass sub-division scope for the same reason as division scope.
+            // NOTE: SRM records are NOT exempt here — an SRM article with subDivision='LN&L'
+            // must NOT appear for a user scoped to LK&L,LW. Only SRM articles with
+            // null/empty subDivision pass through (via the null/'' conditions below).
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
-                    { source: 'SRM' },
                     ...variants.map((variant) => ({
                         subDivision: { equals: variant, mode: 'insensitive' }
                     })),
@@ -162,7 +164,7 @@ export class ApproverController {
             });
         };
 
-        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD') {
+        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD' || role === 'CREATOR') {
             addDivisionScope(user?.division);
             addSubDivisionScope(user?.subDivision);
             return;
@@ -340,9 +342,9 @@ export class ApproverController {
         const DESC_FIELDS = {
             id: true,
             articleDescription: true,
-            fabDiv: true, yarn1: true, mFab2: true, weave: true, macroMvgr: true,
+            fabDiv: true, yarn1: true, fabricMainMvgr: true, weave: true, mFab2: true,
             lycra: true, neck: true, collar: true, sleeve: true, sleeveFold: true,
-            placket: true, fatherBelt: true, pocketType: true, length: true,
+            pocketType: true, childBelt: true, length: true,
             fit: true, pattern: true, printType: true, embroideryType: true,
             embroidery: true, wash: true,
         } as const;
@@ -367,7 +369,9 @@ export class ApproverController {
             const idsToNull: string[] = [];
 
             for (const row of rows) {
-                const computedDescription = buildArticleDescription(row as any);
+                const computedDescription = buildArticleDescription(row as any, 40, {
+                    excludeFields: await getExcludedDescriptionFields((row as any).majorCategory) as any,
+                });
                 const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
 
                 if ((computedDescription || null) === (currentDescription || null)) continue;
@@ -699,11 +703,37 @@ export class ApproverController {
             // RBAC: Enforce scope by role
             if (!bypassScope) {
                 if (role === 'ADMIN') {
-                    // Admins can filter freely
-                    if (division && division !== 'ALL') where.division = division as string;
-                    if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+                    // Admins can filter freely — use case-insensitive variant matching
+                    // so "MEN" matches both "MEN" and "MENS" stored values.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
                 } else {
+                    // Apply profile-based scope first (division + subDivision from user record)
                     ApproverController.applyApproverScope(where, req.user);
+
+                    // Then narrow by the dropdown filters the user explicitly selected.
+                    // These AND on top of the scope — they can only narrow, never expand.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') {
+                        where.AND = where.AND || [];
+                        where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
+                    }
                 }
             }
 
@@ -803,9 +833,9 @@ export class ApproverController {
             where.imageUrl = { not: '' };
 
             // SRM extraction gate: hide SRM records while Gemini is still running.
-            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >4h (Gemini gave up).
+            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >30min (Gemini gave up).
             // This prevents a race condition where an approver edits a field that Gemini later overwrites.
-            const srmGateTime = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const srmGateTime = new Date(Date.now() - 30 * 60 * 1000);
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
@@ -1000,10 +1030,32 @@ export class ApproverController {
             // RBAC
             const role = String(req.user?.role || '');
             if (role === 'ADMIN') {
-                if (division && division !== 'ALL') where.division = division as string;
-                if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
             } else {
+                // Apply profile-based scope first, then narrow by dropdown filters
                 ApproverController.applyApproverScope(where, req.user);
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') {
+                    where.AND = where.AND || [];
+                    where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
+                }
             }
 
             // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
@@ -1096,7 +1148,7 @@ export class ApproverController {
             where.imageUrl = { not: '' };
 
             // Same SRM extraction gate as getItems
-            const srmGateTimeExport = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            const srmGateTimeExport = new Date(Date.now() - 30 * 60 * 1000);
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
@@ -1178,6 +1230,30 @@ export class ApproverController {
                     userName: true,
                     createdAt: true,
                     sapSyncStatus: true,
+                    // BOM
+                    impAtrbt2: true,
+                    // FAB extras
+                    fCount: true,
+                    fConstruction: true,
+                    fOunce: true,
+                    fWidth: true,
+                    fabDiv: true,
+                    // BODY extras
+                    collarStyle: true,
+                    sleeveFold: true,
+                    noOfPocket: true,
+                    extraPocket: true,
+                    // VA ACC extras
+                    dcShape: true,
+                    btnColour: true,
+                    htrfType: true,
+                    htrfStyle: true,
+                    // VA PRCS extras
+                    embPlacement: true,
+                    // BUSINESS extras
+                    ageGroup: true,
+                    articleFashionType: true,
+                    mvgrBrandVendor: true,
                 },
             });
 
@@ -1448,7 +1524,7 @@ export class ApproverController {
             }
 
             const role = String(req.user?.role || '');
-            if (role === 'APPROVER' || role === 'CATEGORY_HEAD') {
+            if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
                 const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
@@ -1458,7 +1534,7 @@ export class ApproverController {
                     return res.status(403).json({ error: 'Access denied: Division mismatch' });
                 }
                 // Allow update when article has no subDivision yet (null/empty) — same as list query logic
-                if (role === 'APPROVER' && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
+                if ((role === 'APPROVER' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
                     return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
                 }
             }
@@ -1504,11 +1580,15 @@ export class ApproverController {
 
             // Article Description: merge ordered attribute values with '-' separator,
             // max 40 chars, starting from yarn1 and skipping empty values.
+            // collar is only included when it is visible in the article card for this major category.
             const descriptionSource: any = {};
             for (const field of ARTICLE_DESCRIPTION_SOURCE_FIELDS) {
                 descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
             }
-            data.articleDescription = buildArticleDescription(descriptionSource);
+            const majCatForDescCheck = data.majorCategory ?? (existingItem as any).majorCategory;
+            data.articleDescription = buildArticleDescription(descriptionSource, 40, {
+                excludeFields: await getExcludedDescriptionFields(majCatForDescCheck) as any,
+            });
 
             const updated = await prisma.extractionResultFlat.update({
                 where: { id },
@@ -1694,9 +1774,32 @@ export class ApproverController {
 
                 try {
                     console.log(`📦 Copying approved image for article ${syncResult.sapArticleNumber} from source to article-master bucket...`);
+
+                    // Build the data we want stamped on the watermark. Every field is optional —
+                    // Python skips any line whose value is null/empty. Article number comes from
+                    // the freshly minted SAP RFC result, the rest from the DB row.
+                    const labelData: WatermarkLabel = {
+                        article_number: String(syncResult.sapArticleNumber),
+                        presentation_no: approvedItem.pptNumber ?? null,
+                        vendor_code: approvedItem.vendorCode ?? null,
+                        vendor_name: approvedItem.vendorName ?? null,
+                        division: approvedItem.division ?? null,
+                        sub_division: approvedItem.subDivision ?? null,
+                        major_category: approvedItem.majorCategory ?? null,
+                        design_number: approvedItem.designNumber ?? null,
+                        mc_code: approvedItem.mcCode ?? null,
+                        hsn_tax_code: approvedItem.hsnTaxCode ?? null,
+                        fabric: approvedItem.macroMvgr ?? null,
+                        season: approvedItem.season ?? null,
+                        year: approvedItem.year ?? null,
+                        rate: approvedItem.rate != null ? Number(approvedItem.rate) : null,
+                        mrp: approvedItem.mrp != null ? Number(approvedItem.mrp) : null,
+                    };
+
                     const approvedImageUpload = await storageService.uploadApprovedImageFromSourceUrl(
                         String(approvedItem.imageUrl),
-                        String(syncResult.sapArticleNumber)
+                        String(syncResult.sapArticleNumber),
+                        labelData,
                     );
 
                     await prisma.extractionResultFlat.update({

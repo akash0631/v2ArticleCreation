@@ -3,6 +3,7 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { parseNumericValue } from '../utils/mrpCalculator';
 import { mvgrMappingService } from './mvgrMappingService';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { normalizeVendorCode } from '../utils/vendorCode';
 import { upsert360ArticleFlatRow } from '../utils/mirror360Flat';
@@ -54,7 +55,7 @@ export class FlatteningService {
             select: { vendorCode: true }
         });
 
-        const flatData = this.mapToFlatStructure(job, existingFlat?.vendorCode || null);
+        const flatData = await this.mapToFlatStructure(job, existingFlat?.vendorCode || null);
 
         // Upsert to flat table (create or update)
         const flatRecord = await prisma.extractionResultFlat.upsert({
@@ -72,7 +73,7 @@ export class FlatteningService {
     /**
      * Map extraction job to flat structure
      */
-    private mapToFlatStructure(job: any, existingVendorCode: string | null = null): any {
+    private async mapToFlatStructure(job: any, existingVendorCode: string | null = null): Promise<any> {
         const resultsMap = new Map();
 
         // Build map of attribute key -> value
@@ -230,51 +231,25 @@ export class FlatteningService {
             articleDescription: buildArticleDescription({
                 fabDiv:         resultsMap.get('fab_div'),
                 yarn1:          resultsMap.get('yarn_01'),
-                mainMvgr:       resultsMap.get('main_mvgr'),
                 fabricMainMvgr: resultsMap.get('fabric_main_mvgr'),
                 weave:          resultsMap.get('weave'),
                 mFab2:          resultsMap.get('m_fab2'),
-                fCount:         resultsMap.get('f_count'),
-                gsm:            resultsMap.get('gsm') || resultsMap.get('gram_per_square_meter'),
-                fOunce:         resultsMap.get('f_ounce'),
-                fConstruction:  resultsMap.get('f_construction'),
-                finish:         resultsMap.get('finish'),
-                fWidth:         resultsMap.get('f_width'),
                 lycra:          resultsMap.get('lycra_non_lycra') || resultsMap.get('lycra_non\nlycra'),
                 neck:           resultsMap.get('neck'),
-                neckDetails:    resultsMap.get('neck_details') || resultsMap.get('neck_detail'),
                 collar:         resultsMap.get('collar'),
-                collarStyle:    resultsMap.get('collar_style'),
                 sleeve:         resultsMap.get('sleeve'),
                 sleeveFold:     resultsMap.get('sleeve_fold'),
-                placket:        resultsMap.get('placket'),
-                childBelt:      resultsMap.get('child_belt') || resultsMap.get('child_belt_detail'),
-                bottomFold:     resultsMap.get('bottom_fold'),
                 pocketType:     resultsMap.get('pocket_type'),
-                noOfPocket:     resultsMap.get('no_of_pocket'),
-                extraPocket:    resultsMap.get('extra_pocket'),
+                childBelt:      resultsMap.get('child_belt') || resultsMap.get('child_belt_detail'),
                 length:         resultsMap.get('length'),
                 fit:            resultsMap.get('fit'),
                 pattern:        resultsMap.get('pattern'),
-                drawcord:       resultsMap.get('drawcord'),
-                dcShape:        resultsMap.get('dc_shape'),
-                zipper:         resultsMap.get('zipper'),
-                zipColour:      resultsMap.get('zip_colour'),
-                button:         resultsMap.get('button'),
-                btnColour:      resultsMap.get('btn_colour'),
-                patchesType:    resultsMap.get('patches_type') || resultsMap.get('patch_type'),
-                patches:        resultsMap.get('patches'),
-                htrfStyle:      resultsMap.get('htrf_style'),
-                htrfType:       resultsMap.get('htrf_type'),
-                printPlacement: resultsMap.get('print_placement'),
-                printStyle:     resultsMap.get('print_style'),
                 printType:      resultsMap.get('print_type'),
                 embroidery:     resultsMap.get('embroidery'),
                 embroideryType: resultsMap.get('embroidery_type'),
-                embPlacement:   resultsMap.get('emb_placement'),
                 wash:           resultsMap.get('wash'),
-                ageGroup:       resultsMap.get('age_group'),
-                impAtrbt2:      resultsMap.get('imp_atrbt_2') || resultsMap.get('imp_atrbt2') || resultsMap.get('impatrbt2'),
+            }, 40, {
+                excludeFields: await getExcludedDescriptionFields(rawMajorCategory) as any,
             }),
             fashionGrid: resultsMap.get('fashion_grid') || resultsMap.get('fashiongrid') || null,
             articleType: resultsMap.get('article_type') || resultsMap.get('articletype') || null,

@@ -35,8 +35,11 @@ import { cacheService } from './services/cacheService';
 import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
-import { syncFromSrm } from './services/srmSyncService';
+import { syncFromSrm, recoverRecentSrmVlmEnrichment } from './services/srmSyncService';
+import srmHookRoutes from './routes/srmHook';
+import testApiRoutes from './routes/testApi';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
+import { runRawArticleExtraction, isExtractionRunning } from './services/rawArticleExtractionService';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5000', 10);
@@ -156,6 +159,7 @@ app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/watcher/')) return next();
   if (req.path.startsWith('/approver/')) return next();
   if (req.path.startsWith('/article-config/')) return next();
+  if (req.path.startsWith('/srm-hook/')) return next(); // uses own API key auth + background processing
   return limiter(req, res, next);
 });
 
@@ -163,9 +167,21 @@ app.use('/api/', (req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Global request timeout — 90s for normal routes, 4min for watcher (processes images)
+// Global request timeout — 90s for normal routes, 4min for watcher (processes images).
+// /api/model-generation/bulk gets 20min because the upload itself can carry hundreds of
+// images; the background worker is unaffected by the request timer.
+// /api/admin/majcat-grid/upload gets 15min — 300k+ row Excel insert needs time.
 app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
-app.use('/api/', requestTimeout(90 * 1000));
+// SRM hook trigger returns 202 immediately — no timeout needed on the HTTP layer
+// (background processing is unbounded and runs independently of the request)
+app.use('/api/srm-hook/trigger', requestTimeout(15 * 1000));
+app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
+app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/model-generation/bulk/')) return next();
+  if (req.path.startsWith('/admin/majcat-grid/upload')) return next();
+  return requestTimeout(90 * 1000)(req, res, next);
+});
 
 app.use((req, res, next) => {
   if (!isAppShuttingDown()) {
@@ -203,9 +219,22 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/auth', authRoutes); // Login, verify token
 
 // ═══════════════════════════════════════════════════════
+// SRM WEBHOOK ROUTES (API-key secured, no JWT)
+// Called by the external SRM web app to trigger extraction.
+// Auth: x-srm-api-key header  (set SRM_HOOK_API_KEY in .env)
+// ═══════════════════════════════════════════════════════
+app.use('/api/srm-hook', srmHookRoutes);
+
+// ═══════════════════════════════════════════════════════
 // ADMIN ROUTES (Admin role required + Audit logging)
 // ═══════════════════════════════════════════════════════
 app.use('/api/admin', authenticate, requireAdmin, auditLog, adminRoutes);
+
+// ═══════════════════════════════════════════════════════
+// TEST API ROUTES (Admin role required)
+// Raw-articles pipeline staging endpoints.
+// ═══════════════════════════════════════════════════════
+app.use('/api/test-api', authenticate, requireAdmin, testApiRoutes);
 
 // ═══════════════════════════════════════════════════════
 // USER ROUTES (Authentication required + Audit logging)
@@ -350,14 +379,21 @@ app.use(errorHandler);
     // Run backfills once in the background — does not block startup
     ApproverController.runStartupBackfills();
 
+    // recoverRecentSrmVlmEnrichment().catch(err =>
+    //   console.error('[SRM Recovery] Startup recovery error:', err?.message)
+    // );
+
     // SRM Sync Scheduler — fires at 12:00 PM and 8:00 PM IST (UTC+5:30) daily.
-    // Replaces the external watcher cron that previously called POST /api/watcher/sync-srm.
+    // Uses a 30-second tick so a slow/busy server never drifts past the :00 minute window.
+    // VLM extraction runs only for newly inserted records — existing records are never re-enriched.
     let lastSrmSyncKey = '';
     setInterval(() => {
       const istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const h = istNow.getUTCHours();
       const m = istNow.getUTCMinutes();
-      if (m === 0 && (h === 12 || h === 20)) {
+
+      // Accept :00 or :01 to survive setInterval drift
+      if ((m === 0 || m === 1) && (h === 12 || h === 20)) {
         const key = `${istNow.toISOString().slice(0, 10)}-${h}`;
         if (key !== lastSrmSyncKey) {
           lastSrmSyncKey = key;
@@ -367,7 +403,7 @@ app.use(errorHandler);
             .catch(err => console.error('[SRM Cron] Sync failed:', err?.message));
         }
       }
-    }, 60_000);
+    }, 30_000);
 
     // Vendor Master Sync Scheduler — fires once daily at 2:00 AM IST (UTC+5:30).
     let lastVendorSyncKey = '';
@@ -386,6 +422,31 @@ app.use(errorHandler);
         }
       }
     }, 60_000);
+
+    // raw_articles Extraction Cron — runs every 10 minutes AND immediately on startup.
+    // Picks up PENDING / FAILED rows (up to 10 per run), runs VLM, pushes to extraction_results_flat.
+    // The worker has an internal guard so overlapping runs are safely skipped.
+    const rawExtractTick = () => {
+      if (isExtractionRunning()) {
+        console.log('[RawExtract Cron] Skipped — previous run still in progress');
+        return;
+      }
+      runRawArticleExtraction('CRON')
+        .then(r => {
+          if (r.claimed > 0) {
+            console.log(`[RawExtract Cron] ✅ claimed:${r.claimed} completed:${r.completed} failed:${r.failed} errors:${r.errors}`);
+          } else {
+            console.log('[RawExtract Cron] ✔ No PENDING/FAILED rows — nothing to process');
+          }
+        })
+        .catch(err => console.error('[RawExtract Cron] ❌ Unhandled error:', err?.message));
+    };
+
+    // Fire immediately on startup (catches any rows that were PENDING before restart)
+    setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
+
+    // Then repeat every 10 minutes
+    setInterval(rawExtractTick, 10 * 60_000);
 
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {

@@ -10,6 +10,7 @@ import {
   XCircle,
   CheckCircle2,
   FileType2,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,11 +34,10 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
   const items: SidebarItem[] = [
     { key: '/', Icon: Home, label: 'Home', to: '/' },
     { key: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard', to: '/dashboard' },
+    // Products is admin-only (per main update)
+    ...(userRole === 'ADMIN' ? [{ key: '/products', Icon: Upload, label: 'Products', to: '/products' }] : []),
     ...(userRole !== 'APPROVER' && userRole !== 'CATEGORY_HEAD'
-      ? [
-          { key: '/products', Icon: Upload, label: 'Products', to: '/products' },
-          { key: '/extraction', Icon: Upload, label: 'Extraction', to: '/extraction' },
-        ]
+      ? [{ key: '/extraction', Icon: Upload, label: 'Extraction', to: '/extraction' }]
       : []),
     ...(userRole === 'ADMIN' ||
     userRole === 'APPROVER' ||
@@ -65,7 +65,17 @@ export default function Sidebar({ collapsed = false, userRole }: SidebarProps) {
       ? [{ key: '/po-presentation', Icon: FileType2, label: 'PO Presentation', to: '/po-presentation' }]
       : []),
     ...(userRole === 'ADMIN'
-      ? [{ key: '/admin', Icon: Settings, label: 'Admin', to: '/admin' }]
+      ? [
+          {
+            key: 'admin-group',
+            Icon: Settings,
+            label: 'Admin',
+            children: [
+              { key: '/admin', Icon: Settings, label: 'Admin Dashboard', to: '/admin' },
+              { key: '/admin/srm-failed', Icon: AlertTriangle, label: 'Failed Extractions', to: '/admin/srm-failed' },
+            ],
+          },
+        ]
       : []),
   ];
 

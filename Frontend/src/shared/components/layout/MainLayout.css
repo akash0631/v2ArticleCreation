@@ -16,13 +16,22 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  /* Antd Header defaults to line-height: 64px which causes oversized vertical
+     spacing when any inline child has to wrap. Force normal line-height so the
+     row stays exactly 64px tall regardless of content. */
+  line-height: normal;
+  height: 64px;
+  flex-wrap: nowrap;
+  gap: 12px;
 }
 
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 20px;
-  min-width: 0;
+  min-width: 0;          /* lets the menu shrink instead of pushing siblings */
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
 }
 
 .brand {
@@ -32,6 +41,13 @@
   font-weight: 700;
   color: #111827;
   cursor: pointer;
+  /* Brand text must stay on one line and not get squeezed. */
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.brand span {
+  white-space: nowrap;
 }
 
 .brand svg {
@@ -40,6 +56,18 @@
 
 .top-nav-menu {
   background: transparent !important;
+  border-bottom: none !important;
+  /* The horizontal menu is the most flexible piece — let it shrink and use
+     its built-in overflow ellipsis ("...") rather than pushing the user chip
+     into a new line. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The Menu component sets its own height — ensure it doesn't stretch the row */
+.top-nav-menu.ant-menu-horizontal {
+  height: 62px;
+  line-height: 62px;
   border-bottom: none !important;
 }
 
@@ -59,6 +87,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.user-chip .ant-typography {
+  white-space: nowrap;
 }
 
 /* Auth Layout */
@@ -79,6 +113,22 @@
 
 .ant-breadcrumb-link {
   color: rgba(0, 0, 0, 0.65);
+}
+
+/* Breadcrumb inside the top nav must stay on one line and not push siblings down. */
+.top-nav .ant-breadcrumb,
+.top-nav .ant-breadcrumb * {
+  white-space: nowrap;
+}
+
+.top-nav .ant-breadcrumb {
+  flex-shrink: 0;
+}
+
+/* The right-hand controls (notifications + user chip) should never wrap. */
+.top-nav > .ant-space {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 /* Header Improvements */

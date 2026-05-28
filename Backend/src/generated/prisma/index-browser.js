@@ -370,7 +370,8 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   variantColor: 'variantColor',
   sapSyncStatus: 'sapSyncStatus',
   sapArticleId: 'sapArticleId',
-  sapSyncMessage: 'sapSyncMessage'
+  sapSyncMessage: 'sapSyncMessage',
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
 };
 
 exports.Prisma.MvgrLookupScalarFieldEnum = {
@@ -670,6 +671,57 @@ exports.Prisma.Article360FlatScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.RawArticleScalarFieldEnum = {
+  id: 'id',
+  presentationNo: 'presentationNo',
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  division: 'division',
+  subDivision: 'subDivision',
+  majorCategory: 'majorCategory',
+  presentationReceivedDate: 'presentationReceivedDate',
+  designNumber: 'designNumber',
+  fabric: 'fabric',
+  noOfColors: 'noOfColors',
+  price: 'price',
+  imageUrl: 'imageUrl',
+  uniqueKey: 'uniqueKey',
+  source: 'source',
+  status: 'status',
+  retryCount: 'retryCount',
+  errorMessage: 'errorMessage',
+  extractedData: 'extractedData',
+  extractedAt: 'extractedAt',
+  flatId: 'flatId',
+  lockedUntil: 'lockedUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SrmSyncRunScalarFieldEnum = {
+  id: 'id',
+  triggeredBy: 'triggeredBy',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  total: 'total',
+  inserted: 'inserted',
+  skipped: 'skipped',
+  patched: 'patched',
+  errors: 'errors',
+  notes: 'notes'
+};
+
+exports.Prisma.SrmSyncRunItemScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  pptNumber: 'pptNumber',
+  srmDesignNumber: 'srmDesignNumber',
+  flatId: 'flatId',
+  action: 'action',
+  errorMessage: 'errorMessage',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -861,7 +913,8 @@ exports.Prisma.ExtractionResultFlatOrderByRelevanceFieldEnum = {
   variantSize: 'variantSize',
   variantColor: 'variantColor',
   sapArticleId: 'sapArticleId',
-  sapSyncMessage: 'sapSyncMessage'
+  sapSyncMessage: 'sapSyncMessage',
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
 };
 
 exports.Prisma.MvgrLookupOrderByRelevanceFieldEnum = {
@@ -1086,6 +1139,39 @@ exports.Prisma.Article360FlatOrderByRelevanceFieldEnum = {
   userName: 'userName',
   userEmail: 'userEmail'
 };
+
+exports.Prisma.RawArticleOrderByRelevanceFieldEnum = {
+  id: 'id',
+  presentationNo: 'presentationNo',
+  vendorCode: 'vendorCode',
+  vendorName: 'vendorName',
+  division: 'division',
+  subDivision: 'subDivision',
+  majorCategory: 'majorCategory',
+  designNumber: 'designNumber',
+  fabric: 'fabric',
+  imageUrl: 'imageUrl',
+  uniqueKey: 'uniqueKey',
+  source: 'source',
+  errorMessage: 'errorMessage',
+  flatId: 'flatId'
+};
+
+exports.Prisma.SrmSyncRunOrderByRelevanceFieldEnum = {
+  id: 'id',
+  triggeredBy: 'triggeredBy',
+  notes: 'notes'
+};
+
+exports.Prisma.SrmSyncRunItemOrderByRelevanceFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  pptNumber: 'pptNumber',
+  srmDesignNumber: 'srmDesignNumber',
+  flatId: 'flatId',
+  action: 'action',
+  errorMessage: 'errorMessage'
+};
 exports.GarmentType = exports.$Enums.GarmentType = {
   UPPER: 'UPPER',
   LOWER: 'LOWER',
@@ -1136,6 +1222,14 @@ exports.ChangeAction = exports.$Enums.ChangeAction = {
   DELETE: 'DELETE'
 };
 
+exports.RawArticleStatus = exports.$Enums.RawArticleStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  PERM_FAILED: 'PERM_FAILED'
+};
+
 exports.Prisma.ModelName = {
   Department: 'Department',
   SubDepartment: 'SubDepartment',
@@ -1161,7 +1255,10 @@ exports.Prisma.ModelName = {
   ArticleBom: 'ArticleBom',
   SapFieldConfig: 'SapFieldConfig',
   SapAttributeValue: 'SapAttributeValue',
-  Article360Flat: 'Article360Flat'
+  Article360Flat: 'Article360Flat',
+  RawArticle: 'RawArticle',
+  SrmSyncRun: 'SrmSyncRun',
+  SrmSyncRunItem: 'SrmSyncRunItem'
 };
 
 /**

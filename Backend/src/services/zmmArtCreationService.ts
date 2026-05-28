@@ -9,7 +9,6 @@
  */
 
 import { SapSyncItemResult } from './sapSyncService';
-import majCatMandatory from '../data/maj-cat-mandatory.json';
 import { getMcCodeByMajorCategory, getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { PrismaClient } from '../generated/prisma';
 
@@ -17,6 +16,146 @@ const prisma = new PrismaClient();
 
 // Division-scoped cache: 'MENS' | 'LADIES' | 'KIDS' → { dbField → string[] }
 const _dbValuesCache = new Map<string, Record<string, string[]>>();
+
+// ─── Mandatory Grid cache (loaded once from DB per process lifetime) ──────────
+// configured: all major categories that have ANY row in maj_cat_mandatory_grid
+// active:     majorCategory → Set<rfcSapKey> that are is_active=true
+type MandatoryGridCache = {
+    configured: Set<string>;
+    active: Map<string, Set<string>>;
+};
+let _mandatoryGridCache: MandatoryGridCache | null = null;
+
+// The mandatory-grid Excel template uses some human-readable column names in Row 3
+// that differ from the RFC parameter names used in FLAT_TO_RFC.
+// This map normalises grid SAP keys → RFC keys so the filter works correctly.
+const GRID_KEY_TO_RFC: Record<string, string> = {
+    'AGE GROUP':           'M_AGE_GROUP',
+    'SEGMENT':             'PRICE_BAND_CATEGORY',
+    'COST':                'PURCH_PRICE',
+    'ARTICLE FASHION TYPE':'FASHION_GRADE',
+    'ARTICLE WEIGHT':      'G_WEIGHT',
+    'BODY STYLE':          'M_PATTERN',   // Excel uses "BODY STYLE", RFC uses "M_PATTERN"
+    // M_* keys already match FLAT_TO_RFC exactly — no entry needed
+};
+
+async function loadMandatoryGridForRfc(): Promise<MandatoryGridCache> {
+    if (_mandatoryGridCache) return _mandatoryGridCache;
+
+    const rows = await prisma.$queryRaw<
+        { major_category: string; sap_key: string; is_active: boolean }[]
+    >`SELECT major_category, sap_key, is_active FROM maj_cat_mandatory_grid`;
+
+    const configured = new Set<string>();
+    const active = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        configured.add(row.major_category);
+        if (row.is_active) {
+            // Normalise grid key → RFC key (handles display-name mismatches)
+            const rfcKey = GRID_KEY_TO_RFC[row.sap_key] ?? row.sap_key;
+            if (!active.has(row.major_category)) active.set(row.major_category, new Set());
+            active.get(row.major_category)!.add(rfcKey);
+        }
+    }
+
+    _mandatoryGridCache = { configured, active };
+    console.log(`[ZMM_RFC] Mandatory grid loaded: ${configured.size} major categories configured`);
+    return _mandatoryGridCache;
+}
+
+/** Call this after an Admin mandatory-grid upload to force a reload on next RFC call. */
+export function invalidateMandatoryGridCache(): void {
+    _mandatoryGridCache = null;
+}
+
+// ─── Maj-Cat Grid Visible Fields cache ────────────────────────────────────────
+// Maps attribute_name stored in maj_cat_grid_values → RFC key(s) in FLAT_TO_RFC.
+// Many Excel names differ from the RFC parameter name — this is the bridge.
+const EXCEL_ATTR_TO_RFC: Record<string, string[]> = {
+    'M_FAB_DIV':            ['M_FAB_DIV'],
+    'M_YARN':               ['M_YARN'],
+    'FAB_MAIN_MVGR-1':      ['M_YARN-02'],
+    'FAB-MAIN-MVGR-2':      ['M_WEAVE_2'],
+    'WEAVE-01':             ['M_FAB'],
+    'WEAVE 02':             ['M_FAB2'],
+    'M_COMPOSITION':        ['M_COMPOSITION'],
+    'M_FINISH':             ['M_FINISH'],
+    'M_CONSTRUCTION':       ['M_CONSTRUCTION'],
+    'M_LYCRA':              ['M_LYCRA'],
+    'M_GSM':                ['M_GSM'],
+    'M_OUNZ':               ['M_OUNZ'],
+    'M_WIDTH':              ['M_WIDTH'],
+    'M_COUNT':              ['M_COUNT'],
+    'M_COLLAR_TYPE':        ['M_COLLAR'],
+    'M_COLLAR_STYLE':       ['M_COLLAR_STYLE'],
+    'M_NECK_TYPE':          ['M_NECK_BAND'],
+    'M_NECK_STYLE':         ['M_NECK_BAND_STYLE'],
+    'M_PLACKET':            ['M_PLACKET'],
+    'M_BLT_TYPE':           ['M_BLT_MAIN_STYLE'],
+    'M_BLT_STYLE':          ['M_SUB_STYLE_BLT'],
+    'M_SLEEVES_MAIN_STYLE': ['M_SLEEVES_MAIN_STYLE'],
+    'M_SLEEVE_FOLD':        ['M_SLEEVE_FOLD'],
+    'M_BTM_FOLD':           ['M_BTM_FOLD'],
+    'M_NO_OF_POCKET':       ['NO_OF_POCKET', 'M_NO_OF_POCKET'],
+    'M_POCKET':             ['M_POCKET'],
+    'M_EXTRA_POCKET':       ['M_EXTRA_POCKET'],
+    'M_FIT':                ['M_FIT'],
+    'BODY STYLE':           ['M_PATTERN'],
+    'M_LENGTH':             ['M_LENGTH'],
+    'M_DC_STYLE':           ['M_DC_SUB_STYLE'],
+    'M_DC_SHAPE':           ['M_DC_SHAPE'],
+    'M_BTN_TYPE':           ['M_BTN_MAIN_MVGR'],
+    'M_BTN_CLR':            ['M_BTN_CLR'],
+    'M_ZIP_TYPE':           ['M_ZIP'],
+    'M_ZIP_COL':            ['M_ZIP_COL'],
+    'M_PATCHE_TYPE':        ['M_PATCHES'],
+    'M_PATCH_STYLE':        ['M_PATCH_TYPE'],
+    'M_HTRF_TYPE':          ['M_HTRF_TYPE'],
+    'M_HTRF_STYLE':         ['M_HTRF_STYLE'],
+    'M_PRINT_TYPE':         ['M_PRINT_TYPE'],
+    'M_PRINT_STYLE':        ['M_PRINT_STYLE'],
+    'M_PRINT_PLACEMENT':    ['M_PRINT_PLACEMENT'],
+    'M_EMB_TYPE':           ['M_EMB_TYPE'],
+    'M_EMBROIDERY_STYLE':   ['M_EMBROIDERY'],
+    'M_EMB_PLACEMENT':      ['M_EMB_PLACEMENT'],
+    'M_WASH':               ['M_WASH'],
+    'AGE GROUP':            ['M_AGE_GROUP'],
+};
+
+// majorCategory → Set<rfcKey> derived from maj_cat_grid_values (Tier 2 visible fields)
+type MajCatVisibleFields = Map<string, Set<string>>;
+let _majCatVisibleCache: MajCatVisibleFields | null = null;
+
+/**
+ * Load which RFC keys are visible (Tier 2) per major category from maj_cat_grid_values.
+ * A field is Tier 2 visible if maj_cat_grid_values has at least one row for
+ * (major_category, attribute_name). Cached for the process lifetime.
+ */
+async function loadMajCatVisibleFieldsForRfc(): Promise<MajCatVisibleFields> {
+    if (_majCatVisibleCache) return _majCatVisibleCache;
+
+    const rows = await prisma.$queryRaw<
+        { major_category: string; attribute_name: string }[]
+    >`SELECT DISTINCT major_category, attribute_name FROM maj_cat_grid_values`;
+
+    const map = new Map<string, Set<string>>();
+    for (const row of rows) {
+        const rfcKeys = EXCEL_ATTR_TO_RFC[row.attribute_name];
+        if (!rfcKeys) continue;
+        if (!map.has(row.major_category)) map.set(row.major_category, new Set());
+        for (const rfc of rfcKeys) map.get(row.major_category)!.add(rfc);
+    }
+
+    _majCatVisibleCache = map;
+    console.log(`[ZMM_RFC] Maj-cat visible fields loaded: ${map.size} major categories`);
+    return map;
+}
+
+/** Call this after an Admin maj_cat_grid upload to force a reload on next RFC call. */
+export function invalidateMajCatVisibleCache(): void {
+    _majCatVisibleCache = null;
+}
 
 async function getDbValues(division: string): Promise<Record<string, string[]>> {
     const div = division.trim().toUpperCase();
@@ -74,7 +213,6 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 
     // Fabric – macro / main MVGR
     { rfc: 'M_MAIN_MVGR',           flat: 'impAtrbt2' },         // IMPORTANT ATTRIBUTE
-    { rfc: 'M_MACRO_MVGR',          flat: 'macroMvgr' },
     { rfc: 'M_FAB',                 flat: 'weave' },             // F_WEAVE_01
     { rfc: 'M_FAB2',                flat: 'mFab2' },             // F_WEAVE_02
     { rfc: 'M_YARN',                flat: 'yarn1' },             // F_YARN
@@ -134,6 +272,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 
     // Business / segment
     { rfc: 'M_AGE_GROUP',           flat: 'ageGroup' },
+    { rfc: 'FASHION_GRADE',         flat: 'articleFashionType' },
     { rfc: 'MVGR_BRAND_VENDOR',     flat: 'mvgrBrandVendor' },
     { rfc: 'G_WEIGHT',              flat: 'weight' },
 ];
@@ -144,10 +283,23 @@ const RFC_ALWAYS_INCLUDE = new Set([
     'SEASON', 'ARTICLE_DES1',
 ]);
 
-// Fields that bypass the mandatory-category check — sent whenever non-empty.
-// MRP and PURCH_PRICE must always reach SAP regardless of which major category
-// is configured in maj-cat-mandatory.json (the JSON uses human labels, not RFC keys).
-const RFC_INCLUDE_IF_PRESENT = new Set(['MRP', 'PURCH_PRICE']);
+// RFC keys that are always sent to SAP if non-empty, regardless of grid visibility.
+// These correspond to:
+//   BOM fields  — always shown in the article card BOM section
+//   freeText fields — always shown in the article card regardless of major category
+const RFC_ALWAYS_SEND_IF_PRESENT = new Set([
+    // BOM (always visible in card)
+    'MRP',
+    'PURCH_PRICE',
+    'M_MAIN_MVGR',         // IMP_ATBT
+    // freeText fields (always visible in card, no dropdown filtering)
+    'M_SHADE',             // shade
+    'G_WEIGHT',            // weight
+    'PRICE_BAND_CATEGORY', // segment
+    'MVGR_BRAND_VENDOR',   // mvgrBrandVendor
+    'M_FO_BTN_STYLE',      // frontOpenStyle
+    'FASHION_GRADE',       // articleFashionType
+]);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
 
@@ -155,32 +307,10 @@ const MANDATORY: Array<{ flat: string; label: string }> = [
     { flat: 'vendorCode',    label: 'Vendor Code' },
     { flat: 'mcCode',        label: 'MC Code' },
     { flat: 'designNumber',  label: 'Design Number' },
-    { flat: 'macroMvgr',     label: 'Macro MVGR' },
     { flat: 'mainMvgr',      label: 'Main MVGR' },
     { flat: 'mrp',           label: 'MRP' },
-    { flat: 'impAtrbt2',     label: 'Important Attribute (M_MAIN_MVGR)' },
+    { flat: 'impAtrbt2',     label: 'IMP_ATBT (M_MAIN_MVGR)' },
 ];
-
-// ─── Mandatory-field lookup by major category ─────────────────────────────────
-
-const mandatoryData = majCatMandatory as Record<string, string[]>;
-
-/**
- * Returns the set of RFC field names that are mandatory for a given major category.
- * Tries exact match first, then case-insensitive. Returns null if category unknown
- * (caller should fall back to sending all non-empty fields).
- */
-function getMandatoryRfcFields(majorCategory: string | null | undefined): Set<string> | null {
-    if (!majorCategory) return null;
-    const exact = mandatoryData[majorCategory];
-    if (exact) return new Set(exact);
-    // Case-insensitive fallback
-    const upper = majorCategory.trim().toUpperCase();
-    for (const [key, fields] of Object.entries(mandatoryData)) {
-        if (key.toUpperCase() === upper) return new Set(fields);
-    }
-    return null;
-}
 
 // ─── Value validation against allowed values ──────────────────────────────────
 
@@ -284,36 +414,46 @@ const toStr = (v: unknown): string => {
 
 /**
  * Build the JSON body for ZMM_ART_CREATION_RFC.
- * - RFC_ALWAYS_INCLUDE fields are always present (even empty).
- * - Optional fields are only included when they are BOTH non-empty AND listed
- *   as mandatory for the article's major category. This prevents AI-extracted
- *   values for irrelevant attributes (e.g. M_FINISH for a category where finish
- *   is not applicable) from being sent to SAP and causing validation errors.
- * - If the major category is unknown (not in the mandatory map), all non-empty
- *   fields are included as before (safe fallback).
+ *
+ * Mirrors the frontend 3-tier card visibility exactly:
+ *
+ *  RFC_ALWAYS_INCLUDE          → header/identity fields — always sent (even empty)
+ *  RFC_ALWAYS_SEND_IF_PRESENT  → BOM + freeText fields — always sent if non-empty
+ *  Tier 1 (mandatory grid)     → is_active=true for this major category → sent if non-empty
+ *  Tier 2 (maj_cat_grid)       → has dropdown values for this major category → sent if non-empty
+ *  Tier 3 (neither grid)       → NOT sent even if the DB has a value
  */
-function buildRfcPayload(item: FlatItem): Record<string, string> {
+function buildRfcPayload(
+    item: FlatItem,
+    mandatoryGrid: MandatoryGridCache,
+    majCatVisible: MajCatVisibleFields,
+): Record<string, string> {
+    const majorCategory = toStr(item.majorCategory);
+
+    // Tier 1: SAP keys that are active (mandatory) for this major category
+    const mandatoryKeys = mandatoryGrid.active.get(majorCategory) ?? new Set<string>();
+    // Tier 2: SAP keys that have dropdown values for this major category
+    const optionalKeys  = majCatVisible.get(majorCategory)        ?? new Set<string>();
+
+    // Union: every RFC key that is visible in the article card
+    const visibleKeys = new Set([...mandatoryKeys, ...optionalKeys]);
+
     const payload: Record<string, string> = {};
-    const mandatoryRfcFields = getMandatoryRfcFields(item.majorCategory as string | null);
-    const categoryKnown = mandatoryRfcFields !== null;
 
     for (const { rfc, flat } of FLAT_TO_RFC) {
         const val = toStr(item[flat]);
 
         if (RFC_ALWAYS_INCLUDE.has(rfc)) {
-            // Always include header fields (even empty)
+            // Header/identity fields — always present (even if empty)
             payload[rfc] = val;
-        } else if (val && RFC_INCLUDE_IF_PRESENT.has(rfc)) {
-            // MRP / PURCH_PRICE: always send when non-empty (bypass category mandatory check)
+        } else if (val && RFC_ALWAYS_SEND_IF_PRESENT.has(rfc)) {
+            // BOM / freeText fields — always sent if the value is non-empty
             payload[rfc] = val;
-        } else if (val) {
-            // Only include optional fields if:
-            // - Category unknown (safe fallback: send everything non-empty)
-            // - OR field is explicitly mandatory for this category
-            if (!categoryKnown || mandatoryRfcFields!.has(rfc)) {
-                payload[rfc] = val;
-            }
+        } else if (val && visibleKeys.has(rfc)) {
+            // Tier 1 or Tier 2 field — visible in card AND has a value
+            payload[rfc] = val;
         }
+        // Tier 3: not in either grid → skip even if DB has a value
     }
 
     // Always re-derive MC_CD and HSN_CODE from majorCategory using the JSON source of truth.
@@ -406,6 +546,10 @@ export async function syncArticlesToSapViaRfc(
 
     const results: SapSyncItemResult[] = [];
 
+    // Load both grids once for the entire batch (cached after first call)
+    const mandatoryGrid = await loadMandatoryGridForRfc();
+    const majCatVisible = await loadMajCatVisibleFieldsForRfc();
+
     for (const item of items) {
         // ── 1. Mandatory field check ──────────────────────────────────────────
         const missing = MANDATORY.filter((f) => {
@@ -423,8 +567,8 @@ export async function syncArticlesToSapViaRfc(
             continue;
         }
 
-        // ── 2. Build payload ─────────────────────────────────────────────────
-        const payload = buildRfcPayload(item);
+        // ── 2. Build payload (filtered by card visibility: mandatory + optional grids) ──
+        const payload = buildRfcPayload(item, mandatoryGrid, majCatVisible);
 
         console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
         console.log(`API URL : ${ZMM_RFC_URL}`);

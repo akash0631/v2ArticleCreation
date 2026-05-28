@@ -1,17 +1,17 @@
 import majCatMandatory from './archived/maj-cat-mandatory.json';
 import { MAJOR_CATEGORY_ALLOWED_VALUES } from './majorCategoryMap';
-import { getCachedValues, getCachedCategoryAttributes } from '../services/articleConfigService';
+import { getCachedValues, getCachedCategoryAttributes, getMajCatGridEntry } from '../services/articleConfigService';
 
 /**
  * Maps frontend schema keys to Excel CHILD_MAJ_CAT attribute names.
  * Used to filter allowed values per major category from maj-cat-attribute-values.json.
  */
 export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
-  macro_mvgr:        'IMP ATBT-1',
+  macro_mvgr:        'IMP ATBT',           // DB col E: 'IMP ATBT'  (was 'IMP ATBT-1')
   main_mvgr:         'FAB_MAIN_MVGR-1',
   yarn_01:           'M_YARN',
   fabric_main_mvgr:  'FAB-MAIN-MVGR-2',
-  weave:             'WEAVE 01',
+  weave:             'WEAVE-01',           // DB col E: 'WEAVE-01'  (was 'WEAVE 01' with space)
   m_fab2:            'WEAVE 02',
   composition:       'M_COMPOSITION',
   finish:            'M_FINISH',
@@ -58,7 +58,7 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
   vendor_code:       'VENDOR CODE',
   article_description: 'ARTICLE DESC',
   segment:           'SEGMENT',
-  age_group:         'M_AGE_GROUP',
+  age_group:         'AGE GROUP',          // DB col E: 'AGE GROUP' (was 'M_AGE_GROUP')
   article_fashion_type: 'ARTICLE FASHION TYPE',
   mvgr_brand_vendor: 'MVGR_BRAND_VENDOR',
   f_count:           'M_COUNT',
@@ -150,7 +150,9 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_FO_BTN_STYLE:      'front_open_style',
   // Business fields
   'Price Band Category': 'segment',
-  'Fashion Grade':     'article_fashion_type',
+  SEGMENT:               'segment',  // DB sap_key variant (uppercase)
+  'Fashion Grade':     'article_fashion_type',  // Excel label variant (space, mixed case)
+  FASHION_GRADE:       'article_fashion_type',  // DB sap_key variant (uppercase, underscore)
   'Cost':              'rate',
   'Mrp ( Char Val)':   'mrp',
   'Vendor':            'vendor_name',
@@ -275,19 +277,64 @@ export function normalizeMajorCategory(raw: string, division?: string | null): s
 /**
  * Returns the allowed values (shortForm/fullForm pairs) for a given schema key
  * scoped to the selected major category.
- * Returns null if no mapping exists (caller should keep existing values).
+ *
+ * Priority:
+ *   1. Uploaded Excel grid (from /api/admin/majcat-grid/values)
+ *      — keyed by exact majorCategory code (e.g. "L_PLAZO") + Excel col-E attr name
+ *   2. Division-level DB cache (global fallback)
+ *   3. null → caller keeps existing values unchanged
+ *
+ * @param majorCategory  Short code like "L_PLAZO" or "M_TEES_HS"
+ * @param schemaKey      Frontend schema key like "fab_div", "yarn_01"
+ * @param division       Optional division fallback ("MENS" | "LADIES" | "KIDS")
  */
 export function getMajCatAllowedValues(
   majorCategory: string,
-  schemaKey: string
+  schemaKey: string,
+  division?: string,
 ): { shortForm: string; fullForm: string }[] | null {
-  const dbField = SCHEMA_KEY_TO_DB_FIELD[schemaKey.toLowerCase()];
+  const key = schemaKey.toLowerCase();
+
+  // 1. Excel grid — most specific: exact major category + Excel attribute name
+  const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[key];
+  if (excelAttr && majorCategory) {
+    const gridVals = getMajCatGridEntry(majorCategory, excelAttr);
+    if (gridVals && gridVals.length > 0) {
+      // If the only value is '-', it means "no specific constraint — use global values
+      // but keep '-' as a valid selectable N/A option".
+      const onlyDash = gridVals.length === 1 && gridVals[0] === '-';
+      if (!onlyDash) {
+        // Specific values configured — return them directly (always include '-' if present)
+        return gridVals.map((v) => ({ shortForm: v, fullForm: v }));
+      }
+      // Fall through to global values, but remember to prepend '-'
+    }
+  }
+
+  // 2. Division-level DB fallback (global values by division)
+  const fallbackDiv = division || majorCategory;
+  const dbField = SCHEMA_KEY_TO_DB_FIELD[key];
   if (!dbField) return null;
 
-  const values = getCachedValues(majorCategory, dbField);
-  if (!values || values.length === 0) return null;
+  const values = getCachedValues(fallbackDiv, dbField);
 
-  return values.map((v) => ({ shortForm: v, fullForm: v }));
+  // Check if the majcat grid has '-' for this field — if so, prepend it as N/A option
+  const hasDashInGrid = (() => {
+    if (!excelAttr || !majorCategory) return false;
+    const gridVals = getMajCatGridEntry(majorCategory, excelAttr);
+    return gridVals !== null && gridVals.includes('-');
+  })();
+
+  if (!values || values.length === 0) {
+    return hasDashInGrid ? [{ shortForm: '-', fullForm: '-' }] : null;
+  }
+
+  const result = values.map((v) => ({ shortForm: v, fullForm: v }));
+  // Prepend '-' so user can always clear/mark as N/A when the grid allows it
+  if (hasDashInGrid && !result.some(v => v.shortForm === '-')) {
+    result.unshift({ shortForm: '-', fullForm: '-' });
+  }
+  return result;
 }
 
 /**

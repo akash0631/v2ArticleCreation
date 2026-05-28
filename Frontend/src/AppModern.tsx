@@ -15,6 +15,7 @@ import SimplifiedExtractionPage from './features/extraction/pages/SimplifiedExtr
 import { DashboardPage, ProfilePage, ProductsPage } from './features/dashboard';
 import { HierarchyManagement, UsersManagement } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
+import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
 import ModelGenerationPage from './features/model-generation/pages/ModelGenerationPage';
@@ -212,6 +213,16 @@ const App: React.FC = () => {
                   <AdminRoute>
                     <MainLayout>
                       <Admin />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/srm-failed"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <SrmFailedExtractionsPage />
                     </MainLayout>
                   </AdminRoute>
                 }

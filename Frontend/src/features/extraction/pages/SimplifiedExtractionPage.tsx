@@ -135,24 +135,6 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'wash', label: 'M_WASH', type: 'select' },
 ];
 
-const parseSubDivisions = (rawSubDivision: unknown): string[] => {
-  if (Array.isArray(rawSubDivision)) return rawSubDivision.map((value) => String(value).trim()).filter(Boolean);
-  if (typeof rawSubDivision === 'string') return rawSubDivision.split(',').map((value) => value.trim()).filter(Boolean);
-  return [];
-};
-
-const getLocalUserScope = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const subDivisions = parseSubDivisions(user.subDivision);
-  return {
-    role: user.role,
-    division: user.division,
-    subDivisions,
-    isCreator: user.role === 'CREATOR',
-    isSingleScopedCreator: user.role === 'CREATOR' && !!user.division && subDivisions.length === 1,
-  };
-};
-
 const SimplifiedExtractionPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<SimplifiedCategory | null>(null);
   const [currentStep, setCurrentStep] = useState<'category' | 'upload' | 'extraction'>('category');
@@ -163,7 +145,6 @@ const SimplifiedExtractionPage = () => {
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [manualNavigation, setManualNavigation] = useState(false);
   const [missingFieldsDialog, setMissingFieldsDialog] = useState<{ rowName: string; missingLabels: string[] }[] | null>(null);
-  const creatorScope = getLocalUserScope();
 
   const {
     extractedRows,
@@ -183,7 +164,9 @@ const SimplifiedExtractionPage = () => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed?.selectedCategory) setSelectedCategory(parsed.selectedCategory);
-        if (parsed?.currentStep && parsed.currentStep !== 'extraction') setCurrentStep(parsed.currentStep);
+        // Always land on 'category' step so Division/Sub-Division are always visible.
+        // The saved selectedCategory pre-fills the dropdowns — user must confirm before uploading.
+        // Never restore 'extraction' step — the rows-loaded effect handles that when rows exist.
       } catch {
         /* ignore */
       }
@@ -200,48 +183,22 @@ const SimplifiedExtractionPage = () => {
     localStorage.setItem('simplifiedExtractionState', JSON.stringify({ selectedCategory, currentStep }));
   }, [selectedCategory, currentStep]);
 
+  // Called when user clicks "Continue to Upload" in the category selector.
+  // Also called with null when the user changes division (to clear stale selection).
   const handleCategorySelect = useCallback(
     (category: SimplifiedCategory | null) => {
       setSelectedCategory(category);
-      setSimplifiedSchema(baseSchema);
       if (category) {
+        setSimplifiedSchema(baseSchema);
         setManualNavigation(false);
-        setTimeout(() => setCurrentStep('upload'), 300);
+        setCurrentStep('upload');
       }
     },
     [baseSchema],
   );
 
-  useEffect(() => {
-    if (manualNavigation) return;
-    try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) return;
-      const user = JSON.parse(userStr);
-      if (user.role === 'CREATOR' && user.division) {
-        let normalizedDept = user.division;
-        const upperDept = user.division.toUpperCase();
-        if (upperDept === 'MEN' || upperDept === 'MENS') normalizedDept = 'MENS';
-        else if (upperDept === 'KIDS') normalizedDept = 'Kids';
-        else if (upperDept === 'LADIES') normalizedDept = 'Ladies';
-        const allowedSubDivisions = parseSubDivisions(user.subDivision);
-        if (!selectedCategory && allowedSubDivisions.length === 1) {
-          const autoCategory = {
-            department: normalizedDept,
-            majorCategory: allowedSubDivisions[0],
-            displayName: `${normalizedDept} - ${allowedSubDivisions[0]}`,
-          };
-          setSelectedCategory(autoCategory);
-          setSimplifiedSchema(baseSchema);
-          setCurrentStep('upload');
-        } else if (!selectedCategory && allowedSubDivisions.length > 1) {
-          setCurrentStep('category');
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to auto-detect user scope', error);
-    }
-  }, [baseSchema, selectedCategory, manualNavigation]);
+  // Note: No auto-select on load — users always start at Step 1 (category selection)
+  // so they can always see and change the Division / Sub-Division.
 
   useEffect(() => {
     const loadAllowedValues = async () => {
@@ -361,16 +318,14 @@ const SimplifiedExtractionPage = () => {
   }, [simplifiedSchema, extractedRows]);
 
   const handleStartOver = () => {
-    const isRestrictedCreator = creatorScope.isSingleScopedCreator;
-    setManualNavigation(isRestrictedCreator ? false : true);
+    setManualNavigation(true);
     clearAll();
-    setCurrentStep(isRestrictedCreator ? 'upload' : 'category');
-    setSelectedCategory(isRestrictedCreator ? selectedCategory : null);
+    setCurrentStep('category');
+    setSelectedCategory(null);
     localStorage.removeItem('simplifiedExtractionState');
   };
 
   const handleBackToCategory = () => {
-    if (creatorScope.isSingleScopedCreator) return;
     setManualNavigation(true);
     setSelectedCategory(null);
     setCurrentStep('category');
@@ -388,20 +343,13 @@ const SimplifiedExtractionPage = () => {
     setImageModalVisible(true);
   }, []);
 
-  const stepIndex = (() => {
-    const isRestricted = creatorScope.isSingleScopedCreator;
-    if (isRestricted) return currentStep === 'upload' ? 0 : 1;
-    return currentStep === 'category' ? 0 : currentStep === 'upload' ? 1 : 2;
-  })();
+  const stepIndex = currentStep === 'category' ? 0 : currentStep === 'upload' ? 1 : 2;
 
-  const stepItems = (() => {
-    const items = [
-      { title: 'Select Category', icon: <LayoutGrid className="h-4 w-4" /> },
-      { title: 'Upload Images', icon: <UploadIcon className="h-4 w-4" /> },
-      { title: 'Auto-Extract', icon: <Bot className="h-4 w-4" /> },
-    ];
-    return creatorScope.isSingleScopedCreator ? items.slice(1) : items;
-  })();
+  const stepItems = [
+    { title: 'Select Category', icon: <LayoutGrid className="h-4 w-4" /> },
+    { title: 'Upload Images', icon: <UploadIcon className="h-4 w-4" /> },
+    { title: 'Auto-Extract', icon: <Bot className="h-4 w-4" /> },
+  ];
 
   return (
     <div className="extraction-scroll-page">
@@ -444,13 +392,11 @@ const SimplifiedExtractionPage = () => {
                   </span>
                 </div>
 
-                {!creatorScope.isSingleScopedCreator && (
-                  <div className="mb-3">
-                    <Button onClick={handleBackToCategory} variant="link" size="sm" className="pl-0">
-                      ← Back to Category Selection
-                    </Button>
-                  </div>
-                )}
+                <div className="mb-3">
+                  <Button onClick={handleBackToCategory} variant="link" size="sm" className="pl-0">
+                    ← Change Division / Sub-Division
+                  </Button>
+                </div>
 
                 <Alert
                   type="info"

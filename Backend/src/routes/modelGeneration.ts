@@ -3,8 +3,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { runBatchPipeline, ensureOutputFolder } from '../services/modelGenerationService';
+import bulkRoutes from './modelGenerationBulk';
 
 const router = Router();
+
+// Mount bulk-upload sub-routes (POST /bulk/upload, GET /bulk/job/:id, POST /bulk/job/:id/cancel)
+router.use('/', bulkRoutes);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -19,6 +23,7 @@ const uploadFields = upload.fields([
   { name: 'designs', maxCount: 10 },
   { name: 'pattern', maxCount: 1 },
   { name: 'broach', maxCount: 1 },
+  { name: 'color_image', maxCount: 1 },
 ]);
 
 router.post('/generate', uploadFields, async (req: Request, res: Response, next: NextFunction) => {
@@ -28,11 +33,13 @@ router.post('/generate', uploadFields, async (req: Request, res: Response, next:
     const designs = files?.['designs'] || [];
     const patternFile = files?.['pattern']?.[0];
     const broachFile = files?.['broach']?.[0];
+    const colorImageFile = files?.['color_image']?.[0];
 
     console.log('[ModelGen] Files received:', {
       designs: designs.map(f => ({ name: f.originalname, size: f.size, mime: f.mimetype })),
       pattern: patternFile ? { name: patternFile.originalname, size: patternFile.size } : null,
       broach: broachFile ? { name: broachFile.originalname, size: broachFile.size } : null,
+      color_image: colorImageFile ? { name: colorImageFile.originalname, size: colorImageFile.size } : null,
     });
 
     if (!designs.length) {
@@ -64,7 +71,8 @@ router.post('/generate', uploadFields, async (req: Request, res: Response, next:
       broachFile,
       broach_placement,
       special_instructions,
-      color_name
+      color_name,
+      colorImageFile
     );
     console.log('[ModelGen] Batch pipeline done, results count:', results.length);
 

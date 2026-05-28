@@ -3,6 +3,44 @@ import { EnhancedExtractionResult, AttributeData } from '../../../types/extracti
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from '../prompts/fabricWeaveGuidance';
 
+/**
+ * Multi-step JSON repair for malformed Gemini responses.
+ *
+ * Gemini occasionally returns JSON with:
+ *   1. Unquoted property names  →  { key: "val" }   instead of  { "key": "val" }
+ *   2. Trailing commas          →  { "a": 1, }
+ *   3. Truncated output         →  missing closing braces
+ *   4. Single-quoted strings    →  { 'key': 'val' }
+ *
+ * Each step is tried in order; we return as soon as JSON.parse succeeds.
+ * Throws if all repair attempts fail so the caller can bubble up the error.
+ */
+function repairAndParseJson(raw: string): any {
+  // Step 1 — remove trailing commas before } or ]
+  const step1 = raw.replace(/,(\s*[}\]])/g, '$1');
+  try { return JSON.parse(step1); } catch { /* continue */ }
+
+  // Step 2 — quote unquoted property names  (e.g.  key:  →  "key":  )
+  const step2 = step1.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3');
+  try { return JSON.parse(step2); } catch { /* continue */ }
+
+  // Step 3 — replace single-quoted string delimiters with double quotes
+  // (careful: only swap outermost quotes, not apostrophes inside values)
+  const step3 = step2.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '"$1"');
+  try { return JSON.parse(step3); } catch { /* continue */ }
+
+  // Step 4 — truncated output: close any unclosed braces/brackets
+  let step4 = step3;
+  step4 = step4.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, ''); // drop incomplete trailing token
+  const openBraces   = (step4.match(/\{/g) || []).length;
+  const closeBraces  = (step4.match(/\}/g) || []).length;
+  const openBrackets = (step4.match(/\[/g) || []).length;
+  const closeBrackets = (step4.match(/\]/g) || []).length;
+  for (let i = 0; i < openBrackets - closeBrackets; i++) step4 += ']';
+  for (let i = 0; i < openBraces - closeBraces; i++) step4 += '}';
+  return JSON.parse(step4); // throws if still invalid — caller handles it
+}
+
 export interface GoogleVisionConfig {
   model: string;
   maxTokens: number;
@@ -979,15 +1017,9 @@ GOAL: Achieve 90%+ accuracy. Take your time. Be thorough. Be precise.`;
       try {
         parsed = JSON.parse(cleanContent);
       } catch {
-        // Truncated JSON — try to recover by closing open braces
-        let repaired = cleanContent;
-        // Count open vs closed braces to determine how many to append
-        const opens = (repaired.match(/\{/g) || []).length;
-        const closes = (repaired.match(/\}/g) || []).length;
-        // Remove trailing incomplete string/value before closing
-        repaired = repaired.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, '');
-        for (let i = 0; i < opens - closes; i++) repaired += '}';
-        parsed = JSON.parse(repaired);
+        // Gemini occasionally returns malformed JSON. Apply a multi-step repair
+        // pipeline before giving up, then re-throw if all attempts fail.
+        parsed = repairAndParseJson(cleanContent);
       }
 
       const extractedMetadata = parsed.metadata || null;

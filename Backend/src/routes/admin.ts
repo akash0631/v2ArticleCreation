@@ -6,6 +6,25 @@ import { Router, Request, Response, NextFunction } from 'express';
 import * as adminController from '../controllers/adminController';
 import { hierarchyService } from '../services/hierarchyService';
 import { asyncHandler } from '../middleware/asyncHandler';
+import multer from 'multer';
+
+// Memory storage multer instance for Excel uploads (max 50 MB)
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (
+      file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.mimetype === 'application/vnd.ms-excel' ||
+      file.originalname.endsWith('.xlsx') ||
+      file.originalname.endsWith('.xls')
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx / .xls) are allowed'));
+    }
+  },
+});
 
 const h = asyncHandler;
 
@@ -108,11 +127,45 @@ router.get('/extractions', h(adminController.getAllExtractions));
 router.get('/srm/status', h(adminController.getSrmSyncStatus));
 router.post('/srm/sync', h(adminController.triggerSrmSync));
 router.post('/srm/enrich', h(adminController.triggerSrmEnrichment));
+router.post('/srm/sync-by-ref', h(adminController.syncSrmByRef));
+
+// ═══════════════════════════════════════════════════════
+// SRM FAILED EXTRACTIONS (ADMIN)
+// ═══════════════════════════════════════════════════════
+// ORDER MATTERS: retry-all must come before :id/retry so Express
+// doesn't treat "retry-all" as a record id.
+router.get('/srm/failed-extractions',                  h(adminController.getSrmFailedExtractions));
+router.post('/srm/failed-extractions/retry-all',       h(adminController.retrySrmFailedAll));
+router.post('/srm/failed-extractions/:id/retry',       h(adminController.retrySrmFailedRecord));
 
 // ═══════════════════════════════════════════════════════
 // VENDOR MASTER SYNC (ADMIN)
 // ═══════════════════════════════════════════════════════
 router.get('/vendor-master/status', h(adminController.getVendorMasterSyncStatus));
 router.post('/vendor-master/sync', h(adminController.triggerVendorMasterSync));
+
+// ═══════════════════════════════════════════════════════
+// MAJ-CAT GRID (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/majcat-grid/status', h(adminController.getMajCatGridStatus));
+router.get('/majcat-grid/values', h(adminController.getMajCatGridValues));
+router.get('/majcat-grid/template', h(adminController.downloadMajCatGridTemplate));
+router.post('/majcat-grid/upload', excelUpload.single('file'), h(adminController.uploadMajCatGrid));
+
+// ═══════════════════════════════════════════════════════
+// MANDATORY GRID (ADMIN)
+// ═══════════════════════════════════════════════════════
+router.get('/mandatory-grid/status', h(adminController.getMandatoryGridStatus));
+router.get('/mandatory-grid/values', h(adminController.getMandatoryGridValues));
+router.get('/mandatory-grid/template', h(adminController.downloadMandatoryGridTemplate));
+router.post('/mandatory-grid/upload', excelUpload.single('file'), h(adminController.uploadMandatoryGrid));
+
+// ═══════════════════════════════════════════════════════
+// HIERARCHY EXCEL UPLOAD (ADMIN)
+// Upserts Department / SubDepartment / Category from
+// DIV / SUB-DIV / MAJOR_CATEGORY columns of the Mandatory Grid Excel.
+// ═══════════════════════════════════════════════════════
+router.get('/hierarchy/excel-status', h(adminController.getHierarchyExcelStatus));
+router.post('/hierarchy/upload-excel', excelUpload.single('file'), mut, h(adminController.uploadHierarchyExcel));
 
 export default router;

@@ -8,6 +8,10 @@ import { z } from 'zod';
 import { prismaClient as prisma, withPrismaRetry } from '../utils/prisma';
 import bcrypt from 'bcryptjs';
 import { syncVendorMaster, getVendorMasterStatus } from '../services/vendorMasterSyncService';
+import { invalidateMandatoryGridCache, invalidateMajCatVisibleCache } from '../services/zmmArtCreationService';
+import { invalidateFieldVisibilityCache } from '../utils/categoryFieldVisibility';
+import path from 'path';
+import fs from 'fs';
 
 // ═══════════════════════════════════════════════════════
 // VALIDATION SCHEMAS
@@ -1457,103 +1461,111 @@ export const getExpenseAnalytics = async (req: Request, res: Response): Promise<
 };
 
 /**
- * Get total number of images used for attribute extraction
- * Counts unique images and groups by status, category, date
+ * Get total number of images used for attribute extraction.
+ * Uses DB-level aggregations — never loads all rows into memory.
  */
 export const getImageUsageAnalytics = async (req: Request, res: Response): Promise<void> => {
   try {
     const { dateFrom, dateTo, status, categoryId } = req.query;
 
-    // Build where clause
+    // Build shared where clause
     const where: any = {};
-
-    // Filter by date range if provided
     if (dateFrom || dateTo) {
       where.createdAt = {};
-      if (dateFrom) {
-        where.createdAt.gte = new Date(dateFrom as string);
-      }
-      if (dateTo) {
-        where.createdAt.lte = new Date(dateTo as string);
-      }
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom as string);
+      if (dateTo)   where.createdAt.lte = new Date(dateTo as string);
     }
+    if (status)     where.status     = status as string;
+    if (categoryId) where.categoryId = parseInt(categoryId as string);
 
-    // Filter by status if provided
-    if (status) {
-      where.status = status as string;
-    }
+    // ── All aggregations run in parallel at the DB level ──────────────────────
+    const [
+      totalImages,
+      uniqueImageUrls,
+      byStatus,
+      byCategory,
+      byDay,
+    ] = await Promise.all([
+      // Total job count
+      prisma.extractionJob.count({ where }),
 
-    // Filter by category if provided
-    if (categoryId) {
-      where.categoryId = parseInt(categoryId as string);
-    }
+      // Distinct image URLs (proxy for unique images)
+      prisma.extractionJob.findMany({
+        where,
+        select: { imageUrl: true },
+        distinct: ['imageUrl'],
+      }),
 
-    // Get extraction jobs for full filtered dataset
-    const jobs = await prisma.extractionJob.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        imageUrl: true,
-        imageHash: true,
-        status: true,
-        createdAt: true,
-        categoryId: true,
-        category: {
-          select: {
-            name: true,
-            code: true,
+      // Count grouped by status
+      prisma.extractionJob.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+
+      // Count grouped by category (join via sub-query)
+      prisma.extractionJob.groupBy({
+        by: ['categoryId'],
+        where,
+        _count: { _all: true },
+      }),
+
+      // Count grouped by date (last 30 days only, keep payload small)
+      prisma.extractionJob.groupBy({
+        by: ['createdAt'],
+        where: {
+          ...where,
+          createdAt: {
+            ...(where.createdAt ?? {}),
+            gte: where.createdAt?.gte ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },
         },
-      },
-    });
+        _count: { _all: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
 
-    // Count unique images by hash (if available) or URL
-    const uniqueImages = new Set(jobs.map((job) => job.imageHash || job.imageUrl));
+    // Resolve category names for the category breakdown
+    const categoryIds = byCategory.map(r => r.categoryId).filter(Boolean) as number[];
+    const categories = categoryIds.length > 0
+      ? await prisma.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: { id: true, name: true, code: true },
+        })
+      : [];
+    const catMap = new Map(categories.map(c => [c.id, c]));
 
-    // Group by status
-    const statusBreakdown: any = {};
-    jobs.forEach((job) => {
-      if (!statusBreakdown[job.status]) {
-        statusBreakdown[job.status] = 0;
-      }
-      statusBreakdown[job.status] += 1;
-    });
+    // Shape responses
+    const statusBreakdown: Record<string, number> = {};
+    for (const r of byStatus) statusBreakdown[r.status] = r._count._all;
 
-    // Group by category
-    const categoryBreakdown: any = {};
-    jobs.forEach((job) => {
-      const categoryKey = `${job.category.code} (${job.category.name})`;
-      if (!categoryBreakdown[categoryKey]) {
-        categoryBreakdown[categoryKey] = 0;
-      }
-      categoryBreakdown[categoryKey] += 1;
-    });
+    const categoryBreakdown: Record<string, number> = {};
+    for (const r of byCategory) {
+      const cat = catMap.get(r.categoryId!);
+      const key = cat ? `${cat.code} (${cat.name})` : String(r.categoryId);
+      categoryBreakdown[key] = r._count._all;
+    }
 
-    // Daily breakdown for last 30 days
-    const dailyBreakdown: any = {};
-    jobs.forEach((job) => {
-      const date = new Date(job.createdAt).toISOString().split('T')[0]; // YYYY-MM-DD format
-      if (!dailyBreakdown[date]) {
-        dailyBreakdown[date] = 0;
-      }
-      dailyBreakdown[date] += 1;
-    });
+    // Collapse groupBy-createdAt into YYYY-MM-DD buckets
+    const dailyBreakdown: Record<string, number> = {};
+    for (const r of byDay) {
+      const day = new Date(r.createdAt).toISOString().slice(0, 10);
+      dailyBreakdown[day] = (dailyBreakdown[day] ?? 0) + r._count._all;
+    }
+    const sortedDaily = Object.keys(dailyBreakdown).sort().reduce(
+      (acc: Record<string, number>, k) => { acc[k] = dailyBreakdown[k]; return acc; }, {}
+    );
+    const dayCount = Object.keys(sortedDaily).length;
 
     res.json({
       success: true,
       data: {
-        totalImages: jobs.length,
-        uniqueImages: uniqueImages.size,
-        averageImagesPerDay: (jobs.length / Math.max(Object.keys(dailyBreakdown).length, 1)).toFixed(2),
+        totalImages,
+        uniqueImages: uniqueImageUrls.length,
+        averageImagesPerDay: (totalImages / Math.max(dayCount, 1)).toFixed(2),
         statusBreakdown,
         categoryBreakdown,
-        dailyBreakdown: Object.entries(dailyBreakdown)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .reduce((acc: Record<string, number>, [date, count]) => {
-            acc[date] = count as number;
-            return acc;
-          }, {} as Record<string, number>),
+        dailyBreakdown: sortedDaily,
       },
     });
   } catch (error: any) {
@@ -1743,12 +1755,12 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
       prisma.extractionResultFlat.count({
         where: { source: 'SRM', extractionStatus: 'SRM_IMPORT', imageUrl: { not: null } },
       }),
-      // Records currently hidden from approvers because extraction is still running (<4h old)
+      // Records currently hidden from approvers because extraction is still running (<30min old)
       prisma.extractionResultFlat.count({
         where: {
           source: 'SRM',
           extractionStatus: 'SRM_IMPORT',
-          createdAt: { gt: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+          createdAt: { gt: new Date(Date.now() - 30 * 60 * 1000) },
         },
       }),
     ]);
@@ -1767,6 +1779,8 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
       return { istTime: t, utc: realUtc.toISOString() };
     });
 
+    const { getLastSrmSyncResult } = await import('../services/srmSyncService');
+
     res.json({
       success: true,
       data: {
@@ -1778,6 +1792,7 @@ export const getSrmSyncStatus = async (req: Request, res: Response): Promise<voi
         statusBreakdown: byStatus.map(r => ({ status: r.approvalStatus, count: r._count._all })),
         nextScheduledSyncs: nextSyncs,
         schedule: 'Daily at 12:00 PM and 8:00 PM IST',
+        lastSyncResult: getLastSrmSyncResult(),
       },
     });
   } catch (error: any) {
@@ -1847,6 +1862,308 @@ export const triggerSrmEnrichment = async (req: Request, res: Response): Promise
   }
 };
 
+/**
+ * POST /api/admin/srm/sync-by-ref
+ * Fetch a single SRM presentation by PPT ref_no and insert/enrich its images.
+ * Body: { refNo: string, approvedOnly?: boolean }
+ */
+export const syncSrmByRef = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refNo, approvedOnly } = req.body as { refNo?: string; approvedOnly?: boolean };
+
+    if (!refNo || typeof refNo !== 'string' || !refNo.trim()) {
+      res.status(400).json({ success: false, error: 'refNo is required (e.g. PRES-00721)' });
+      return;
+    }
+
+    const cleanRef = refNo.trim().toUpperCase();
+
+    // ── Duplicate presentation guard ─────────────────────────────────────
+    // Block re-sync if this presentation already has records in extraction_results_flat.
+    const existingCount = await prisma.extractionResultFlat.count({
+      where: { pptNumber: cleanRef },
+    });
+    if (existingCount > 0) {
+      res.status(409).json({
+        success: false,
+        error: `Presentation ${cleanRef} already has ${existingCount} record(s) in the database. Re-extraction is not allowed to prevent duplicates.`,
+        existingCount,
+      });
+      return;
+    }
+
+    const { syncSinglePresentation } = await import('../services/srmSyncService');
+    console.log(`[Admin] Single PPT sync triggered for: ${cleanRef}`);
+
+    const result = await syncSinglePresentation(cleanRef, approvedOnly === true);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('Error in syncSrmByRef:', error);
+    // Pass through 404 from SRM API as a 404 to the client
+    if (error.message?.includes('HTTP 404')) {
+      res.status(404).json({ success: false, error: `Presentation not found: ${req.body?.refNo}` });
+      return;
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// SRM FAILED EXTRACTIONS (ADMIN)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/srm/failed-extractions
+ *
+ * Returns paginated SRM records that are still at SRM_IMPORT status
+ * (inserted but VLM enrichment never completed).
+ *
+ * Query params:
+ *   page        default 1
+ *   limit       default 50, max 200
+ *   search      filter by ppt_number or design_number (case-insensitive)
+ *   division    filter by division
+ */
+export const getSrmFailedExtractions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prismaClient: prisma } = await import('../utils/prisma');
+
+    const page  = Math.max(1, parseInt(req.query.page  as string || '1', 10));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string || '50', 10)));
+    const skip  = (page - 1) * limit;
+
+    const search   = (req.query.search   as string || '').trim();
+    const division = (req.query.division as string || '').trim();
+
+    const where: any = {
+      source:           'SRM',
+      extractionStatus: 'SRM_IMPORT',
+    };
+
+    if (search) {
+      where.OR = [
+        { pptNumber:    { contains: search, mode: 'insensitive' } },
+        { designNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (division) {
+      where.division = { equals: division, mode: 'insensitive' };
+    }
+
+    const [total, records] = await Promise.all([
+      prisma.extractionResultFlat.count({ where }),
+      prisma.extractionResultFlat.findMany({
+        where,
+        select: {
+          id:               true,
+          pptNumber:        true,
+          designNumber:     true,
+          majorCategory:    true,
+          division:         true,
+          subDivision:      true,
+          vendorCode:       true,
+          vendorName:       true,
+          imageUrl:         true,
+          extractionStatus: true,
+          approvalStatus:   true,
+          sapSyncStatus:    true,
+          createdAt:        true,
+          updatedAt:        true,
+          aiModel:          true,
+          avgConfidence:    true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    // Summary by division (for the stats cards)
+    const divBreakdown = await prisma.extractionResultFlat.groupBy({
+      by: ['division'],
+      where: { source: 'SRM', extractionStatus: 'SRM_IMPORT' },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        records,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        divisionBreakdown: divBreakdown.map(d => ({
+          division: d.division || 'Unknown',
+          count:    d._count.id,
+        })),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error in getSrmFailedExtractions:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/failed-extractions/:id/retry
+ *
+ * Immediately re-runs VLM enrichment for a single SRM_IMPORT record.
+ * Returns the updated extractionStatus synchronously (may take ~30s).
+ */
+export const retrySrmFailedRecord = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { prismaClient: prisma } = await import('../utils/prisma');
+
+    const record = await prisma.extractionResultFlat.findUnique({
+      where:  { id },
+      select: { id: true, imageUrl: true, majorCategory: true, extractionStatus: true, pptNumber: true, designNumber: true, approvalStatus: true, sapSyncStatus: true },
+    });
+
+    if (!record) {
+      res.status(404).json({ success: false, error: 'Record not found' });
+      return;
+    }
+
+    if (!record.imageUrl) {
+      res.status(422).json({ success: false, error: 'Record has no image URL — cannot run VLM' });
+      return;
+    }
+
+    // Guard: do not overwrite data that has already been approved and synced to SAP.
+    // The approver reviewed & edited the fields manually; VLM would clobber their work.
+    if (record.approvalStatus === 'APPROVED' && record.sapSyncStatus === 'SYNCED') {
+      res.status(409).json({
+        success: false,
+        error:   'Cannot retry: this article is APPROVED and already SYNCED to SAP. VLM extraction would overwrite manually approved data.',
+        approvalStatus: record.approvalStatus,
+        sapSyncStatus:  record.sapSyncStatus,
+      });
+      return;
+    }
+
+    // Guard: do not touch legacy records created before 25 May 2026.
+    // These are correct SRM imports whose data must not be overwritten by re-extraction.
+    const SRM_ENRICHMENT_CUTOFF = new Date('2026-05-25T00:00:00.000Z');
+    const fullRecord = await prisma.extractionResultFlat.findUnique({
+      where: { id },
+      select: { createdAt: true },
+    });
+    if (fullRecord && fullRecord.createdAt < SRM_ENRICHMENT_CUTOFF) {
+      res.status(409).json({
+        success: false,
+        error:   `Cannot retry: this record was created on ${fullRecord.createdAt.toISOString().slice(0, 10)} (before 2026-05-25). Re-extraction would overwrite the original import data.`,
+        createdAt: fullRecord.createdAt,
+      });
+      return;
+    }
+
+    const { enrichSrmRowWithVlmAdmin } = await import('../services/srmSyncService');
+    const success = await enrichSrmRowWithVlmAdmin(record.id, record.imageUrl, record.majorCategory);
+
+    const updated = await prisma.extractionResultFlat.findUnique({
+      where:  { id },
+      select: { extractionStatus: true, articleDescription: true, aiModel: true, avgConfidence: true },
+    });
+
+    res.json({
+      success,
+      id,
+      pptNumber:        record.pptNumber,
+      designNumber:     record.designNumber,
+      extractionStatus: updated?.extractionStatus,
+      articleDescription: updated?.articleDescription,
+      aiModel:          updated?.aiModel,
+      avgConfidence:    updated?.avgConfidence,
+      message:          success ? 'VLM enrichment succeeded' : 'VLM enrichment failed — check server logs',
+    });
+  } catch (error: any) {
+    console.error('Error in retrySrmFailedRecord:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/srm/failed-extractions/retry-all
+ *
+ * Queues VLM re-extraction for ALL current SRM_IMPORT records that have an imageUrl.
+ * Responds immediately (202); runs in background.
+ *
+ * Body (optional): { division?: string } — limit retry to one division
+ */
+export const retrySrmFailedAll = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prismaClient: prisma } = await import('../utils/prisma');
+    const division = (req.body?.division as string || '').trim() || undefined;
+
+    // Only retry records created on or after 2026-05-25.
+    // Legacy records (before this date) are correct SRM imports — re-extraction would overwrite their data.
+    const SRM_ENRICHMENT_CUTOFF = new Date('2026-05-25T00:00:00.000Z');
+
+    const where: any = {
+      source:           'SRM',
+      extractionStatus: 'SRM_IMPORT',
+      imageUrl:         { not: null },
+      createdAt:        { gte: SRM_ENRICHMENT_CUTOFF },
+      // Never touch articles that are already APPROVED + SYNCED to SAP
+      NOT: { approvalStatus: 'APPROVED', sapSyncStatus: 'SYNCED' },
+    };
+    if (division) where.division = { equals: division, mode: 'insensitive' };
+
+    const count = await prisma.extractionResultFlat.count({ where });
+
+    if (count === 0) {
+      res.json({ success: true, message: 'No failed records found — nothing to retry.', queued: 0 });
+      return;
+    }
+
+    res.status(202).json({
+      success:  true,
+      queued:   count,
+      message:  `Retry queued for ${count} record(s). Processing in background — check server logs for progress.`,
+    });
+
+    // Run entirely in background
+    void (async () => {
+      try {
+        const records = await prisma.extractionResultFlat.findMany({
+          where,
+          select: { id: true, imageUrl: true, majorCategory: true },
+          orderBy: { createdAt: 'asc' },
+        });
+
+        const { enrichSrmRowWithVlmAdmin } = await import('../services/srmSyncService');
+        const VLM_DELAY = 2000;
+        let enriched = 0;
+        let failed   = 0;
+
+        for (let i = 0; i < records.length; i++) {
+          const rec = records[i];
+          if (!rec.imageUrl) continue;
+          try {
+            const ok = await enrichSrmRowWithVlmAdmin(rec.id, rec.imageUrl, rec.majorCategory);
+            if (ok) enriched++; else failed++;
+          } catch { failed++; }
+          if (i < records.length - 1) await new Promise(r => setTimeout(r, VLM_DELAY));
+        }
+
+        console.log(`[Admin] Retry-all complete — enriched:${enriched} failed:${failed} / ${records.length}`);
+      } catch (err: any) {
+        console.error('[Admin] Retry-all background error:', err?.message);
+      }
+    })();
+  } catch (error: any) {
+    console.error('Error in retrySrmFailedAll:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 // ═══════════════════════════════════════════════════════
 // VENDOR MASTER SYNC (ADMIN)
 // ═══════════════════════════════════════════════════════
@@ -1891,3 +2208,832 @@ export const triggerVendorMasterSync = async (req: Request, res: Response): Prom
   }
 };
 
+// ═══════════════════════════════════════════════════════
+// MAJ-CAT GRID — Excel Upload, Serve & Template
+// ═══════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/majcat-grid/template
+ * Streams a ready-to-fill Excel template with headers + sample rows.
+ */
+export const downloadMajCatGridTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Article Creation System';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('MAJ_CAT_GRID');
+
+    // Row 1 — Title
+    ws.mergeCells('A1:J1');
+    const title = ws.getCell('A1');
+    title.value = '300 MAJOR CATEGORY WISE ACTIVE GRID MASTER';
+    title.font = { bold: true, size: 13, color: { argb: 'FF1D3557' } };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+    title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
+    ws.getRow(1).height = 28;
+
+    // Row 2 — blank
+    ws.addRow([]);
+
+    // Row 3 — Headers
+    const HEADERS = [
+      'FG_MAJ_CAT', 'F.GRD SR NO', 'FATHER COMP DIV', 'CHILD GRID SR NO',
+      'FATHER COMP MAJ_CAT', 'MVGR GRID SR NO', 'MAIN MVGR',
+      'FULL FORM', 'GRID STATUS', 'RECEIVED/AUTO',
+    ];
+    const REQUIRED_COLS = [0, 4, 6]; // A, E, G — used by the uploader
+
+    const headerRow = ws.addRow(HEADERS);
+    headerRow.eachCell((cell, colNum) => {
+      const isRequired = REQUIRED_COLS.includes(colNum - 1);
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: isRequired ? 'FF1D6F42' : 'FF2F5496' },
+      };
+      cell.border = {
+        top: { style: 'thin' }, left: { style: 'thin' },
+        bottom: { style: 'thin' }, right: { style: 'thin' },
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    });
+    ws.getRow(3).height = 32;
+
+    // Row 4 — blank (data starts at row 5 to match original format)
+    ws.addRow([]);
+
+    // Sample rows
+    const SAMPLES = [
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'WEAVE-01',        '1.05.54',  'B_EYE',     'BIRD EYE',        'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'WEAVE-01',        '1.05.150', 'CNVS',      'CANVAS',          'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'M_YARN',          '1.01.10',  'COTTON',    'COTTON',          'ACT', 'AUTO'],
+      ['JB_TEES_FS', '1', 'FAB', '1.05', 'M_YARN',          '1.01.20',  'POLYESTER', 'POLYESTER',       'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.01',  'K',         'KNIT',            'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.02',  'W',         'WOVEN',           'ACT', 'AUTO'],
+      ['L_PLAZO',    '2', 'FAB', '2.01', 'M_FAB_DIV',       '2.01.03',  'DNM',       'DENIM',           'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'WEAVE-01',        '3.01.01',  'SJ',        'SINGLE JERSEY',   'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'WEAVE-01',        '3.01.02',  'PIQ',       'PIQUE',           'ACT', 'AUTO'],
+      ['M_TEES_HS',  '3', 'FAB', '3.01', 'FAB_MAIN_MVGR-1', '3.02.01',  'SLD',       'SOLID',           'ACT', 'AUTO'],
+    ];
+
+    SAMPLES.forEach((row, i) => {
+      const r = ws.addRow(row);
+      r.eachCell((cell, colNum) => {
+        const isRequired = REQUIRED_COLS.includes(colNum - 1);
+        cell.border = {
+          top: { style: 'thin' }, left: { style: 'thin' },
+          bottom: { style: 'thin' }, right: { style: 'thin' },
+        };
+        cell.fill = {
+          type: 'pattern', pattern: 'solid',
+          fgColor: { argb: i % 2 === 0 ? 'FFF2F7FF' : 'FFFFFFFF' },
+        };
+        if (isRequired) cell.font = { bold: true };
+      });
+    });
+
+    // Column widths
+    [18, 12, 16, 16, 22, 16, 14, 22, 14, 16].forEach((w, i) => {
+      ws.getColumn(i + 1).width = w;
+    });
+
+    // Note row
+    ws.addRow([]);
+    const noteRowNum = ws.rowCount + 1;
+    ws.addRow([
+      '⚠ NOTE: Data must start from Row 5. ' +
+      'Columns A (FG_MAJ_CAT ✱), E (FATHER COMP MAJ_CAT ✱), G (MAIN MVGR ✱) are REQUIRED. ' +
+      'Green headers = required by uploader. Blue headers = optional (can be left blank).',
+    ]);
+    ws.mergeCells(`A${noteRowNum}:J${noteRowNum}`);
+    const noteCell = ws.getCell(`A${noteRowNum}`);
+    noteCell.font = { italic: true, size: 10, color: { argb: 'FF595959' } };
+    noteCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+    noteCell.alignment = { wrapText: true };
+    ws.getRow(noteRowNum).height = 36;
+
+    // Stream to response
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MAJ_CAT_GRID_TEMPLATE.xlsx"');
+
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[MajCatGrid] Template generation error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Meta file only stores upload info (filename, date) — actual values live in Supabase
+const MAJ_CAT_META_FILE = path.join(process.cwd(), 'data', 'majCatGridMeta.json');
+
+/**
+ * GET /api/admin/majcat-grid/status
+ * Returns metadata about the last uploaded grid + live row counts from Supabase.
+ */
+export const getMajCatGridStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Live counts from DB
+    const countResult = await prisma.$queryRaw<{ total: bigint; categories: bigint; attributes: bigint }[]>`
+      SELECT
+        COUNT(*)                                         AS total,
+        COUNT(DISTINCT major_category)                   AS categories,
+        COUNT(DISTINCT (major_category || '||' || attribute_name)) AS attributes
+      FROM maj_cat_grid_values
+    `;
+    const { total, categories, attributes } = countResult[0];
+
+    // Upload metadata from file (lightweight)
+    let fileMeta: Record<string, any> = {};
+    if (fs.existsSync(MAJ_CAT_META_FILE)) {
+      try { fileMeta = JSON.parse(fs.readFileSync(MAJ_CAT_META_FILE, 'utf-8')); } catch {}
+    }
+
+    if (Number(total) === 0 && !fileMeta.uploadedAt) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...fileMeta,
+        totalValues:      Number(total),
+        categoriesCount:  Number(categories),
+        attributesCount:  Number(attributes),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/majcat-grid/values
+ * Reads all rows from Supabase and returns grouped JSON for frontend caching.
+ * Format: { [majorCategory]: { [attributeName]: string[] } }
+ */
+export const getMajCatGridValues = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ major_category: string; attribute_name: string; value: string }[]>`
+      SELECT major_category, attribute_name, value
+      FROM maj_cat_grid_values
+      ORDER BY major_category, attribute_name, value
+    `;
+
+    // Group into nested object
+    const grouped: Record<string, Record<string, string[]>> = {};
+    for (const row of rows) {
+      if (!grouped[row.major_category]) grouped[row.major_category] = {};
+      if (!grouped[row.major_category][row.attribute_name]) grouped[row.major_category][row.attribute_name] = [];
+      grouped[row.major_category][row.attribute_name].push(row.value);
+    }
+
+    res.json({ success: true, data: grouped });
+  } catch (error: any) {
+    console.error('[MajCatGrid] Values fetch error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/majcat-grid/upload
+ * Accepts a multipart Excel file, parses cols A (FG_MAJ_CAT), E (attr name), G (value),
+ * truncates the maj_cat_grid_values table, then batch-inserts into Supabase.
+ */
+export const uploadMajCatGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Send a .xlsx file as "file" field.' });
+      return;
+    }
+
+    // ── 1. Parse Excel ──────────────────────────────────────────────────────────
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await wb.xlsx.load(req.file.buffer as any);
+
+    const ws = wb.worksheets[0];
+    if (!ws) {
+      res.status(400).json({ success: false, error: 'No worksheets found in the uploaded Excel file.' });
+      return;
+    }
+
+    const COL_MAJ_CAT = 1; // A — FG_MAJ_CAT
+    const COL_ATTR    = 5; // E — FATHER COMP MAJ_CAT
+    const COL_VALUE   = 7; // G — MAIN MVGR
+    const COL_STATUS  = 9; // I — GRID STATUS  (only import "ACT" rows)
+
+    // Deduplicate with a Set keyed by "mc||at||v"
+    const seen = new Set<string>();
+    type GridRow = { major_category: string; attribute_name: string; value: string };
+    const flatRows: GridRow[] = [];
+    let skipped = 0;
+    let inactiveSkipped = 0;
+
+    for (let r = 5; r <= ws.rowCount; r++) {
+      const row    = ws.getRow(r);
+      const mc     = String(row.getCell(COL_MAJ_CAT).value ?? '').trim();
+      const at     = String(row.getCell(COL_ATTR).value    ?? '').trim();
+      const v      = String(row.getCell(COL_VALUE).value   ?? '').trim();
+      const status = String(row.getCell(COL_STATUS).value  ?? '').trim().toUpperCase();
+
+      if (!mc || !at || !v) { skipped++; continue; }
+
+      // Skip inactive rows — only import ACT (active) values
+      if (status && status !== 'ACT') { inactiveSkipped++; continue; }
+
+      const key = `${mc}||${at}||${v}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      flatRows.push({ major_category: mc, attribute_name: at, value: v });
+    }
+
+    const totalRows       = flatRows.length;
+    const categoriesCount = new Set(flatRows.map(r => r.major_category)).size;
+    const attributesCount = new Set(flatRows.map(r => `${r.major_category}||${r.attribute_name}`)).size;
+
+    // ── 2. Replace all rows in Supabase ────────────────────────────────────────
+    // Use a larger batch size (5000) to cut DB round-trips from ~637 → ~64 for
+    // a 318k-row file. Wrapped in a single transaction so either all rows land
+    // or none do (no partial state on failure).
+    const BATCH = 5000;
+    console.log(`[MajCatGrid] Replacing table — ${totalRows} rows in batches of ${BATCH}...`);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`TRUNCATE TABLE maj_cat_grid_values RESTART IDENTITY`;
+
+      for (let i = 0; i < flatRows.length; i += BATCH) {
+        const batch = flatRows.slice(i, i + BATCH);
+        await tx.$executeRaw`
+          INSERT INTO maj_cat_grid_values (major_category, attribute_name, value, uploaded_at)
+          SELECT v.major_category, v.attribute_name, v.value, NOW()
+          FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
+            AS v(major_category text, attribute_name text, value text)
+          ON CONFLICT (major_category, attribute_name, value) DO NOTHING
+        `;
+      }
+    }, { timeout: 14 * 60 * 1000 }); // 14-min DB transaction timeout (just under request timeout)
+
+    // ── 3. Save lightweight metadata file ──────────────────────────────────────
+    const meta = {
+      uploadedAt:       new Date().toISOString(),
+      fileName:         req.file.originalname,
+      totalRows,
+      skippedRows:      skipped,
+      inactiveSkipped,
+      categoriesCount,
+      attributesCount,
+    };
+    const metaDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(MAJ_CAT_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
+    invalidateMajCatVisibleCache();
+    invalidateFieldVisibilityCache(); // also flush description-builder collar visibility cache
+
+    console.log(`[MajCatGrid] Done — ${totalRows} ACT rows inserted, ${inactiveSkipped} IN-ACT skipped, ${categoriesCount} major categories, ${attributesCount} attr slots`);
+
+    res.json({
+      success: true,
+      message: `Grid uploaded successfully. Inserted ${totalRows} rows across ${categoriesCount} major categories into Supabase.`,
+      data: meta,
+    });
+  } catch (error: any) {
+    console.error('[MajCatGrid] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANDATORY GRID (maj_cat_mandatory_grid)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MAJ_CAT_MANDATORY_META_FILE = path.join(process.cwd(), 'data', 'majCatMandatoryMeta.json');
+
+/**
+ * GET /api/admin/mandatory-grid/status
+ */
+export const getMandatoryGridStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const countResult = await prisma.$queryRaw<{ total: bigint; categories: bigint; active: bigint }[]>`
+      SELECT
+        COUNT(*)                             AS total,
+        COUNT(DISTINCT major_category)       AS categories,
+        SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active
+      FROM maj_cat_mandatory_grid
+    `;
+    const { total, categories, active } = countResult[0];
+
+    let fileMeta: Record<string, any> = {};
+    if (fs.existsSync(MAJ_CAT_MANDATORY_META_FILE)) {
+      try { fileMeta = JSON.parse(fs.readFileSync(MAJ_CAT_MANDATORY_META_FILE, 'utf-8')); } catch {}
+    }
+
+    if (Number(total) === 0 && !fileMeta.uploadedAt) {
+      res.json({ success: true, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...fileMeta,                              // includes totalRows (Excel row count), attributesCount
+        categoriesCount: Number(categories),      // authoritative from DB (distinct major categories)
+        activeMappings:  Number(active),          // active (major_category, sap_key) pairs in DB
+        totalMappings:   Number(total),           // total (major_category, sap_key) pairs in DB
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/mandatory-grid/values
+ * Returns: { [majorCategory]: { sapKey: boolean } }
+ */
+export const getMandatoryGridValues = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ major_category: string; sap_key: string; label: string | null; is_active: boolean }[]>`
+      SELECT major_category, sap_key, label, is_active
+      FROM maj_cat_mandatory_grid
+      ORDER BY major_category, sap_key
+    `;
+
+    const grouped: Record<string, Record<string, { isActive: boolean; label: string | null }>> = {};
+    for (const row of rows) {
+      if (!grouped[row.major_category]) grouped[row.major_category] = {};
+      grouped[row.major_category][row.sap_key] = {
+        isActive: row.is_active,
+        label: row.label ?? null,
+      };
+    }
+
+    res.json({ success: true, data: grouped });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/mandatory-grid/template
+ */
+export const downloadMandatoryGridTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('MANDATORY-GRID-TEMPLATE');
+
+    // Title
+    ws.mergeCells('A1:F1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'MAJOR CATEGORY WISE MANDATORY GRID DATA';
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center' };
+    ws.getRow(1).height = 22;
+
+    // Row 2 empty
+    ws.addRow([]);
+
+    // Row 3 — SAP Keys header
+    const sapKeys = [
+      'DIV', 'SUB-DIV', 'MAJOR_CATEGORY',
+      'M_FAB_DIV', 'M_YARN', 'M_YARN-02', 'M_WEAVE_2', 'M_FAB', 'M_FAB2',
+      'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH',
+      'M_GSM', 'M_OUNZ', 'M_WIDTH', 'M_COLLAR', 'M_COLLAR_STYLE',
+      'M_NECK_BAND_STYLE', 'M_NECK_BAND', 'M_PLACKET', 'M_BLT_MAIN_STYLE',
+      'M_SUB_STYLE_BLT', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD', 'M_BTM_FOLD',
+      'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'M_PATTERN',
+      'M_LENGTH', 'M_DC_SUB_STYLE', 'M_DC_SHAPE', 'M_BTN_MAIN_MVGR', 'M_BTN_CLR',
+      'M_ZIP', 'M_ZIP_COL', 'M_PATCH_TYPE', 'M_PATCHES', 'M_HTRF_STYLE',
+      'M_HTRF_TYPE', 'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT',
+      'M_EMBROIDERY', 'M_EMB_TYPE', 'M_EMB_PLACEMENT', 'M_WASH',
+      'M_AGE_GROUP', 'PRICE_BAND_CATEGORY', 'FASHION_GRADE', 'PURCH_PRICE', 'MRP',
+      'VENDOR-NM', 'G_WEIGHT', 'ARTICLE DIMENSION',
+    ];
+
+    const row3 = ws.addRow(sapKeys);
+    row3.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 4 — Labels header
+    const labels = [
+      'DIV', 'SUB-DIV', 'MAJOR_CATEGORY',
+      'M_FAB_DIV', 'M_YARN', 'FAB_MAIN_MVGR-1', 'FAB-MAIN-MVGR-2', 'WEAVE-01', 'WEAVE 02',
+      'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH',
+      'M_GSM', 'M_OUNZ', 'M_WIDTH', 'M_COLLAR_TYPE', 'M_COLLAR_STYLE',
+      'M_NECK_STYLE', 'M_NECK_TYPE', 'M_PLACKET', 'M_BLT_TYPE',
+      'M_BLT_STYLE', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD', 'M_BTM_FOLD',
+      'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'BODY STYLE',
+      'M_LENGTH', 'M_DC_STYLE', 'M_DC_SHAPE', 'M_BTN_TYPE', 'M_BTN_CLR',
+      'M_ZIP_TYPE', 'M_ZIP_COL', 'M_PATCH_STYLE', 'M_PATCHE_TYPE', 'M_HTRF_STYLE',
+      'M_HTRF_TYPE', 'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT',
+      'M_EMBROIDERY_STYLE', 'M_EMB_TYPE', 'M_EMB_PLACEMENT', 'M_WASH',
+      'AGE GROUP', 'SEGMENT', 'ARTICLE FASHION TYPE', 'COST', 'MRP',
+      'VENDOR-NM', 'ARTICLE WEIGHT', 'ARTICLE DIMENSION',
+    ];
+
+    const row4 = ws.addRow(labels);
+    row4.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FF000000' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBBDEFB' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 5 empty + sample row 6
+    ws.addRow([]);
+    ws.addRow(['MENS', 'MW', 'MW_TEES_FS', 1, 1, 1, 1, 1, 1, 1, null, null, 1, null, 1, null, null, null, null, 1, 1, null, null, null, 1, 1, 1, 1, 1, null, 1, null, 1, null, null, null, null, null, null, null, null, null, null, 1, 1, 1, null, null, null, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
+    // Note
+    ws.addRow([]);
+    const noteRow = ws.addRow(['⚠ NOTE: Row 3 = SAP Keys, Row 4 = Labels, Row 5 = empty, Row 6+ = data. Use 1 for active/visible, leave blank for inactive/hidden.']);
+    ws.mergeCells(`A${noteRow.number}:BF${noteRow.number}`);
+    noteRow.getCell(1).font = { italic: true, size: 10 };
+    noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="MANDATORY_GRID_TEMPLATE.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[MandatoryGrid] Template error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/mandatory-grid/upload
+ */
+export const uploadMandatoryGrid = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded' });
+      return;
+    }
+
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer as any);
+    const ws = wb.worksheets[0];
+
+    // Row 3 = SAP keys, Row 4 = labels, Row 5 = empty, Row 6+ = data
+    const sapKeyRow = ws.getRow(3);
+    const labelRow  = ws.getRow(4);
+
+    // Build column index → { sapKey, label }
+    const colMeta: Record<number, { sapKey: string; label: string }> = {};
+    sapKeyRow.eachCell({ includeEmpty: false }, (cell: any, col: number) => {
+      if (col <= 3) return; // skip DIV, SUB-DIV, MAJOR_CATEGORY
+      const rawSap = cell.value;
+      // Handle formula cells
+      const sapKey = typeof rawSap === 'object' && rawSap !== null && 'result' in rawSap
+        ? String(rawSap.result).trim()
+        : String(rawSap ?? '').trim();
+      if (!sapKey) return;
+
+      const rawLabel = labelRow.getCell(col).value;
+      const label = typeof rawLabel === 'object' && rawLabel !== null && 'result' in rawLabel
+        ? String(rawLabel.result).trim()
+        : String(rawLabel ?? '').trim();
+
+      colMeta[col] = { sapKey, label };
+    });
+
+    console.log(`[MandatoryGrid] Detected ${Object.keys(colMeta).length} attribute columns`);
+
+    // Parse data rows (row 6+)
+    type FlatRecord = {
+      major_category: string;
+      div: string | null;
+      sub_div: string | null;
+      sap_key: string;
+      label: string | null;
+      is_active: boolean;
+    };
+
+    const flatRows: FlatRecord[] = [];
+    let skipped = 0;
+
+    ws.eachRow({ includeEmpty: false }, (row: any, rowNum: number) => {
+      if (rowNum <= 5) return; // skip header rows
+
+      const rawMajCat = row.getCell(3).value;
+      const majorCategory = String(rawMajCat ?? '').trim();
+      if (!majorCategory) { skipped++; return; }
+
+      const div    = String(row.getCell(1).value ?? '').trim() || null;
+      const subDiv = String(row.getCell(2).value ?? '').trim() || null;
+
+      for (const [colStr, { sapKey, label }] of Object.entries(colMeta)) {
+        const col = Number(colStr);
+        const cellVal = row.getCell(col).value;
+        const isActive = cellVal === 1 || cellVal === '1' || cellVal === true;
+        flatRows.push({ major_category: majorCategory, div, sub_div: subDiv, sap_key: sapKey, label, is_active: isActive });
+      }
+    });
+
+    const totalRows = flatRows.length;
+    const categoriesCount = new Set(flatRows.map(r => r.major_category)).size;
+    const activeCount = flatRows.filter(r => r.is_active).length;
+
+    console.log(`[MandatoryGrid] Parsed ${totalRows} records, ${categoriesCount} categories, ${activeCount} active`);
+
+    // TRUNCATE + batch INSERT
+    await prisma.$executeRaw`TRUNCATE TABLE maj_cat_mandatory_grid RESTART IDENTITY`;
+
+    const BATCH = 500;
+    for (let i = 0; i < flatRows.length; i += BATCH) {
+      const batch = flatRows.slice(i, i + BATCH);
+      const values = batch.map(r =>
+        `(${[
+          `'${r.major_category.replace(/'/g, "''")}'`,
+          r.div    ? `'${r.div.replace(/'/g, "''")}'`    : 'NULL',
+          r.sub_div ? `'${r.sub_div.replace(/'/g, "''")}'` : 'NULL',
+          `'${r.sap_key.replace(/'/g, "''")}'`,
+          r.label  ? `'${r.label.replace(/'/g, "''")}'`  : 'NULL',
+          r.is_active ? 'true' : 'false',
+          'NOW()',
+        ].join(',')})`
+      ).join(',');
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO maj_cat_mandatory_grid
+          (major_category, div, sub_div, sap_key, label, is_active, uploaded_at)
+        VALUES ${values}
+        ON CONFLICT (major_category, sap_key) DO UPDATE SET
+          div        = EXCLUDED.div,
+          sub_div    = EXCLUDED.sub_div,
+          label      = EXCLUDED.label,
+          is_active  = EXCLUDED.is_active,
+          uploaded_at = NOW()
+      `);
+    }
+
+    // Save meta
+    const meta = {
+      uploadedAt:      new Date().toISOString(),
+      fileName:        req.file.originalname,
+      totalRows:       categoriesCount,                  // Excel data rows = distinct major categories
+      attributesCount: Object.keys(colMeta).length,     // number of SAP key columns in Excel
+      activeMappings:  activeCount,                     // active (major_category, sap_key) pairs
+      totalMappings:   totalRows,                       // total (major_category, sap_key) pairs
+      categoriesCount,
+      skippedRows:     skipped,
+    };
+    const metaDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(metaDir)) fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(MAJ_CAT_MANDATORY_META_FILE, JSON.stringify(meta, null, 2), 'utf-8');
+
+    // Flush the RFC service cache so next SAP sync uses the freshly uploaded grid
+    invalidateMandatoryGridCache();
+    invalidateFieldVisibilityCache(); // also flush description-builder collar visibility cache
+
+    console.log(`[MandatoryGrid] Done — ${categoriesCount} major categories, ${Object.keys(colMeta).length} SAP columns, ${activeCount} active mappings`);
+
+    res.json({
+      success: true,
+      message: `Mandatory grid uploaded. ${categoriesCount} major categories × ${Object.keys(colMeta).length} attribute columns = ${activeCount} active field mappings.`,
+      data: meta,
+    });
+  } catch (error: any) {
+    console.error('[MandatoryGrid] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HIERARCHY EXCEL UPLOAD
+// Reads DIV / SUB-DIV / MAJOR_CATEGORY columns from the Mandatory Grid Excel
+// and upserts rows into departments, sub_departments, categories tables.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Compact Excel sub-div codes → normalised DB codes */
+const SUB_DIV_NORMALIZE: Record<string, string> = {
+  KGU:    'KG-U',
+  KGWU:   'KGW-U',
+  KBU:    'KB-U',
+  KBWU:   'KBW-U',
+  KGL:    'KG-L',
+  KGWL:   'KGW-L',
+  KBL:    'KB-L',
+  KBWL:   'KBW-L',
+  KBSETS: 'KB-SETS',
+  KBWSETS:'KBW-SETS',
+  MSU:    'MS-U',
+  MSL:    'MS-L',
+  MSIW:   'MS-IW',
+};
+
+function normalizeSubDiv(raw: string): string {
+  const upper = raw.trim().toUpperCase();
+  return SUB_DIV_NORMALIZE[upper] ?? raw.trim();
+}
+
+interface HierarchyRow {
+  div: string;
+  subDiv: string;
+  majorCategory: string;
+}
+
+interface HierarchyUploadResult {
+  departments:    { new: number; updated: number; total: number };
+  subDepartments: { new: number; updated: number; total: number };
+  categories:     { new: number; updated: number; total: number };
+  skippedRows:    number;
+  dryRun:         boolean;
+  preview?: {
+    divisions:      string[];
+    subDivisions:   string[];
+    majorCategories: string[];
+  };
+}
+
+/**
+ * GET /api/admin/hierarchy/upload-excel/status
+ * Returns summary counts from the three hierarchy tables.
+ */
+export const getHierarchyExcelStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [depts, subs, cats] = await Promise.all([
+      prisma.department.count({ where: { isActive: true } }),
+      prisma.subDepartment.count({ where: { isActive: true } }),
+      prisma.category.count({ where: { isActive: true } }),
+    ]);
+    res.json({ success: true, data: { departments: depts, subDepartments: subs, categories: cats } });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * POST /api/admin/hierarchy/upload-excel
+ * ?dryRun=true  → parse only, return preview without saving
+ */
+export const uploadHierarchyExcel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded' });
+      return;
+    }
+
+    const dryRun = req.query.dryRun === 'true';
+
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer as any);
+    const ws = wb.worksheets[0];
+    if (!ws) {
+      res.status(400).json({ success: false, error: 'Excel file has no worksheets' });
+      return;
+    }
+
+    // Parse rows — DIV=col1, SUB-DIV=col2, MAJOR_CATEGORY=col3
+    // Row 1: title, Row 2: blank, Row 3: primary headers, Row 4: SAP keys, Row 5: blank, Row 6+: data
+    const rows: HierarchyRow[] = [];
+    let skippedRows = 0;
+
+    ws.eachRow({ includeEmpty: false }, (row: any, rowNum: number) => {
+      if (rowNum <= 5) return; // skip header block
+
+      const rawDiv = row.getCell(1).value;
+      const rawSub = row.getCell(2).value;
+      const rawCat = row.getCell(3).value;
+
+      const div          = String(rawDiv ?? '').trim().toUpperCase();
+      const subDivRaw    = String(rawSub ?? '').trim();
+      const majorCategory = String(rawCat ?? '').trim();
+
+      if (!div || !subDivRaw || !majorCategory) { skippedRows++; return; }
+
+      rows.push({ div, subDiv: normalizeSubDiv(subDivRaw), majorCategory });
+    });
+
+    // Deduplicate
+    const uniqueDivs    = [...new Set(rows.map(r => r.div))];
+    const uniqueSubDivs = [...new Set(rows.map(r => `${r.div}||${r.subDiv}`))];
+    const uniqueCats    = [...new Set(rows.map(r => r.majorCategory))];
+
+    console.log(`[HierarchyExcel] Parsed ${rows.length} rows → ${uniqueDivs.length} divs, ${uniqueSubDivs.length} sub-divs, ${uniqueCats.length} major categories, ${skippedRows} skipped`);
+
+    // ── Dry run: return preview only ────────────────────────────────────────────
+    if (dryRun) {
+      const result: HierarchyUploadResult = {
+        departments:    { new: 0, updated: 0, total: uniqueDivs.length },
+        subDepartments: { new: 0, updated: 0, total: uniqueSubDivs.length },
+        categories:     { new: 0, updated: 0, total: uniqueCats.length },
+        skippedRows,
+        dryRun: true,
+        preview: {
+          divisions:      uniqueDivs,
+          subDivisions:   [...new Set(rows.map(r => r.subDiv))].sort(),
+          majorCategories: uniqueCats,
+        },
+      };
+      res.json({ success: true, data: result });
+      return;
+    }
+
+    // ── Real upsert ──────────────────────────────────────────────────────────────
+    const deptStats = { new: 0, updated: 0 };
+    const subStats  = { new: 0, updated: 0 };
+    const catStats  = { new: 0, updated: 0 };
+
+    // 1. Upsert Departments — case-insensitive lookup to avoid creating duplicates
+    //    (e.g. "Kids" already in DB + "KIDS" from Excel → same record)
+    const deptMap = new Map<string, number>(); // code → id
+    for (const divCode of uniqueDivs) {
+      const existing = await prisma.department.findFirst({
+        where: { code: { equals: divCode, mode: 'insensitive' } },
+      });
+      if (existing) {
+        // Normalise the stored code to uppercase
+        await prisma.department.update({
+          where: { id: existing.id },
+          data: { code: divCode, name: divCode, isActive: true },
+        });
+        deptMap.set(divCode, existing.id);
+        deptStats.updated++;
+      } else {
+        const created = await prisma.department.create({
+          data: { code: divCode, name: divCode, displayOrder: 0, isActive: true },
+        });
+        deptMap.set(divCode, created.id);
+        deptStats.new++;
+      }
+    }
+
+    // 2. Upsert SubDepartments
+    const subMap = new Map<string, number>(); // "div||subDiv" → id
+    const subDivPairs = [...new Map(rows.map(r => [`${r.div}||${r.subDiv}`, r])).values()];
+    for (const { div, subDiv } of subDivPairs) {
+      const departmentId = deptMap.get(div);
+      if (!departmentId) continue;
+      const key = `${div}||${subDiv}`;
+
+      const existing = await prisma.subDepartment.findFirst({
+        where: { departmentId, code: subDiv },
+      });
+      if (existing) {
+        await prisma.subDepartment.update({
+          where: { id: existing.id },
+          data: { name: subDiv, isActive: true },
+        });
+        subMap.set(key, existing.id);
+        subStats.updated++;
+      } else {
+        const created = await prisma.subDepartment.create({
+          data: { departmentId, code: subDiv, name: subDiv, displayOrder: 0, isActive: true },
+        });
+        subMap.set(key, created.id);
+        subStats.new++;
+      }
+    }
+
+    // 3. Upsert Categories
+    for (const { div, subDiv, majorCategory } of rows) {
+      const subDepartmentId = subMap.get(`${div}||${subDiv}`);
+      if (!subDepartmentId) continue;
+
+      const existing = await prisma.category.findUnique({ where: { code: majorCategory } });
+      if (existing) {
+        await prisma.category.update({
+          where: { id: existing.id },
+          data: { subDepartmentId, name: majorCategory, isActive: true },
+        });
+        catStats.updated++;
+      } else {
+        await prisma.category.create({
+          data: { subDepartmentId, code: majorCategory, name: majorCategory, displayOrder: 0, isActive: true },
+        });
+        catStats.new++;
+      }
+    }
+
+    const result: HierarchyUploadResult = {
+      departments:    { ...deptStats, total: uniqueDivs.length },
+      subDepartments: { ...subStats,  total: uniqueSubDivs.length },
+      categories:     { ...catStats,  total: uniqueCats.length },
+      skippedRows,
+      dryRun: false,
+    };
+
+    console.log(`[HierarchyExcel] Done — Depts: +${deptStats.new}/~${deptStats.updated}, SubDepts: +${subStats.new}/~${subStats.updated}, Cats: +${catStats.new}/~${catStats.updated}`);
+
+    res.json({
+      success: true,
+      message: `Hierarchy updated — ${deptStats.new} new / ${deptStats.updated} existing departments, ${subStats.new} new / ${subStats.updated} existing sub-divisions, ${catStats.new} new / ${catStats.updated} existing major categories.`,
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('[HierarchyExcel] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

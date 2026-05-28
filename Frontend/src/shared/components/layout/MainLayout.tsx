@@ -16,6 +16,7 @@ import {
   XCircle,
   CheckCircle2,
   Camera,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Avatar,
@@ -101,8 +102,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const role = userData?.role;
     const isApproverSide = role === 'APPROVER' || role === 'CATEGORY_HEAD';
 
-    if (!isApproverSide) {
+    // Products is admin-only (per main update); Extraction/Model Generation for creator side
+    if (isAdmin) {
       items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
+    }
+    if (!isApproverSide) {
       items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
       items.push({ key: '/model-generation', Icon: Camera, label: 'Model Generation' });
     }
@@ -137,6 +141,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           { key: '/admin/hierarchy', Icon: Globe, label: 'Hierarchy Management' },
           { key: '/admin/users', Icon: User, label: 'User Management' },
           { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expense Viewer' },
+          { key: '/admin/srm-failed', Icon: AlertTriangle, label: 'Failed Extractions' },
         ],
       });
     }

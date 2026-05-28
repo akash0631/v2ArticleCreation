@@ -242,7 +242,7 @@ export default function Dashboard() {
               <Zap />
               Start Extraction
             </Button>
-            <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/products')}>
+            <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/approver')}>
               <ShoppingBag />
               View Products
             </Button>
