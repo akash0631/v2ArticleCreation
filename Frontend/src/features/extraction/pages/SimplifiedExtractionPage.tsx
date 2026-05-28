@@ -13,14 +13,14 @@
 
 import { useState, useCallback, useEffect } from "react";
 import {
-  Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image
+  Typography, Card, Button, Space, Steps, Alert, Progress, Row, Col, Statistic, Modal, Image, Select
 } from "antd";
 import {
   ClearOutlined, DownloadOutlined,
   CheckCircleOutlined, UploadOutlined, RobotOutlined, AppstoreOutlined
 } from "@ant-design/icons";
 
-import { SimplifiedCategorySelector } from "../components/SimplifiedCategorySelector";
+import { SimplifiedCategorySelector, SIMPLIFIED_HIERARCHY } from "../components/SimplifiedCategorySelector";
 import type { SimplifiedCategory } from "../components/SimplifiedCategorySelector";
 import { UploadArea } from "../components";
 import { AttributeTable } from "../components/AttributeTable";
@@ -164,9 +164,34 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
 ];
 
 
+const { Option } = Select;
+
+// Detect CREATOR with a pre-assigned division — they skip Step 1 entirely.
+const getCreatorDivision = (): string | null => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role !== 'CREATOR') return null;
+    const div = String(user.division || '').toUpperCase();
+    if (div === 'MEN' || div === 'MENS') return 'MENS';
+    if (div === 'KIDS') return 'Kids';
+    if (div === 'LADIES') return 'Ladies';
+    return user.division || null;
+  } catch {
+    return null;
+  }
+};
+
 const SimplifiedExtractionPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState<SimplifiedCategory | null>(null);
-  const [currentStep, setCurrentStep] = useState<'category' | 'upload' | 'extraction'>('category');
+  const creatorDivision = getCreatorDivision();
+
+  const [selectedCategory, setSelectedCategory] = useState<SimplifiedCategory | null>(
+    creatorDivision ? { department: creatorDivision, majorCategory: '', displayName: creatorDivision } : null
+  );
+  const [selectedSubDivision, setSelectedSubDivision] = useState<string | null>(null);
+  // CREATOR: start at upload step (division already known); ADMIN: start at category step
+  const [currentStep, setCurrentStep] = useState<'category' | 'upload' | 'extraction'>(
+    creatorDivision ? 'upload' : 'category'
+  );
   const [baseSchema, setBaseSchema] = useState<SchemaItem[]>(BASE_SIMPLIFIED_SCHEMA);
   const [simplifiedSchema, setSimplifiedSchema] = useState<SchemaItem[]>(BASE_SIMPLIFIED_SCHEMA);
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -187,6 +212,9 @@ const SimplifiedExtractionPage = () => {
   } = useImageExtraction();
 
   useEffect(() => {
+    // For CREATOR, ignore saved state — their division is always from the profile.
+    if (creatorDivision) return;
+
     const saved = localStorage.getItem('simplifiedExtractionState');
     if (saved) {
       try {
@@ -223,8 +251,9 @@ const SimplifiedExtractionPage = () => {
   // Also called with null when the user changes division (to clear stale selection).
   const handleCategorySelect = useCallback((category: SimplifiedCategory | null) => {
     setSelectedCategory(category);
+    setSelectedSubDivision(null); // reset sub-division whenever division changes
     if (category) {
-      // User confirmed selection — build schema and advance to upload step
+      // User confirmed division — build schema and advance to upload step
       setSimplifiedSchema(baseSchema);
       setManualNavigation(false);
       setCurrentStep('upload');
@@ -352,14 +381,15 @@ const SimplifiedExtractionPage = () => {
   // Auto-start extraction when images are ready
   const handleStartBatch = useCallback(() => {
     if (selectedCategory && extractAllPending) {
+      const subDiv = selectedSubDivision ?? selectedCategory.majorCategory;
       extractAllPending(
         simplifiedSchema,
         selectedCategory.displayName,
-        `${selectedCategory.department}-${selectedCategory.majorCategory}`,
+        `${selectedCategory.department}-${subDiv}`,
         {} // No metadata
       );
     }
-  }, [selectedCategory, extractAllPending, simplifiedSchema]);
+  }, [selectedCategory, selectedSubDivision, extractAllPending, simplifiedSchema]);
 
   const handleExportClick = useCallback(() => {
     const mandatoryItems = simplifiedSchema.filter((item) => item.required);
@@ -428,16 +458,30 @@ const SimplifiedExtractionPage = () => {
   const handleStartOver = () => {
     setManualNavigation(true);
     clearAll();
-    setCurrentStep('category');
-    setSelectedCategory(null);
-    localStorage.removeItem('simplifiedExtractionState');
+    setSelectedSubDivision(null);
+    if (creatorDivision) {
+      // CREATOR: reset to upload step with division pre-filled, not all the way to Step 1
+      setSelectedCategory({ department: creatorDivision, majorCategory: '', displayName: creatorDivision });
+      setCurrentStep('upload');
+    } else {
+      setCurrentStep('category');
+      setSelectedCategory(null);
+      localStorage.removeItem('simplifiedExtractionState');
+    }
   };
 
   const handleBackToCategory = () => {
     setManualNavigation(true);
-    setSelectedCategory(null);
-    setCurrentStep('category');
-    localStorage.removeItem('simplifiedExtractionState');
+    setSelectedSubDivision(null);
+    if (creatorDivision) {
+      // CREATOR: "back" means reset sub-division and stay on upload step
+      setSelectedCategory({ department: creatorDivision, majorCategory: '', displayName: creatorDivision });
+      setCurrentStep('upload');
+    } else {
+      setSelectedCategory(null);
+      setCurrentStep('category');
+      localStorage.removeItem('simplifiedExtractionState');
+    }
   };
 
   const handleGoHome = () => {
@@ -517,34 +561,66 @@ const SimplifiedExtractionPage = () => {
                       📸 Step 2: Upload Images
                     </Title>
                     <Text type="secondary" style={{ fontSize: '13px' }}>
-                      Selected: <strong>{selectedCategory?.displayName}</strong> |
-                      Upload images to auto-start extraction
+                      Division: <strong>{selectedCategory?.department}</strong>
+                      {selectedSubDivision ? <> | Sub-Division: <strong>{selectedSubDivision}</strong></> : null}
+                      {' '}| Upload images to auto-start extraction
                     </Text>
                   </div>
 
-                  <div style={{ marginBottom: 12 }}>
-                    <Button
-                      onClick={handleBackToCategory}
-                      type="link"
-                      size="small"
-                      style={{ paddingLeft: 0 }}
+                  {/* Only show "Change Division" button for Admin — CREATOR's division is fixed */}
+                  {!creatorDivision && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Button
+                        onClick={handleBackToCategory}
+                        type="link"
+                        size="small"
+                        style={{ paddingLeft: 0 }}
+                      >
+                        ← Change Division
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Sub-Division selector */}
+                  <div style={{ marginBottom: 20 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                      {creatorDivision ? '1.' : '2.'} Sub-Division
+                    </Text>
+                    <Select
+                      placeholder="Select Sub-Division (e.g. MU, MW, LU, LW…)"
+                      value={selectedSubDivision ?? undefined}
+                      onChange={(value: string) => {
+                        setSelectedSubDivision(value);
+                        setSelectedCategory(prev =>
+                          prev ? { ...prev, majorCategory: value, displayName: `${prev.department} - ${value}` } : prev
+                        );
+                      }}
+                      style={{ width: '100%' }}
+                      size="large"
+                      allowClear
+                      showSearch
+                      filterOption={(input, option) =>
+                        String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
                     >
-                      ← Change Division / Sub-Division
-                    </Button>
+                      {(SIMPLIFIED_HIERARCHY[selectedCategory?.department ?? ''] || []).map(sub => (
+                        <Option key={sub} value={sub}>{sub}</Option>
+                      ))}
+                    </Select>
                   </div>
 
-                  <Alert
-                    message="Simplified Workflow Active"
-                    description="No metadata form required. Extraction will start automatically after upload with fixed 42 attributes."
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
+                  {!selectedSubDivision && (
+                    <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 8, fontSize: 13, color: '#ad6800' }}>
+                      Please select a Sub-Division before uploading images.
+                    </div>
+                  )}
 
-                  <UploadArea onUpload={async (_file: File, fileList: File[]) => {
-                    await handleImagesUpload(fileList);
-                    return false;
-                  }} />
+                  <div style={{ opacity: selectedSubDivision ? 1 : 0.4, pointerEvents: selectedSubDivision ? 'auto' : 'none' }}>
+                    <UploadArea onUpload={async (_file: File, fileList: File[]) => {
+                      await handleImagesUpload(fileList);
+                      return false;
+                    }} />
+                  </div>
                 </Card>
               )}
 
