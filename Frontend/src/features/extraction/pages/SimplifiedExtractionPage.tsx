@@ -90,17 +90,9 @@ const normalizeAllowedValues = (attributeKey: string, allowedValues: any[] = [])
 
 const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   // ── Header / identity fields ──────────────────────────────────────────────
-  {
-    key: 'division',
-    label: 'Division',
-    type: 'select',
-    allowedValues: [
-      { shortForm: 'MEN', fullForm: 'MENS' },
-      { shortForm: 'KIDS', fullForm: 'KIDS' },
-      { shortForm: 'LADIES', fullForm: 'LADIES' }
-    ]
-  },
-  { key: 'sub_division',                  label: 'Sub-Division',                  type: 'text' },
+  // NOTE: division + sub_division are intentionally excluded from the VLM schema.
+  // They are user-selected (not AI-guessed) and injected as pre-filled attributes
+  // after extraction so the flatteningService uses the correct user-chosen values.
   { key: 'major_category',                label: 'Major Category',                type: 'select', allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES },
   { key: 'design_number',                 label: 'Design Number',                 type: 'text' },
   { key: 'vendor_name',                   label: 'Vendor Name',                   type: 'text' },

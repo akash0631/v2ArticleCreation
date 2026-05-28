@@ -439,6 +439,27 @@ export class EnhancedExtractionController {
         }
       }
 
+      // ── User-Selected Division/SubDivision Override ──────────────────────
+      // When the user explicitly passed department/subDepartment in the request
+      // (from the Simplified Extraction Page), apply them as authoritative overrides
+      // on the flat record so they win over any VLM-extracted or JSON-fallback values.
+      if (!watcherFields && flatId && (params.department || params.subDepartment)) {
+        try {
+          const scopeOverrides: Record<string, any> = {};
+          if (params.department)     scopeOverrides.division    = params.department;
+          if (params.subDepartment)  scopeOverrides.subDivision = params.subDepartment;
+          if (Object.keys(scopeOverrides).length > 0) {
+            await prisma.extractionResultFlat.update({
+              where: { id: flatId },
+              data: scopeOverrides,
+            });
+            console.log(`[Extraction] Applied user scope override for flat ${flatId}:`, scopeOverrides);
+          }
+        } catch (scopeOverrideError) {
+          console.warn('⚠️ Failed to apply user scope overrides:', scopeOverrideError);
+        }
+      }
+
       // ── Kids Division Duplication ────────────────────────────────────────
       // Disabled: only 1 article is created per extraction (no copies).
       // if (flatId) {
