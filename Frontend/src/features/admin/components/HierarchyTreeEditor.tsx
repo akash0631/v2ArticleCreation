@@ -6,20 +6,20 @@
 
 import { useState, useMemo } from 'react';
 import {
-  Card, Button, Input, Space, Popconfirm, message, Spin,
+  Card, Button, Input, Space, message, Spin,
   Tag, Tooltip, Typography, Badge, Collapse, Empty, Alert, Divider,
 } from 'antd';
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined, EditOutlined,
   CheckOutlined, CloseOutlined, FolderOutlined,
   TagOutlined, AppstoreOutlined, RightOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getHierarchyTree,
-  createDepartment, updateDepartment, deleteDepartment,
-  createSubDepartment, updateSubDepartment, deleteSubDepartment,
-  createCategory, updateCategory, deleteCategory,
+  createDepartment, updateDepartment,
+  createSubDepartment, updateSubDepartment,
+  createCategory, updateCategory,
 } from '../../../services/adminApi';
 
 const { Text } = Typography;
@@ -68,17 +68,6 @@ const NodeTitle: React.FC<NodeTitleProps> = ({
     setEditing(false);
   };
 
-  const handleDelete = async () => {
-    try {
-      if (nodeType === 'dept') await deleteDepartment(nodeId);
-      else if (nodeType === 'subdept') await deleteSubDepartment(nodeId);
-      else await deleteCategory(nodeId);
-      message.success('Deleted');
-      invalidate();
-    } catch (e: any) {
-      message.error(e?.response?.data?.error || 'Delete failed — may have active children');
-    }
-  };
 
   const iconMap = {
     dept: <FolderOutlined style={{ color: '#fa8c16', flexShrink: 0 }} />,
@@ -113,16 +102,6 @@ const NodeTitle: React.FC<NodeTitleProps> = ({
           <Tooltip title="Rename">
             <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditing(true)} />
           </Tooltip>
-          <Popconfirm
-            title={`Delete this ${nodeType}?`}
-            description="This may fail if it has active children or linked articles."
-            onConfirm={handleDelete}
-            okText="Delete" okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="Delete">
-              <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-            </Tooltip>
-          </Popconfirm>
         </Space>
       </span>
     </span>
