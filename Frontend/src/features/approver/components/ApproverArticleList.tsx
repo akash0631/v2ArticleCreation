@@ -730,9 +730,9 @@ const ArticleCard = React.memo(
             if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`);
           }}
         >
-          <div className="flex items-start justify-between gap-2 px-3 py-1.5">
+          <div className="flex items-start justify-between gap-2 px-2 py-1">
             <span
-              className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+              className="shrink-0 text-[9px] font-semibold uppercase tracking-wider"
               style={{ color: showRequiredError ? '#dc2626' : '#6b7280' }}
             >
               {label}
@@ -829,7 +829,7 @@ const ArticleCard = React.memo(
       return (
         <div
           key={attr.field}
-          className="group flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-muted/40"
+          className="group flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
           style={{
             cursor: isLocked ? 'default' : 'pointer',
             background: isEditing
@@ -846,9 +846,9 @@ const ArticleCard = React.memo(
             if (!isLocked && !isEditing) setEditingField(attr.field);
           }}
         >
-          <span className="w-5 shrink-0 text-right text-[10px] font-medium text-muted-foreground">{num}.</span>
+          <span className="w-4 shrink-0 text-right text-[10px] font-medium text-muted-foreground">{num}.</span>
           <span
-            className="flex-1 truncate text-[11px]"
+            className="flex-1 truncate text-[10.5px]"
             style={{ color: isMandatory ? '#1f2937' : '#4b5563', fontWeight: isMandatory ? 600 : 400 }}
           >
             {isMandatory && <span className="mr-0.5 text-red-500">*</span>}
@@ -935,7 +935,8 @@ const ArticleCard = React.memo(
     return (
       <>
         <div
-          className="mb-6 overflow-hidden rounded-xl border bg-white shadow-sm"
+          key={item.id}
+          className="flex h-full min-h-0 animate-in flex-col overflow-hidden rounded-xl border bg-white shadow-sm fade-in-50 duration-200"
           style={{ borderColor }}
         >
           {/* ─── TOP HEADER STRIP (slate, matches dashboard) ─── */}
@@ -1004,19 +1005,19 @@ const ArticleCard = React.memo(
           </div>
 
           {/* ─── MAIN GRID — image+info | attribute groups ─── */}
-          <div className="grid gap-3 p-3 lg:grid-cols-[260px_1fr]">
+          <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[230px_1fr]">
             {/* ─── LEFT: Image + Article Info + Reference ─── */}
-            <aside className="flex min-w-0 flex-col gap-3">
+            <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto">
               {/* Article image */}
               <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="flex items-center justify-between border-b border-border bg-indigo-50/60 px-3 py-2">
-                  <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2 py-1">
+                  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     <Info className="h-3 w-3" />
                     Article Image
                   </span>
-                  <Badge variant="success" className="text-[10px]">1 / 1</Badge>
+                  <Badge variant="success" className="text-[9px]">1 / 1</Badge>
                 </div>
-                <div className="relative aspect-square bg-muted">
+                <div className="relative h-44 bg-muted">
                   {imgUrl ? (
                     <>
                       <img
@@ -1045,12 +1046,12 @@ const ArticleCard = React.memo(
 
               {/* Article information */}
               <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="border-b border-border bg-indigo-50/60 px-3 py-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <div className="border-b border-border bg-slate-50 px-2 py-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     Article Information
                   </span>
                 </div>
-                <div className="space-y-2 px-3 py-2.5 text-xs">
+                <div className="space-y-1 px-2 py-1.5 text-[11px]">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground">Article ID</span>
                     <span className="truncate text-right font-medium">
@@ -1088,8 +1089,8 @@ const ArticleCard = React.memo(
 
               {/* Reference & Vendor — 7 editable fields stacked */}
               <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="border-b border-border bg-indigo-50/60 px-3 py-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                <div className="border-b border-border bg-slate-50 px-2 py-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     Reference &amp; Vendor
                   </span>
                 </div>
@@ -1097,11 +1098,11 @@ const ArticleCard = React.memo(
               </div>
             </aside>
 
-            {/* ─── MIDDLE: Attribute groups + BOM + Fabric/Body + Proceed FG ─── */}
-            <section className="min-w-0">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Sparkles className="h-4 w-4 text-[#FF6F61]" />
+            {/* ─── RIGHT: Attribute groups + BOM + Fabric/Body + Proceed FG ─── */}
+            <section className="flex min-h-0 min-w-0 flex-col">
+              <div className="mb-1.5 flex shrink-0 items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-slate-700">
+                  <Sparkles className="h-3.5 w-3.5 text-[#FF6F61]" />
                   GARMENT ATTRIBUTES ({visibleAttrs.length})
                   {/* Legend popover */}
                   <Popover>
@@ -1154,7 +1155,7 @@ const ArticleCard = React.memo(
               </div>
 
               {visibleAttrs.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
                   {activeGroups.map((g) => {
                     const style = GROUP_HEADER_STYLE[g.group] ?? { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb' };
                     const collapsed = isGroupCollapsed(g.group);
@@ -1167,11 +1168,11 @@ const ArticleCard = React.memo(
                         <button
                           type="button"
                           onClick={() => toggleGroupCollapse(g.group)}
-                          className="flex w-full items-center justify-between border-b px-3 py-2"
+                          className="flex w-full items-center justify-between border-b px-2 py-1 transition-colors hover:brightness-95"
                           style={{ background: style.bg, borderColor: style.border }}
                         >
                           <span
-                            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
+                            className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
                             style={{ color: style.fg }}
                           >
                             {GROUP_ICONS[g.group]}
@@ -1184,7 +1185,7 @@ const ArticleCard = React.memo(
                           )}
                         </button>
                         {!collapsed && (
-                          <div className="space-y-0.5 p-1.5">
+                          <div className="space-y-0 p-1">
                             {groupMap[g.group].attrs.map((attr) => renderAttributeRow(attr))}
 
                             {/* FAB: fabric article number + description + button */}
@@ -1382,15 +1383,15 @@ const ArticleCard = React.memo(
                     style={{ borderColor: '#fde68a' }}
                   >
                     <div
-                      className="flex items-center justify-between border-b px-3 py-2"
+                      className="flex items-center justify-between border-b px-2 py-1"
                       style={{ background: '#fffbeb', borderColor: '#fde68a' }}
                     >
-                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                        <DollarSign className="h-3.5 w-3.5" />
+                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                        <DollarSign className="h-3 w-3" />
                         BOM
                       </span>
                     </div>
-                    <div className="space-y-0.5 p-1.5">
+                    <div className="space-y-0 p-1">
                       {[
                         { label: 'RATE / COST', field: 'rate', editable: true, mandatory: false, isDropdown: false },
                         { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
@@ -1413,7 +1414,7 @@ const ArticleCard = React.memo(
                         return (
                           <div
                             key={bom.field}
-                            className="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-muted/40"
+                            className="flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
                             style={{
                               cursor: bom.editable && !isLocked ? 'pointer' : 'default',
                               background: isEditingBom
@@ -1502,16 +1503,16 @@ const ArticleCard = React.memo(
                     localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
                   const vendorCodeMissing = !effectiveVendorCode;
                   return (
-                    <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50/50 p-3">
+                    <div className="mt-2 shrink-0">
                       <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
                         <Button
                           disabled={vendorCodeMissing}
                           onClick={() => onProceedFGArticle(item)}
-                          className="h-10 w-full text-[13px] font-semibold"
+                          className="h-8 w-full text-[12px] font-semibold transition-all"
                           style={{
-                            background: vendorCodeMissing ? '#f3f4f6' : '#fee2e2',
-                            color: vendorCodeMissing ? '#9ca3af' : '#b91c1c',
-                            border: `1px solid ${vendorCodeMissing ? '#e5e7eb' : '#fca5a5'}`,
+                            background: vendorCodeMissing ? '#f3f4f6' : '#FF6F61',
+                            color: vendorCodeMissing ? '#9ca3af' : '#fff',
+                            border: 'none',
                           }}
                         >
                           <Rocket />

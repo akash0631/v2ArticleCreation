@@ -963,8 +963,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   );
 
   return (
-    <div>
-      <div className="sticky top-0 z-40 mb-3 shrink-0">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-2 shrink-0">
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           {/* ─── Brand strip — slate gradient with title + prev/next + page actions ─── */}
           <div
@@ -1226,7 +1226,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         </div>
       </div>
 
-      <div className="mt-1.5">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <ApproverArticleList
           items={currentItem ? [currentItem] : []}
           majorCategory={majorCategoryFilter}
