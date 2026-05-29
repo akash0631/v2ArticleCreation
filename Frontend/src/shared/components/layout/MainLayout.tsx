@@ -124,7 +124,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Combine items based on role
     let items = [...menuItems];
 
-    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin || userData?.role === 'CREATOR') {
+    if (userData?.role === 'APPROVER' || userData?.role === 'CATEGORY_HEAD' || userData?.role === 'SUB_DIVISION_HEAD' || isAdmin || userData?.role === 'CREATOR' || userData?.role === 'PO_COMMITTEE') {
       items = [...items, ...approverItems];
     }
 
