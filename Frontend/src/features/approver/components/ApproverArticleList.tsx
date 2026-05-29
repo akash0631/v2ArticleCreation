@@ -28,6 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Select,
   SelectContent,
   SelectItem,
@@ -195,9 +198,9 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
 };
 
 const GROUP_HEADER_STYLE: Record<string, { bg: string; fg: string; border: string }> = {
-  FAB: { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe' },
+  FAB: { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa' },
   BODY: { bg: '#ecfdf5', fg: '#047857', border: '#bbf7d0' },
-  'VA ACC.': { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa' },
+  'VA ACC.': { bg: '#fef3c7', fg: '#a16207', border: '#fde68a' },
   'VA PRCS': { bg: '#fdf2f8', fg: '#be185d', border: '#fbcfe8' },
   BUSINESS: { bg: '#faf5ff', fg: '#7e22ce', border: '#e9d5ff' },
 };
@@ -935,10 +938,10 @@ const ArticleCard = React.memo(
           className="mb-6 overflow-hidden rounded-xl border bg-white shadow-sm"
           style={{ borderColor }}
         >
-          {/* ─── TOP HEADER STRIP (purple gradient) ─── */}
+          {/* ─── TOP HEADER STRIP (slate, matches dashboard) ─── */}
           <div
-            className="flex items-center justify-between gap-3 px-5 py-3 text-white"
-            style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%)' }}
+            className="flex items-center justify-between gap-3 px-4 py-2 text-white"
+            style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <Checkbox
@@ -1000,8 +1003,8 @@ const ArticleCard = React.memo(
             </div>
           </div>
 
-          {/* ─── MAIN GRID — image | attributes | AI sidebar ─── */}
-          <div className="grid gap-4 p-5 lg:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_220px]">
+          {/* ─── MAIN GRID — image+info | attribute groups ─── */}
+          <div className="grid gap-3 p-3 lg:grid-cols-[260px_1fr]">
             {/* ─── LEFT: Image + Article Info + Reference ─── */}
             <aside className="flex min-w-0 flex-col gap-3">
               {/* Article image */}
@@ -1096,10 +1099,45 @@ const ArticleCard = React.memo(
 
             {/* ─── MIDDLE: Attribute groups + BOM + Fabric/Body + Proceed FG ─── */}
             <section className="min-w-0">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                  <Sparkles className="h-4 w-4" />
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                  <Sparkles className="h-4 w-4 text-[#FF6F61]" />
                   GARMENT ATTRIBUTES ({visibleAttrs.length})
+                  {/* Legend popover */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-[10px] font-bold text-slate-500 hover:bg-slate-50"
+                        aria-label="Legend"
+                      >
+                        ?
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Legend
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-3 rounded border border-indigo-300 bg-indigo-100" />
+                          AI Predicted
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-3 rounded border border-emerald-300 bg-emerald-100" />
+                          User Modified
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-3 w-3 rounded border border-amber-300 bg-amber-50" />
+                          Required (Empty)
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base leading-none text-red-500">*</span>
+                          Mandatory Field
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </h3>
                 <Button
                   variant="ghost"
@@ -1485,70 +1523,6 @@ const ArticleCard = React.memo(
                 })()}
             </section>
 
-            {/* ─── RIGHT: AI Suggestion + Legend (hidden below xl) ─── */}
-            <aside className="hidden flex-col gap-3 xl:flex">
-              <div className="overflow-hidden rounded-lg border border-violet-200 bg-white">
-                <div className="border-b border-violet-200 bg-violet-50 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-700">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    AI Suggestion
-                  </span>
-                </div>
-                <div className="p-3">
-                  <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
-                    Based on image analysis, we have pre-filled the attributes. Please review and update if needed.
-                  </p>
-                  <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-                    <div className="flex-1 space-y-1.5 text-[11px]">
-                      <div className="mb-1 font-semibold text-foreground">Confidence Score</div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span>• Image Quality</span>
-                        <span className="font-semibold text-emerald-600">High</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span>• Product Clarity</span>
-                        <span className="font-semibold text-emerald-600">High</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span>• Attribute Match</span>
-                        <span className="font-semibold text-emerald-600">High</span>
-                      </div>
-                    </div>
-                    {/* Circular progress */}
-                    <div
-                      className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full"
-                      style={{
-                        background: `conic-gradient(#10b981 0% ${aiConfidence}%, #e5e7eb ${aiConfidence}% 100%)`,
-                      }}
-                    >
-                      <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[12px] font-bold text-emerald-700">
-                        {aiConfidence}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="border-b border-border bg-muted/30 px-3 py-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Legend</span>
-                </div>
-                <div className="space-y-2 p-3 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block h-3 w-3 rounded border border-indigo-300 bg-indigo-100" />
-                    AI Predicted
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block h-3 w-3 rounded border border-emerald-300 bg-emerald-100" />
-                    User Modified
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base leading-none text-red-500">*</span>
-                    Mandatory Field
-                  </div>
-                </div>
-              </div>
-            </aside>
           </div>
 
           {/* ─── Variants section ─── */}
@@ -1711,13 +1685,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
   const allSelected = eligibleIds.length > 0 && eligibleIds.every((id) => selectedRowKeys.includes(id));
 
   return (
-    <div className="pb-[300px]">
-      <div className="mb-2 flex items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-1.5">
-        <Checkbox checked={allSelected} onCheckedChange={handleToggleAll} />
-        <span className="text-xs font-semibold text-muted-foreground">Select All on Page</span>
-        {selectedRowKeys.length > 0 && <Badge variant="warning">{selectedRowKeys.length} selected</Badge>}
-      </div>
-
+    <div>
       {items.map((item) => (
         <ArticleCard
           key={item.id}
@@ -1735,31 +1703,6 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
           pathType={pathType}
         />
       ))}
-
-      <div className="mt-3 flex items-center justify-end gap-2">
-        <span className="text-xs text-muted-foreground">
-          {(serverPagination.current - 1) * serverPagination.pageSize + 1}–
-          {Math.min(serverPagination.current * serverPagination.pageSize, serverPagination.total)} of{' '}
-          {serverPagination.total}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => serverPagination.onChange(serverPagination.current - 1)}
-          disabled={serverPagination.current <= 1}
-        >
-          ‹
-        </Button>
-        <span className="text-xs font-semibold">{serverPagination.current}</span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => serverPagination.onChange(serverPagination.current + 1)}
-          disabled={serverPagination.current * serverPagination.pageSize >= serverPagination.total}
-        >
-          ›
-        </Button>
-      </div>
     </div>
   );
 };

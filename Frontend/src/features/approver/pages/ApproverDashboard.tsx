@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket, Sparkles } from 'lucide-react';
+import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import {
   Button,
@@ -186,6 +186,9 @@ type InfoDialog =
   | null;
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
+  // Single-article view: one article rendered at a time with prev/next.
+  // `currentIndex` is the position inside the current server page's items[].
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [items, setItems] = useState<ApproverItem[]>([]);
   const [attributes, setAttributes] = useState<MasterAttribute[]>([]);
   const [loading, setLoading] = useState(false);
@@ -289,6 +292,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         }));
         setItems(withMcCode);
         setTotalCount(result.meta?.total || 0);
+        // Reset single-article cursor whenever a new page lands
+        setCurrentIndex(0);
       } catch {
         message.error('Failed to load items');
       } finally {
@@ -443,6 +448,47 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       setExportingAll(false);
     }
   }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
+
+  // ─── Single-article navigation ──────────────────────────────────────────────
+  // Global position across all server pages, plus crossing pages on prev/next.
+  const currentItem = items[currentIndex] ?? null;
+  const globalPosition = items.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + currentIndex + 1;
+
+  // Auto-select current article for Save & Submit / Reject ergonomics
+  useEffect(() => {
+    if (currentItem && currentItem.approvalStatus !== 'REJECTED') {
+      setSelectedRowKeys([currentItem.id]);
+    } else {
+      setSelectedRowKeys([]);
+    }
+  }, [currentItem?.id]);
+
+  const goPrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex((i) => i - 1);
+      return;
+    }
+    if (currentPage > 1) {
+      // Cross to previous page; the post-fetch effect resets index to 0 — we
+      // need to land on the LAST item of the previous page, so adjust after.
+      const prevPage = currentPage - 1;
+      fetchItems(prevPage).then(() => setCurrentIndex(PAGE_SIZE - 1));
+    }
+  }, [currentIndex, currentPage, fetchItems]);
+
+  const goNext = useCallback(() => {
+    if (currentIndex < items.length - 1) {
+      setCurrentIndex((i) => i + 1);
+      return;
+    }
+    // Cross to next page if there's more data
+    if (currentPage * PAGE_SIZE < totalCount) {
+      fetchItems(currentPage + 1);
+    }
+  }, [currentIndex, items.length, currentPage, totalCount, fetchItems]);
+
+  const isFirstArticle = currentPage === 1 && currentIndex === 0;
+  const isLastArticle = currentPage * PAGE_SIZE >= totalCount && currentIndex >= items.length - 1;
 
   const pendingSelectedKeys = useMemo(
     () => selectedRowKeys.filter((key) => items.find((item) => item.id === key)?.approvalStatus === 'PENDING'),
@@ -918,20 +964,20 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
   return (
     <div>
-      <div className="sticky top-0 z-[100] mb-3 shrink-0">
+      <div className="sticky top-0 z-40 mb-3 shrink-0">
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          {/* ─── Brand strip — purple gradient with title + page-level actions ─── */}
+          {/* ─── Brand strip — slate gradient with title + prev/next + page actions ─── */}
           <div
-            className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-white"
-            style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%)' }}
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 text-white"
+            style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}
           >
             <div className="flex min-w-0 items-center gap-3">
               {/* Logo chip */}
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FF6F61]/90">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-[15px] font-bold leading-tight">
+                <div className="truncate text-[14px] font-bold leading-tight">
                   {pathType === 'old'
                     ? 'Old Articles'
                     : pathType === 'new'
@@ -942,29 +988,51 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     ? 'Created Articles'
                     : 'Approver Dashboard'}
                 </div>
-                <div className="truncate text-[11px] text-white/80">
-                  {totalCount.toLocaleString()} record{totalCount === 1 ? '' : 's'}
-                  {selectedRowKeys.length > 0 && ` · ${selectedRowKeys.length} selected`}
+                <div className="truncate text-[11px] text-white/70">
                   {user?.division && (
-                    <>
-                      {' · '}
-                      <span className="font-medium">
-                        {formatDivisionLabel(user.division)}
-                        {user.subDivision ? ` · ${user.subDivision}` : ''}
-                      </span>
-                    </>
+                    <span className="font-medium">
+                      {formatDivisionLabel(user.division)}
+                      {user.subDivision ? ` · ${user.subDivision}` : ''}
+                    </span>
                   )}
                 </div>
               </div>
+
+              {/* Prev/Next + position indicator */}
+              {totalCount > 0 && (
+                <div className="ml-2 flex items-center gap-1 rounded-md bg-white/10 px-1 py-0.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={goPrev}
+                    disabled={isFirstArticle}
+                    className="h-7 px-2 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <span className="px-1 text-[12px] font-medium tabular-nums">
+                    {globalPosition} / {totalCount}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={goNext}
+                    disabled={isLastArticle}
+                    className="h-7 px-2 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Page-level action buttons */}
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => fetchItems(currentPage)}
-                className="h-9 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="h-8 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
                 <RotateCw />
                 Refresh
@@ -972,21 +1040,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
               <Button
                 size="sm"
                 variant="outline"
-                onClick={handleExportSelected}
-                disabled={selectedRowKeys.length === 0}
-                className="h-9 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
-              >
-                <Download />
-                Export Selected
-              </Button>
-              <Button
-                size="sm"
                 onClick={handleExportAll}
                 disabled={exportingAll}
-                className="h-9 border-white/40 bg-white/15 text-white hover:bg-white/25"
+                className="h-8 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
               >
                 <Download />
-                Export All ({totalCount})
+                Export ({totalCount})
               </Button>
               <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : ''}>
                 <Button
@@ -996,10 +1055,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     if (pendingSelectedKeys.length > 0) setConfirmDialog({ kind: 'reject', count: pendingSelectedKeys.length });
                   }}
                   disabled={!canApprove || pendingSelectedKeys.length === 0}
-                  className="h-9"
+                  className="h-8"
                 >
                   <XCircle />
-                  Reject ({pendingSelectedKeys.length})
+                  Reject
                 </Button>
               </Tooltip>
               <Tooltip
@@ -1029,21 +1088,21 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   size="sm"
                   onClick={handleApproveClick}
                   disabled={!canApprove || pendingSelectedKeys.length === 0 || approveBlockedReasons.length > 0}
-                  className="h-9 border-none bg-white font-semibold text-violet-700 hover:bg-white/90 disabled:bg-white/40 disabled:text-white/70"
+                  className="h-8 border-none bg-[#FF6F61] font-semibold text-white shadow-sm hover:bg-[#ff5b4d] disabled:bg-white/20 disabled:text-white/50"
                 >
                   <CheckCircle2 />
-                  Save & Submit ({pendingSelectedKeys.length})
+                  Save &amp; Submit
                   {approveBlockedReasons.length > 0 && (
-                    <span className="ml-1 text-[10px] text-amber-300">⚠ {approveBlockedReasons.length}</span>
+                    <span className="ml-1 text-[10px] text-amber-200">⚠ {approveBlockedReasons.length}</span>
                   )}
                 </Button>
               </Tooltip>
             </div>
           </div>
 
-          {/* ─── Filter row ─── */}
-          <div className="border-b border-border px-4 pb-2 pt-2.5">
-            <div className="flex flex-wrap items-center gap-2">
+          {/* ─── Filter row (compact) ─── */}
+          <div className="px-4 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Input
                 placeholder="Search article, vendor, design, PPT no..."
                 onChange={handleSearchChange}
@@ -1169,7 +1228,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
       <div className="mt-1.5">
         <ApproverArticleList
-          items={items}
+          items={currentItem ? [currentItem] : []}
           majorCategory={majorCategoryFilter}
           loading={loading}
           selectedRowKeys={selectedRowKeys}
