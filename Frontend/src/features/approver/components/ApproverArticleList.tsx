@@ -1282,7 +1282,7 @@ const ArticleCard = React.memo(({
                                             const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
                                             const dropdownOptions: string[] = isDropdown
                                                 ? field === 'impAtrbt2'
-                                                    ? (attributes.find(a => a.key === 'imp_atrbt2')?.allowedValues.map(v => v.shortForm) ?? getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
+                                                    ? (getMajCatGridEntry(effectiveMajCat, 'IMP ATBT') ??attributes.find(a => a.key === 'imp_atrbt2')?.allowedValues.map(v => v.shortForm) ?? getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
                                                     : (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];
                                             return (
