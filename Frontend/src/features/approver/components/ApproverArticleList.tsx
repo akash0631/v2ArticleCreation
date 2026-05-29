@@ -1005,7 +1005,7 @@ const ArticleCard = React.memo(
           </div>
 
           {/* ─── MAIN GRID — image+info | attribute groups ─── */}
-          <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[230px_1fr]">
+          <div className="grid min-h-0 flex-1 gap-1.5 overflow-hidden p-1.5 lg:grid-cols-[230px_1fr]">
             {/* ─── LEFT: Image + Article Info + Reference ─── */}
             <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto">
               {/* Article image */}

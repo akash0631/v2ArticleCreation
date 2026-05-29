@@ -133,11 +133,11 @@
 
 /* Header Improvements */
 .content-shell {
-  margin: 24px;
-  padding: 24px;
+  margin: 6px;
+  padding: 8px;
   background: #F6F1EC;
-  border-radius: 16px;
-  height: calc(100vh - 64px);
+  border-radius: 10px;
+  height: calc(100vh - 76px);
   overflow-y: auto;
   overflow-x: hidden;
 }
