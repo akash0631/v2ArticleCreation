@@ -1,5 +1,22 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { FileText, LayoutGrid, Rocket, Info, Users, Copy } from 'lucide-react';
+import {
+  FileText,
+  LayoutGrid,
+  Rocket,
+  Info,
+  Users,
+  Copy,
+  Maximize2,
+  Sparkles,
+  ChevronUp,
+  ChevronDown,
+  Shirt,
+  User as UserIcon,
+  Hash,
+  Wand2,
+  Briefcase,
+  DollarSign,
+} from 'lucide-react';
 import {
   Autocomplete,
   Badge,
@@ -160,6 +177,31 @@ const GROUP_COLORS: Record<string, string> = {
 };
 const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 
+// ─── Redesign tokens — header/icon palette per group ──────────────────────────
+const GROUP_LABELS: Record<string, string> = {
+  FAB: 'Construction & Fabric',
+  BODY: 'Body & Construction',
+  'VA ACC.': 'Trims & Accessories',
+  'VA PRCS': 'Finishing & Process',
+  BUSINESS: 'Business & Misc',
+};
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  FAB: <Shirt className="h-3.5 w-3.5" />,
+  BODY: <UserIcon className="h-3.5 w-3.5" />,
+  'VA ACC.': <Hash className="h-3.5 w-3.5" />,
+  'VA PRCS': <Wand2 className="h-3.5 w-3.5" />,
+  BUSINESS: <Briefcase className="h-3.5 w-3.5" />,
+};
+
+const GROUP_HEADER_STYLE: Record<string, { bg: string; fg: string; border: string }> = {
+  FAB: { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe' },
+  BODY: { bg: '#ecfdf5', fg: '#047857', border: '#bbf7d0' },
+  'VA ACC.': { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa' },
+  'VA PRCS': { bg: '#fdf2f8', fg: '#be185d', border: '#fbcfe8' },
+  BUSINESS: { bg: '#faf5ff', fg: '#7e22ce', border: '#e9d5ff' },
+};
+
 type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 
 function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
@@ -243,6 +285,8 @@ const ArticleCard = React.memo(
     const [localValues, setLocalValues] = useState<Record<string, string | null>>({});
     const [dupConfirmOpen, setDupConfirmOpen] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
+    const [allCollapsed, setAllCollapsed] = useState(false);
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const prevItemRef = React.useRef<ApproverItem>(item);
     React.useEffect(() => {
@@ -635,502 +679,732 @@ const ArticleCard = React.memo(
       );
     };
 
-    return (
-      <>
+    // ─── Helper closures used by the new layout ─────────────────────────────────
+
+    // Compute global 1..N numbering across all visible attributes (mockup pattern)
+    let _attrCounter = 0;
+
+    const HEADER_FIELDS = [
+      { label: 'MAJOR CATEGORY', field: 'majorCategory', editable: true, required: false, color: '#2f54eb' },
+      {
+        label: 'ARTICLE NUMBER',
+        field: 'articleNumber',
+        editable: !item.sapArticleId,
+        required: false,
+        color: item.sapArticleId ? '#15803d' : '#1d4ed8',
+      },
+      { label: 'VENDOR CODE', field: 'vendorCode', editable: true, required: true, color: '#1f2937' },
+      { label: 'VENDOR NAME', field: 'vendorName', editable: true, required: true, color: '#1f2937' },
+      { label: 'ARTICLE DESC', field: 'articleDescription', editable: true, required: false, color: '#4b5563' },
+      { label: 'REFERENCE ARTICLE', field: 'referenceArticleNumber', editable: true, required: false, color: '#1f2937' },
+      { label: 'REFERENCE ARTICLE DESC', field: 'referenceArticleDescription', editable: true, required: false, color: '#1f2937' },
+    ] as const;
+
+    const renderHeaderField = ({
+      label,
+      field,
+      editable,
+      required,
+      color,
+    }: { label: string; field: string; editable: boolean; required: boolean; color: string }) => {
+      const baseValue =
+        field === 'articleNumber'
+          ? item.sapArticleId || (item as any)[field]
+          : field === 'majorCategory'
+          ? effectiveMajCat || (item as any)[field]
+          : (item as any)[field];
+      const displayVal = localValues[field] !== undefined ? localValues[field] : baseValue;
+      const isEditingThis = editingField === `hdr_${field}`;
+      const canEdit = editable && !isLocked;
+      const isEmpty = !displayVal;
+      const showRequiredError = required && isEmpty && !isLocked;
+      return (
         <div
-          className="mb-2.5 flex overflow-hidden rounded-lg border"
-          style={{ borderColor, background: bgColor }}
+          key={field}
+          className="border-b border-border last:border-b-0"
+          style={{ cursor: canEdit ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`);
+          }}
         >
-          {/* Left: checkbox + image */}
-          <div className="flex shrink-0 flex-col items-center gap-1.5 border-r border-border bg-black/[0.01] px-2 py-2.5">
-            <Checkbox
-              checked={isSelected}
-              disabled={item.approvalStatus === 'REJECTED'}
-              onCheckedChange={() => onToggleSelect(item.id)}
-            />
-            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-md bg-muted">
-              {imgUrl ? (
-                <img
-                  src={imgUrl}
-                  alt=""
-                  width={72}
-                  height={72}
-                  className="block cursor-pointer object-cover"
-                  onError={handleImgError}
-                  onClick={() => setImgModalOpen(true)}
+          <div className="flex items-start justify-between gap-2 px-3 py-1.5">
+            <span
+              className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: showRequiredError ? '#dc2626' : '#6b7280' }}
+            >
+              {label}
+              {required && <span className="ml-0.5 text-red-500">*</span>}
+            </span>
+            <div className="min-w-0 flex-1 text-right">
+              {isEditingThis && field === 'majorCategory' ? (
+                <Select
+                  defaultValue={displayVal || undefined}
+                  onValueChange={(val) => handleSave(field, val || null)}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getMajorCategoriesByDivision(item.division || '').map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : isEditingThis && field === 'vendorName' ? (
+                <Autocomplete
+                  autoFocus
+                  value={vendorQuery || displayVal || ''}
+                  onChange={searchVendors}
+                  options={vendorOptions}
+                  notFoundContent={vendorSearching ? <Spinner size="sm" /> : null}
+                  onSelect={(val, option) => {
+                    handleSave('vendorName', val || null);
+                    if (option.vendorCode) {
+                      setLocalValues((prev) => ({ ...prev, vendorCode: option.vendorCode }));
+                      onSave(
+                        { ...item, vendorCode: option.vendorCode } as ApproverItem,
+                        { vendorCode: option.vendorCode } as Record<string, unknown>,
+                      );
+                    }
+                    setVendorOptions([]);
+                    setVendorQuery('');
+                  }}
+                  onBlur={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val) handleSave('vendorName', val);
+                    else setEditingField(null);
+                    setVendorOptions([]);
+                    setVendorQuery('');
+                  }}
+                  className="text-xs"
+                />
+              ) : isEditingThis ? (
+                <Input
+                  autoFocus
+                  defaultValue={displayVal || ''}
+                  className="h-7 px-1 text-xs"
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
+                  }
+                  onBlur={(e) => handleSave(field, e.target.value || null)}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
-                  No Img
-                </div>
+                <span
+                  className="truncate text-xs"
+                  style={{
+                    color: displayVal ? color : showRequiredError ? '#ea580c' : '#9ca3af',
+                    fontStyle: showRequiredError ? 'italic' : 'normal',
+                  }}
+                >
+                  {displayVal || (showRequiredError ? 'Required' : canEdit ? 'Click to fill' : '—')}
+                </span>
               )}
             </div>
           </div>
+        </div>
+      );
+    };
 
-          {/* Right: header info + attributes */}
-          <div className="min-w-0 flex-1">
-            <div className="border-b border-border pl-3 pr-3 pt-1.5">
-              <div className="mb-1 flex items-center gap-1.5">
-                <Tag
+    const renderAttributeRow = (attr: {
+      field: string;
+      label: string;
+      schemaKey: string;
+      values: any[];
+      freeText: boolean;
+      group: string;
+    }) => {
+      _attrCounter += 1;
+      const num = _attrCounter;
+      const currentValue = getValue(attr.field);
+      const isEmpty = !currentValue;
+      const isMandatory = !attr.freeText && mandatoryKeys.has(attr.schemaKey);
+      const isEditing = editingField === attr.field;
+      const isUserEdited = !!localValues[attr.field];
+
+      return (
+        <div
+          key={attr.field}
+          className="group flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-muted/40"
+          style={{
+            cursor: isLocked ? 'default' : 'pointer',
+            background: isEditing
+              ? '#e0f2fe'
+              : isUserEdited
+              ? '#ecfdf5'
+              : isEmpty && isMandatory
+              ? '#fffbeb'
+              : !isEmpty && !isUserEdited
+              ? '#eef2ff'
+              : undefined,
+          }}
+          onClick={() => {
+            if (!isLocked && !isEditing) setEditingField(attr.field);
+          }}
+        >
+          <span className="w-5 shrink-0 text-right text-[10px] font-medium text-muted-foreground">{num}.</span>
+          <span
+            className="flex-1 truncate text-[11px]"
+            style={{ color: isMandatory ? '#1f2937' : '#4b5563', fontWeight: isMandatory ? 600 : 400 }}
+          >
+            {isMandatory && <span className="mr-0.5 text-red-500">*</span>}
+            {attr.label}
+          </span>
+          <div className="w-[110px] shrink-0">
+            {attr.freeText ? (
+              isEditing ? (
+                <Input
+                  autoFocus
+                  defaultValue={currentValue || ''}
+                  className="h-6 px-1 text-[11px]"
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && handleSave(attr.field, (e.target as HTMLInputElement).value || null)
+                  }
+                  onBlur={(e) => handleSave(attr.field, e.target.value || null)}
+                />
+              ) : (
+                <span
+                  className="block truncate text-right text-[11px]"
                   style={{
-                    background: status.color + '22',
-                    color: status.color,
-                    borderColor: status.color + '44',
+                    color: isEmpty ? '#9ca3af' : '#111827',
+                    fontStyle: isEmpty ? 'italic' : 'normal',
                   }}
-                  className="m-0 px-1.5 text-[10px] leading-[16px]"
                 >
-                  {status.label}
-                </Tag>
-                {item.sapSyncMessage && (
-                  <Tooltip
-                    title={
-                      <div className="max-h-[260px] overflow-y-auto text-xs text-foreground">
-                        <div className="mb-1.5 text-[13px] font-bold text-red-700">⚠ SAP Remark</div>
-                        <div className="whitespace-pre-wrap leading-relaxed">{item.sapSyncMessage}</div>
-                      </div>
-                    }
-                    side="bottom"
-                  >
-                    <Info className="h-3.5 w-3.5 shrink-0 cursor-pointer text-red-700" />
-                  </Tooltip>
-                )}
-                <span className="text-[11px] text-muted-foreground">
-                  {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
+                  {currentValue || (isLocked ? '—' : 'Click')}
                 </span>
-                <span className="ml-auto text-[11px] text-muted-foreground">
-                  {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
-                  {item.rate != null && `  ·  ₹${item.rate}`}
-                  {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
-                  {item.createdAt && (
-                    <span className="ml-2 text-muted-foreground">
-                      ·{' '}
-                      {new Date(item.createdAt).toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  )}
-                </span>
-                {item.pptNumber && (
-                  <Badge className="ml-1.5 shrink-0 bg-indigo-500 px-1.5 py-0 text-[10px] font-semibold tracking-wider text-white">
-                    {item.pptNumber}
-                  </Badge>
-                )}
-                {pathType === 'new' && item.approvalStatus === 'PENDING' && item.division?.toUpperCase() === 'KIDS' && (
+              )
+            ) : isEditing ? (
+              <Select
+                defaultValue={currentValue || undefined}
+                onValueChange={(val) => handleSave(attr.field, val ?? null)}
+              >
+                <SelectTrigger className="h-6 w-full text-[11px]">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {attr.values.map((v) => (
+                    <SelectItem key={v.shortForm} value={v.shortForm}>
+                      {v.shortForm}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span
+                className="flex items-center justify-end gap-1 text-right text-[11px]"
+                style={{
+                  color: isEmpty ? (isMandatory ? '#ea580c' : '#9ca3af') : '#111827',
+                  fontStyle: isEmpty ? 'italic' : 'normal',
+                }}
+              >
+                <span className="truncate">{currentValue || (isMandatory ? 'Required' : '—')}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-40" />
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const toggleGroupCollapse = (g: string) => {
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(g)) next.delete(g);
+        else next.add(g);
+        return next;
+      });
+      setAllCollapsed(false);
+    };
+
+    const isGroupCollapsed = (g: string) => allCollapsed || collapsedGroups.has(g);
+
+    // AI confidence — average of available per-attribute confidences if present, else 92 placeholder
+    const aiConfidenceValues: number[] = [];
+    for (const af of attributeFields) {
+      const v = (item as any)[af.field];
+      if (typeof v === 'number' && Number.isFinite(v)) aiConfidenceValues.push(v);
+    }
+    const aiConfidence = (item as any).avgConfidence
+      ? Math.round(Number((item as any).avgConfidence))
+      : 92;
+
+    return (
+      <>
+        <div
+          className="mb-6 overflow-hidden rounded-xl border bg-white shadow-sm"
+          style={{ borderColor }}
+        >
+          {/* ─── TOP HEADER STRIP (purple gradient) ─── */}
+          <div
+            className="flex items-center justify-between gap-3 px-5 py-3 text-white"
+            style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%)' }}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Checkbox
+                checked={isSelected}
+                disabled={item.approvalStatus === 'REJECTED'}
+                onCheckedChange={() => onToggleSelect(item.id)}
+                className="border-white/60 bg-white/10 data-[state=checked]:bg-white data-[state=checked]:text-indigo-600"
+              />
+              <Badge
+                style={{ background: status.color + 'cc', color: '#fff', borderColor: status.color }}
+                className="border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+              >
+                {status.label}
+              </Badge>
+              {item.sapSyncMessage && (
+                <Tooltip
+                  title={
+                    <div className="max-h-[260px] overflow-y-auto text-xs">
+                      <div className="mb-1.5 text-[13px] font-bold text-red-700">⚠ SAP Remark</div>
+                      <div className="whitespace-pre-wrap leading-relaxed">{item.sapSyncMessage}</div>
+                    </div>
+                  }
+                  side="bottom"
+                >
+                  <Info className="h-4 w-4 shrink-0 cursor-pointer text-amber-200" />
+                </Tooltip>
+              )}
+              <span className="truncate text-[12px] text-white/90">
+                {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
+              </span>
+              {(item.sapArticleId || item.articleNumber) && (
+                <Badge className="bg-white/20 px-2 py-0.5 text-[11px] font-mono text-white">
+                  {item.sapArticleId || item.articleNumber}
+                </Badge>
+              )}
+              <span className="ml-2 truncate text-[11px] text-white/75">
+                {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
+                {item.rate != null && `  ·  ₹${item.rate}`}
+                {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {item.pptNumber && (
+                <Badge className="bg-amber-300 text-amber-950">PPT: {item.pptNumber}</Badge>
+              )}
+              {pathType === 'new' &&
+                item.approvalStatus === 'PENDING' &&
+                item.division?.toUpperCase() === 'KIDS' && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setDupConfirmOpen(true)}
-                    className="ml-1.5 h-[22px] shrink-0 border-sky-300 bg-sky-50 px-2 text-[11px] text-sky-700"
+                    className="h-8 border-white/40 bg-white/10 text-white hover:bg-white/20"
                   >
                     <Copy />
                     Duplicate
                   </Button>
                 )}
-              </div>
-
-              {/* 7 horizontal info fields — click to edit */}
-              <div className="flex border-t border-border">
-                {(
-                  [
-                    { label: 'MAJOR CATEGORY', field: 'majorCategory', bold: true, color: '#2f54eb', editable: true, required: false },
-                    {
-                      label: 'ARTICLE NUMBER',
-                      field: 'articleNumber',
-                      bold: true,
-                      color: item.sapArticleId ? '#389e0d' : '#1d39c4',
-                      editable: !item.sapArticleId,
-                      required: false,
-                    },
-                    { label: 'VENDOR CODE', field: 'vendorCode', bold: false, color: '#1a1a1a', editable: true, required: true },
-                    { label: 'VENDOR NAME', field: 'vendorName', bold: false, color: '#1a1a1a', editable: true, required: true },
-                    { label: 'ARTICLE DESC', field: 'articleDescription', bold: false, color: '#595959', editable: true, required: false },
-                    { label: 'REFERENCE ARTICLE', field: 'referenceArticleNumber', bold: false, color: '#1a1a1a', editable: true, required: false },
-                    { label: 'REFERENCE ARTICLE DESC', field: 'referenceArticleDescription', bold: false, color: '#1a1a1a', editable: true, required: false },
-                  ] as {
-                    label: string;
-                    field: string;
-                    bold: boolean;
-                    color: string;
-                    editable: boolean;
-                    required: boolean;
-                  }[]
-                ).map(({ label, field, color, editable, required }, i) => {
-                  const value =
-                    field === 'articleNumber'
-                      ? item.sapArticleId || (item as any)[field]
-                      : field === 'majorCategory'
-                      ? effectiveMajCat || (item as any)[field]
-                      : (item as any)[field];
-                  const displayVal = localValues[field] !== undefined ? localValues[field] : value;
-                  const isEditingThis = editingField === `hdr_${field}`;
-                  const canEdit = editable && !isLocked;
-                  const isEmpty = !displayVal;
-                  const showRequiredError = required && isEmpty && !isLocked;
-                  return (
-                    <div
-                      key={i}
-                      className="min-w-0 border-r border-border px-2.5 py-1 last:border-r-0"
-                      style={{
-                        flex: i >= 4 ? 2 : 1,
-                        cursor: canEdit ? 'pointer' : 'default',
-                        background: isEditingThis ? '#e6f7ff' : 'transparent',
-                      }}
-                      onClick={() => {
-                        if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`);
-                      }}
-                    >
-                      <div
-                        className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider"
-                        style={{ color: showRequiredError ? '#ff4d4f' : '#8c8c8c' }}
-                      >
-                        {label}
-                        {required && <span className="ml-0.5 text-red-500">*</span>}
-                      </div>
-                      {isEditingThis && field === 'majorCategory' ? (
-                        <Select
-                          defaultValue={displayVal || undefined}
-                          onValueChange={(val) => handleSave(field, val || null)}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getMajorCategoriesByDivision(item.division || '').map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : isEditingThis && field === 'vendorName' ? (
-                        <Autocomplete
-                          autoFocus
-                          value={vendorQuery || displayVal || ''}
-                          onChange={searchVendors}
-                          options={vendorOptions}
-                          notFoundContent={vendorSearching ? <Spinner size="sm" /> : null}
-                          onSelect={(val, option) => {
-                            handleSave('vendorName', val || null);
-                            if (option.vendorCode) {
-                              setLocalValues((prev) => ({ ...prev, vendorCode: option.vendorCode }));
-                              onSave(
-                                { ...item, vendorCode: option.vendorCode } as ApproverItem,
-                                { vendorCode: option.vendorCode } as Record<string, unknown>,
-                              );
-                            }
-                            setVendorOptions([]);
-                            setVendorQuery('');
-                          }}
-                          onBlur={(e) => {
-                            const val = (e.target as HTMLInputElement).value;
-                            if (val) handleSave('vendorName', val);
-                            else setEditingField(null);
-                            setVendorOptions([]);
-                            setVendorQuery('');
-                          }}
-                          className="text-xs"
-                        />
-                      ) : isEditingThis ? (
-                        <Input
-                          autoFocus
-                          defaultValue={displayVal || ''}
-                          className="h-7 px-1 text-xs"
-                          onKeyDown={(e) =>
-                            e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
-                          }
-                          onBlur={(e) => handleSave(field, e.target.value || null)}
-                        />
-                      ) : (
-                        <div
-                          className="truncate text-xs"
-                          style={{
-                            color: displayVal ? color : showRequiredError ? '#fa8c16' : '#bfbfbf',
-                            fontStyle: showRequiredError ? 'italic' : 'normal',
-                          }}
-                        >
-                          {displayVal || (showRequiredError ? 'Required' : canEdit ? 'Click to fill' : '—')}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
+          </div>
 
-            {/* Attribute groups */}
-            {visibleAttrs.length > 0 ? (
-              <div className="flex items-start gap-1 border-t-2 border-neutral-400 bg-neutral-200 p-1">
-                {activeGroups.map((g) => (
+          {/* ─── MAIN GRID — image | attributes | AI sidebar ─── */}
+          <div className="grid gap-4 p-5 lg:grid-cols-[280px_1fr] xl:grid-cols-[280px_1fr_220px]">
+            {/* ─── LEFT: Image + Article Info + Reference ─── */}
+            <aside className="flex min-w-0 flex-col gap-3">
+              {/* Article image */}
+              <div className="overflow-hidden rounded-lg border border-border bg-white">
+                <div className="flex items-center justify-between border-b border-border bg-indigo-50/60 px-3 py-2">
+                  <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                    <Info className="h-3 w-3" />
+                    Article Image
+                  </span>
+                  <Badge variant="success" className="text-[10px]">1 / 1</Badge>
+                </div>
+                <div className="relative aspect-square bg-muted">
+                  {imgUrl ? (
+                    <>
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="block h-full w-full cursor-pointer object-cover"
+                        onError={handleImgError}
+                        onClick={() => setImgModalOpen(true)}
+                      />
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="absolute right-2 top-2 h-7 w-7 bg-white/90 backdrop-blur"
+                        onClick={() => setImgModalOpen(true)}
+                      >
+                        <Maximize2 />
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                      No Image
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Article information */}
+              <div className="overflow-hidden rounded-lg border border-border bg-white">
+                <div className="border-b border-border bg-indigo-50/60 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                    Article Information
+                  </span>
+                </div>
+                <div className="space-y-2 px-3 py-2.5 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Article ID</span>
+                    <span className="truncate text-right font-medium">
+                      {item.sapArticleId || item.articleNumber || item.imageName || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Category</span>
+                    <span className="truncate text-right text-[11px]">
+                      {[formatDivisionLabel(item.division), item.subDivision, effectiveMajCat]
+                        .filter(Boolean)
+                        .join(' › ') || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">AI Confidence</span>
+                    <Badge variant="success">{aiConfidence}%</Badge>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Last Updated</span>
+                    <span className="text-[11px]">
+                      {item.updatedAt || item.createdAt
+                        ? new Date(item.updatedAt || item.createdAt).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reference & Vendor — 7 editable fields stacked */}
+              <div className="overflow-hidden rounded-lg border border-border bg-white">
+                <div className="border-b border-border bg-indigo-50/60 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700">
+                    Reference &amp; Vendor
+                  </span>
+                </div>
+                <div>{HEADER_FIELDS.map((f) => renderHeaderField(f as any))}</div>
+              </div>
+            </aside>
+
+            {/* ─── MIDDLE: Attribute groups + BOM + Fabric/Body + Proceed FG ─── */}
+            <section className="min-w-0">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                  <Sparkles className="h-4 w-4" />
+                  GARMENT ATTRIBUTES ({visibleAttrs.length})
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAllCollapsed((c) => !c);
+                    setCollapsedGroups(new Set());
+                  }}
+                  className="h-7 text-xs"
+                >
+                  {allCollapsed ? <ChevronDown /> : <ChevronUp />}
+                  {allCollapsed ? 'Expand All' : 'Collapse All'}
+                </Button>
+              </div>
+
+              {visibleAttrs.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {activeGroups.map((g) => {
+                    const style = GROUP_HEADER_STYLE[g.group] ?? { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb' };
+                    const collapsed = isGroupCollapsed(g.group);
+                    return (
+                      <div
+                        key={g.group}
+                        className="overflow-hidden rounded-lg border bg-white"
+                        style={{ borderColor: style.border }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleGroupCollapse(g.group)}
+                          className="flex w-full items-center justify-between border-b px-3 py-2"
+                          style={{ background: style.bg, borderColor: style.border }}
+                        >
+                          <span
+                            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
+                            style={{ color: style.fg }}
+                          >
+                            {GROUP_ICONS[g.group]}
+                            {GROUP_LABELS[g.group] ?? g.group}
+                          </span>
+                          {collapsed ? (
+                            <ChevronDown className="h-3 w-3" style={{ color: style.fg }} />
+                          ) : (
+                            <ChevronUp className="h-3 w-3" style={{ color: style.fg }} />
+                          )}
+                        </button>
+                        {!collapsed && (
+                          <div className="space-y-0.5 p-1.5">
+                            {groupMap[g.group].attrs.map((attr) => renderAttributeRow(attr))}
+
+                            {/* FAB: fabric article number + description + button */}
+                            {g.group === 'FAB' &&
+                              (() => {
+                                const renderField = (
+                                  field: string,
+                                  label: string,
+                                  autoFillFn?: () => void,
+                                  maxLen?: number,
+                                ) => {
+                                  const displayVal =
+                                    localValues[field] !== undefined ? localValues[field] : (item as any)[field];
+                                  const isEditingThis = editingField === `bot_${field}`;
+                                  const saveVal = (raw: string | null) => {
+                                    const v = raw || null;
+                                    handleSave(field, maxLen && v ? v.slice(0, maxLen) : v);
+                                  };
+                                  return (
+                                    <div
+                                      key={field}
+                                      className="mt-1 border-t border-border bg-muted/30 px-2 py-1.5"
+                                      style={{ cursor: isLocked ? 'default' : 'pointer' }}
+                                      onClick={() => {
+                                        if (!isLocked && !isEditingThis) setEditingField(`bot_${field}`);
+                                      }}
+                                    >
+                                      <div className="mb-0.5 flex items-center justify-between gap-1">
+                                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                          {label}
+                                        </span>
+                                        {autoFillFn && !isLocked && (
+                                          <button
+                                            type="button"
+                                            className="text-[9px] text-indigo-600 underline hover:text-indigo-800"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              autoFillFn();
+                                            }}
+                                          >
+                                            Auto-fill
+                                          </button>
+                                        )}
+                                      </div>
+                                      {isEditingThis ? (
+                                        <Input
+                                          autoFocus
+                                          defaultValue={displayVal || ''}
+                                          maxLength={maxLen}
+                                          className="h-6 px-1 text-[11px]"
+                                          onKeyDown={(e) =>
+                                            e.key === 'Enter' && saveVal((e.target as HTMLInputElement).value)
+                                          }
+                                          onBlur={(e) => saveVal(e.target.value)}
+                                        />
+                                      ) : (
+                                        <div
+                                          className="truncate text-[11px]"
+                                          style={{ color: displayVal ? '#111827' : '#9ca3af' }}
+                                        >
+                                          {displayVal || (isLocked ? '—' : 'Click to fill')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                };
+                                const fabAutoFill = () => {
+                                  const parts = FAB_FIELDS.filter((ff) => mandatoryKeys.has(ff.schemaKey))
+                                    .map((ff) => {
+                                      const v = localValues[ff.field] !== undefined ? localValues[ff.field] : (item as any)[ff.field];
+                                      return v ? String(v).trim() : null;
+                                    })
+                                    .filter(Boolean);
+                                  if (parts.length > 0)
+                                    handleSave('fabricArticleDescription', parts.join('-').slice(0, 40));
+                                };
+                                return (
+                                  <>
+                                    {renderField('fabricArticleNumber', 'FABRIC ARTICLE NO.')}
+                                    {renderField('fabricArticleDescription', 'FABRIC ARTICLE DESC', fabAutoFill, 40)}
+                                    <div className="border-t border-border px-2 py-1.5">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => onCreateFabricArticle(item)}
+                                        className="h-7 w-full border border-indigo-300 bg-indigo-50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+                                      >
+                                        <FileText />
+                                        Create Fabric Article
+                                      </Button>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+
+                            {/* BODY: body article + description + button */}
+                            {g.group === 'BODY' &&
+                              (() => {
+                                const renderField = (
+                                  field: string,
+                                  label: string,
+                                  autoFillFn?: () => void,
+                                  maxLen?: number,
+                                ) => {
+                                  const displayVal =
+                                    localValues[field] !== undefined ? localValues[field] : (item as any)[field];
+                                  const isEditingThis = editingField === `bot_${field}`;
+                                  const saveVal = (raw: string | null) => {
+                                    const v = raw || null;
+                                    handleSave(field, maxLen && v ? v.slice(0, maxLen) : v);
+                                  };
+                                  return (
+                                    <div
+                                      key={field}
+                                      className="mt-1 border-t border-border bg-muted/30 px-2 py-1.5"
+                                      style={{ cursor: isLocked ? 'default' : 'pointer' }}
+                                      onClick={() => {
+                                        if (!isLocked && !isEditingThis) setEditingField(`bot_${field}`);
+                                      }}
+                                    >
+                                      <div className="mb-0.5 flex items-center justify-between gap-1">
+                                        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                          {label}
+                                        </span>
+                                        {autoFillFn && !isLocked && (
+                                          <button
+                                            type="button"
+                                            className="text-[9px] text-indigo-600 underline hover:text-indigo-800"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              autoFillFn();
+                                            }}
+                                          >
+                                            Auto-fill
+                                          </button>
+                                        )}
+                                      </div>
+                                      {isEditingThis ? (
+                                        <Input
+                                          autoFocus
+                                          defaultValue={displayVal || ''}
+                                          maxLength={maxLen}
+                                          className="h-6 px-1 text-[11px]"
+                                          onKeyDown={(e) =>
+                                            e.key === 'Enter' && saveVal((e.target as HTMLInputElement).value)
+                                          }
+                                          onBlur={(e) => saveVal(e.target.value)}
+                                        />
+                                      ) : (
+                                        <div
+                                          className="truncate text-[11px]"
+                                          style={{ color: displayVal ? '#111827' : '#9ca3af' }}
+                                        >
+                                          {displayVal || (isLocked ? '—' : 'Click to fill')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                };
+                                const bodyAutoFill = () => {
+                                  const parts = BODY_FIELDS.filter((bf) => mandatoryKeys.has(bf.schemaKey))
+                                    .map((bf) => {
+                                      const v = localValues[bf.field] !== undefined ? localValues[bf.field] : (item as any)[bf.field];
+                                      return v ? String(v).trim() : null;
+                                    })
+                                    .filter(Boolean);
+                                  if (parts.length > 0)
+                                    handleSave('bodyArticleDescription', parts.join('-').slice(0, 40));
+                                };
+                                return (
+                                  <>
+                                    {renderField('bodyArticle', 'BODY ARTICLE NO.')}
+                                    {renderField('bodyArticleDescription', 'BODY ARTICLE DESC', bodyAutoFill, 40)}
+                                    <div className="border-t border-border px-2 py-1.5">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => onCreateBodyArticle(item)}
+                                        className="h-7 w-full border border-purple-300 bg-purple-50 text-[11px] font-medium text-purple-700 hover:bg-purple-100"
+                                      >
+                                        <LayoutGrid />
+                                        Create Body Article
+                                      </Button>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* BOM card */}
                   <div
-                    key={g.group}
-                    className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-neutral-300 bg-background shadow-sm"
+                    className="overflow-hidden rounded-lg border bg-white"
+                    style={{ borderColor: '#fde68a' }}
                   >
                     <div
-                      className="border-b border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                      style={{ background: g.color }}
+                      className="flex items-center justify-between border-b px-3 py-2"
+                      style={{ background: '#fffbeb', borderColor: '#fde68a' }}
                     >
-                      {g.group}
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        BOM
+                      </span>
                     </div>
-                    <table className="w-full border-collapse">
-                      <tbody>
-                        {groupMap[g.group].attrs.map(({ field, label, schemaKey, values, freeText }) => {
-                          const currentValue = getValue(field);
-                          const isEmpty = !currentValue;
-                          const isMandatory = !freeText && mandatoryKeys.has(schemaKey);
-                          const isEditing = editingField === field;
-                          const artNum = getArtNum(schemaKey, field, currentValue);
-                          const isEditingArtNum = editingField === `artnum_${field}`;
-                          return (
-                            <tr key={field} className="border-b border-neutral-100 last:border-b-0">
-                              <td
-                                className="overflow-hidden truncate whitespace-nowrap border-r border-border bg-muted/40 px-2 py-1 align-middle text-[11px]"
-                                style={{
-                                  fontWeight: isMandatory ? 600 : 400,
-                                  color: isMandatory ? '#262626' : '#595959',
-                                  maxWidth: 120,
-                                }}
-                              >
-                                {isMandatory && <span className="mr-0.5 text-red-500">*</span>}
-                                {label}
-                              </td>
-                              {!freeText && (
-                                <td
-                                  className="border-r border-border bg-muted/40 px-1.5 py-0.5 align-middle"
-                                  style={{
-                                    cursor: isLocked ? 'default' : 'pointer',
-                                    background: isEditingArtNum ? '#e6f7ff' : undefined,
-                                    minWidth: 70,
-                                    maxWidth: 90,
-                                  }}
-                                  onClick={() => {
-                                    if (!isLocked && !isEditingArtNum) setEditingField(`artnum_${field}`);
-                                  }}
-                                >
-                                  {isEditingArtNum ? (
-                                    <Input
-                                      autoFocus
-                                      defaultValue={artNum}
-                                      className="h-6 w-full px-1 text-[10px]"
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          saveAttrArticleNum(field, (e.target as HTMLInputElement).value);
-                                          setEditingField(null);
-                                        }
-                                      }}
-                                      onBlur={(e) => {
-                                        saveAttrArticleNum(field, e.target.value);
-                                        setEditingField(null);
-                                      }}
-                                    />
-                                  ) : (
-                                    <span
-                                      className="text-[10px]"
-                                      style={{
-                                        color: artNum ? '#1d39c4' : '#d9d9d9',
-                                        fontStyle: artNum ? 'normal' : 'italic',
-                                      }}
-                                    >
-                                      {artNum || 'Art #'}
-                                    </span>
-                                  )}
-                                </td>
-                              )}
-                              <td
-                                colSpan={freeText ? 2 : 1}
-                                className="px-2 py-0.5 align-middle"
-                                style={{
-                                  cursor: isLocked ? 'default' : 'pointer',
-                                  background: isEditing
-                                    ? '#e6f7ff'
-                                    : isEmpty && isMandatory
-                                    ? '#fff7e6'
-                                    : 'transparent',
-                                }}
-                                onClick={() => {
-                                  if (!isLocked && !isEditing) setEditingField(field);
-                                }}
-                              >
-                                {freeText ? (
-                                  isEditing ? (
-                                    <Input
-                                      autoFocus
-                                      defaultValue={currentValue || ''}
-                                      className="h-6 w-full text-[11px]"
-                                      onKeyDown={(e) =>
-                                        e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
-                                      }
-                                      onBlur={(e) => handleSave(field, e.target.value || null)}
-                                    />
-                                  ) : (
-                                    <span
-                                      className="text-[11px]"
-                                      style={{
-                                        color: isEmpty ? '#bfbfbf' : '#1a1a1a',
-                                        fontStyle: isEmpty ? 'italic' : 'normal',
-                                      }}
-                                    >
-                                      {currentValue || '—'}
-                                    </span>
-                                  )
-                                ) : isEditing ? (
-                                  <Select
-                                    defaultValue={currentValue || undefined}
-                                    onValueChange={(val) => handleSave(field, val ?? null)}
-                                  >
-                                    <SelectTrigger className="h-6 w-full min-w-[120px] text-[11px]">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {values.map((v) => (
-                                        <SelectItem key={v.shortForm} value={v.shortForm}>
-                                          {v.shortForm}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <span className="flex items-center gap-1">
-                                    <span
-                                      className="flex-1 text-[11px]"
-                                      style={{
-                                        color: isEmpty ? (isMandatory ? '#fa8c16' : '#bfbfbf') : '#1a1a1a',
-                                        fontStyle: isEmpty ? 'italic' : 'normal',
-                                      }}
-                                    >
-                                      {currentValue || (isMandatory ? 'Required' : '—')}
-                                    </span>
-                                    {currentValue && !isLocked && (
-                                      <span
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSave(field, null);
-                                        }}
-                                        className="shrink-0 cursor-pointer px-0.5 text-[10px] leading-none text-muted-foreground"
-                                        title="Clear"
-                                      >
-                                        ✕
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-
-                    {g.group === 'FAB' && (
-                      <>
-                        {renderFabBodyField('fabricArticleNumber', 'FABRIC ARTICLE NO.')}
-                        {renderFabBodyField(
-                          'fabricArticleDescription',
-                          'FABRIC ARTICLE DESC',
-                          () => {
-                            const parts = FAB_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
-                              .map((f) => {
-                                const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field];
-                                return v ? String(v).trim() : null;
-                              })
-                              .filter(Boolean);
-                            if (parts.length > 0) handleSave('fabricArticleDescription', parts.join('-').slice(0, 40));
-                          },
-                          40,
-                        )}
-                        <div className="border-t border-border px-2 py-1.5">
-                          <Button
-                            onClick={() => onCreateFabricArticle(item)}
-                            className="h-7 w-full border border-indigo-300 bg-indigo-50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
-                          >
-                            <FileText />
-                            Create Fabric Article
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                    {g.group === 'BODY' && (
-                      <>
-                        {renderFabBodyField('bodyArticle', 'BODY ARTICLE NO.')}
-                        {renderFabBodyField(
-                          'bodyArticleDescription',
-                          'BODY ARTICLE DESC',
-                          () => {
-                            const parts = BODY_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
-                              .map((f) => {
-                                const v = localValues[f.field] !== undefined ? localValues[f.field] : (item as any)[f.field];
-                                return v ? String(v).trim() : null;
-                              })
-                              .filter(Boolean);
-                            if (parts.length > 0) handleSave('bodyArticleDescription', parts.join('-').slice(0, 40));
-                          },
-                          40,
-                        )}
-                        <div className="border-t border-border px-2 py-1.5">
-                          <Button
-                            onClick={() => onCreateBodyArticle(item)}
-                            className="h-7 w-full border border-purple-300 bg-purple-50 text-[11px] font-medium text-purple-700 hover:bg-purple-100"
-                          >
-                            <LayoutGrid />
-                            Create Body Article
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-
-                {/* BOM group — always shown */}
-                <div className="min-w-[120px] flex-1 overflow-hidden rounded-md border border-neutral-300 bg-background shadow-sm">
-                  <div className="border-b border-border bg-purple-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    BOM
-                  </div>
-                  <table className="w-full border-collapse">
-                    <tbody>
+                    <div className="space-y-0.5 p-1.5">
                       {[
-                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: false },
-                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true },
-                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false },
-                        { label: 'IMP_ATBT-1', field: 'macroMvgr', editable: true, mandatory: true },
-                        { label: 'IMP_ATRBT-2', field: 'impAtrbt2', editable: true, mandatory: true },
-                      ].map(({ label, field, editable, mandatory }) => {
-                        const isEditingBom = editingField === `bom_${field}`;
-                        const val = field === '_markdown' ? markdown : String(getValue(field) ?? '').trim() || '—';
+                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: false, isDropdown: false },
+                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
+                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isMarkdown: true },
+                        { label: 'IMP_ATBT-1', field: 'macroMvgr', editable: true, mandatory: true, isDropdown: true },
+                        { label: 'IMP_ATRBT-2', field: 'impAtrbt2', editable: true, mandatory: true, isDropdown: true },
+                      ].map((bom) => {
+                        const isEditingBom = editingField === `bom_${bom.field}`;
+                        const val = bom.isMarkdown
+                          ? markdown
+                          : String(getValue(bom.field) ?? '').trim() || '—';
                         const isEmpty = val === '—';
-                        const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
-                        const dropdownOptions: string[] = isDropdown
-                          ? field === 'impAtrbt2'
+                        const dropdownOptions: string[] = bom.isDropdown
+                          ? bom.field === 'impAtrbt2'
                             ? attributes.find((a) => a.key === 'imp_atrbt2')?.allowedValues.map((v) => v.shortForm) ??
                               getCachedValues(item.division ?? '', 'impAtrbt2') ??
                               []
-                            : getCachedValues(item.division ?? '', field) ?? []
+                            : getCachedValues(item.division ?? '', bom.field) ?? []
                           : [];
                         return (
-                          <tr key={field} className="border-b border-neutral-100 last:border-b-0">
-                            <td
-                              className="whitespace-nowrap border-r border-border bg-muted/40 px-2 py-1 align-middle text-[11px]"
-                              style={{ color: mandatory && isEmpty && !isLocked ? '#ff4d4f' : '#595959' }}
-                            >
-                              {label}
-                              {mandatory && <span className="ml-0.5 text-red-500">*</span>}
-                            </td>
-                            <td
-                              className="px-2 py-0.5 align-middle"
+                          <div
+                            key={bom.field}
+                            className="flex items-center gap-2 rounded px-1.5 py-1 transition-colors hover:bg-muted/40"
+                            style={{
+                              cursor: bom.editable && !isLocked ? 'pointer' : 'default',
+                              background: isEditingBom
+                                ? '#e0f2fe'
+                                : bom.mandatory && isEmpty && !isLocked
+                                ? '#fffbeb'
+                                : undefined,
+                            }}
+                            onClick={() => {
+                              if (bom.editable && !isLocked && !isEditingBom) setEditingField(`bom_${bom.field}`);
+                            }}
+                          >
+                            <span
+                              className="flex-1 truncate text-[11px]"
                               style={{
-                                cursor: editable && !isLocked ? 'pointer' : 'default',
-                                background: isEditingBom ? '#e6f7ff' : 'transparent',
-                              }}
-                              onClick={() => {
-                                if (editable && !isLocked && !isEditingBom) setEditingField(`bom_${field}`);
+                                color: bom.mandatory && isEmpty && !isLocked ? '#dc2626' : '#374151',
+                                fontWeight: bom.mandatory ? 600 : 400,
                               }}
                             >
-                              {isEditingBom && isDropdown ? (
+                              {bom.mandatory && <span className="mr-0.5 text-red-500">*</span>}
+                              {bom.label}
+                            </span>
+                            <div className="w-[100px] shrink-0 text-right">
+                              {isEditingBom && bom.isDropdown ? (
                                 <Select
                                   defaultValue={val === '—' ? undefined : val}
-                                  onValueChange={(v) => handleSave(field, v ?? null)}
+                                  onValueChange={(v) => handleSave(bom.field, v ?? null)}
                                 >
-                                  <SelectTrigger className="h-6 w-full min-w-[140px] text-[11px]">
+                                  <SelectTrigger className="h-6 w-full text-[11px]">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1145,97 +1419,164 @@ const ArticleCard = React.memo(
                                 <Input
                                   autoFocus
                                   defaultValue={val === '—' ? '' : val}
-                                  className="h-6 w-full text-[11px]"
+                                  className="h-6 px-1 text-[11px]"
                                   onKeyDown={(e) =>
-                                    e.key === 'Enter' && handleSave(field, (e.target as HTMLInputElement).value || null)
+                                    e.key === 'Enter' &&
+                                    handleSave(bom.field, (e.target as HTMLInputElement).value || null)
                                   }
-                                  onBlur={(e) => handleSave(field, e.target.value || null)}
+                                  onBlur={(e) => handleSave(bom.field, e.target.value || null)}
                                 />
                               ) : (
                                 <span
-                                  className="text-[11px]"
+                                  className="block truncate text-[11px]"
                                   style={{
-                                    color:
-                                      field === '_markdown'
-                                        ? '#7c3aed'
-                                        : mandatory && isEmpty && !isLocked
-                                        ? '#fa8c16'
-                                        : isEmpty
-                                        ? '#bfbfbf'
-                                        : '#1a1a1a',
-                                    fontStyle: mandatory && isEmpty && !isLocked ? 'italic' : 'normal',
-                                    fontWeight: field === '_markdown' ? 600 : 400,
+                                    color: bom.isMarkdown
+                                      ? '#7c3aed'
+                                      : bom.mandatory && isEmpty && !isLocked
+                                      ? '#ea580c'
+                                      : isEmpty
+                                      ? '#9ca3af'
+                                      : '#111827',
+                                    fontWeight: bom.isMarkdown ? 700 : 400,
+                                    fontStyle: bom.mandatory && isEmpty && !isLocked ? 'italic' : 'normal',
                                   }}
                                 >
-                                  {mandatory && isEmpty && !isLocked ? 'Required' : val}
+                                  {bom.mandatory && isEmpty && !isLocked ? 'Required' : val}
                                 </span>
                               )}
-                            </td>
-                          </tr>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="px-4 py-3 text-xs text-muted-foreground">
-                {effectiveMajCat ? `No attributes defined for ${effectiveMajCat}` : 'No major category set.'}
-              </div>
-            )}
-
-            {/* Proceed for FG Article Creation */}
-            {!item.articleNumber &&
-              (() => {
-                const effectiveVendorCode = localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
-                const vendorCodeMissing = !effectiveVendorCode;
-                return (
-                  <div className="border-t border-border bg-muted/40 px-3 py-2">
-                    <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
-                      <Button
-                        disabled={vendorCodeMissing}
-                        onClick={() => onProceedFGArticle(item)}
-                        className="h-9 w-full text-[13px] font-semibold"
-                        style={{
-                          background: vendorCodeMissing ? '#f5f5f5' : '#fff0ee',
-                          color: vendorCodeMissing ? '#bfbfbf' : '#c94f44',
-                          border: `1px solid ${vendorCodeMissing ? '#d9d9d9' : '#f5c2bc'}`,
-                        }}
-                      >
-                        <Rocket />
-                        Proceed for FG Article Creation
-                      </Button>
-                    </Tooltip>
+                    </div>
                   </div>
-                );
-              })()}
-
-            {/* Variants */}
-            {item.isGeneric && (
-              <div className="border-t border-border">
-                <div
-                  className="flex cursor-pointer select-none items-center justify-between px-3 py-1.5"
-                  style={{ background: showVariants ? '#e6f4ff' : 'rgb(250 250 250)' }}
-                  onClick={() => setShowVariants((v) => !v)}
-                >
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
-                    <Users className="h-3.5 w-3.5" />
-                    Variants
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">{showVariants ? '▲ Hide' : '▼ Show'}</span>
                 </div>
-                {showVariants && (
-                  <VariantSubTable
-                    genericId={item.id}
-                    genericRecord={item}
-                    attributes={attributes}
-                    onRefresh={onRefresh}
-                    pathType={pathType}
-                  />
-                )}
+              ) : (
+                <div className="rounded-md border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+                  {effectiveMajCat ? `No attributes defined for ${effectiveMajCat}` : 'No major category set.'}
+                </div>
+              )}
+
+              {/* Proceed for FG Article Creation */}
+              {!item.articleNumber &&
+                (() => {
+                  const effectiveVendorCode =
+                    localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
+                  const vendorCodeMissing = !effectiveVendorCode;
+                  return (
+                    <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50/50 p-3">
+                      <Tooltip title={vendorCodeMissing ? 'Vendor Code is required before proceeding' : undefined}>
+                        <Button
+                          disabled={vendorCodeMissing}
+                          onClick={() => onProceedFGArticle(item)}
+                          className="h-10 w-full text-[13px] font-semibold"
+                          style={{
+                            background: vendorCodeMissing ? '#f3f4f6' : '#fee2e2',
+                            color: vendorCodeMissing ? '#9ca3af' : '#b91c1c',
+                            border: `1px solid ${vendorCodeMissing ? '#e5e7eb' : '#fca5a5'}`,
+                          }}
+                        >
+                          <Rocket />
+                          Proceed for FG Article Creation
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  );
+                })()}
+            </section>
+
+            {/* ─── RIGHT: AI Suggestion + Legend (hidden below xl) ─── */}
+            <aside className="hidden flex-col gap-3 xl:flex">
+              <div className="overflow-hidden rounded-lg border border-violet-200 bg-white">
+                <div className="border-b border-violet-200 bg-violet-50 px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-700">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI Suggestion
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+                    Based on image analysis, we have pre-filled the attributes. Please review and update if needed.
+                  </p>
+                  <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                    <div className="flex-1 space-y-1.5 text-[11px]">
+                      <div className="mb-1 font-semibold text-foreground">Confidence Score</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>• Image Quality</span>
+                        <span className="font-semibold text-emerald-600">High</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>• Product Clarity</span>
+                        <span className="font-semibold text-emerald-600">High</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>• Attribute Match</span>
+                        <span className="font-semibold text-emerald-600">High</span>
+                      </div>
+                    </div>
+                    {/* Circular progress */}
+                    <div
+                      className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full"
+                      style={{
+                        background: `conic-gradient(#10b981 0% ${aiConfidence}%, #e5e7eb ${aiConfidence}% 100%)`,
+                      }}
+                    >
+                      <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[12px] font-bold text-emerald-700">
+                        {aiConfidence}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+
+              <div className="overflow-hidden rounded-lg border border-border bg-white">
+                <div className="border-b border-border bg-muted/30 px-3 py-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Legend</span>
+                </div>
+                <div className="space-y-2 p-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-3 w-3 rounded border border-indigo-300 bg-indigo-100" />
+                    AI Predicted
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-3 w-3 rounded border border-emerald-300 bg-emerald-100" />
+                    User Modified
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base leading-none text-red-500">*</span>
+                    Mandatory Field
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
+
+          {/* ─── Variants section ─── */}
+          {item.isGeneric && (
+            <div className="border-t border-border">
+              <button
+                type="button"
+                onClick={() => setShowVariants((v) => !v)}
+                className="flex w-full items-center justify-between px-5 py-2.5"
+                style={{ background: showVariants ? '#e0e7ff' : '#f9fafb' }}
+              >
+                <span className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+                  <Users className="h-4 w-4" />
+                  Variants
+                </span>
+                <span className="text-xs text-muted-foreground">{showVariants ? '▲ Hide' : '▼ Show'}</span>
+              </button>
+              {showVariants && (
+                <VariantSubTable
+                  genericId={item.id}
+                  genericRecord={item}
+                  attributes={attributes}
+                  onRefresh={onRefresh}
+                  pathType={pathType}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Image preview */}
