@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket } from 'lucide-react';
+import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket, Sparkles } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import {
   Button,
@@ -918,32 +918,130 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
   return (
     <div>
-      <div className="sticky top-0 z-[100] mb-1.5 shrink-0">
+      <div className="sticky top-0 z-[100] mb-3 shrink-0">
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-          <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-neutral-50 to-violet-50 px-4 py-2.5">
-            <div className="flex items-center gap-2.5">
-              <div className="h-[22px] w-1.5 rounded-sm bg-gradient-to-b from-indigo-500 to-violet-400" />
-              <span className="text-[15px] font-bold text-indigo-950">
-                {pathType === 'old'
-                  ? 'Old Articles'
-                  : pathType === 'new'
-                  ? 'New Articles'
-                  : pathType === 'rejected'
-                  ? 'Rejected Articles'
-                  : pathType === 'created'
-                  ? 'Created Articles'
-                  : 'Approver Dashboard'}
-              </span>
-              {user?.division && (
-                <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700">
-                  {formatDivisionLabel(user.division)}
-                  {user.subDivision ? ` · ${user.subDivision}` : ''}
-                </span>
-              )}
+          {/* ─── Brand strip — purple gradient with title + page-level actions ─── */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-white"
+            style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%)' }}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              {/* Logo chip */}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-bold leading-tight">
+                  {pathType === 'old'
+                    ? 'Old Articles'
+                    : pathType === 'new'
+                    ? 'New Articles'
+                    : pathType === 'rejected'
+                    ? 'Rejected Articles'
+                    : pathType === 'created'
+                    ? 'Created Articles'
+                    : 'Approver Dashboard'}
+                </div>
+                <div className="truncate text-[11px] text-white/80">
+                  {totalCount.toLocaleString()} record{totalCount === 1 ? '' : 's'}
+                  {selectedRowKeys.length > 0 && ` · ${selectedRowKeys.length} selected`}
+                  {user?.division && (
+                    <>
+                      {' · '}
+                      <span className="font-medium">
+                        {formatDivisionLabel(user.division)}
+                        {user.subDivision ? ` · ${user.subDivision}` : ''}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            <span className="text-[11px] font-semibold tracking-widest text-violet-400">AI FASHION</span>
+
+            {/* Page-level action buttons */}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fetchItems(currentPage)}
+                className="h-9 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
+                <RotateCw />
+                Refresh
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportSelected}
+                disabled={selectedRowKeys.length === 0}
+                className="h-9 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
+              >
+                <Download />
+                Export Selected
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleExportAll}
+                disabled={exportingAll}
+                className="h-9 border-white/40 bg-white/15 text-white hover:bg-white/25"
+              >
+                <Download />
+                Export All ({totalCount})
+              </Button>
+              <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : ''}>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    if (pendingSelectedKeys.length > 0) setConfirmDialog({ kind: 'reject', count: pendingSelectedKeys.length });
+                  }}
+                  disabled={!canApprove || pendingSelectedKeys.length === 0}
+                  className="h-9"
+                >
+                  <XCircle />
+                  Reject ({pendingSelectedKeys.length})
+                </Button>
+              </Tooltip>
+              <Tooltip
+                side="bottom"
+                title={
+                  !canApprove
+                    ? 'Only Approver, Sub-Division Head, Category Head or Admin can approve articles'
+                    : approveBlockedReasons.length > 0
+                    ? (
+                        <div className="text-xs leading-relaxed">
+                          <div className="mb-1.5 text-[13px] font-bold text-red-700">⚠ Fill required fields first:</div>
+                          {approveBlockedReasons.slice(0, 5).map(({ articleId, missing }) => (
+                            <div key={articleId} className="mb-1.5 rounded border border-red-300 bg-red-50 px-2 py-1">
+                              <span className="font-semibold text-amber-700">{articleId}: </span>
+                              <span className="text-red-700">{missing.join(', ')}</span>
+                            </div>
+                          ))}
+                          {approveBlockedReasons.length > 5 && (
+                            <div className="text-muted-foreground">...and {approveBlockedReasons.length - 5} more articles</div>
+                          )}
+                        </div>
+                      )
+                    : ''
+                }
+              >
+                <Button
+                  size="sm"
+                  onClick={handleApproveClick}
+                  disabled={!canApprove || pendingSelectedKeys.length === 0 || approveBlockedReasons.length > 0}
+                  className="h-9 border-none bg-white font-semibold text-violet-700 hover:bg-white/90 disabled:bg-white/40 disabled:text-white/70"
+                >
+                  <CheckCircle2 />
+                  Save & Submit ({pendingSelectedKeys.length})
+                  {approveBlockedReasons.length > 0 && (
+                    <span className="ml-1 text-[10px] text-amber-300">⚠ {approveBlockedReasons.length}</span>
+                  )}
+                </Button>
+              </Tooltip>
+            </div>
           </div>
 
+          {/* ─── Filter row ─── */}
           <div className="border-b border-border px-4 pb-2 pt-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <Input
@@ -1066,88 +1164,6 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             </div>
           </div>
 
-          <div className="border-t border-border bg-muted/30 px-4 py-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-indigo-600">
-                {totalCount.toLocaleString()} records
-                {selectedRowKeys.length > 0 && (
-                  <span className="ml-2 text-amber-500">· {selectedRowKeys.length} selected</span>
-                )}
-              </span>
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => fetchItems(currentPage)}>
-                  <RotateCw />
-                  Refresh
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleExportSelected} disabled={selectedRowKeys.length === 0}>
-                  <Download />
-                  Export Selected
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleExportAll}
-                  disabled={exportingAll}
-                  className="border-none bg-gradient-to-r from-indigo-500 to-indigo-400 font-semibold text-white"
-                >
-                  <Download />
-                  Export All ({totalCount})
-                </Button>
-                <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : ''}>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      if (pendingSelectedKeys.length > 0) setConfirmDialog({ kind: 'reject', count: pendingSelectedKeys.length });
-                    }}
-                    disabled={!canApprove || pendingSelectedKeys.length === 0}
-                  >
-                    <XCircle />
-                    Reject ({pendingSelectedKeys.length})
-                  </Button>
-                </Tooltip>
-                <Tooltip
-                  side="bottom"
-                  title={
-                    !canApprove
-                      ? 'Only Approver, Sub-Division Head, Category Head or Admin can approve articles'
-                      : approveBlockedReasons.length > 0
-                      ? (
-                          <div className="text-xs leading-relaxed">
-                            <div className="mb-1.5 text-[13px] font-bold text-red-700">⚠ Fill required fields first:</div>
-                            {approveBlockedReasons.slice(0, 5).map(({ articleId, missing }) => (
-                              <div key={articleId} className="mb-1.5 rounded border border-red-300 bg-red-50 px-2 py-1">
-                                <span className="font-semibold text-amber-700">{articleId}: </span>
-                                <span className="text-red-700">{missing.join(', ')}</span>
-                              </div>
-                            ))}
-                            {approveBlockedReasons.length > 5 && (
-                              <div className="text-muted-foreground">...and {approveBlockedReasons.length - 5} more articles</div>
-                            )}
-                          </div>
-                        )
-                      : ''
-                  }
-                >
-                  <Button
-                    size="sm"
-                    onClick={handleApproveClick}
-                    disabled={!canApprove || pendingSelectedKeys.length === 0 || approveBlockedReasons.length > 0}
-                    className={
-                      canApprove && pendingSelectedKeys.length > 0 && approveBlockedReasons.length === 0
-                        ? 'border-none bg-gradient-to-r from-emerald-500 to-emerald-400 font-semibold text-white'
-                        : ''
-                    }
-                  >
-                    <CheckCircle2 />
-                    Approve ({pendingSelectedKeys.length})
-                    {approveBlockedReasons.length > 0 && (
-                      <span className="ml-1 text-[10px] text-red-500">⚠ {approveBlockedReasons.length} incomplete</span>
-                    )}
-                  </Button>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
