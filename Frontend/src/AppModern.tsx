@@ -69,8 +69,8 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   if (user) {
     const userData = JSON.parse(user);
-    // Allow ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD or CREATOR (read-only)
-    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'SUB_DIVISION_HEAD' && userData.role !== 'ADMIN' && userData.role !== 'CREATOR') {
+    // Allow ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, CREATOR or PO_COMMITTEE (read-only)
+    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'SUB_DIVISION_HEAD' && userData.role !== 'ADMIN' && userData.role !== 'CREATOR' && userData.role !== 'PO_COMMITTEE') {
       return <Navigate to="/dashboard" replace />;
     }
   }
