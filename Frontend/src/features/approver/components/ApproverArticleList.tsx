@@ -730,7 +730,7 @@ const ArticleCard = React.memo(
             if (canEdit && !isEditingThis) setEditingField(`hdr_${field}`);
           }}
         >
-          <div className="flex items-start justify-between gap-2 px-2 py-1">
+          <div className="flex items-start justify-between gap-2 px-2 py-0.5">
             <span
               className="shrink-0 text-[9px] font-semibold uppercase tracking-wider"
               style={{ color: showRequiredError ? '#dc2626' : '#6b7280' }}
@@ -1007,7 +1007,7 @@ const ArticleCard = React.memo(
           {/* ─── MAIN GRID — image+info | attribute groups ─── */}
           <div className="grid min-h-0 flex-1 gap-1.5 overflow-hidden p-1.5 lg:grid-cols-[230px_1fr]">
             {/* ─── LEFT: Image + Article Info + Reference ─── */}
-            <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto">
+            <aside className="flex min-h-0 min-w-0 flex-col gap-1.5">
               {/* Article image */}
               <div className="overflow-hidden rounded-lg border border-border bg-white">
                 <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2 py-1">
@@ -1017,7 +1017,7 @@ const ArticleCard = React.memo(
                   </span>
                   <Badge variant="success" className="text-[9px]">1 / 1</Badge>
                 </div>
-                <div className="relative h-44 bg-muted">
+                <div className="relative h-32 bg-muted">
                   {imgUrl ? (
                     <>
                       <img
@@ -1051,7 +1051,7 @@ const ArticleCard = React.memo(
                     Article Information
                   </span>
                 </div>
-                <div className="space-y-1 px-2 py-1.5 text-[11px]">
+                <div className="space-y-0.5 px-2 py-1 text-[10.5px]">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground">Article ID</span>
                     <span className="truncate text-right font-medium">
