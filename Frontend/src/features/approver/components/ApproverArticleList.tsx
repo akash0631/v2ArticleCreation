@@ -936,7 +936,7 @@ const ArticleCard = React.memo(
       <>
         <div
           key={item.id}
-          className="flex h-full min-h-0 animate-in flex-col overflow-hidden rounded-xl border bg-white shadow-sm fade-in-50 duration-200"
+          className="flex h-full min-h-0 animate-in flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all fade-in-50 slide-in-from-bottom-1 duration-300"
           style={{ borderColor }}
         >
           {/* ─── TOP HEADER STRIP (slate, matches dashboard) ─── */}
@@ -1155,7 +1155,7 @@ const ArticleCard = React.memo(
               </div>
 
               {visibleAttrs.length > 0 ? (
-                <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto scroll-smooth pr-1 md:grid-cols-2 xl:grid-cols-3">
                   {activeGroups.map((g) => {
                     const style = GROUP_HEADER_STYLE[g.group] ?? { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb' };
                     const collapsed = isGroupCollapsed(g.group);
@@ -1532,14 +1532,14 @@ const ArticleCard = React.memo(
               <button
                 type="button"
                 onClick={() => setShowVariants((v) => !v)}
-                className="flex w-full items-center justify-between px-5 py-2.5"
-                style={{ background: showVariants ? '#e0e7ff' : '#f9fafb' }}
+                className="flex w-full items-center justify-between px-3 py-1.5 transition-colors hover:brightness-95"
+                style={{ background: showVariants ? '#e2e8f0' : '#f8fafc' }}
               >
-                <span className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
-                  <Users className="h-4 w-4" />
+                <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <Users className="h-3.5 w-3.5" />
                   Variants
                 </span>
-                <span className="text-xs text-muted-foreground">{showVariants ? '▲ Hide' : '▼ Show'}</span>
+                <span className="text-[11px] text-muted-foreground">{showVariants ? '▲ Hide' : '▼ Show'}</span>
               </button>
               {showVariants && (
                 <VariantSubTable
@@ -1552,6 +1552,14 @@ const ArticleCard = React.memo(
               )}
             </div>
           )}
+
+          {/* ─── Tip footer ─── */}
+          <div className="flex shrink-0 items-center gap-1.5 border-t border-border bg-slate-50/70 px-3 py-1 text-[10.5px] text-slate-500">
+            <Info className="h-3 w-3 text-amber-500" />
+            <span>
+              Click any value to edit — all changes are saved automatically. Use ◀ / ▶ to move between articles.
+            </span>
+          </div>
         </div>
 
         {/* Image preview */}

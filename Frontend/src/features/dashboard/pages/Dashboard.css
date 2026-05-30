@@ -3,9 +3,9 @@
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-height: calc(100vh - 150px);
-  max-height: calc(100vh - 96px);
+  gap: 12px;
+  min-height: calc(100vh - 100px);
+  max-height: calc(100vh - 92px);
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
@@ -31,9 +31,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  padding: 28px;
-  border-radius: 24px;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
   background: linear-gradient(135deg, rgba(125, 185, 182, 0.18), rgba(230, 199, 156, 0.18));
   border: 1px solid rgba(206, 196, 186, 0.45);
 }
@@ -61,29 +61,29 @@
 }
 
 .dashboard-hero-btn {
-  height: 42px;
+  height: 36px;
   border-radius: 999px;
-  padding: 0 22px;
+  padding: 0 18px;
   background: linear-gradient(135deg, #7DB9B6, #E6C79C) !important;
   border: none !important;
-  box-shadow: 0 10px 20px rgba(125, 185, 182, 0.24);
+  box-shadow: 0 6px 14px rgba(125, 185, 182, 0.22);
 }
 
 .dashboard-ghost-btn {
-  height: 42px;
+  height: 36px;
   border-radius: 999px;
-  padding: 0 22px;
+  padding: 0 18px;
   border: 1px solid rgba(206, 196, 186, 0.8);
   background: rgba(255, 255, 255, 0.85);
 }
 
 .dashboard-hero-card {
-  min-width: 220px;
-  padding: 20px;
-  border-radius: 18px;
+  min-width: 200px;
+  padding: 14px;
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid rgba(206, 196, 186, 0.45);
-  box-shadow: 0 12px 20px rgba(63, 58, 52, 0.08);
+  box-shadow: 0 8px 16px rgba(63, 58, 52, 0.07);
 }
 
 .dashboard-hero-card-icon {
@@ -115,7 +115,7 @@
 }
 
 .dashboard-panel .ant-card-body {
-  padding: 28px !important;
+  padding: 16px !important;
 }
 
 .dashboard-panel-soft {
@@ -123,10 +123,10 @@
 }
 
 .dashboard-analytics-card .ant-card-body {
-  padding-top: 22px !important;
+  padding-top: 14px !important;
   display: flex;
   flex-direction: column;
-  min-height: clamp(420px, calc(100vh - 290px), 720px);
+  min-height: clamp(360px, calc(100vh - 260px), 720px);
 }
 
 .dashboard-analytics-card {
