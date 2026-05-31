@@ -292,7 +292,7 @@ export default function Admin() {
     : [];
 
   return (
-    <div className="page-scroll-enabled p-6">
+    <div className="page-scroll-enabled p-3">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="m-0 text-2xl font-semibold">Admin Dashboard</h1>
         <Button onClick={loadData} disabled={loading} variant="outline">

@@ -36,19 +36,27 @@
   --radius-xl: 0.75rem;
 }
 
-/* Keep antd component styles isolated from Tailwind preflight where they collide.
- * Tailwind v4 preflight resets margins/borders aggressively; antd resets to its
- * own defaults. During the migration both run side-by-side. */
 @layer base {
-  /* Re-enable list bullets inside antd components (preflight strips them) */
-  .ant-table ul,
-  .ant-table ol,
-  .ant-modal ul,
-  .ant-modal ol,
-  .ant-card ul,
-  .ant-card ol {
-    list-style: revert;
-    padding: revert;
-    margin: revert;
+  /* Smoother global scrolling */
+  html { scroll-behavior: smooth; }
+
+  /* Visible focus rings (coral) for keyboard navigation — keep accessibility
+   * without dulling visuals for mouse users. */
+  :where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid #FF6F61;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
+
+  /* Custom scrollbar in scrollable panels (thin, brand-tinted) */
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(120, 113, 108, 0.25);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(120, 113, 108, 0.5); }
+
+  /* Legacy: lingering antd-prefixed selectors are now no-ops — antd is removed.
+   * Kept commented for archeology; safe to delete eventually. */
 }

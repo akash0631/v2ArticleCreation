@@ -444,9 +444,9 @@ export default function UsersManagement() {
     selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'SUB_DIVISION_HEAD';
 
   return (
-    <div className="p-6">
+    <div className="p-3">
       <Card>
-        <CardContent className="flex items-center justify-between p-6">
+        <CardContent className="flex items-center justify-between p-4">
           <div>
             <h3 className="mb-1 text-xl font-semibold">User Management</h3>
             <p className="text-sm text-muted-foreground">Add users and manage access roles.</p>

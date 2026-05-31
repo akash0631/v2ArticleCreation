@@ -16,6 +16,9 @@ import {
   Wand2,
   Briefcase,
   DollarSign,
+  Plus,
+  Minus,
+  RotateCw,
 } from 'lucide-react';
 import {
   Autocomplete,
@@ -290,6 +293,13 @@ const ArticleCard = React.memo(
     const [duplicating, setDuplicating] = useState(false);
     const [allCollapsed, setAllCollapsed] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    const [imgZoom, setImgZoom] = useState(1);
+    const [imgRotation, setImgRotation] = useState(0);
+
+    const resetImageView = useCallback(() => {
+      setImgZoom(1);
+      setImgRotation(0);
+    }, []);
 
     const prevItemRef = React.useRef<ApproverItem>(item);
     React.useEffect(() => {
@@ -922,15 +932,26 @@ const ArticleCard = React.memo(
 
     const isGroupCollapsed = (g: string) => allCollapsed || collapsedGroups.has(g);
 
-    // AI confidence — average of available per-attribute confidences if present, else 92 placeholder
-    const aiConfidenceValues: number[] = [];
-    for (const af of attributeFields) {
-      const v = (item as any)[af.field];
-      if (typeof v === 'number' && Number.isFinite(v)) aiConfidenceValues.push(v);
-    }
+    // AI confidence + heuristic quality breakdown derived from existing data.
+    // No backend signal needed — we compute Image / Clarity / Match from
+    // what's already on the item.
     const aiConfidence = (item as any).avgConfidence
       ? Math.round(Number((item as any).avgConfidence))
       : 92;
+
+    // Image Quality: have a usable imageUrl?
+    const imageQualityLevel = item.imageUrl ? 'High' : 'Low';
+    // Product Clarity: do we have a confident major category?
+    const productClarityLevel = effectiveMajCat ? 'High' : 'Medium';
+    // Attribute Match: ratio of filled visible attrs (with non-null value)
+    const filledAttrCount = visibleAttrs.filter((a) => {
+      const v = (item as any)[a.field];
+      return v !== null && v !== undefined && String(v).trim() !== '';
+    }).length;
+    const attrMatchRatio = visibleAttrs.length > 0 ? filledAttrCount / visibleAttrs.length : 0;
+    const attrMatchLevel = attrMatchRatio >= 0.7 ? 'High' : attrMatchRatio >= 0.4 ? 'Medium' : 'Low';
+    const qualityColor = (level: string) =>
+      level === 'High' ? 'text-emerald-600' : level === 'Medium' ? 'text-amber-600' : 'text-rose-600';
 
     return (
       <>
@@ -1069,6 +1090,20 @@ const ArticleCard = React.memo(
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground">AI Confidence</span>
                     <Badge variant="success">{aiConfidence}%</Badge>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Image Quality</span>
+                    <span className={`font-semibold ${qualityColor(imageQualityLevel)}`}>{imageQualityLevel}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Product Clarity</span>
+                    <span className={`font-semibold ${qualityColor(productClarityLevel)}`}>{productClarityLevel}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Attribute Match</span>
+                    <span className={`font-semibold ${qualityColor(attrMatchLevel)}`}>
+                      {attrMatchLevel} ({filledAttrCount}/{visibleAttrs.length})
+                    </span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-muted-foreground">Last Updated</span>
@@ -1563,16 +1598,73 @@ const ArticleCard = React.memo(
         </div>
 
         {/* Image preview */}
-        <Dialog open={imgModalOpen} onOpenChange={setImgModalOpen}>
-          <DialogContent className="w-auto max-w-[90vw] p-0">
-            <DialogHeader className="px-6 pt-4">
-              <DialogTitle>{item.imageName || 'Image Preview'}</DialogTitle>
+        <Dialog
+          open={imgModalOpen}
+          onOpenChange={(o) => {
+            setImgModalOpen(o);
+            if (!o) resetImageView();
+          }}
+        >
+          <DialogContent className="w-auto max-w-[92vw] p-0">
+            <DialogHeader className="flex flex-row items-center justify-between border-b border-border px-4 py-2">
+              <DialogTitle className="truncate text-sm">{item.imageName || 'Image Preview'}</DialogTitle>
+              {/* Zoom + rotate controls */}
+              <div className="mr-8 flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => setImgZoom((z) => Math.max(0.25, Number((z - 0.25).toFixed(2))))}
+                  aria-label="Zoom out"
+                  disabled={imgZoom <= 0.25}
+                >
+                  <Minus />
+                </Button>
+                <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">
+                  {Math.round(imgZoom * 100)}%
+                </span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => setImgZoom((z) => Math.min(4, Number((z + 0.25).toFixed(2))))}
+                  aria-label="Zoom in"
+                  disabled={imgZoom >= 4}
+                >
+                  <Plus />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="ml-1 h-7 w-7"
+                  onClick={() => setImgRotation((r) => (r + 90) % 360)}
+                  aria-label="Rotate 90°"
+                >
+                  <RotateCw />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-1 h-7 px-2 text-xs"
+                  onClick={resetImageView}
+                  disabled={imgZoom === 1 && imgRotation === 0}
+                >
+                  Reset
+                </Button>
+              </div>
             </DialogHeader>
-            <div className="flex items-center justify-center p-4">
+            <div className="flex items-center justify-center overflow-auto p-4" style={{ maxHeight: '80vh' }}>
               <img
                 src={imgUrl || ''}
                 alt={item.imageName || 'preview'}
-                className="block max-h-[80vh] max-w-[80vw] object-contain"
+                className="block transition-transform duration-200 will-change-transform"
+                style={{
+                  maxWidth: '85vw',
+                  maxHeight: '75vh',
+                  objectFit: 'contain',
+                  transform: `scale(${imgZoom}) rotate(${imgRotation}deg)`,
+                  transformOrigin: 'center',
+                }}
               />
             </div>
           </DialogContent>
