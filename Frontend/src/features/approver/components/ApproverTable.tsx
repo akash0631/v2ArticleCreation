@@ -128,6 +128,12 @@ export interface ApproverItem {
   dcShape: string | null;
   btnColour: string | null;
   collarStyle: string | null;
+  htrfType: string | null;
+  htrfStyle: string | null;
+  embPlacement: string | null;
+  ageGroup: string | null;
+  articleFashionType: string | null;
+  mvgrBrandVendor: string | null;
   impAtrbt2: string | null;
   isGeneric: boolean;
   genericArticleId: string | null;
