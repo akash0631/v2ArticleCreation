@@ -258,6 +258,7 @@ export class FlatteningService {
             }),
             fashionGrid: resultsMap.get('fashion_grid') || resultsMap.get('fashiongrid') || null,
             articleType: resultsMap.get('article_type') || resultsMap.get('articletype') || null,
+            fabVdr: resultsMap.get('fab_vdr') || null,
         };
     }
 

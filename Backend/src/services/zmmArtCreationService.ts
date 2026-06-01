@@ -35,7 +35,7 @@ const GRID_KEY_TO_RFC: Record<string, string> = {
     'COST':                'PURCH_PRICE',
     'ARTICLE FASHION TYPE':'FASHION_GRADE',
     'ARTICLE WEIGHT':      'G_WEIGHT',
-    'BODY STYLE':          'M_PATTERN',   // Excel uses "BODY STYLE", RFC uses "M_PATTERN"
+    'BODY STYLE':          'M_BODY_STYLE', // Excel uses "BODY STYLE", RFC uses "M_BODY_STYLE"
     // M_* keys already match FLAT_TO_RFC exactly — no entry needed
 };
 
@@ -73,12 +73,15 @@ export function invalidateMandatoryGridCache(): void {
 // Maps attribute_name stored in maj_cat_grid_values → RFC key(s) in FLAT_TO_RFC.
 // Many Excel names differ from the RFC parameter name — this is the bridge.
 const EXCEL_ATTR_TO_RFC: Record<string, string[]> = {
+    // ── Fabric (new attribute_name values stored in maj_cat_grid_values) ──────
     'M_FAB_DIV':            ['M_FAB_DIV'],
     'M_YARN':               ['M_YARN'],
-    'FAB_MAIN_MVGR-1':      ['M_YARN-02'],
-    'FAB-MAIN-MVGR-2':      ['M_WEAVE_2'],
-    'WEAVE-01':             ['M_FAB'],
-    'WEAVE 02':             ['M_FAB2'],
+    'M_FAB_MAIN_MVGR_1':    ['M_FAB_MAIN_MVGR_1'],   // replaces old 'FAB_MAIN_MVGR-1'
+    'M_FAB_MAIN_MVGR_2':    ['M_FAB_MAIN_MVGR_2'],   // replaces old 'FAB-MAIN-MVGR-2'
+    'M_WEAVE_01':           ['M_WEAVE_01'],            // replaces old 'WEAVE-01'
+    'M_WEAVE_02':           ['M_WEAVE_02'],            // replaces old 'WEAVE 02'
+    'M_IMP_ATBT':           ['M_IMP_ATBT'],
+    'M_FAB_VDR':            ['M_FAB_VDR'],
     'M_COMPOSITION':        ['M_COMPOSITION'],
     'M_FINISH':             ['M_FINISH'],
     'M_CONSTRUCTION':       ['M_CONSTRUCTION'],
@@ -87,40 +90,51 @@ const EXCEL_ATTR_TO_RFC: Record<string, string[]> = {
     'M_OUNZ':               ['M_OUNZ'],
     'M_WIDTH':              ['M_WIDTH'],
     'M_COUNT':              ['M_COUNT'],
-    'M_COLLAR_TYPE':        ['M_COLLAR'],
+    // ── Body ─────────────────────────────────────────────────────────────────
+    'M_COLLAR_TYPE':        ['M_COLLAR_TYPE'],
     'M_COLLAR_STYLE':       ['M_COLLAR_STYLE'],
-    'M_NECK_TYPE':          ['M_NECK_BAND'],
-    'M_NECK_STYLE':         ['M_NECK_BAND_STYLE'],
+    'M_NECK_TYPE':          ['M_NECK_TYPE'],
+    'M_NECK_STYLE':         ['M_NECK_STYLE'],
     'M_PLACKET':            ['M_PLACKET'],
-    'M_BLT_TYPE':           ['M_BLT_MAIN_STYLE'],
-    'M_BLT_STYLE':          ['M_SUB_STYLE_BLT'],
+    'M_BLT_TYPE':           ['M_BLT_TYPE'],
+    'M_BLT_STYLE':          ['M_BLT_STYLE'],
     'M_SLEEVES_MAIN_STYLE': ['M_SLEEVES_MAIN_STYLE'],
     'M_SLEEVE_FOLD':        ['M_SLEEVE_FOLD'],
     'M_BTM_FOLD':           ['M_BTM_FOLD'],
-    'M_NO_OF_POCKET':       ['NO_OF_POCKET', 'M_NO_OF_POCKET'],
+    'M_NO_OF_POCKET':       ['M_NO_OF_POCKET'],
     'M_POCKET':             ['M_POCKET'],
     'M_EXTRA_POCKET':       ['M_EXTRA_POCKET'],
     'M_FIT':                ['M_FIT'],
-    'BODY STYLE':           ['M_PATTERN'],
+    'M_BODY_STYLE':         ['M_BODY_STYLE'],          // replaces old 'BODY STYLE' → 'M_PATTERN'
     'M_LENGTH':             ['M_LENGTH'],
-    'M_DC_STYLE':           ['M_DC_SUB_STYLE'],
+    // ── VA Accessories ────────────────────────────────────────────────────────
+    'M_DC_STYLE':           ['M_DC_STYLE'],
     'M_DC_SHAPE':           ['M_DC_SHAPE'],
-    'M_BTN_TYPE':           ['M_BTN_MAIN_MVGR'],
+    'M_BTN_TYPE':           ['M_BTN_TYPE'],
     'M_BTN_CLR':            ['M_BTN_CLR'],
-    'M_ZIP_TYPE':           ['M_ZIP'],
+    'M_ZIP_TYPE':           ['M_ZIP_TYPE'],
     'M_ZIP_COL':            ['M_ZIP_COL'],
-    'M_PATCHE_TYPE':        ['M_PATCHES'],
-    'M_PATCH_STYLE':        ['M_PATCH_TYPE'],
+    'M_PATCHE_TYPE':        ['M_PATCHE_TYPE'],
+    'M_PATCH_STYLE':        ['M_PATCH_STYLE'],
     'M_HTRF_TYPE':          ['M_HTRF_TYPE'],
     'M_HTRF_STYLE':         ['M_HTRF_STYLE'],
+    // ── VA Processing ─────────────────────────────────────────────────────────
     'M_PRINT_TYPE':         ['M_PRINT_TYPE'],
     'M_PRINT_STYLE':        ['M_PRINT_STYLE'],
     'M_PRINT_PLACEMENT':    ['M_PRINT_PLACEMENT'],
     'M_EMB_TYPE':           ['M_EMB_TYPE'],
-    'M_EMBROIDERY_STYLE':   ['M_EMBROIDERY'],
+    'M_EMBROIDERY_STYLE':   ['M_EMBROIDERY_STYLE'],
     'M_EMB_PLACEMENT':      ['M_EMB_PLACEMENT'],
     'M_WASH':               ['M_WASH'],
+    // ── Business ──────────────────────────────────────────────────────────────
+    'M_AGE_GROUP':          ['M_AGE_GROUP'],
+    // Legacy / old attribute_name aliases (kept for backward compat)
     'AGE GROUP':            ['M_AGE_GROUP'],
+    'BODY STYLE':           ['M_BODY_STYLE'],
+    'FAB_MAIN_MVGR-1':      ['M_FAB_MAIN_MVGR_1'],
+    'FAB-MAIN-MVGR-2':      ['M_FAB_MAIN_MVGR_2'],
+    'WEAVE-01':             ['M_WEAVE_01'],
+    'WEAVE 02':             ['M_WEAVE_02'],
 };
 
 // majorCategory → Set<rfcKey> derived from maj_cat_grid_values (Tier 2 visible fields)
@@ -212,12 +226,12 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'PRICE_BAND_CATEGORY',   flat: 'segment' },
 
     // Fabric – macro / main MVGR
-    { rfc: 'M_MAIN_MVGR',           flat: 'impAtrbt2' },         // IMPORTANT ATTRIBUTE
-    { rfc: 'M_FAB',                 flat: 'weave' },             // F_WEAVE_01
-    { rfc: 'M_FAB2',                flat: 'mFab2' },             // F_WEAVE_02
+    { rfc: 'M_IMP_ATBT',            flat: 'impAtrbt2' },         // IMPORTANT ATTRIBUTE
+    { rfc: 'M_WEAVE_01',            flat: 'weave' },             // F_WEAVE_01
+    { rfc: 'M_WEAVE_02',            flat: 'mFab2' },             // F_WEAVE_02
     { rfc: 'M_YARN',                flat: 'yarn1' },             // F_YARN
-    { rfc: 'M_YARN-02',             flat: 'mainMvgr' },          // FAB_MAIN_MVGR-1
-    { rfc: 'M_WEAVE_2',             flat: 'fabricMainMvgr' },    // F_FABRIC MAIN MVGR-02
+    { rfc: 'M_FAB_MAIN_MVGR_1',    flat: 'mainMvgr' },          // FAB_MAIN_MVGR-1
+    { rfc: 'M_FAB_MAIN_MVGR_2',    flat: 'fabricMainMvgr' },    // F_FABRIC MAIN MVGR-02
     { rfc: 'M_COMPOSITION',         flat: 'composition' },
     { rfc: 'M_FINISH',              flat: 'finish' },
     { rfc: 'M_CONSTRUCTION',        flat: 'fConstruction' },
@@ -228,36 +242,35 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'M_OUNZ',                flat: 'fOunce' },
     { rfc: 'M_WIDTH',               flat: 'fWidth' },
     { rfc: 'M_FAB_DIV',             flat: 'fabDiv' },
+    { rfc: 'M_FAB_VDR',             flat: 'fabVdr' },
 
     // Body
-    { rfc: 'M_COLLAR',              flat: 'collar' },
+    { rfc: 'M_COLLAR_TYPE',         flat: 'collar' },
     { rfc: 'M_COLLAR_STYLE',        flat: 'collarStyle' },
-    { rfc: 'M_NECK_BAND',            flat: 'neck' },
-    { rfc: 'M_NECK_BAND_STYLE',     flat: 'neckDetails' },
+    { rfc: 'M_NECK_TYPE',           flat: 'neck' },
+    { rfc: 'M_NECK_STYLE',          flat: 'neckDetails' },
     { rfc: 'M_PLACKET',             flat: 'placket' },
-    { rfc: 'M_BLT_MAIN_STYLE',      flat: 'fatherBelt' },
-    { rfc: 'M_SUB_STYLE_BLT',       flat: 'childBelt' },
+    { rfc: 'M_BLT_TYPE',            flat: 'fatherBelt' },
+    { rfc: 'M_BLT_STYLE',           flat: 'childBelt' },
     { rfc: 'M_SLEEVES_MAIN_STYLE',  flat: 'sleeve' },
     { rfc: 'M_SLEEVE_FOLD',         flat: 'sleeveFold' },
     { rfc: 'M_BTM_FOLD',            flat: 'bottomFold' },
-    { rfc: 'M_FO_BTN_STYLE',        flat: 'frontOpenStyle' },
-    { rfc: 'NO_OF_POCKET',          flat: 'noOfPocket' },
     { rfc: 'M_NO_OF_POCKET',        flat: 'noOfPocket' },
     { rfc: 'M_POCKET',              flat: 'pocketType' },
     { rfc: 'M_EXTRA_POCKET',        flat: 'extraPocket' },
     { rfc: 'M_FIT',                 flat: 'fit' },
-    { rfc: 'M_PATTERN',             flat: 'pattern' },
+    { rfc: 'M_BODY_STYLE',          flat: 'pattern' },
     { rfc: 'M_LENGTH',              flat: 'length' },
 
     // VA Accessories
-    { rfc: 'M_DC_SUB_STYLE',        flat: 'drawcord' },
+    { rfc: 'M_DC_STYLE',            flat: 'drawcord' },
     { rfc: 'M_DC_SHAPE',            flat: 'dcShape' },
-    { rfc: 'M_BTN_MAIN_MVGR',       flat: 'button' },
+    { rfc: 'M_BTN_TYPE',            flat: 'button' },
     { rfc: 'M_BTN_CLR',             flat: 'btnColour' },
-    { rfc: 'M_ZIP',                 flat: 'zipper' },
+    { rfc: 'M_ZIP_TYPE',            flat: 'zipper' },
     { rfc: 'M_ZIP_COL',             flat: 'zipColour' },
-    { rfc: 'M_PATCHES',             flat: 'patches' },
-    { rfc: 'M_PATCH_TYPE',          flat: 'patchesType' },
+    { rfc: 'M_PATCHE_TYPE',         flat: 'patches' },
+    { rfc: 'M_PATCH_STYLE',         flat: 'patchesType' },
     { rfc: 'M_HTRF_TYPE',           flat: 'htrfType' },
     { rfc: 'M_HTRF_STYLE',          flat: 'htrfStyle' },
 
@@ -266,14 +279,13 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
     { rfc: 'M_PRINT_PLACEMENT',     flat: 'printPlacement' },
     { rfc: 'M_PRINT_STYLE',         flat: 'printStyle' },
     { rfc: 'M_EMB_TYPE',            flat: 'embroidery' },
-    { rfc: 'M_EMBROIDERY',          flat: 'embroideryType' },
+    { rfc: 'M_EMBROIDERY_STYLE',    flat: 'embroideryType' },
     { rfc: 'M_EMB_PLACEMENT',       flat: 'embPlacement' },
     { rfc: 'M_WASH',                flat: 'wash' },
 
     // Business / segment
     { rfc: 'M_AGE_GROUP',           flat: 'ageGroup' },
     { rfc: 'FASHION_GRADE',         flat: 'articleFashionType' },
-    { rfc: 'MVGR_BRAND_VENDOR',     flat: 'mvgrBrandVendor' },
     { rfc: 'G_WEIGHT',              flat: 'weight' },
 ];
 
@@ -291,13 +303,11 @@ const RFC_ALWAYS_SEND_IF_PRESENT = new Set([
     // BOM (always visible in card)
     'MRP',
     'PURCH_PRICE',
-    'M_MAIN_MVGR',         // IMP_ATBT
+    'M_IMP_ATBT',          // IMP_ATBT
     // freeText fields (always visible in card, no dropdown filtering)
     'M_SHADE',             // shade
     'G_WEIGHT',            // weight
     'PRICE_BAND_CATEGORY', // segment
-    'MVGR_BRAND_VENDOR',   // mvgrBrandVendor
-    'M_FO_BTN_STYLE',      // frontOpenStyle
     'FASHION_GRADE',       // articleFashionType
 ]);
 
@@ -309,22 +319,27 @@ const MANDATORY: Array<{ flat: string; label: string }> = [
     { flat: 'designNumber',  label: 'Design Number' },
     { flat: 'mainMvgr',      label: 'Main MVGR' },
     { flat: 'mrp',           label: 'MRP' },
-    { flat: 'impAtrbt2',     label: 'IMP_ATBT (M_MAIN_MVGR)' },
+    { flat: 'impAtrbt2',     label: 'M_IMP_ATBT' },
 ];
 
 // ─── Value validation against allowed values ──────────────────────────────────
 
 // Maps RFC field name → DB field name in sap_attribute_value table
 const RFC_TO_DB_FIELD: Record<string, string> = {
-    M_FAB:                'weave',
-    M_FAB2:               'mFab2',
+    M_FAB:                'weave',           // legacy alias
+    M_WEAVE_01:           'weave',
+    M_FAB2:               'mFab2',           // legacy alias
+    M_WEAVE_02:           'mFab2',
     M_YARN:               'yarn1',
+    M_FAB_MAIN_MVGR_1:    'mainMvgr',
+    M_FAB_MAIN_MVGR_2:    'fabricMainMvgr',
+    M_FAB_VDR:            'fabVdr',
     M_FINISH:             'finish',
     M_COMPOSITION:        'composition',
     M_LYCRA:              'lycra',
     M_GSM:                'gsm',
-    M_WEAVE_2:            'fabricMainMvgr',
-    M_COLLAR:             'collar',
+    M_WEAVE_2:            'fabricMainMvgr',  // legacy alias
+    M_COLLAR:             'collar',           // legacy alias
     M_COLLAR_TYPE:        'collar',
     M_COLLAR_STYLE:       'collarStyle',
     M_POCKET:             'pocketType',
@@ -337,7 +352,8 @@ const RFC_TO_DB_FIELD: Record<string, string> = {
     M_SLEEVES_MAIN_STYLE: 'sleeve',
     M_SLEEVE_FOLD:        'sleeveFold',
     M_FIT:                'fit',
-    M_PATTERN:            'pattern',
+    M_PATTERN:            'pattern',         // legacy alias
+    M_BODY_STYLE:         'pattern',
     M_LENGTH:             'length',
     M_DC_SUB_STYLE:       'drawcord',
     M_DC_STYLE:           'drawcord',
@@ -354,8 +370,9 @@ const RFC_TO_DB_FIELD: Record<string, string> = {
     M_PATCHE_TYPE:        'patchesType',
     M_HTRF_TYPE:          'htrfType',
     M_HTRF_STYLE:         'htrfStyle',
-    M_EMBROIDERY:         'embroidery',
-    M_EMB_TYPE:           'embroideryType',
+    M_EMBROIDERY:         'embroideryType',   // legacy alias
+    M_EMBROIDERY_STYLE:   'embroideryType',
+    M_EMB_TYPE:           'embroidery',
     M_EMB_PLACEMENT:      'embPlacement',
     M_PRINT_TYPE:         'printType',
     M_PRINT_PLACEMENT:    'printPlacement',
@@ -364,6 +381,8 @@ const RFC_TO_DB_FIELD: Record<string, string> = {
     M_AGE_GROUP:          'ageGroup',
     PRICE_BAND_CATEGORY:  'segment',
     M_FAB_DIV:            'fabDiv',
+    M_IMP_ATBT:           'impAtrbt2',
+    M_MAIN_MVGR:          'impAtrbt2',       // legacy alias
 };
 
 /**
