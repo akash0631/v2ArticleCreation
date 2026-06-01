@@ -1219,7 +1219,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   <SelectItem value="USER">User</SelectItem>
                 </SelectContent>
               </Select>
-              <RangePicker value={dateRangeFilter} onChange={setDateRangeFilter} placeholder={['Start date', 'End date']} />
+              <RangePicker
+                value={dateRangeFilter}
+                onChange={setDateRangeFilter}
+                placeholder={pathType === 'created' ? ['Updated From', 'Updated To'] : ['Created From', 'Created To']}
+              />
             </div>
           </div>
 

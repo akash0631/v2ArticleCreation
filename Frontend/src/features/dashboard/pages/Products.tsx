@@ -810,11 +810,15 @@ export default function Products() {
             <Button size="sm" variant="outline" onClick={() => handleViewDetails(row)}>
               Details
             </Button>
-            {canEditRow(row) && (
+            {isCreatorLike ? (
+              <Button size="sm" variant="outline" disabled title="Editing is not allowed for Creator role">
+                Edit
+              </Button>
+            ) : canEditRow(row) ? (
               <Button size="sm" variant="outline" onClick={() => handleOpenEdit(row)}>
                 Edit
               </Button>
-            )}
+            ) : null}
             <Button size="sm" variant="outline" onClick={() => handleExport(row)} disabled={!row.results?.length || row.status !== 'COMPLETED'}>
               Download
             </Button>

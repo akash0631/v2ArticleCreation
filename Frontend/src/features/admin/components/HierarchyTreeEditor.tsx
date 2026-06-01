@@ -7,7 +7,6 @@ import { useState, useMemo } from 'react';
 import {
   Plus,
   Pencil,
-  Trash2,
   Check,
   X,
   Folder,
@@ -29,7 +28,6 @@ import {
   CardHeader,
   Empty,
   Input,
-  Popconfirm,
   Separator,
   Spinner,
   Tag,
@@ -40,13 +38,10 @@ import {
   getHierarchyTree,
   createDepartment,
   updateDepartment,
-  deleteDepartment,
   createSubDepartment,
   updateSubDepartment,
-  deleteSubDepartment,
   createCategory,
   updateCategory,
-  deleteCategory,
 } from '../../../services/adminApi';
 
 export interface SelectedCategory {
@@ -95,17 +90,6 @@ const NodeTitle: React.FC<NodeTitleProps> = ({ nodeId, nodeType, label, isActive
     setEditing(false);
   };
 
-  const handleDelete = async () => {
-    try {
-      if (nodeType === 'dept') await deleteDepartment(nodeId);
-      else if (nodeType === 'subdept') await deleteSubDepartment(nodeId);
-      else await deleteCategory(nodeId);
-      message.success('Deleted');
-      invalidate();
-    } catch (e: any) {
-      message.error(e?.response?.data?.error || 'Delete failed — may have active children');
-    }
-  };
 
   const iconMap = {
     dept: <Folder className="h-4 w-4 shrink-0 text-amber-500" />,
@@ -162,18 +146,6 @@ const NodeTitle: React.FC<NodeTitleProps> = ({ nodeId, nodeType, label, isActive
             <Pencil />
           </Button>
         </Tooltip>
-        <Popconfirm
-          title={`Delete this ${nodeType}?`}
-          description="This may fail if it has active children or linked articles."
-          onConfirm={handleDelete}
-          okText="Delete"
-        >
-          <Tooltip title="Delete">
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive">
-              <Trash2 />
-            </Button>
-          </Tooltip>
-        </Popconfirm>
       </span>
     </span>
   );

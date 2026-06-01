@@ -19,10 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
   Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Statistic,
   Steps,
 } from '@/shared/components/ui-tw';
-import { SimplifiedCategorySelector } from '../components/SimplifiedCategorySelector';
+import { SimplifiedCategorySelector, SIMPLIFIED_HIERARCHY } from '../components/SimplifiedCategorySelector';
 import type { SimplifiedCategory } from '../components/SimplifiedCategorySelector';
 import { UploadArea } from '../components';
 import { AttributeTable } from '../components/AttributeTable';
@@ -70,17 +75,9 @@ const normalizeAllowedValues = (attributeKey: string, allowedValues: any[] = [])
 };
 
 const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
-  {
-    key: 'division',
-    label: 'Division',
-    type: 'select',
-    allowedValues: [
-      { shortForm: 'MEN', fullForm: 'MENS' },
-      { shortForm: 'KIDS', fullForm: 'KIDS' },
-      { shortForm: 'LADIES', fullForm: 'LADIES' },
-    ],
-  },
-  { key: 'sub_division', label: 'Sub-Division', type: 'text' },
+  // division + sub_division are intentionally excluded from the VLM schema:
+  // user-selected (not AI-guessed) and injected as pre-filled attributes after
+  // extraction so flatteningService uses the correct user-chosen values.
   { key: 'major_category', label: 'Major Category', type: 'select', allowedValues: MAJOR_CATEGORY_ALLOWED_VALUES },
   { key: 'design_number', label: 'Design Number', type: 'text' },
   { key: 'vendor_name', label: 'Vendor Name', type: 'text' },
@@ -135,9 +132,32 @@ const BASE_SIMPLIFIED_SCHEMA: SchemaItem[] = [
   { key: 'wash', label: 'M_WASH', type: 'select' },
 ];
 
+// Detect CREATOR with a pre-assigned division — they skip Step 1 entirely.
+const getCreatorDivision = (): string | null => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role !== 'CREATOR') return null;
+    const div = String(user.division || '').toUpperCase();
+    if (div === 'MEN' || div === 'MENS') return 'MENS';
+    if (div === 'KIDS') return 'Kids';
+    if (div === 'LADIES') return 'Ladies';
+    return user.division || null;
+  } catch {
+    return null;
+  }
+};
+
 const SimplifiedExtractionPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState<SimplifiedCategory | null>(null);
-  const [currentStep, setCurrentStep] = useState<'category' | 'upload' | 'extraction'>('category');
+  const creatorDivision = getCreatorDivision();
+
+  const [selectedCategory, setSelectedCategory] = useState<SimplifiedCategory | null>(
+    creatorDivision ? { department: creatorDivision, majorCategory: '', displayName: creatorDivision } : null
+  );
+  const [selectedSubDivision, setSelectedSubDivision] = useState<string | null>(null);
+  // CREATOR: start at upload step (division already known); ADMIN: start at category step
+  const [currentStep, setCurrentStep] = useState<'category' | 'upload' | 'extraction'>(
+    creatorDivision ? 'upload' : 'category'
+  );
   const [baseSchema, setBaseSchema] = useState<SchemaItem[]>(BASE_SIMPLIFIED_SCHEMA);
   const [simplifiedSchema, setSimplifiedSchema] = useState<SchemaItem[]>(BASE_SIMPLIFIED_SCHEMA);
   const [imageModalVisible, setImageModalVisible] = useState(false);
@@ -159,6 +179,9 @@ const SimplifiedExtractionPage = () => {
   } = useImageExtraction();
 
   useEffect(() => {
+    // For CREATOR, ignore saved state — their division is always from the profile.
+    if (creatorDivision) return;
+
     const saved = localStorage.getItem('simplifiedExtractionState');
     if (saved) {
       try {
@@ -180,14 +203,16 @@ const SimplifiedExtractionPage = () => {
   }, [extractedRows.length, manualNavigation]);
 
   useEffect(() => {
+    if (creatorDivision) return;
     localStorage.setItem('simplifiedExtractionState', JSON.stringify({ selectedCategory, currentStep }));
-  }, [selectedCategory, currentStep]);
+  }, [selectedCategory, currentStep, creatorDivision]);
 
   // Called when user clicks "Continue to Upload" in the category selector.
   // Also called with null when the user changes division (to clear stale selection).
   const handleCategorySelect = useCallback(
     (category: SimplifiedCategory | null) => {
       setSelectedCategory(category);
+      setSelectedSubDivision(null);
       if (category) {
         setSimplifiedSchema(baseSchema);
         setManualNavigation(false);
@@ -279,20 +304,28 @@ const SimplifiedExtractionPage = () => {
 
   const handleImagesUpload = useCallback(
     async (fileList: File[]) => {
+      if (!selectedSubDivision) return;
       await addImages(fileList);
       if (fileList.length > 0) {
         setManualNavigation(false);
         setCurrentStep('extraction');
       }
     },
-    [addImages],
+    [addImages, selectedSubDivision],
   );
 
   const handleStartBatch = useCallback(() => {
+    if (!selectedSubDivision) return;
     if (selectedCategory && extractAllPending) {
-      extractAllPending(simplifiedSchema, selectedCategory.displayName, `${selectedCategory.department}-${selectedCategory.majorCategory}`, {});
+      const subDiv = selectedSubDivision ?? selectedCategory.majorCategory;
+      extractAllPending(
+        simplifiedSchema,
+        selectedCategory.displayName,
+        `${selectedCategory.department}-${subDiv}`,
+        {},
+      );
     }
-  }, [selectedCategory, extractAllPending, simplifiedSchema]);
+  }, [selectedCategory, selectedSubDivision, extractAllPending, simplifiedSchema]);
 
   const handleExportClick = useCallback(() => {
     const mandatoryItems = simplifiedSchema.filter((item) => item.required);
@@ -320,16 +353,30 @@ const SimplifiedExtractionPage = () => {
   const handleStartOver = () => {
     setManualNavigation(true);
     clearAll();
-    setCurrentStep('category');
-    setSelectedCategory(null);
-    localStorage.removeItem('simplifiedExtractionState');
+    setSelectedSubDivision(null);
+    if (creatorDivision) {
+      // CREATOR: reset to upload step with division pre-filled, not all the way to Step 1
+      setSelectedCategory({ department: creatorDivision, majorCategory: '', displayName: creatorDivision });
+      setCurrentStep('upload');
+    } else {
+      setCurrentStep('category');
+      setSelectedCategory(null);
+      localStorage.removeItem('simplifiedExtractionState');
+    }
   };
 
   const handleBackToCategory = () => {
     setManualNavigation(true);
-    setSelectedCategory(null);
-    setCurrentStep('category');
-    localStorage.removeItem('simplifiedExtractionState');
+    setSelectedSubDivision(null);
+    if (creatorDivision) {
+      // CREATOR: "back" means reset sub-division and stay on upload step
+      setSelectedCategory({ department: creatorDivision, majorCategory: '', displayName: creatorDivision });
+      setCurrentStep('upload');
+    } else {
+      setSelectedCategory(null);
+      setCurrentStep('category');
+      localStorage.removeItem('simplifiedExtractionState');
+    }
   };
 
   const handleGoHome = () => {
@@ -388,15 +435,53 @@ const SimplifiedExtractionPage = () => {
                 <div className="mb-4 text-center">
                   <h4 className="mb-1 text-lg font-semibold text-[#CFAF7F]">Step 2: Upload Images</h4>
                   <span className="text-[13px] text-muted-foreground">
-                    Selected: <strong>{selectedCategory?.displayName}</strong> | Upload images to auto-start extraction
+                    Division: <strong>{selectedCategory?.department}</strong>
+                    {selectedSubDivision ? <> · Sub-Division: <strong>{selectedSubDivision}</strong></> : null}
+                    {' '}· Upload images to auto-start extraction
                   </span>
                 </div>
 
-                <div className="mb-3">
-                  <Button onClick={handleBackToCategory} variant="link" size="sm" className="pl-0">
-                    ← Change Division / Sub-Division
-                  </Button>
+                {!creatorDivision && (
+                  <div className="mb-3">
+                    <Button onClick={handleBackToCategory} variant="link" size="sm" className="pl-0">
+                      ← Change Division
+                    </Button>
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <span className="mb-2 block text-sm font-semibold">
+                    {creatorDivision ? '1.' : '2.'} Sub-Division
+                  </span>
+                  <Select
+                    value={selectedSubDivision ?? ''}
+                    onValueChange={(value: string) => {
+                      setSelectedSubDivision(value);
+                      setSelectedCategory((prev) =>
+                        prev ? { ...prev, majorCategory: value, displayName: `${prev.department} - ${value}` } : prev,
+                      );
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-full">
+                      <SelectValue placeholder="Select Sub-Division (e.g. MU, MW, LU, LW…)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(SIMPLIFIED_HIERARCHY[selectedCategory?.department ?? ''] || []).map((sub) => (
+                        <SelectItem key={sub} value={sub}>
+                          {sub}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {!selectedSubDivision && (
+                  <Alert
+                    type="warning"
+                    className="mb-3"
+                    message="Please select a Sub-Division before uploading images."
+                  />
+                )}
 
                 <Alert
                   type="info"
@@ -406,12 +491,14 @@ const SimplifiedExtractionPage = () => {
                   description="No metadata form required. Extraction will start automatically after upload with fixed 42 attributes."
                 />
 
-                <UploadArea
-                  onUpload={async (_file: File, fileList: File[]) => {
-                    await handleImagesUpload(fileList);
-                    return false;
-                  }}
-                />
+                <div className={selectedSubDivision ? '' : 'pointer-events-none opacity-40'}>
+                  <UploadArea
+                    onUpload={async (_file: File, fileList: File[]) => {
+                      await handleImagesUpload(fileList);
+                      return false;
+                    }}
+                  />
+                </div>
               </Card>
             )}
 
@@ -485,7 +572,18 @@ const SimplifiedExtractionPage = () => {
                   </Button>
                   <div className="flex items-center gap-2">
                     {!isExtracting && stats.pending > 0 && (
-                      <Button size="lg" onClick={handleStartBatch} className="border-none font-semibold" style={{ background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)' }}>
+                      <Button
+                        size="lg"
+                        onClick={handleStartBatch}
+                        disabled={!selectedSubDivision}
+                        title={!selectedSubDivision ? 'Go back and select a Sub-Division first' : undefined}
+                        className="border-none font-semibold"
+                        style={
+                          selectedSubDivision
+                            ? { background: 'linear-gradient(135deg, #7DB9B6 0%, #E6C79C 100%)' }
+                            : undefined
+                        }
+                      >
                         <Bot />
                         Start Batch ({stats.pending})
                       </Button>

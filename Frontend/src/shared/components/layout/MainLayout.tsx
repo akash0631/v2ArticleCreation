@@ -102,7 +102,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const role = userData?.role;
     const isApproverSide = role === 'APPROVER' || role === 'CATEGORY_HEAD';
 
-    // Products is admin-only (per main update); Extraction/Model Generation for creator side
     if (isAdmin) {
       items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
     }
@@ -123,7 +122,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       role === 'CATEGORY_HEAD' ||
       role === 'SUB_DIVISION_HEAD' ||
       isAdmin ||
-      role === 'CREATOR'
+      role === 'CREATOR' ||
+      role === 'PO_COMMITTEE'
     ) {
       items.push({ key: '/approver-group', Icon: CheckSquare, label: 'Approver', children: approverChildren });
     }

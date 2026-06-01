@@ -62,6 +62,7 @@ import {
   preloadCategoryAttributes,
   getCachedCategoryAttributes,
   invalidateValuesCache,
+  getMajCatGridEntry,
 } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -1106,10 +1107,10 @@ const ArticleCard = React.memo(
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Last Updated</span>
+                    <span className="text-muted-foreground">{pathType === 'created' ? 'Last Updated' : 'Created'}</span>
                     <span className="text-[11px]">
-                      {item.updatedAt || item.createdAt
-                        ? new Date(item.updatedAt || item.createdAt).toLocaleString('en-IN', {
+                      {(pathType === 'created' ? item.updatedAt : item.createdAt) || item.updatedAt || item.createdAt
+                        ? new Date(((pathType === 'created' ? item.updatedAt : item.createdAt) || item.updatedAt || item.createdAt) as string).toLocaleString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric',
@@ -1441,7 +1442,8 @@ const ArticleCard = React.memo(
                         const isEmpty = val === '—';
                         const dropdownOptions: string[] = bom.isDropdown
                           ? bom.field === 'impAtrbt2'
-                            ? attributes.find((a) => a.key === 'imp_atrbt2')?.allowedValues.map((v) => v.shortForm) ??
+                            ? getMajCatGridEntry(effectiveMajCat, 'IMP ATBT') ??
+                              attributes.find((a) => a.key === 'imp_atrbt2')?.allowedValues.map((v) => v.shortForm) ??
                               getCachedValues(item.division ?? '', 'impAtrbt2') ??
                               []
                             : getCachedValues(item.division ?? '', bom.field) ?? []
