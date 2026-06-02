@@ -41,8 +41,8 @@ import {
   getDepartments,
   type AdminUser,
 } from '../../../services/adminApi';
-import ExcelJS from 'exceljs';
-import * as XLSX from 'xlsx';
+// xlsx + exceljs are lazy-loaded inside the bulk-upload handlers below —
+// keeps ~600 KB off the initial bundle for admins who never touch bulk upload.
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 
 const parseSubDivisionList = (value: unknown): string[] => {
@@ -204,6 +204,7 @@ export default function UsersManagement() {
 
   const downloadBulkTemplate = async () => {
     try {
+      const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'AI Fashion Extractor';
       workbook.created = new Date();
@@ -267,6 +268,7 @@ export default function UsersManagement() {
     if (!file) return;
 
     try {
+      const XLSX = await import('xlsx');
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.Sheets['Users'] ? 'Users' : workbook.SheetNames[0];

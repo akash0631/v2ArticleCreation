@@ -33,6 +33,26 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Split heavy vendor libs into their own chunks. Each lib stays in
+        // ONE chunk regardless of import site — caches independently and
+        // dynamic imports get loaded on demand.
+        manualChunks: (id) => {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('/exceljs/')) return 'vendor-exceljs';
+          if (id.includes('/xlsx/')) return 'vendor-xlsx';
+          if (id.includes('/recharts/') || id.includes('/d3-')) return 'vendor-charts';
+          if (id.includes('/motion/') || id.includes('/framer-motion/')) return 'vendor-motion';
+          if (id.includes('/@radix-ui/')) return 'vendor-radix';
+          if (id.includes('/@sentry/')) return 'vendor-sentry';
+          if (id.includes('/lucide-react/')) return 'vendor-icons';
+          if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'vendor-react';
+          return 'vendor';
+        },
+      },
+    },
   },
   server: {
     host: '0.0.0.0',

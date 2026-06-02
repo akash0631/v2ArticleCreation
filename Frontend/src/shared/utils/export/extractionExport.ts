@@ -1,5 +1,6 @@
-import * as XLSX from 'xlsx';
-import ExcelJS from 'exceljs';
+// xlsx (~400 KB) and exceljs (~200 KB) are lazy-loaded inside each export
+// function. They never enter the initial bundle — only when the user clicks
+// "Export" / "Download CSV". Both libs are cached after first call.
 import type { ExtractedRowEnhanced, SchemaItem } from '../../types/extraction/ExtractionTypes';
 
 export interface ExportDataItem {
@@ -499,6 +500,7 @@ export const exportToExcel = async (
   exportSchema: SchemaItem[],
   categoryName?: string
 ) => {
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'AI Fashion Extractor';
   workbook.created = new Date();
@@ -584,6 +586,7 @@ export const exportToExcel = async (
 };
 
 export const exportToCSV = async (data: ExportDataItem[], categoryName?: string) => {
+  const XLSX = await import('xlsx');
   const ws = XLSX.utils.json_to_sheet(data);
   const csv = XLSX.utils.sheet_to_csv(ws);
 
