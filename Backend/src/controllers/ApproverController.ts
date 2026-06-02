@@ -797,8 +797,11 @@ export class ApproverController {
             }
 
             // Date Range Filtering
+            // Created Articles page filters by updatedAt (when article was approved/modified);
+            // New Articles page filters by createdAt (when article was first extracted).
             if (startDate && endDate) {
-                where.createdAt = {
+                const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
+                (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
                 };
@@ -1116,9 +1119,10 @@ export class ApproverController {
                 }
             }
 
-            // Date range
+            // Date range — mirror getItems() logic: Created page uses updatedAt, New page uses createdAt
             if (startDate && endDate) {
-                where.createdAt = {
+                const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
+                (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
                 };

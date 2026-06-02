@@ -1271,7 +1271,9 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                                 <RangePicker style={{ width: '100%' }} value={dateRangeFilter}
                                     onChange={(dates) => setDateRangeFilter(dates)}
                                     allowEmpty={[true, true]} format="DD-MM-YYYY"
-                                    placeholder={['Start date', 'End date']} />
+                                    placeholder={pathType === 'created'
+                                        ? ['Updated From', 'Updated To']
+                                        : ['Created From', 'Created To']} />
                             </Col>
                         </Row>
                     </div>
