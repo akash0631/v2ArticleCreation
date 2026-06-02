@@ -1094,16 +1094,16 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         <div className="overflow-hidden rounded-xl border border-white/60 bg-white/85 shadow-[var(--shadow-md)] backdrop-blur">
           {/* ─── Brand strip — slate gradient with title + prev/next + page actions ─── */}
           <div
-            className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 text-white"
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-white"
             style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}
           >
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               {/* Logo chip */}
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FF6F61]/90">
-                <Sparkles className="h-4 w-4 text-white" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FF6F61]/90">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-[14px] font-bold leading-tight">
+                <div className="font-display truncate text-[13px] font-semibold leading-tight tracking-tight">
                   {pathType === 'old'
                     ? 'Old Articles'
                     : pathType === 'new'
@@ -1114,29 +1114,27 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     ? 'Created Articles'
                     : 'Approver Dashboard'}
                 </div>
-                <div className="truncate text-[11px] text-white/70">
-                  {user?.division && (
-                    <span className="font-medium">
-                      {formatDivisionLabel(user.division)}
-                      {user.subDivision ? ` · ${user.subDivision}` : ''}
-                    </span>
-                  )}
-                </div>
+                {user?.division && (
+                  <div className="truncate text-[10px] font-medium text-white/65">
+                    {formatDivisionLabel(user.division)}
+                    {user.subDivision ? ` · ${user.subDivision}` : ''}
+                  </div>
+                )}
               </div>
 
               {/* Prev/Next + position indicator */}
               {totalCount > 0 && (
-                <div className="ml-2 flex items-center gap-1 rounded-md bg-white/10 px-1 py-0.5">
+                <div className="ml-1.5 flex items-center gap-0.5 rounded-md bg-white/10 px-0.5 py-0.5">
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={goPrev}
                     disabled={isFirstArticle}
-                    className="h-7 px-2 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
+                    className="h-6 px-1.5 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
                   >
                     <ChevronLeft />
                   </Button>
-                  <span className="px-1 text-[12px] font-medium tabular-nums">
+                  <span className="px-0.5 text-[11px] font-semibold tabular-nums">
                     {globalPosition} / {totalCount}
                   </span>
                   <Button
@@ -1144,7 +1142,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     variant="ghost"
                     onClick={goNext}
                     disabled={isLastArticle}
-                    className="h-7 px-2 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
+                    className="h-6 px-1.5 text-white hover:bg-white/15 hover:text-white disabled:opacity-30"
                   >
                     <ChevronRight />
                   </Button>
@@ -1153,12 +1151,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             </div>
 
             {/* Page-level action buttons */}
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => fetchItems(currentPage)}
-                className="h-8 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white"
               >
                 <RotateCw />
                 Refresh
@@ -1168,7 +1166,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 variant="outline"
                 onClick={handleExportAll}
                 disabled={exportingAll}
-                className="h-8 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
               >
                 <Download />
                 Export ({totalCount})
@@ -1181,7 +1179,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     if (pendingSelectedKeys.length > 0) setConfirmDialog({ kind: 'reject', count: pendingSelectedKeys.length });
                   }}
                   disabled={!canApprove || pendingSelectedKeys.length === 0}
-                  className="h-8"
+                  className="h-7 px-2.5 text-[12px]"
                 >
                   <XCircle />
                   Reject
@@ -1214,7 +1212,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   size="sm"
                   onClick={handleApproveClick}
                   disabled={!canApprove || pendingSelectedKeys.length === 0 || approveBlockedReasons.length > 0}
-                  className="h-8 border-none bg-[#FF6F61] font-semibold text-white shadow-sm hover:bg-[#ff5b4d] disabled:bg-white/20 disabled:text-white/50"
+                  className="h-7 border-none bg-[#FF6F61] px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-[#ff5b4d] disabled:bg-white/20 disabled:text-white/50"
                 >
                   <CheckCircle2 />
                   Save &amp; Submit
@@ -1226,19 +1224,19 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             </div>
           </div>
 
-          {/* ─── Filter row (compact) ─── */}
-          <div className="px-4 py-2">
+          {/* ─── Filter row (compact, single line on lg+ screens) ─── */}
+          <div className="border-t border-border/60 bg-gradient-to-b from-slate-50/40 to-transparent px-3 py-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <Input
                 placeholder="Search article, vendor, design, PPT no..."
                 onChange={handleSearchChange}
                 allowClear
                 onClear={() => setSearchText('')}
-                className="w-full sm:w-[260px]"
+                className="!h-7 w-full text-[12px] sm:w-[240px]"
               />
               {pathType !== 'rejected' && pathType !== 'created' && pathType !== 'new' && (
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1257,7 +1255,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     setSubDivisionFilter('ALL');
                   }}
                 >
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]">
                     <SelectValue placeholder="Division" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1286,7 +1284,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     setMajorCategoryFilter('');
                   }}
                 >
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]">
                     <SelectValue placeholder="Sub-Division" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1313,7 +1311,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 </Select>
               )}
               <Select value={majorCategoryFilter || '__all__'} onValueChange={(v) => setMajorCategoryFilter(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="!h-7 w-[170px] text-[12px]">
                   <SelectValue placeholder="Major Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1335,7 +1333,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 </SelectContent>
               </Select>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="!h-7 w-[110px] text-[12px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

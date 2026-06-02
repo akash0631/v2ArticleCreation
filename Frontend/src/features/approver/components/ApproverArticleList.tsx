@@ -1319,10 +1319,10 @@ const ArticleCard = React.memo(
             {/* ─── LEFT: Image + Article Info + Reference ───
              *
              * Sticky rail: image + identity stay anchored to the viewport
-             * while the attribute groups on the right scroll. Top offset is
-             * the height of the dashboard's sticky brand strip + filter row.
+             * while the attribute groups on the right scroll. Top offset =
+             * height of the dashboard's sticky brand+filter chrome (~120px).
              */}
-            <aside className="sticky top-[148px] flex min-w-0 flex-col gap-3 self-start">
+            <aside className="sticky top-[120px] flex min-w-0 flex-col gap-3 self-start">
               {/* Article image — dominant focal point, mockup-style */}
               <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-sm)]">
                 <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2.5 py-1.5">
