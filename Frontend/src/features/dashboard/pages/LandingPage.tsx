@@ -17,11 +17,8 @@ import {
   Github,
   Twitter,
   Linkedin,
-  Star,
 } from 'lucide-react';
 import {
-  Avatar,
-  AvatarFallback,
   Button,
   Card,
   CardContent,
@@ -37,27 +34,21 @@ const LandingPage: React.FC = () => {
   const isAuthenticated = !!localStorage.getItem('authToken');
 
   const features = [
-    { Icon: Bot, color: colors.primary[500], title: 'AI-Powered Extraction', description: 'Advanced machine learning algorithms analyze fashion images and extract detailed product attributes automatically.' },
-    { Icon: FastForward, color: colors.success[500], title: 'Lightning Fast', description: 'Process hundreds of images in minutes. Our optimized pipeline handles bulk operations with ease.' },
-    { Icon: ShieldCheck, color: colors.error[500], title: 'High Accuracy', description: 'Over 95% accuracy in attribute detection with confidence scores for each extracted data point.' },
-    { Icon: Cloud, color: '#722ed1', title: 'Cloud-Based', description: 'Scalable cloud infrastructure ensures reliable performance and data security.' },
-    { Icon: Zap, color: colors.warning[500], title: 'Real-Time Processing', description: 'Get instant results with our optimized real-time processing engine for immediate insights.' },
-    { Icon: ShieldAlert, color: colors.info[500], title: 'Enterprise Security', description: 'Bank-level encryption and security protocols to keep your data safe and compliant.' },
-    { Icon: Globe, color: colors.primary[600], title: 'Multi-Language Support', description: 'Extract attributes in multiple languages with our global AI models supporting 50+ languages.' },
-    { Icon: Plug, color: colors.success[600], title: 'REST API Access', description: 'Integrate seamlessly with your existing systems using our comprehensive REST API.' },
-  ];
-
-  const testimonials = [
-    { name: 'Sarah Johnson', role: 'Product Manager, FashionHub', avatar: 'S', rating: 5, text: 'AI Fashion Extractor has revolutionized our product cataloging process. What used to take days now takes hours!' },
-    { name: 'Michael Chen', role: 'CTO, StyleTech', avatar: 'M', rating: 5, text: "The accuracy is impressive. We've processed over 100,000 images with 95%+ accuracy. Highly recommended!" },
-    { name: 'Emily Rodriguez', role: 'E-commerce Director, TrendyWear', avatar: 'E', rating: 5, text: "Best investment we've made. The API integration was seamless and the support team is fantastic." },
+    { Icon: Bot, color: colors.primary[500], title: 'AI-Powered Extraction', description: 'Vision models analyse each garment image and propose attribute values in seconds — no manual data entry.' },
+    { Icon: FastForward, color: colors.warning[500], title: 'Bulk Pipeline', description: 'Submit hundreds of images at once via the background job pipeline and download a clean Excel when it finishes.' },
+    { Icon: ShieldCheck, color: colors.success[500], title: 'Per-Field Confidence', description: 'Every extracted value carries a confidence score. Approvers see what to trust and what to double-check at a glance.' },
+    { Icon: Cloud, color: colors.primary[600], title: 'Catalogue-Aware', description: '283+ major categories, complete with allowed values per category and SAP-aligned naming for downstream systems.' },
+    { Icon: Zap, color: colors.warning[600], title: 'Single-Article Review', description: 'Approvers move Prev / Next through the queue with inline edits — no full-page reloads, no list scrolling.' },
+    { Icon: ShieldAlert, color: colors.error[500], title: 'Role-Aware Access', description: 'Creator, Sub-Division Head, Category Head, Approver, PO Committee and Admin — each sees only what they need.' },
+    { Icon: Globe, color: colors.success[600], title: 'Excel-Native Export', description: 'Validated rows export to Excel with per-category dropdowns intact, ready for SAP / SRM upload.' },
+    { Icon: Plug, color: colors.primary[500], title: 'Direct SAP Integration', description: 'Approved articles flow straight through to SAP and SRM via the bundled sync pipeline, with status visible in Admin.' },
   ];
 
   const stats = [
-    { title: '1M+', description: 'Images Processed' },
-    { title: '95%', description: 'Accuracy Rate' },
-    { title: '500+', description: 'Happy Customers' },
-    { title: '24/7', description: 'Support Available' },
+    { title: '283+', description: 'Major categories' },
+    { title: '50+', description: 'Attributes per article' },
+    { title: '6', description: 'Roles, one workflow' },
+    { title: 'SAP', description: 'End-to-end integration' },
   ];
 
   const handleGetStarted = () => navigate(isAuthenticated ? '/dashboard' : '/register');
@@ -69,10 +60,10 @@ const LandingPage: React.FC = () => {
       <div style={{ background: 'linear-gradient(135deg, #FF6F61 0%, #FFA62B 100%)' }}>
         {/* Hero */}
         <div className="mx-auto max-w-6xl px-6 pb-20 pt-24 text-center text-white">
-          <h1 className="font-display mb-6 text-5xl font-semibold tracking-tight drop-shadow-lg md:text-7xl">AI Fashion Extractor</h1>
+          <h1 className="font-display mb-6 text-5xl font-semibold tracking-tight drop-shadow-lg md:text-7xl">Article Creation</h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-white/90">
-            Transform your fashion catalog with intelligent AI-powered image analysis. Extract detailed product
-            attributes, colors, patterns, and more in seconds.
+            V2Retail's in-house workflow for extracting, reviewing, and approving fashion article attributes — from a single
+            garment photo to a SAP-ready article number.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
@@ -116,9 +107,9 @@ const LandingPage: React.FC = () => {
         <div id="features" className="bg-white px-6 py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-20 text-center">
-              <h2 className="font-display mb-4 text-3xl font-semibold tracking-tight md:text-5xl">Powerful Features for Fashion Intelligence</h2>
+              <h2 className="font-display mb-4 text-3xl font-semibold tracking-tight md:text-5xl">Built around how the team actually works</h2>
               <p className="mx-auto max-w-xl text-lg text-muted-foreground">
-                Everything you need to transform your fashion catalog with cutting-edge AI technology.
+                Eight pieces that turn a garment photo into a SAP article number — without the spreadsheet relay race.
               </p>
             </div>
 
@@ -175,54 +166,15 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Testimonials */}
-        <div id="testimonials" className="bg-white px-6 py-24">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-16 text-center">
-              <h2 className="font-display mb-4 text-3xl font-semibold tracking-tight md:text-5xl">Trusted by Fashion Leaders</h2>
-              <p className="text-lg text-muted-foreground">See what our customers say about their experience</p>
-            </div>
-
-            <Stagger className="grid grid-cols-1 gap-8 md:grid-cols-3" stagger={0.08} whenInView amount={0.25}>
-              {testimonials.map((t, i) => (
-                <Card key={i} className="h-full rounded-2xl card-3d glass">
-                  <CardContent className="p-8">
-                    <div className="mb-5 flex gap-1">
-                      {[...Array(t.rating)].map((_, k) => (
-                        <Star key={k} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <p className="mb-6 text-[15px] italic leading-relaxed">"{t.text}"</p>
-                    <div className="flex items-center gap-3">
-                      <Avatar
-                        className="h-12 w-12 text-lg font-bold text-white"
-                        style={{
-                          background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[600]} 100%)`,
-                        }}
-                      >
-                        <AvatarFallback className="bg-transparent text-white">{t.avatar}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-semibold">{t.name}</div>
-                        <div className="text-[13px] text-muted-foreground">{t.role}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stagger>
-          </div>
-        </div>
-
         {/* CTA */}
         <div
           className="px-6 py-20 text-center text-white"
           style={{ background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.warning[500]} 100%)` }}
         >
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display mb-6 text-3xl font-semibold tracking-tight md:text-5xl">Ready to Transform Your Fashion Catalog?</h2>
+            <h2 className="font-display mb-6 text-3xl font-semibold tracking-tight md:text-5xl">Ready to extract your next batch?</h2>
             <p className="mb-10 text-lg text-white/90">
-              Join thousands of fashion businesses using AI to streamline their product data management.
+              Upload images, review proposed values, push approved articles to SAP. All in one place.
             </p>
 
             <div className="flex flex-col items-center gap-4">
@@ -232,9 +184,8 @@ const LandingPage: React.FC = () => {
                 className="h-12 bg-white px-10 text-base text-primary hover:bg-white/90"
               >
                 <CheckCircle2 />
-                {isAuthenticated ? 'Start Extracting Now' : 'Start Free Trial'}
+                {isAuthenticated ? 'Open dashboard' : 'Sign in'}
               </Button>
-              <p className="text-sm text-white/80">No credit card required • Free 14-day trial • Cancel anytime</p>
             </div>
           </div>
         </div>
