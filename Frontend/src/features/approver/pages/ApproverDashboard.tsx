@@ -1087,9 +1087,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-1 shrink-0">
-        <div className="overflow-hidden rounded-xl border border-white/60 bg-white/60 backdrop-blur shadow-lg card-3d glass">
+    <div className="flex flex-col">
+      {/* Sticky top action bar — brand strip + Prev/Next + Save & Submit + Reject.
+       * Stays in view as the user scrolls through the article's attribute groups. */}
+      <div className="sticky top-0 z-30 mb-2 -mx-1 px-1 pt-1">
+        <div className="overflow-hidden rounded-xl border border-white/60 bg-white/85 shadow-[var(--shadow-md)] backdrop-blur">
           {/* ─── Brand strip — slate gradient with title + prev/next + page actions ─── */}
           <div
             className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 text-white"
@@ -1354,7 +1356,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div>
         <ApproverArticleList
           items={currentItem ? [currentItem] : []}
           majorCategory={majorCategoryFilter}

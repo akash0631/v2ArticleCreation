@@ -1141,7 +1141,7 @@ const ArticleCard = React.memo(
       <>
         <div
           key={item.id}
-          className="flex h-full min-h-0 animate-in flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all fade-in-50 slide-in-from-bottom-1 duration-300"
+          className="animate-in flex flex-col rounded-xl border bg-white shadow-sm transition-all fade-in-50 slide-in-from-bottom-1 duration-300"
           style={{ borderColor }}
         >
           {/* ─── TOP HEADER STRIP (slate, matches dashboard) ─── */}
@@ -1315,10 +1315,15 @@ const ArticleCard = React.memo(
           </div>
 
           {/* ─── MAIN GRID — image+info | attribute groups ─── */}
-          <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(320px,28%)_1fr] xl:grid-cols-[minmax(360px,26%)_1fr] 2xl:grid-cols-[minmax(400px,24%)_1fr]">
-            {/* ─── LEFT: Image + Article Info + Reference ─── */}
-            <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto pr-0.5">
-              {/* Article image — dominant focal point of the left column, sized like the mockup */}
+          <div className="grid items-start gap-3 p-3 lg:grid-cols-[minmax(320px,28%)_1fr] xl:grid-cols-[minmax(360px,26%)_1fr] 2xl:grid-cols-[minmax(400px,24%)_1fr]">
+            {/* ─── LEFT: Image + Article Info + Reference ───
+             *
+             * Sticky rail: image + identity stay anchored to the viewport
+             * while the attribute groups on the right scroll. Top offset is
+             * the height of the dashboard's sticky brand strip + filter row.
+             */}
+            <aside className="sticky top-[148px] flex min-w-0 flex-col gap-3 self-start">
+              {/* Article image — dominant focal point, mockup-style */}
               <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-sm)]">
                 <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2.5 py-1.5">
                   <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
@@ -1327,7 +1332,7 @@ const ArticleCard = React.memo(
                   </span>
                   <Badge variant="success" className="text-[9px]">1 / 1</Badge>
                 </div>
-                <div className="group relative aspect-square max-h-[48vh] w-full bg-gradient-to-br from-slate-50 to-slate-100">
+                <div className="group relative aspect-square w-full bg-gradient-to-br from-slate-50 to-slate-100">
                   {imgUrl ? (
                     <>
                       <img
@@ -1424,7 +1429,7 @@ const ArticleCard = React.memo(
             </aside>
 
             {/* ─── RIGHT: Attribute groups + BOM + Fabric/Body + Proceed FG ─── */}
-            <section className="flex min-h-0 min-w-0 flex-col">
+            <section className="flex min-w-0 flex-col">
               <div className="mb-1.5 flex shrink-0 items-center justify-between">
                 <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-slate-700">
                   <Sparkles className="h-3.5 w-3.5 text-[#FF6F61]" />
@@ -1480,7 +1485,7 @@ const ArticleCard = React.memo(
               </div>
 
               {visibleAttrs.length > 0 ? (
-                <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto scroll-smooth pr-1 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid auto-rows-min grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {activeGroups.map((g) => {
                     const style = GROUP_HEADER_STYLE[g.group] ?? { bg: '#f3f4f6', fg: '#374151', border: '#e5e7eb' };
                     const collapsed = isGroupCollapsed(g.group);
