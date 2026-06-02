@@ -64,24 +64,6 @@
   min-width: 0;
 }
 
-/* The Menu component sets its own height — ensure it doesn't stretch the row */
-.top-nav-menu.ant-menu-horizontal {
-  height: 62px;
-  line-height: 62px;
-  border-bottom: none !important;
-}
-
-.top-nav-menu .ant-menu-item {
-  border-radius: 999px;
-  margin: 0 4px;
-  padding: 0 14px;
-}
-
-.top-nav-menu .ant-menu-item-selected {
-  background: linear-gradient(90deg, rgba(255, 111, 97, 0.18), rgba(255, 166, 43, 0.18)) !important;
-  color: #111827 !important;
-}
-
 .user-chip {
   cursor: pointer;
   display: flex;
@@ -89,10 +71,6 @@
   gap: 10px;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.user-chip .ant-typography {
-  white-space: nowrap;
 }
 
 /* Auth Layout */
@@ -104,31 +82,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Breadcrumb */
-.ant-breadcrumb {
-  font-size: 14px;
-}
-
-.ant-breadcrumb-link {
-  color: rgba(0, 0, 0, 0.65);
-}
-
-/* Breadcrumb inside the top nav must stay on one line and not push siblings down. */
-.top-nav .ant-breadcrumb,
-.top-nav .ant-breadcrumb * {
-  white-space: nowrap;
-}
-
-.top-nav .ant-breadcrumb {
-  flex-shrink: 0;
-}
-
-/* The right-hand controls (notifications + user chip) should never wrap. */
-.top-nav > .ant-space {
-  flex-shrink: 0;
-  flex-wrap: nowrap;
 }
 
 /* Header Improvements */
@@ -209,9 +162,3 @@
   background: transparent;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .modern-sider .ant-menu-item {
-    margin: 4px !important;
-  }
-}

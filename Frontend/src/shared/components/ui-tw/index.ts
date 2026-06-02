@@ -26,6 +26,8 @@ export {
   DialogClose,
   DialogContent,
   DialogHeader,
+  DialogTitleBar,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,

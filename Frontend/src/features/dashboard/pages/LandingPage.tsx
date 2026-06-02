@@ -68,7 +68,7 @@ const LandingPage: React.FC = () => {
       <div style={{ background: 'linear-gradient(135deg, #FF6F61 0%, #FFA62B 100%)' }}>
         {/* Hero */}
         <div className="mx-auto max-w-6xl px-6 pb-20 pt-24 text-center text-white">
-          <h1 className="mb-6 text-5xl font-bold drop-shadow-lg md:text-6xl">AI Fashion Extractor</h1>
+          <h1 className="font-display mb-6 text-5xl font-semibold tracking-tight drop-shadow-lg md:text-7xl">AI Fashion Extractor</h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg text-white/90">
             Transform your fashion catalog with intelligent AI-powered image analysis. Extract detailed product
             attributes, colors, patterns, and more in seconds.
@@ -115,7 +115,7 @@ const LandingPage: React.FC = () => {
         <div id="features" className="bg-white px-6 py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-20 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Powerful Features for Fashion Intelligence</h2>
+              <h2 className="font-display mb-4 text-3xl font-semibold tracking-tight md:text-5xl">Powerful Features for Fashion Intelligence</h2>
               <p className="mx-auto max-w-xl text-lg text-muted-foreground">
                 Everything you need to transform your fashion catalog with cutting-edge AI technology.
               </p>

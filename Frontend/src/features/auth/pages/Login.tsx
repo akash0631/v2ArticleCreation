@@ -79,7 +79,7 @@ export default function Login() {
       >
         <CardContent className="p-8">
           <div className="mb-8 text-center">
-            <h1 className="mb-2 text-3xl font-semibold text-primary">Automatic Article Creation</h1>
+            <h1 className="font-display mb-2 text-3xl font-semibold tracking-tight text-primary">Automatic Article Creation</h1>
             <p className="text-sm text-muted-foreground">Sign in to manage your fashion catalog</p>
           </div>
 

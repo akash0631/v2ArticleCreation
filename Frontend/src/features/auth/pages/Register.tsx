@@ -131,7 +131,7 @@ export default function Register() {
       <Card className="w-full max-w-[440px] shadow-2xl glass card-3d z-10 relative">
         <CardContent className="p-8">
           <div className="mb-6 text-center">
-            <h1 className="mb-1 text-3xl font-semibold text-primary">Join Us</h1>
+            <h1 className="font-display mb-1 text-4xl font-semibold tracking-tight text-primary">Join Us</h1>
             <p className="text-sm text-muted-foreground">Create your AI Fashion Extractor account</p>
           </div>
 
