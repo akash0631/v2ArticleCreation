@@ -67,6 +67,7 @@
     "file-saver": "^2.0.5",
     "idb": "^8.0.3",
     "lucide-react": "^0.544.0",
+    "motion": "^12.40.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.76.1",

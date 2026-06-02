@@ -27,6 +27,7 @@ import {
   CardContent,
   Separator,
 } from '@/shared/components/ui-tw';
+import { Stagger } from '../../../shared/components/motion';
 import { colors } from '../../../theme/colors';
 import { LandingNavbar } from '../../../shared/components/layout/LandingNavbar';
 import './LandingPage.css';
@@ -100,14 +101,14 @@ const LandingPage: React.FC = () => {
         {/* Stats */}
         <div className="border-y border-white/10 bg-white/10 px-6 py-16 backdrop-blur-md">
           <div className="mx-auto max-w-6xl">
-            <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+            <Stagger className="grid grid-cols-2 gap-8 sm:grid-cols-4" stagger={0.07} whenInView amount={0.4}>
               {stats.map((stat, i) => (
                 <div key={i} className="text-center text-white">
-                  <div className="mb-2 text-4xl font-bold drop-shadow-lg">{stat.title}</div>
+                  <div className="font-display mb-2 text-5xl font-semibold tracking-tight drop-shadow-lg">{stat.title}</div>
                   <div className="text-sm text-white/80">{stat.description}</div>
                 </div>
               ))}
-            </div>
+            </Stagger>
           </div>
         </div>
 
@@ -121,7 +122,12 @@ const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <Stagger
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+              stagger={0.06}
+              whenInView
+              amount={0.2}
+            >
               {features.map((feature, i) => (
                 <Card
                   key={i}
@@ -131,12 +137,12 @@ const LandingPage: React.FC = () => {
                     <div className="mb-5 flex justify-center">
                       <feature.Icon className="h-12 w-12 transition-transform duration-300 hover:scale-110" style={{ color: feature.color }} />
                     </div>
-                    <h3 className="mb-3 text-lg font-semibold">{feature.title}</h3>
+                    <h3 className="font-display mb-3 text-lg font-semibold tracking-tight">{feature.title}</h3>
                     <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </Stagger>
           </div>
         </div>
 
@@ -173,11 +179,11 @@ const LandingPage: React.FC = () => {
         <div id="testimonials" className="bg-white px-6 py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-16 text-center">
-              <h2 className="mb-4 text-3xl font-bold md:text-4xl">Trusted by Fashion Leaders</h2>
+              <h2 className="font-display mb-4 text-3xl font-semibold tracking-tight md:text-5xl">Trusted by Fashion Leaders</h2>
               <p className="text-lg text-muted-foreground">See what our customers say about their experience</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <Stagger className="grid grid-cols-1 gap-8 md:grid-cols-3" stagger={0.08} whenInView amount={0.25}>
               {testimonials.map((t, i) => (
                 <Card key={i} className="h-full rounded-2xl card-3d glass">
                   <CardContent className="p-8">
@@ -204,17 +210,17 @@ const LandingPage: React.FC = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </Stagger>
           </div>
         </div>
 
         {/* CTA */}
         <div
           className="px-6 py-20 text-center text-white"
-          style={{ background: `linear-gradient(135deg, ${colors.primary[500]} 0%, #722ed1 100%)` }}
+          style={{ background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.warning[500]} 100%)` }}
         >
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-6 text-3xl font-bold md:text-4xl">Ready to Transform Your Fashion Catalog?</h2>
+            <h2 className="font-display mb-6 text-3xl font-semibold tracking-tight md:text-5xl">Ready to Transform Your Fashion Catalog?</h2>
             <p className="mb-10 text-lg text-white/90">
               Join thousands of fashion businesses using AI to streamline their product data management.
             </p>

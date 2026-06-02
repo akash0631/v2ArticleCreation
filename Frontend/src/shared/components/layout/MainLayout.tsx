@@ -37,6 +37,7 @@ import {
   Separator,
 } from '@/shared/components/ui-tw';
 import { cn } from '@/lib/utils';
+import { PageTransition } from '../motion/PageTransition';
 import './MainLayout.css';
 import {
   getNotifications,
@@ -357,7 +358,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      <main className={isLandingPage ? 'content-landing flex-1 overflow-auto' : 'content-shell'}>{children}</main>
+      <main className={isLandingPage ? 'content-landing flex-1 overflow-auto' : 'content-shell'}>
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 };
