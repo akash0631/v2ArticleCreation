@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Separator,
   type DataTableColumn,
 } from '@/shared/components/ui-tw';
 import './Dashboard.css';
@@ -229,119 +230,116 @@ export default function Dashboard() {
   }, [subDivisionFilter, subDivisionOptions]);
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-hero">
-        <div className="dashboard-hero-text">
-          <span className="dashboard-hero-greeting">{greeting}</span>
-          <h2 className="dashboard-hero-title">{userData?.name || 'Welcome back'}</h2>
-          <p className="dashboard-hero-subtitle">
-            Keep your catalog organized with clean insights and a calmer workflow.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button className="dashboard-hero-btn" onClick={() => navigate('/extraction')}>
-              <Zap />
-              Start Extraction
-            </Button>
-            <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/approver')}>
-              <ShoppingBag />
-              View Products
-            </Button>
-            {isAdmin && (
-              <Button variant="outline" className="dashboard-ghost-btn" onClick={() => navigate('/admin')}>
-                <SlidersHorizontal />
-                Open Admin Panel
-              </Button>
-            )}
+    <div className="flex flex-col gap-3">
+      {/* Consolidated hero — one row: greeting + quick stats + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-card px-4 py-3 shadow-[var(--shadow-sm)]">
+        <div className="flex min-w-0 items-center gap-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {greeting}
+            </div>
+            <h2 className="font-display text-[20px] font-semibold leading-tight tracking-tight text-foreground">
+              {userData?.name || 'Welcome back'}
+            </h2>
+          </div>
+          <Separator orientation="vertical" className="hidden h-10 sm:block" />
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today</div>
+              <div className="font-display text-lg font-semibold tabular-nums text-foreground">
+                {todayCount ?? 0}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  {(todayCount ?? 0) === 1 ? 'job' : 'jobs'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total</div>
+              <div className="font-display text-lg font-semibold tabular-nums text-foreground">
+                {totalCount ?? 0}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="dashboard-hero-card">
-          <div className="dashboard-hero-card-icon">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" className="h-9" onClick={() => navigate('/extraction')}>
             <Zap />
-          </div>
-          <span className="text-sm text-muted-foreground">Today's Processing</span>
-          <h3 className="dashboard-hero-metric">
-            {todayCount && todayCount > 0
-              ? `${todayCount} ${todayCount === 1 ? 'job' : 'jobs'}`
-              : 'No data yet'}
-          </h3>
-          <span className="dashboard-hero-metric-sub">
-            {totalCount && totalCount > 0
-              ? `${totalCount} total extraction${totalCount === 1 ? '' : 's'}`
-              : 'Run an extraction to see stats'}
-          </span>
+            Start Extraction
+          </Button>
+          <Button size="sm" variant="outline" className="h-9" onClick={() => navigate('/approver')}>
+            <ShoppingBag />
+            View Products
+          </Button>
+          {isAdmin && (
+            <Button size="sm" variant="outline" className="h-9" onClick={() => navigate('/admin')}>
+              <SlidersHorizontal />
+              Admin
+            </Button>
+          )}
         </div>
       </div>
 
-      <Card className="dashboard-panel dashboard-panel-soft dashboard-analytics-card">
-        <div className="dashboard-analytics-header p-6">
-          <div>
-            <h4 className="text-xl font-semibold">Analytics Timeline</h4>
-            <p className="text-sm text-muted-foreground">
-              Daily division and sub-division summary for extractions and approvals.
-            </p>
+      <Card className="overflow-hidden">
+        {/* Tight header — title + filters + counts in one row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <h4 className="font-display text-base font-semibold leading-tight tracking-tight">Analytics Timeline</h4>
+            <Separator orientation="vertical" className="h-5" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              <span><span className="font-semibold tabular-nums text-foreground">{todayCount ?? 0}</span> today · <span className="font-semibold tabular-nums text-foreground">{totalCount ?? 0}</span> total</span>
+            </div>
           </div>
-          <div className="dashboard-analytics-summary">
-            <div className="dashboard-analytics-chip">
-              <Calendar className="h-4 w-4" />
-              <span>{todayCount ?? 0} today</span>
-            </div>
-            <div className="dashboard-analytics-chip accent">
-              <span>{totalCount ?? 0} total</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="!h-7 w-[140px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Dates</SelectItem>
+                {dateOptions.map((date) => (
+                  <SelectItem key={date} value={date}>
+                    {date}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={divisionFilter}
+              onValueChange={(value) => {
+                setDivisionFilter(value);
+                setSubDivisionFilter('ALL');
+              }}
+            >
+              <SelectTrigger className="!h-7 w-[140px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Divisions</SelectItem>
+                {divisionOptions.map((division) => (
+                  <SelectItem key={division} value={division}>
+                    {division}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={subDivisionFilter} onValueChange={setSubDivisionFilter}>
+              <SelectTrigger className="!h-7 w-[160px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Sub Divisions</SelectItem>
+                {subDivisionOptions.map((sd) => (
+                  <SelectItem key={sd} value={sd}>
+                    {sd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <div className="dashboard-analytics-filters px-6">
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="dashboard-analytics-filter h-8 w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Dates</SelectItem>
-              {dateOptions.map((date) => (
-                <SelectItem key={date} value={date}>
-                  {date}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={divisionFilter}
-            onValueChange={(value) => {
-              setDivisionFilter(value);
-              setSubDivisionFilter('ALL');
-            }}
-          >
-            <SelectTrigger className="dashboard-analytics-filter h-8 w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Divisions</SelectItem>
-              {divisionOptions.map((division) => (
-                <SelectItem key={division} value={division}>
-                  {division}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={subDivisionFilter} onValueChange={setSubDivisionFilter}>
-            <SelectTrigger className="dashboard-analytics-filter h-8 w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Sub Divisions</SelectItem>
-              {subDivisionOptions.map((sd) => (
-                <SelectItem key={sd} value={sd}>
-                  {sd}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div ref={analyticsTableRef} className="dashboard-analytics-table-shell p-6">
+        <div ref={analyticsTableRef} className="p-3">
           <DataTable<AnalyticsSummaryRow>
             columns={analyticsColumns}
             dataSource={filteredAnalyticsRows}

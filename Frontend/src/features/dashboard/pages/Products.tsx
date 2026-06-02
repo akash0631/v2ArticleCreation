@@ -677,12 +677,31 @@ export default function Products() {
 
   const filteredRows = useMemo(
     () =>
-      rows.filter((row) => {
-        if (divisionFilter !== 'ALL' && normalizeDivision(String(row.flatData?.division || '').toUpperCase()) !== divisionFilter) return false;
-        if (subDivisionFilter !== 'ALL' && String(row.flatData?.subDivision || '').toUpperCase() !== subDivisionFilter) return false;
-        const haystack = `${row.name} ${row.productType} ${row.vendor} ${row.userName || ''} ${row.userEmail || ''}`.toLowerCase();
-        return haystack.includes(search.toLowerCase());
-      }),
+      rows
+        .filter((row) => {
+          if (divisionFilter !== 'ALL' && normalizeDivision(String(row.flatData?.division || '').toUpperCase()) !== divisionFilter) return false;
+          if (subDivisionFilter !== 'ALL' && String(row.flatData?.subDivision || '').toUpperCase() !== subDivisionFilter) return false;
+          const haystack = `${row.name} ${row.productType} ${row.vendor} ${row.userName || ''} ${row.userEmail || ''}`.toLowerCase();
+          return haystack.includes(search.toLowerCase());
+        })
+        // Pre-compute the "Extracted Data" preview once per row so the column
+        // render is a cheap string lookup instead of filter+slice+map on every
+        // scroll/checkbox tick.
+        .map((row) => {
+          if ((row as any).__extractedPreview !== undefined) return row;
+          const items = (row.results || [])
+            .filter((item) => {
+              const raw = item.rawValue;
+              const final = item.finalValue;
+              const hasRaw = typeof raw === 'string' ? raw.trim() !== '' : raw !== null && raw !== undefined;
+              const hasFinal = typeof final === 'string' ? final.trim() !== '' : final !== null && final !== undefined;
+              return hasRaw || hasFinal;
+            })
+            .slice(0, 6)
+            .map((item) => `${item.attribute?.label || item.attribute?.key}: ${item.finalValue ?? item.rawValue ?? '—'}`);
+          (row as any).__extractedPreview = items.length > 0 ? items.join(', ') : '';
+          return row;
+        }),
     [rows, divisionFilter, subDivisionFilter, search],
   );
 
@@ -745,7 +764,15 @@ export default function Products() {
         key: 'image',
         render: (_v, row) => (
           <div className="h-16 w-16 overflow-hidden rounded-xl bg-muted">
-            {row.imageUrl ? <img src={row.imageUrl} alt={row.name} className="h-full w-full object-cover" /> : null}
+            {row.imageUrl ? (
+              <img
+                src={row.imageUrl}
+                alt={row.name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
           </div>
         ),
       },
@@ -753,20 +780,11 @@ export default function Products() {
         title: 'Extracted Data',
         key: 'extractedData',
         render: (_v, row) => {
-          const items = (row.results || [])
-            .filter((item) => {
-              const raw = item.rawValue;
-              const final = item.finalValue;
-              const hasRaw = typeof raw === 'string' ? raw.trim() !== '' : raw !== null && raw !== undefined;
-              const hasFinal = typeof final === 'string' ? final.trim() !== '' : final !== null && final !== undefined;
-              return hasRaw || hasFinal;
-            })
-            .slice(0, 6)
-            .map((item) => `${item.attribute?.label || item.attribute?.key}: ${item.finalValue ?? item.rawValue ?? '—'}`);
+          const preview = (row as any).__extractedPreview as string | undefined;
           return (
             <div className="max-w-[420px]">
-              {items.length > 0 ? (
-                <span className="text-xs text-muted-foreground">{items.join(', ')}</span>
+              {preview ? (
+                <span className="text-xs text-muted-foreground">{preview}</span>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}

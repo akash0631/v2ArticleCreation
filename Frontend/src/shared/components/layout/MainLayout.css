@@ -9,7 +9,10 @@
  * and content-shell takes the rest of the row alongside the sidebar. */
 .content-shell {
   padding: 14px;
-  background: linear-gradient(180deg, rgba(246, 241, 236, 0.6) 0%, rgba(246, 241, 236, 0.3) 100%);
+  background:
+    radial-gradient(900px 400px at 0% 0%, rgba(255, 111, 97, 0.04), transparent 60%),
+    radial-gradient(900px 400px at 100% 100%, rgba(31, 41, 55, 0.04), transparent 60%),
+    var(--color-background);
 }
 
 .content-landing {

@@ -45,6 +45,7 @@ import {
   type AutocompleteOption,
 } from '@/shared/components/ui-tw';
 import { message } from '@/lib/message';
+import { cn } from '@/lib/utils';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import {
   getMajCatAllowedValues,
@@ -1030,12 +1031,14 @@ const ArticleCard = React.memo(
             if (!isLocked && !isEditing) setEditingField(attr.field);
           }}
         >
-          <span className="w-4 shrink-0 text-right text-[10px] font-medium text-muted-foreground">{num}.</span>
+          <span className="w-4 shrink-0 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">{num}.</span>
           <span
-            className="flex-1 truncate text-[10.5px]"
-            style={{ color: isMandatory ? '#1f2937' : '#4b5563', fontWeight: isMandatory ? 600 : 400 }}
+            className={cn(
+              'flex-1 truncate text-[10.5px] leading-snug',
+              isMandatory ? 'key-field text-foreground' : 'font-medium text-muted-foreground',
+            )}
           >
-            {isMandatory && <span className="mr-0.5 text-red-500">*</span>}
+            {isMandatory && <span className="mandatory-mark">*</span>}
             {attr.label}
           </span>
           <div className="w-[110px] shrink-0">

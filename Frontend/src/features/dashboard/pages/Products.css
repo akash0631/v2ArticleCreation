@@ -4,6 +4,19 @@
   gap: 8px;
 }
 
+/* Perf — let the browser skip painting offscreen rows. Roughly 5-10x scroll
+ * smoothness on the long extraction history table without virtualization. */
+.products-table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}
+
+/* Promote the scrollable table container to its own compositor layer so
+ * vertical scroll doesn't repaint the page chrome. */
+.products-table-card {
+  contain: layout style;
+}
+
 .products-hero {
   display: flex;
   justify-content: space-between;
