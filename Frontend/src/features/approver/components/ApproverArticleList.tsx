@@ -50,6 +50,7 @@ import {
   getMajCatAllowedValues,
   SCHEMA_KEY_TO_EXCEL_ATTR,
   SCHEMA_KEY_TO_DB_FIELD,
+  SAP_NAME_TO_SCHEMA_KEY,
   normalizeMajorCategory,
 } from '../../../data/majCatAttributeMap';
 import { getMajorCategoriesByDivision, getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
@@ -62,11 +63,19 @@ import {
   preloadCategoryAttributes,
   getCachedCategoryAttributes,
   invalidateValuesCache,
+  preloadMajCatGrid,
+  isMajCatGridLoaded,
   getMajCatGridEntry,
+  isMajCatInGrid,
+  preloadMandatoryGrid,
+  isMandatoryGridLoaded,
+  isMandatoryGridFieldActive,
+  isMajCatInMandatoryGrid,
 } from '../../../services/articleConfigService';
 import { getImageUrl } from '../../../shared/utils/common/helpers';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import VariantSubTable from './VariantSubTable';
 
 // Module-level BOM cache (shared across card instances)
@@ -87,6 +96,25 @@ const fetchBomMap = (category: string): Promise<Record<string, Record<string, st
 };
 
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
+
+// Reverse map: schemaKey → ALL SAP keys (including legacy aliases).
+// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
+// which SAP key variant the uploaded Excel used (e.g. NO_OF_POCKET vs M_NO_OF_POCKET).
+const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY).reduce(
+  (acc, [sapKey, schemaKey]) => {
+    if (!acc[schemaKey]) acc[schemaKey] = [];
+    acc[schemaKey].push(sapKey);
+    return acc;
+  },
+  {} as Record<string, string[]>,
+);
+
+// Schema keys that live in the BOM section only — never shown in attribute card groups
+// even if they appear in the DB admin attribute list with a group assigned.
+const BOM_ONLY_SCHEMA_KEYS = new Set([
+  'macro_mvgr', // IMP_ATBT-1 / macroMvgr  → BOM field
+  'imp_atrbt2', // IMP_ATBT   / impAtrbt2  → BOM field
+]);
 
 const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string; schemaKey: string; freeText?: boolean }[] }[] = [
   {
@@ -214,6 +242,7 @@ type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
   const map = new Map<string, CardGroup['fields']>();
   for (const e of entries) {
+    if (BOM_ONLY_SCHEMA_KEYS.has(e.key)) continue; // belongs to BOM, not attribute groups
     const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
     if (!dbField) continue;
     if (!map.has(e.group)) map.set(e.group, []);
@@ -336,12 +365,16 @@ const ArticleCard = React.memo(
         /* ignore */
       }
       const storedMrp = parseFloat(String((item as any).mrp ?? ''));
-      if (!isNaN(storedMrp) && storedMrp > 1) return;
       const rate = parseFloat(String((item as any).rate ?? ''));
       if (isNaN(rate) || rate <= 0) return;
-      const calculated = String(Math.ceil((rate * 1.47) / 25) * 25);
+      const calculatedMrp = Math.ceil((rate * 1.47) / 25) * 25;
+      // Skip if MRP is already saved and matches what we'd calculate — no API call needed
+      if (!isNaN(storedMrp) && storedMrp > 0 && storedMrp === calculatedMrp) return;
+      // Skip if MRP is already saved as any valid positive number (user may have set it manually)
+      if (!isNaN(storedMrp) && storedMrp > 0) return;
+      const calculated = String(calculatedMrp);
       setLocalValues((prev) => ({ ...prev, mrp: calculated }));
-      onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated });
+      onSave({ ...item, mrp: calculated } as ApproverItem, { mrp: calculated }, { silent: true });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [item.id]);
 
@@ -353,6 +386,10 @@ const ArticleCard = React.memo(
 
     const [cacheReady, setCacheReady] = useState(false);
     const [catConfigReady, setCatConfigReady] = useState(false);
+    // Tracks when the major-category grid JSON (uploaded Excel) has loaded
+    const [gridReady, setGridReady] = useState(() => isMajCatGridLoaded());
+    // Tracks when the mandatory grid (visibility config) has loaded
+    const [mandatoryGridReady, setMandatoryGridReady] = useState(() => isMandatoryGridLoaded());
 
     const attributeFields = useMemo(
       () =>
@@ -362,40 +399,131 @@ const ArticleCard = React.memo(
       [cardGroups],
     );
 
+    // Compute attributes per-card from this article's own majorCategory.
+    //
+    // 3-tier visibility (applied once either grid is loaded AND the major category
+    // has any grid data):
+    //   MANDATORY  — Mandatory Grid = 1   → shown with bold label + * (required for approve)
+    //   OPTIONAL   — Maj-Cat Grid has dropdown values for this major category → shown plain
+    //   HIDDEN     — neither grid has this field for this major category → not shown at all
+    //
+    // While grids are still loading OR category has no grid data: show all fields as
+    // graceful fallback so the card doesn't look broken.
+    type AttrValue = { shortForm: string; fullForm: string };
     const { visibleAttrs, mandatoryKeys } = useMemo(() => {
       if (!effectiveMajCat) return { visibleAttrs: [], mandatoryKeys: new Set<string>() };
-      const dbConfig = getCachedCategoryAttributes(effectiveMajCat);
-      const mk: Set<string> = dbConfig?.required ?? new Set();
-      const visible = attributeFields
-        .map((af) => {
-          if (dbConfig?.configured) {
-            if (!dbConfig.enabled.has(af.schemaKey)) return null;
-            const values = getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
-            return {
+
+      const visible: Array<{
+        field: string;
+        label: string;
+        schemaKey: string;
+        group: string;
+        groupColor: string;
+        values: AttrValue[];
+        freeText: boolean;
+        isMandatory: boolean;
+      }> = [];
+      const mandatory = new Set<string>();
+
+      // At least one grid must be ready before we apply filtering.
+      const gridsReady = gridReady || mandatoryGridReady;
+
+      // Graceful degradation: if the major category has NO entries in EITHER grid
+      // (e.g. not yet configured in the admin panel), fall back to showing ALL fields.
+      // Uses direct category key-existence checks — reliable regardless of field name variations.
+      const catHasAnyGridData =
+        gridsReady &&
+        ((mandatoryGridReady && isMajCatInMandatoryGrid(effectiveMajCat)) ||
+          (gridReady && isMajCatInGrid(effectiveMajCat)));
+
+      for (const af of attributeFields) {
+        // BOM-only fields never appear in attribute groups
+        if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) continue;
+
+        // freeText fields (shade, weight, segment…) are always visible.
+        // They CAN be mandatory if the mandatory grid marks them as active — check the grid.
+        if (af.freeText) {
+          const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[af.schemaKey] ?? [];
+          const isMandatory =
+            gridsReady &&
+            !!catHasAnyGridData &&
+            mandatoryGridReady &&
+            sapKeys.some((sk) => isMandatoryGridFieldActive(effectiveMajCat, sk) === true);
+          if (isMandatory) mandatory.add(af.schemaKey);
+          visible.push({
+            field: af.field,
+            label: af.label,
+            schemaKey: af.schemaKey,
+            group: af.group,
+            groupColor: af.groupColor,
+            values: [],
+            freeText: true,
+            isMandatory,
+          });
+          continue;
+        }
+
+        // Dropdown values always come from Maj-Cat Grid
+        const values: AttrValue[] =
+          getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
+
+        if (gridsReady && catHasAnyGridData) {
+          // ── Grids loaded AND category is configured: apply 3-tier filtering ──
+          // Check ALL SAP key aliases — uploaded Excel may use any variant
+          const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[af.schemaKey] ?? [];
+          const isActiveMandatory =
+            mandatoryGridReady &&
+            sapKeys.some((sk) => isMandatoryGridFieldActive(effectiveMajCat, sk) === true);
+
+          const excelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
+          const hasDropdownValues =
+            gridReady && excelAttr ? (getMajCatGridEntry(effectiveMajCat, excelAttr)?.length ?? 0) > 0 : false;
+
+          if (isActiveMandatory) {
+            // TIER 1: Mandatory — bold + * in card, required for approve
+            mandatory.add(af.schemaKey);
+            visible.push({
               field: af.field,
               label: af.label,
               schemaKey: af.schemaKey,
               group: af.group,
               groupColor: af.groupColor,
               values,
-              freeText: af.freeText ?? false,
-            };
+              freeText: false,
+              isMandatory: true,
+            });
+          } else if (hasDropdownValues) {
+            // TIER 2: Optional — has dropdown values but not mandatory
+            visible.push({
+              field: af.field,
+              label: af.label,
+              schemaKey: af.schemaKey,
+              group: af.group,
+              groupColor: af.groupColor,
+              values,
+              freeText: false,
+              isMandatory: false,
+            });
           }
-          const values = af.freeText ? [] : getMajCatAllowedValues(item.division || '', af.schemaKey) ?? [];
-          return {
+          // TIER 3: Neither → skip (completely hidden for configured categories)
+        } else {
+          // ── Grids not yet loaded OR category has no grid data: graceful fallback ──
+          visible.push({
             field: af.field,
             label: af.label,
             schemaKey: af.schemaKey,
             group: af.group,
             groupColor: af.groupColor,
             values,
-            freeText: af.freeText ?? false,
-          };
-        })
-        .filter((af): af is NonNullable<typeof af> => af !== null);
-      return { visibleAttrs: visible, mandatoryKeys: mk };
+            freeText: false,
+            isMandatory: false,
+          });
+        }
+      }
+
+      return { visibleAttrs: visible, mandatoryKeys: mandatory };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [effectiveMajCat, cacheReady, catConfigReady, attributeFields]);
+    }, [effectiveMajCat, cacheReady, catConfigReady, gridReady, mandatoryGridReady, attributeFields, localValues]);
 
     const [editingField, setEditingField] = useState<string | null>(null);
 
@@ -434,6 +562,30 @@ const ArticleCard = React.memo(
         .then(() => setCatConfigReady(true))
         .catch(() => setCatConfigReady(true));
     }, [effectiveMajCat]);
+
+    // Preload major-category grid (dropdown values Excel) once per session
+    useEffect(() => {
+      if (isMajCatGridLoaded()) {
+        setGridReady(true);
+        return;
+      }
+      preloadMajCatGrid()
+        .then(() => setGridReady(true))
+        .catch(() => setGridReady(true));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Preload mandatory grid (field visibility Excel) once per session
+    useEffect(() => {
+      if (isMandatoryGridLoaded()) {
+        setMandatoryGridReady(true);
+        return;
+      }
+      preloadMandatoryGrid()
+        .then(() => setMandatoryGridReady(true))
+        .catch(() => setMandatoryGridReady(true));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
       if (!effectiveMajCat) return;
@@ -485,20 +637,16 @@ const ArticleCard = React.memo(
       [localValues, item],
     );
 
+    // Reactively rebuild fabric/body descriptions whenever visible fields or item changes.
     React.useEffect(() => {
       if (item.approvalStatus !== 'PENDING') return;
-      if (mandatoryKeys.size === 0) return;
       setLocalValues((prev) => {
         const getVal = (field: string) => {
           const v = prev[field] !== undefined ? prev[field] : (item as any)[field];
           return v ? String(v).trim() : null;
         };
-        const fabParts = FAB_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
-          .map((f) => getVal(f.field))
-          .filter(Boolean) as string[];
-        const bodyParts = BODY_FIELDS.filter((f) => mandatoryKeys.has(f.schemaKey))
-          .map((f) => getVal(f.field))
-          .filter(Boolean) as string[];
+        const fabParts = FAB_FIELDS.map((f) => getVal(f.field)).filter(Boolean) as string[];
+        const bodyParts = BODY_FIELDS.map((f) => getVal(f.field)).filter(Boolean) as string[];
         const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
         const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
         const updates: Record<string, string | null> = {};
@@ -506,10 +654,25 @@ const ArticleCard = React.memo(
         if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
         return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
       });
-    }, [mandatoryKeys, item, FAB_FIELDS, BODY_FIELDS]);
+    }, [item, FAB_FIELDS, BODY_FIELDS]);
 
     const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
     const status = getDisplayStatus(item);
+
+    // Division is non-editable for APPROVER/CATEGORY_HEAD users locked to a specific division
+    const canEditDivision = useMemo(() => {
+      if (isLocked) return false;
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if ((u.role === 'APPROVER' || u.role === 'CATEGORY_HEAD') && !!u.division) return false;
+        }
+      } catch {
+        /* ignore */
+      }
+      return true;
+    }, [isLocked]);
 
     const imgSrc = refreshedUrl || item.imageUrl;
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
@@ -574,12 +737,18 @@ const ArticleCard = React.memo(
           const json = await res.json();
           const opts = (json.data ?? []).map(
             (v: { vendorCode: string; vendorName: string; vendorCity?: string }) => ({
-              value: v.vendorName,
+              // Use "NAME||CODE" as value so duplicates with same name are distinguishable.
+              // onSelect strips the code suffix before saving the actual vendor name.
+              value: `${v.vendorName}||${v.vendorCode}`,
               vendorCode: v.vendorCode,
+              vendorName: v.vendorName,
               label: (
                 <div className="flex justify-between gap-2">
                   <span className="font-medium">{v.vendorName}</span>
-                  <span className="text-[11px] text-muted-foreground">{v.vendorCity ?? ''}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {v.vendorCode}
+                    {v.vendorCity ? ` · ${v.vendorCity}` : ''}
+                  </span>
                 </div>
               ),
             }),
@@ -774,14 +943,16 @@ const ArticleCard = React.memo(
                   options={vendorOptions}
                   notFoundContent={vendorSearching ? <Spinner size="sm" /> : null}
                   onSelect={(val, option) => {
-                    handleSave('vendorName', val || null);
-                    if (option.vendorCode) {
-                      setLocalValues((prev) => ({ ...prev, vendorCode: option.vendorCode }));
-                      onSave(
-                        { ...item, vendorCode: option.vendorCode } as ApproverItem,
-                        { vendorCode: option.vendorCode } as Record<string, unknown>,
-                      );
-                    }
+                    // option.vendorName is the clean name (no code suffix)
+                    const cleanName = (option as any).vendorName || String(val ?? '').split('||')[0];
+                    const updates: Record<string, string | null> = { vendorName: cleanName };
+                    if ((option as any).vendorCode) updates.vendorCode = (option as any).vendorCode;
+                    setLocalValues((prev) => ({ ...prev, ...updates }));
+                    onSave(
+                      { ...item, ...updates } as ApproverItem,
+                      updates as Record<string, unknown>,
+                    );
+                    setEditingField(null);
                     setVendorOptions([]);
                     setVendorQuery('');
                   }}
@@ -828,12 +999,14 @@ const ArticleCard = React.memo(
       values: any[];
       freeText: boolean;
       group: string;
+      isMandatory?: boolean;
     }) => {
       _attrCounter += 1;
       const num = _attrCounter;
       const currentValue = getValue(attr.field);
-      const isEmpty = !currentValue;
-      const isMandatory = !attr.freeText && mandatoryKeys.has(attr.schemaKey);
+      const isEffectivelyEmpty = !currentValue || currentValue.trim() === '';
+      const isEmpty = isEffectivelyEmpty;
+      const isMandatory = !attr.freeText && (attr.isMandatory ?? mandatoryKeys.has(attr.schemaKey));
       const isEditing = editingField === attr.field;
       const isUserEdited = !!localValues[attr.field];
 
@@ -870,7 +1043,7 @@ const ArticleCard = React.memo(
               isEditing ? (
                 <Input
                   autoFocus
-                  defaultValue={currentValue || ''}
+                  defaultValue={isEffectivelyEmpty ? '' : currentValue || ''}
                   className="h-6 px-1 text-[11px]"
                   onKeyDown={(e) =>
                     e.key === 'Enter' && handleSave(attr.field, (e.target as HTMLInputElement).value || null)
@@ -881,16 +1054,23 @@ const ArticleCard = React.memo(
                 <span
                   className="block truncate text-right text-[11px]"
                   style={{
-                    color: isEmpty ? '#9ca3af' : '#111827',
-                    fontStyle: isEmpty ? 'italic' : 'normal',
+                    color: isEffectivelyEmpty ? (isMandatory ? '#dc2626' : '#9ca3af') : '#111827',
+                    fontStyle: isEffectivelyEmpty && !isMandatory ? 'italic' : 'normal',
+                    fontWeight: isMandatory && isEffectivelyEmpty ? 600 : 'normal',
                   }}
                 >
-                  {currentValue || (isLocked ? '—' : 'Click')}
+                  {isEffectivelyEmpty
+                    ? isMandatory && !isLocked
+                      ? 'Required'
+                      : isLocked
+                      ? '—'
+                      : 'Click'
+                    : currentValue}
                 </span>
               )
             ) : isEditing ? (
               <Select
-                defaultValue={currentValue || undefined}
+                defaultValue={isEffectivelyEmpty ? undefined : currentValue || undefined}
                 onValueChange={(val) => handleSave(attr.field, val ?? null)}
               >
                 <SelectTrigger className="h-6 w-full text-[11px]">
@@ -908,11 +1088,14 @@ const ArticleCard = React.memo(
               <span
                 className="flex items-center justify-end gap-1 text-right text-[11px]"
                 style={{
-                  color: isEmpty ? (isMandatory ? '#ea580c' : '#9ca3af') : '#111827',
-                  fontStyle: isEmpty ? 'italic' : 'normal',
+                  color: isEffectivelyEmpty ? (isMandatory ? '#dc2626' : '#9ca3af') : '#111827',
+                  fontStyle: isEffectivelyEmpty && !isMandatory ? 'italic' : 'normal',
+                  fontWeight: isMandatory && isEffectivelyEmpty ? 600 : 'normal',
                 }}
               >
-                <span className="truncate">{currentValue || (isMandatory ? 'Required' : '—')}</span>
+                <span className="truncate">
+                  {isEffectivelyEmpty ? (isMandatory ? 'Required' : '—') : currentValue}
+                </span>
                 <ChevronDown className="h-3 w-3 shrink-0 opacity-40" />
               </span>
             )}
@@ -992,18 +1175,123 @@ const ArticleCard = React.memo(
                   <Info className="h-4 w-4 shrink-0 cursor-pointer text-amber-200" />
                 </Tooltip>
               )}
-              <span className="truncate text-[12px] text-white/90">
-                {[formatDivisionLabel(item.division), item.subDivision].filter(Boolean).join(' › ')}
+              {/* ── Editable Division › SubDivision ── */}
+              <span className="flex items-center gap-1 truncate text-[12px] text-white/90">
+                {editingField === 'topbar_division' ? (
+                  <Select
+                    defaultValue={(localValues['division'] ?? item.division) || undefined}
+                    onValueChange={(val) => {
+                      // Changing division resets subDivision (no longer valid)
+                      const updates = { division: val || null, subDivision: null as string | null };
+                      setLocalValues((prev) => ({ ...prev, ...updates }));
+                      setEditingField(null);
+                      onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+                    }}
+                  >
+                    <SelectTrigger className="h-6 w-28 border-white/30 bg-white/10 text-[11px] text-white">
+                      <SelectValue placeholder="Select division" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LADIES">LADIES</SelectItem>
+                      <SelectItem value="MENS">MENS</SelectItem>
+                      <SelectItem value="KIDS">KIDS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span
+                    onClick={() => {
+                      if (canEditDivision) setEditingField('topbar_division');
+                    }}
+                    style={{
+                      cursor: canEditDivision ? 'pointer' : 'default',
+                      borderBottom: canEditDivision ? '1px dashed rgba(255,255,255,0.4)' : 'none',
+                      fontStyle: (localValues['division'] ?? item.division) ? 'normal' : 'italic',
+                      opacity: (localValues['division'] ?? item.division) ? 1 : 0.7,
+                    }}
+                  >
+                    {formatDivisionLabel(localValues['division'] ?? item.division) ||
+                      (canEditDivision ? 'set division' : '—')}
+                  </span>
+                )}
+                <span className="text-white/40">›</span>
+                {editingField === 'topbar_subDivision' ? (
+                  <Select
+                    defaultValue={(localValues['subDivision'] ?? item.subDivision) || undefined}
+                    onValueChange={(val) => handleSave('subDivision', val || null)}
+                  >
+                    <SelectTrigger className="h-6 w-32 border-white/30 bg-white/10 text-[11px] text-white">
+                      <SelectValue placeholder="Select sub-division" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const effectiveDiv = (localValues['division'] ?? item.division) || '';
+                        let hierKey = '';
+                        if (effectiveDiv.match(/LADIES|WOMEN/i)) hierKey = 'Ladies';
+                        else if (effectiveDiv.match(/KIDS/i)) hierKey = 'Kids';
+                        else if (effectiveDiv.match(/MEN/i)) hierKey = 'MENS';
+                        return (SIMPLIFIED_HIERARCHY[hierKey] || []).map((sd: string) => (
+                          <SelectItem key={sd} value={sd}>
+                            {sd}
+                          </SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span
+                    onClick={() => {
+                      if (!isLocked) setEditingField('topbar_subDivision');
+                    }}
+                    style={{
+                      cursor: isLocked ? 'default' : 'pointer',
+                      borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                      fontStyle: (localValues['subDivision'] ?? item.subDivision) ? 'normal' : 'italic',
+                      opacity: (localValues['subDivision'] ?? item.subDivision) ? 1 : 0.7,
+                    }}
+                  >
+                    {(localValues['subDivision'] ?? item.subDivision) || (isLocked ? '—' : 'set sub-div')}
+                  </span>
+                )}
               </span>
               {(item.sapArticleId || item.articleNumber) && (
                 <Badge className="bg-white/20 px-2 py-0.5 text-[11px] font-mono text-white">
                   {item.sapArticleId || item.articleNumber}
                 </Badge>
               )}
-              <span className="ml-2 truncate text-[11px] text-white/75">
-                {[item.designNumber && `Design: ${item.designNumber}`, item.vendorName].filter(Boolean).join('  ·  ')}
-                {item.rate != null && `  ·  ₹${item.rate}`}
-                {item.mrp != null && Number(item.mrp) > 1 && ` / ₹${item.mrp}`}
+              {/* ── Editable Design + Vendor + Price + Date ── */}
+              <span className="ml-2 flex flex-wrap items-center gap-1.5 truncate text-[11px] text-white/75">
+                <span className="flex items-center gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Design:</span>
+                  {editingField === 'topbar_designNumber' ? (
+                    <Input
+                      autoFocus
+                      defaultValue={(localValues['designNumber'] ?? item.designNumber) || ''}
+                      className="h-5 w-24 border-white/30 bg-white/10 px-1 text-[11px] text-white"
+                      onKeyDown={(e) =>
+                        e.key === 'Enter' &&
+                        handleSave('designNumber', (e.target as HTMLInputElement).value || null)
+                      }
+                      onBlur={(e) => handleSave('designNumber', e.target.value || null)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => {
+                        if (!isLocked) setEditingField('topbar_designNumber');
+                      }}
+                      style={{
+                        cursor: isLocked ? 'default' : 'pointer',
+                        borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                      }}
+                    >
+                      {(localValues['designNumber'] ?? item.designNumber) || (isLocked ? '—' : 'Click to fill')}
+                    </span>
+                  )}
+                </span>
+                {item.vendorName && <span className="text-white/40">·</span>}
+                {item.vendorName}
+                {item.rate != null && <>&nbsp;·&nbsp;₹{item.rate}</>}
+                {item.mrp != null && Number(item.mrp) > 1 && <> / ₹{item.mrp}</>}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -1429,11 +1717,10 @@ const ArticleCard = React.memo(
                     </div>
                     <div className="space-y-0 p-1">
                       {[
-                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: false, isDropdown: false },
+                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false },
                         { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
                         { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isMarkdown: true },
-                        { label: 'IMP_ATBT-1', field: 'macroMvgr', editable: true, mandatory: true, isDropdown: true },
-                        { label: 'IMP_ATRBT-2', field: 'impAtrbt2', editable: true, mandatory: true, isDropdown: true },
+                        { label: 'IMP_ATBT', field: 'impAtrbt2', editable: true, mandatory: true, isDropdown: true },
                       ].map((bom) => {
                         const isEditingBom = editingField === `bom_${bom.field}`;
                         const val = bom.isMarkdown
