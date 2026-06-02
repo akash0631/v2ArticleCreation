@@ -1,99 +1,41 @@
-/* ── Expand button — make it clearly visible ─────────────────────────────── */
-.ant-table-row-expand-icon {
-  width: 22px !important;
-  height: 22px !important;
-  line-height: 20px !important;
-  font-size: 14px !important;
-  border: 2px solid #1890ff !important;
-  border-radius: 4px !important;
-  color: #1890ff !important;
-  background: #e6f4ff !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-}
+/* All `.ant-table-*` selectors are no-ops since antd is removed.
+ * Density rules live on the shadcn `tr` / `td` elements now. */
 
-.ant-table-row-expand-icon:hover {
-  background: #1890ff !important;
-  color: #fff !important;
-}
-
-.ant-table-row-expand-icon-expanded {
-  background: #1890ff !important;
-  color: #fff !important;
-}
-
-/* ── Compact (small) density — ratio >= 1, normal / zoomed-in screens ─────── */
-.approver-compact-table .ant-table-thead > tr > th,
-.approver-compact-table .ant-table-tbody > tr > td {
+.approver-compact-table tr > th,
+.approver-compact-table tr > td {
   padding: 2px 5px !important;
 }
+.approver-compact-table thead > tr > th { font-size: 11px; }
+.approver-compact-table tbody > tr > td { font-size: 12px; }
 
-.approver-compact-table .ant-table-thead > tr > th {
-  font-size: 11px;
+.approver-comfortable-table tr > th,
+.approver-comfortable-table tr > td {
+  padding: 6px 8px !important;
 }
+.approver-comfortable-table thead > tr > th { font-size: 12px; }
+.approver-comfortable-table tbody > tr > td { font-size: 13px; }
 
-.approver-compact-table .ant-table-tbody > tr > td {
-  font-size: 12px;
-}
-
-.approver-compact-table .editable-cell-value_wrap {
+.editable-cell-value_wrap {
   display: flex;
   align-items: center;
   min-height: 20px;
-  padding: 2px 6px !important;
+  padding: 2px 6px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
+  border-radius: var(--radius-control, 8px);
   background: #ffffff;
-  transition: all 0.2s ease;
+  transition: border-color var(--duration-fast, 150ms) var(--ease-out-quart, ease-out),
+              box-shadow var(--duration-fast, 150ms) var(--ease-out-quart, ease-out);
 }
 
-.approver-compact-table .editable-cell-value_wrap:hover {
-  border-color: rgba(0, 0, 0, 0.22);
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+.editable-cell-value_wrap:hover {
+  border-color: var(--color-primary, #FF6F61);
+  box-shadow: inset 0 0 0 1px rgba(255, 111, 97, 0.15);
 }
 
-/* ── Comfortable (middle) density — ratio < 1, zoomed-out / large screens ─── */
-.approver-comfortable-table .ant-table-thead > tr > th,
-.approver-comfortable-table .ant-table-tbody > tr > td {
-  padding: 6px 8px !important;
+/* Subtle row hover — coral tint replaces the old blue */
+tbody > tr {
+  transition: background-color var(--duration-fast, 150ms) var(--ease-out-quart, ease-out);
 }
-
-.approver-comfortable-table .ant-table-thead > tr > th {
-  font-size: 12px;
-}
-
-.approver-comfortable-table .ant-table-tbody > tr > td {
-  font-size: 13px;
-}
-
-.approver-comfortable-table .editable-cell-value_wrap {
-  display: flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 8px !important;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 6px;
-  background: #ffffff;
-  transition: all 0.2s ease;
-}
-
-.approver-comfortable-table .editable-cell-value_wrap:hover {
-  border-color: rgba(0, 0, 0, 0.22);
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-
-.ant-table-tbody > tr {
-  transition: all 0.3s ease;
-}
-
-.ant-table-tbody > tr:hover > td {
-  background: rgba(255, 255, 255, 0.95) !important;
-  transform: scale(1.002);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  position: relative;
-  z-index: 10;
+tbody > tr:hover > td {
+  background: rgba(255, 111, 97, 0.04);
 }

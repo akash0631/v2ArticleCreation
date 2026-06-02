@@ -835,7 +835,7 @@ const ArticleCard = React.memo(
             <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
             {autoFillFn && !isLocked && (
               <span
-                className="cursor-pointer text-[9px] text-indigo-600 underline"
+                className="cursor-pointer text-[9px] text-slate-700 underline"
                 onClick={(e) => {
                   e.stopPropagation();
                   autoFillFn();
@@ -875,7 +875,7 @@ const ArticleCard = React.memo(
         field: 'articleNumber',
         editable: !item.sapArticleId,
         required: false,
-        color: item.sapArticleId ? '#15803d' : '#1d4ed8',
+        color: item.sapArticleId ? '#15803d' : '#FF6F61',
       },
       { label: 'VENDOR CODE', field: 'vendorCode', editable: true, required: true, color: '#1f2937' },
       { label: 'VENDOR NAME', field: 'vendorName', editable: true, required: true, color: '#1f2937' },
@@ -1157,7 +1157,7 @@ const ArticleCard = React.memo(
                 checked={isSelected}
                 disabled={item.approvalStatus === 'REJECTED'}
                 onCheckedChange={() => onToggleSelect(item.id)}
-                className="border-white/60 bg-white/10 data-[state=checked]:bg-white data-[state=checked]:text-indigo-600"
+                className="border-white/60 bg-white/10 data-[state=checked]:bg-white data-[state=checked]:text-[#FF6F61]"
               />
               <Badge
                 style={{ background: status.color + 'cc', color: '#fff', borderColor: status.color }}
@@ -1454,7 +1454,7 @@ const ArticleCard = React.memo(
                       </div>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="inline-block h-3 w-3 rounded border border-indigo-300 bg-indigo-100" />
+                          <span className="inline-block h-3 w-3 rounded border border-slate-400 bg-slate-200" />
                           AI Predicted
                         </div>
                         <div className="flex items-center gap-2">
@@ -1553,7 +1553,7 @@ const ArticleCard = React.memo(
                                         {autoFillFn && !isLocked && (
                                           <button
                                             type="button"
-                                            className="text-[9px] text-indigo-600 underline hover:text-indigo-800"
+                                            className="text-[9px] text-slate-700 underline hover:text-[#FF6F61]"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               autoFillFn();
@@ -1603,7 +1603,7 @@ const ArticleCard = React.memo(
                                       <Button
                                         size="sm"
                                         onClick={() => onCreateFabricArticle(item)}
-                                        className="h-7 w-full border border-indigo-300 bg-indigo-50 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100"
+                                        className="h-7 w-full border border-slate-300 bg-slate-50 text-[11px] font-medium text-slate-700 hover:bg-[#FF6F61]/10 hover:border-[#FF6F61]/40 hover:text-[#FF6F61]"
                                       >
                                         <FileText />
                                         Create Fabric Article
@@ -1645,7 +1645,7 @@ const ArticleCard = React.memo(
                                         {autoFillFn && !isLocked && (
                                           <button
                                             type="button"
-                                            className="text-[9px] text-indigo-600 underline hover:text-indigo-800"
+                                            className="text-[9px] text-slate-700 underline hover:text-[#FF6F61]"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               autoFillFn();

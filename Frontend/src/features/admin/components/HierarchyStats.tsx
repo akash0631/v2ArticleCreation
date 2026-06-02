@@ -12,12 +12,13 @@ interface HierarchyStatsProps {
 }
 
 export const HierarchyStats = ({ stats, loading }: HierarchyStatsProps) => {
+  // Slate + coral + sunset + emerald palette (no blue / purple / pink)
   const statCards = [
     { title: 'Departments', value: stats?.departments || 0, Icon: Building2, color: '#FF6F61' },
-    { title: 'Sub-Departments', value: stats?.subDepartments || 0, Icon: Folder, color: '#722ed1' },
-    { title: 'Categories', value: stats?.categories || 0, Icon: Tags, color: '#52c41a' },
-    { title: 'Master Attributes', value: stats?.masterAttributes || 0, Icon: Palette, color: '#fa8c16' },
-    { title: 'Allowed Values', value: stats?.allowedValues || 0, Icon: Star, color: '#eb2f96' },
+    { title: 'Sub-Departments', value: stats?.subDepartments || 0, Icon: Folder, color: '#FFA62B' },
+    { title: 'Categories', value: stats?.categories || 0, Icon: Tags, color: '#10b981' },
+    { title: 'Master Attributes', value: stats?.masterAttributes || 0, Icon: Palette, color: '#1f2937' },
+    { title: 'Allowed Values', value: stats?.allowedValues || 0, Icon: Star, color: '#FF6F61' },
   ];
 
   if (loading) {

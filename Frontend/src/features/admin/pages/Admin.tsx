@@ -836,7 +836,7 @@ export default function Admin() {
                 title="Completed"
                 value={stats.completed}
                 prefix={<CheckCircle2 className="h-5 w-5" />}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: '#10b981' }}
               />
             </CardContent>
           </Card>
@@ -846,7 +846,7 @@ export default function Admin() {
                 title="Failed"
                 value={stats.failed}
                 prefix={<XCircle className="h-5 w-5" />}
-                valueStyle={{ color: '#f5222d' }}
+                valueStyle={{ color: '#e11d48' }}
               />
             </CardContent>
           </Card>
@@ -1823,7 +1823,7 @@ export default function Admin() {
                   title="Total Cost Price"
                   value={expenseData.totalCostPrice}
                   prefix="$"
-                  valueStyle={{ color: '#1890ff' }}
+                  valueStyle={{ color: '#FF6F61' }}
                 />
               ) : (
                 <Empty description="No expense data available" />
@@ -1839,17 +1839,17 @@ export default function Admin() {
             <CardContent>
               {imageData ? (
                 <div className="grid grid-cols-2 gap-4">
-                  <Statistic title="Total Images Used" value={imageData.totalImages} valueStyle={{ color: '#722ed1' }} />
-                  <Statistic title="Unique Images" value={imageData.uniqueImages} valueStyle={{ color: '#13c2c2' }} />
+                  <Statistic title="Total Images Used" value={imageData.totalImages} valueStyle={{ color: '#FF6F61' }} />
+                  <Statistic title="Unique Images" value={imageData.uniqueImages} valueStyle={{ color: '#FFA62B' }} />
                   <Statistic
                     title="Images with Costs"
                     value={expenseData?.totalJobsWithCosts || 0}
-                    valueStyle={{ color: '#1890ff' }}
+                    valueStyle={{ color: '#1f2937' }}
                   />
                   <Statistic
                     title="Avg Images/Day"
                     value={imageData.averageImagesPerDay}
-                    valueStyle={{ color: '#eb2f96' }}
+                    valueStyle={{ color: '#10b981' }}
                   />
                 </div>
               ) : (
