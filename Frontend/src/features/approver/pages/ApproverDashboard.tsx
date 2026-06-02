@@ -39,8 +39,63 @@ import {
   getMajCatMandatoryKeys,
   SCHEMA_KEY_TO_EXCEL_ATTR,
   normalizeMajorCategory,
+  SAP_NAME_TO_SCHEMA_KEY,
+  SCHEMA_KEY_TO_DB_FIELD,
 } from '../../../data/majCatAttributeMap';
-import { preloadAttributeValues } from '../../../services/articleConfigService';
+import {
+  preloadAttributeValues,
+  isMandatoryGridFieldActive,
+  getMandatoryGridFieldLabel,
+} from '../../../services/articleConfigService';
+
+// Maps schemaKey → ALL SAP key aliases (including legacy/DB variants).
+// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
+// which variant the uploaded Excel used (e.g. 'Price Band Category' vs 'SEGMENT').
+const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY).reduce(
+  (acc, [sapKey, schemaKey]) => {
+    if (!acc[schemaKey]) acc[schemaKey] = [];
+    acc[schemaKey].push(sapKey);
+    return acc;
+  },
+  {} as Record<string, string[]>,
+);
+
+/**
+ * Returns the list of mandatory field labels that are empty for a given article.
+ * Always-required: VENDOR NAME, RATE, MRP, IMP_ATBT (for all major categories).
+ * Grid-driven: any field marked active (1) in the uploaded Mandatory Grid Excel.
+ * Uses human-readable labels from the Excel Row 4 (e.g. "BODY STYLE" not "M_PATTERN").
+ */
+function getMissingMandatoryFields(item: any): string[] {
+  const missing: string[] = [];
+
+  // ── Always required for every major category ──
+  if (!item.vendorName) missing.push('VENDOR NAME');
+  if (!item.rate) missing.push('RATE / COST');
+  if (!item.mrp) missing.push('MRP');
+  if (!item.impAtrbt2) missing.push('IMP_ATBT');
+
+  // ── Grid-driven mandatory fields ──
+  const majorCat = item.majorCategory || '';
+  if (!majorCat) return missing;
+
+  for (const [schemaKey, dbField] of Object.entries(SCHEMA_KEY_TO_DB_FIELD)) {
+    // Check ALL SAP key aliases — DB may use a different variant than the Excel header
+    // e.g. segment: 'Price Band Category' (Excel) vs 'SEGMENT' (DB sap_key)
+    const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[schemaKey] ?? [];
+    if (sapKeys.length === 0) continue;
+    const isActive = sapKeys.some((sk) => isMandatoryGridFieldActive(majorCat, sk) === true);
+    if (!isActive) continue;
+    const value = item[dbField];
+    if (!value) {
+      // Use label from whichever alias is active in the grid (first match wins)
+      const activeSapKey = sapKeys.find((sk) => isMandatoryGridFieldActive(majorCat, sk) === true)!;
+      const label = getMandatoryGridFieldLabel(activeSapKey) || activeSapKey;
+      missing.push(label);
+    }
+  }
+  return missing;
+}
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import { exportToExcel } from '../../../shared/utils/export/extractionExport';
 
@@ -91,14 +146,89 @@ const getSubDivisionVariants = (value?: string | null): string[] =>
   );
 
 export const SIMPLE_APPROVER_EXPORT_HEADERS = [
-  'Article Number', 'Division', 'Sub Division', 'Major Category', 'Status', 'Vendor Name', 'Vendor Code',
-  'Design Number', 'PPT Number', 'Rate', 'MRP', 'Size', 'Pattern', 'Fit', 'Wash', 'Macro MVGR', 'Main MVGR',
-  'Yarn 1', 'Fabric Main MVGR', 'Weave', 'M FAB 2', 'Composition', 'Finish', 'GSM', 'Weight', 'Lycra',
-  'M FAB DIV', 'Shade', 'Neck', 'Neck Details', 'Sleeve', 'Length', 'Collar', 'Placket', 'Bottom Fold',
-  'Front Open Style', 'Pocket Type', 'Drawcord', 'Button', 'Zipper', 'Zip Colour', 'Father Belt',
-  'Child Belt', 'Print Type', 'Print Style', 'Print Placement', 'Patches', 'Patches Type', 'Embroidery',
-  'Embroidery Type', 'Reference Article Number', 'Reference Article Description', 'MC Code', 'Segment',
-  'Season', 'HSN Tax Code', 'Article Description', 'Fashion Grid', 'Year', 'Article Type', 'Extracted By',
+  // Identity
+  'Article Number',
+  'Division',
+  'Sub Division',
+  'Major Category',
+  'MC Code',
+  'Status',
+  'Vendor Name',
+  'Vendor Code',
+  'Design Number',
+  'PPT Number',
+  'Article Description',
+  'Reference Article Number',
+  'Reference Article Description',
+  'Season',
+  'HSN Tax Code',
+  'Year',
+  'Article Type',
+  // BOM
+  'Rate',
+  'MRP',
+  'IMP_ATBT',
+  // FAB group
+  'FAB_MAIN_MVGR-1',
+  'FAB-MAIN-MVGR-2',
+  'WEAVE-01',
+  'WEAVE 02',
+  'M_YARN',
+  'M_COMPOSITION',
+  'M_COUNT',
+  'M_CONSTRUCTION',
+  'M_LYCRA',
+  'M_FINISH',
+  'M_GSM',
+  'M_OUNZ',
+  'M_WIDTH',
+  'M_FAB_DIV',
+  'SHADE',
+  'WEIGHT',
+  // BODY group
+  'BODY STYLE',
+  'M_COLLAR_TYPE',
+  'M_COLLAR_STYLE',
+  'M_NECK_TYPE',
+  'M_NECK_STYLE',
+  'M_PLACKET',
+  'M_BLT_TYPE',
+  'M_BLT_STYLE',
+  'M_SLEEVES_MAIN_STYLE',
+  'M_SLEEVE_FOLD',
+  'M_BTM_FOLD',
+  'M_NO_OF_POCKET',
+  'M_POCKET',
+  'M_EXTRA_POCKET',
+  'M_FIT',
+  'M_LENGTH',
+  'FO BTN STYLE',
+  // VA ACC group
+  'M_DC_STYLE',
+  'M_DC_SHAPE',
+  'M_BTN_TYPE',
+  'M_BTN_CLR',
+  'M_ZIP_TYPE',
+  'M_ZIP_COL',
+  'M_PATCH_STYLE',
+  'M_PATCHE_TYPE',
+  'M_HTRF_TYPE',
+  'M_HTRF_STYLE',
+  // VA PRCS group
+  'M_PRINT_TYPE',
+  'M_PRINT_STYLE',
+  'M_PRINT_PLACEMENT',
+  'M_EMB_TYPE',
+  'M_EMBROIDERY_STYLE',
+  'M_EMB_PLACEMENT',
+  'M_WASH',
+  // BUSINESS group
+  'AGE GROUP',
+  'ARTICLE FASHION TYPE',
+  'SEGMENT',
+  'MVGR_BRAND_VENDOR',
+  // Meta
+  'Extracted By',
   'Created Date',
 ] as const;
 
@@ -144,28 +274,6 @@ const ATTRIBUTE_FIELDS: { formName: string; label: string; schemaKey: string }[]
 ];
 
 const PAGE_SIZE = 50;
-
-const FIELD_TO_SCHEMA_KEY: Record<string, string> = {
-  macroMvgr: 'macro_mvgr', yarn1: 'yarn_01', mainMvgr: 'main_mvgr',
-  fabricMainMvgr: 'fabric_main_mvgr', weave: 'weave', mFab2: 'm_fab2',
-  composition: 'composition', fCount: 'f_count', fConstruction: 'f_construction',
-  lycra: 'lycra_non_lycra', finish: 'finish', gsm: 'gsm',
-  fOunce: 'f_ounce', fWidth: 'f_width', fabDiv: 'fab_div',
-  collar: 'collar', collarStyle: 'collar_style', neckDetails: 'neck_details',
-  neck: 'neck', placket: 'placket', fatherBelt: 'father_belt',
-  sleeve: 'sleeve', sleeveFold: 'sleeve_fold', bottomFold: 'bottom_fold',
-  noOfPocket: 'no_of_pocket', pocketType: 'pocket_type', extraPocket: 'extra_pocket',
-  fit: 'fit', pattern: 'body_style', length: 'length',
-  drawcord: 'drawcord', dcShape: 'dc_shape', button: 'button',
-  btnColour: 'btn_colour', zipper: 'zipper', zipColour: 'zip_colour',
-  patchesType: 'patches_type', patches: 'patches',
-  htrfType: 'htrf_type', htrfStyle: 'htrf_style',
-  printType: 'print_type', printStyle: 'print_style', printPlacement: 'print_placement',
-  embroidery: 'embroidery', embroideryType: 'embroidery_type',
-  embPlacement: 'emb_placement', wash: 'wash',
-  ageGroup: 'age_group', articleFashionType: 'article_fashion_type',
-  mvgrBrandVendor: 'mvgr_brand_vendor',
-};
 
 interface ApproverDashboardProps {
   pathType?: 'old' | 'new' | 'rejected' | 'created';
@@ -324,65 +432,88 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       const createdAt = row.createdAt ? new Date(row.createdAt) : null;
       const formattedDate = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleDateString('en-GB') : '';
       return {
+        // Identity
         'Article Number': row.articleNumber || row.imageName || '',
         Division: row.division || '',
         'Sub Division': row.subDivision || '',
         'Major Category': row.majorCategory || '',
+        'MC Code': row.mcCode || '',
         Status: row.approvalStatus || '',
         'Vendor Name': row.vendorName || '',
         'Vendor Code': row.vendorCode || '',
         'Design Number': row.designNumber || '',
         'PPT Number': row.pptNumber || '',
-        Rate: row.rate == null ? undefined : Number(row.rate),
-        MRP: row.mrp == null ? undefined : Number(row.mrp),
-        Size: row.size || '',
-        Pattern: row.pattern || '',
-        Fit: row.fit || '',
-        Wash: row.wash || '',
-        'Macro MVGR': row.macroMvgr || '',
-        'Main MVGR': row.mainMvgr || '',
-        'Yarn 1': row.yarn1 || '',
-        'Fabric Main MVGR': row.fabricMainMvgr || '',
-        Weave: row.weave || '',
-        'M FAB 2': row.mFab2 || '',
-        Composition: row.composition || '',
-        Finish: row.finish || '',
-        GSM: row.gsm || '',
-        Weight: row.weight || '',
-        Lycra: row.lycra || '',
-        Shade: row.shade || '',
-        Neck: row.neck || '',
-        'Neck Details': row.neckDetails || '',
-        Sleeve: row.sleeve || '',
-        Length: row.length || '',
-        Collar: row.collar || '',
-        Placket: row.placket || '',
-        'Bottom Fold': row.bottomFold || '',
-        'Front Open Style': row.frontOpenStyle || '',
-        'Pocket Type': row.pocketType || '',
-        Drawcord: row.drawcord || '',
-        Button: row.button || '',
-        Zipper: row.zipper || '',
-        'Zip Colour': row.zipColour || '',
-        'Father Belt': row.fatherBelt || '',
-        'Child Belt': row.childBelt || '',
-        'Print Type': row.printType || '',
-        'Print Style': row.printStyle || '',
-        'Print Placement': row.printPlacement || '',
-        Patches: row.patches || '',
-        'Patches Type': row.patchesType || '',
-        Embroidery: row.embroidery || '',
-        'Embroidery Type': row.embroideryType || '',
+        'Article Description': row.articleDescription || '',
         'Reference Article Number': row.referenceArticleNumber || '',
         'Reference Article Description': row.referenceArticleDescription || '',
-        'MC Code': row.mcCode || '',
-        Segment: row.segment || '',
         Season: row.season || '',
         'HSN Tax Code': row.hsnTaxCode || '',
-        'Article Description': row.articleDescription || '',
-        'Fashion Grid': row.fashionGrid || '',
         Year: row.year || '',
         'Article Type': row.articleType || '',
+        // BOM
+        Rate: row.rate == null ? undefined : Number(row.rate),
+        MRP: row.mrp == null ? undefined : Number(row.mrp),
+        IMP_ATBT: row.impAtrbt2 || '',
+        // FAB group
+        'FAB_MAIN_MVGR-1': row.mainMvgr || '',
+        'FAB-MAIN-MVGR-2': row.fabricMainMvgr || '',
+        'WEAVE-01': row.weave || '',
+        'WEAVE 02': row.mFab2 || '',
+        M_YARN: row.yarn1 || '',
+        M_COMPOSITION: row.composition || '',
+        M_COUNT: row.fCount || '',
+        M_CONSTRUCTION: row.fConstruction || '',
+        M_LYCRA: row.lycra || '',
+        M_FINISH: row.finish || '',
+        M_GSM: row.gsm || '',
+        M_OUNZ: row.fOunce || '',
+        M_WIDTH: row.fWidth || '',
+        M_FAB_DIV: row.fabDiv || '',
+        SHADE: row.shade || '',
+        WEIGHT: row.weight || '',
+        // BODY group
+        'BODY STYLE': row.pattern || '',
+        M_COLLAR_TYPE: row.collar || '',
+        M_COLLAR_STYLE: row.collarStyle || '',
+        M_NECK_TYPE: row.neck || '',
+        M_NECK_STYLE: row.neckDetails || '',
+        M_PLACKET: row.placket || '',
+        M_BLT_TYPE: row.fatherBelt || '',
+        M_BLT_STYLE: row.childBelt || '',
+        M_SLEEVES_MAIN_STYLE: row.sleeve || '',
+        M_SLEEVE_FOLD: row.sleeveFold || '',
+        M_BTM_FOLD: row.bottomFold || '',
+        M_NO_OF_POCKET: row.noOfPocket || '',
+        M_POCKET: row.pocketType || '',
+        M_EXTRA_POCKET: row.extraPocket || '',
+        M_FIT: row.fit || '',
+        M_LENGTH: row.length || '',
+        'FO BTN STYLE': row.frontOpenStyle || '',
+        // VA ACC group
+        M_DC_STYLE: row.drawcord || '',
+        M_DC_SHAPE: row.dcShape || '',
+        M_BTN_TYPE: row.button || '',
+        M_BTN_CLR: row.btnColour || '',
+        M_ZIP_TYPE: row.zipper || '',
+        M_ZIP_COL: row.zipColour || '',
+        M_PATCH_STYLE: row.patchesType || '',
+        M_PATCHE_TYPE: row.patches || '',
+        M_HTRF_TYPE: row.htrfType || '',
+        M_HTRF_STYLE: row.htrfStyle || '',
+        // VA PRCS group
+        M_PRINT_TYPE: row.printType || '',
+        M_PRINT_STYLE: row.printStyle || '',
+        M_PRINT_PLACEMENT: row.printPlacement || '',
+        M_EMB_TYPE: row.embroidery || '',
+        M_EMBROIDERY_STYLE: row.embroideryType || '',
+        M_EMB_PLACEMENT: row.embPlacement || '',
+        M_WASH: row.wash || '',
+        // BUSINESS group
+        'AGE GROUP': row.ageGroup || '',
+        'ARTICLE FASHION TYPE': row.articleFashionType || '',
+        SEGMENT: row.segment || '',
+        MVGR_BRAND_VENDOR: row.mvgrBrandVendor || '',
+        // Meta
         'Extracted By': row.userName || '',
         'Created Date': formattedDate,
       } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
@@ -495,22 +626,15 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     [selectedRowKeys, items],
   );
 
+  // Block approve if VENDOR CODE or any mandatory grid field is missing.
   const approveBlockedReasons = useMemo(() => {
     const pendingItems = items.filter((i) => pendingSelectedKeys.includes(i.id));
     const errors: { articleId: string; missing: string[] }[] = [];
     for (const item of pendingItems) {
       const missing: string[] = [];
-      const majCat = normalizeMajorCategory(item.majorCategory || '', item.division || '');
-      const mandatoryKeys = getMajCatMandatoryKeys(majCat);
-      for (const [field, schemaKey] of Object.entries(FIELD_TO_SCHEMA_KEY)) {
-        const hasValues = getMajCatAllowedValues(item.division || '', schemaKey) !== null;
-        if (hasValues && mandatoryKeys.has(schemaKey) && !(item as any)[field]) {
-          missing.push(SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] || schemaKey);
-        }
-      }
-      if (!item.mrp || Number(item.mrp) === 0) missing.push('MRP');
-      if (!(item as any).impAtrbt2) missing.push('IMP_ATRBT-2');
       if (!item.vendorCode) missing.push('VENDOR CODE');
+      const mandatoryMissing = getMissingMandatoryFields(item);
+      missing.push(...mandatoryMissing);
       if (missing.length > 0) {
         errors.push({
           articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
@@ -1256,7 +1380,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
               fetchItems(page);
             },
           }}
-          onSave={async (row, directUpdates) => {
+          onSave={async (row, directUpdates, options) => {
+            // Snapshot items BEFORE optimistic update so we can revert in-place on error
+            const prevItems = [...items];
+
             const newData = [...items];
             const index = newData.findIndex((item) => item.id === row.id);
             let updatePayload: Record<string, unknown> = {};
@@ -1287,9 +1414,18 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 body: JSON.stringify(updatePayload),
               });
               if (!response.ok) {
-                const errText = await response.text();
-                console.error('[onSave] Save failed:', response.status, errText);
-                throw new Error('Update failed');
+                // Parse the real error message from the backend response
+                let errorMsg = 'Failed to save';
+                try {
+                  const payload = await response.json();
+                  if (payload?.error) errorMsg = payload.error;
+                } catch {
+                  /* keep default */
+                }
+                // Revert optimistic update in-place — no full page reload
+                setItems(prevItems);
+                message.error(errorMsg);
+                return;
               }
               const saved = await response.json();
               setItems((prev) => {
@@ -1303,10 +1439,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 };
                 return copy;
               });
-              message.success('Saved');
+              if (!options?.silent) message.success('Saved');
             } catch {
-              message.error('Failed to save');
-              fetchItems(currentPage);
+              // Network / unexpected error — revert in-place, no reload
+              setItems(prevItems);
+              message.error('Failed to save. Please check your connection.');
             }
           }}
         />

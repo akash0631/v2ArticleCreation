@@ -234,7 +234,7 @@ export interface ApproverArticleListProps {
   selectedRowKeys: React.Key[];
   onSelectionChange: (keys: React.Key[]) => void;
   onEdit: (item: ApproverItem) => void;
-  onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
+  onSave: (item: ApproverItem, updates: Record<string, unknown>, options?: { silent?: boolean }) => void;
   onCreateFabricArticle: (item: ApproverItem) => void;
   onCreateBodyArticle: (item: ApproverItem) => void;
   onProceedFGArticle: (item: ApproverItem) => void;
@@ -277,7 +277,7 @@ const ArticleCard = React.memo(
     item: ApproverItem;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
-    onSave: (item: ApproverItem, updates: Record<string, unknown>) => void;
+    onSave: (item: ApproverItem, updates: Record<string, unknown>, options?: { silent?: boolean }) => void;
     onCreateFabricArticle: (item: ApproverItem) => void;
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
