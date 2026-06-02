@@ -190,7 +190,7 @@ async function getDbValues(division: string): Promise<Record<string, string[]>> 
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const ZMM_RFC_URL = 'https://routemaster.v2retail.com:9010/api/ZMM_ART_CREATION_RFC';
+const ZMM_RFC_URL = 'https://sap-api.v2retail.net/api/ZMM_ART_CREATION_RFC?env=prod';
 
 const ZMM_RFC_ENABLED =
     (process.env.ZMM_RFC_ENABLED ?? process.env.SAP_SYNC_ENABLED ?? 'true').toLowerCase() === 'true';
@@ -200,10 +200,16 @@ const ZMM_RFC_ENABLED =
 type FlatItem = { id: string; [key: string]: unknown };
 
 type RfcResponse = {
+    // New API format
+    Status?: boolean | string;
+    Env?: string;
+    Message?: string;
+    SuccessCount?: number;
+    ErrorCount?: number;
+    EX_DATA?: Array<{ SAP_ART?: string; MSG_TYP?: string; MESSAGE?: string }>;
+    // Legacy flat format (old API)
     SAP_ART?: string;
     MSG_TYP?: string;
-    MESSAGE?: string;
-    Status?: boolean;
     [key: string]: unknown;
 };
 
@@ -285,8 +291,7 @@ const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
 
     // Business / segment
     { rfc: 'M_AGE_GROUP',           flat: 'ageGroup' },
-    { rfc: 'FASHION_GRADE',         flat: 'articleFashionType' },
-    { rfc: 'G_WEIGHT',              flat: 'weight' },
+    { rfc: 'NET_WEIGHT',            flat: 'weight' },         // renamed from G_WEIGHT in new API
 ];
 
 // RFC fields that should always be present (even as empty string) per the RFC contract
@@ -306,9 +311,8 @@ const RFC_ALWAYS_SEND_IF_PRESENT = new Set([
     'M_IMP_ATBT',          // IMP_ATBT
     // freeText fields (always visible in card, no dropdown filtering)
     'M_SHADE',             // shade
-    'G_WEIGHT',            // weight
+    'NET_WEIGHT',          // weight (renamed from G_WEIGHT in new API)
     'PRICE_BAND_CATEGORY', // segment
-    'FASHION_GRADE',       // articleFashionType
 ]);
 
 // ─── Mandatory field validation ───────────────────────────────────────────────
@@ -512,34 +516,56 @@ function parseRfcResponse(
         };
     }
 
-    // Support multiple SAP response key formats
-    const sapArt = toStr(parsed?.SAP_ART ?? parsed?.ArticleNumber ?? parsed?.ARTICLE_NUMBER ?? parsed?.artNo);
-    const msgTyp = toStr(parsed?.MSG_TYP ?? parsed?.MsgType ?? parsed?.TYPE ?? parsed?.type ?? '').toUpperCase();
-    const msgText = toStr(parsed?.MESSAGE ?? parsed?.Message ?? parsed?.message ?? parsed?.MSG ?? parsed?.msg ?? parsed?.error ?? parsed?.Error ?? '');
-    const statusFlag = parsed?.Status ?? parsed?.status ?? parsed?.SUCCESS ?? parsed?.success;
+    // New API: SAP_ART / MSG_TYP / MESSAGE are inside EX_DATA[0]
+    // Legacy API: those fields sit at the top level — fall back for backward compat
+    const exData = parsed?.EX_DATA?.[0];
+    const sapArt = toStr(exData?.SAP_ART ?? parsed?.SAP_ART ?? parsed?.ArticleNumber ?? parsed?.ARTICLE_NUMBER ?? parsed?.artNo);
+    const msgTyp = toStr(exData?.MSG_TYP ?? parsed?.MSG_TYP ?? parsed?.MsgType ?? parsed?.TYPE ?? parsed?.type ?? '').toUpperCase();
+    const msgText = toStr(exData?.MESSAGE ?? parsed?.MESSAGE ?? parsed?.Message ?? parsed?.message ?? parsed?.MSG ?? parsed?.msg ?? parsed?.error ?? parsed?.Error ?? '');
+
+    // New API: top-level Status (boolean) + SuccessCount / ErrorCount
+    const statusFlag   = parsed?.Status ?? parsed?.status ?? parsed?.SUCCESS ?? parsed?.success;
+    const successCount = typeof parsed?.SuccessCount === 'number' ? parsed.SuccessCount : undefined;
+    const errorCount   = typeof parsed?.ErrorCount   === 'number' ? parsed.ErrorCount   : undefined;
+
+    // When SAP returns an error (MSG_TYP='E' or Status=false) it sometimes puts the
+    // offending RFC field name (e.g. "M_ZIP_TYPE", "M_BODY_STYLE") into SAP_ART
+    // instead of a real article number.  Only accept SAP_ART as a real article number
+    // when the response is clearly a success.
+    const isErrorResponse =
+        msgTyp === 'E' || msgTyp === 'ERROR' ||
+        statusFlag === false || statusFlag === 'false' ||
+        statusFlag === 0     || statusFlag === '0';
+    const realSapArt = isErrorResponse ? '' : sapArt;
 
     // Log parsed fields to help debug
-    console.log(`[ZMM_RFC] Parsed → SAP_ART="${sapArt}" MSG_TYP="${msgTyp}" MESSAGE="${msgText}" Status="${statusFlag}" | Full keys: ${Object.keys(parsed || {}).join(', ')}`);
+    console.log(`[ZMM_RFC] Parsed → SAP_ART="${sapArt}" (real="${realSapArt}") MSG_TYP="${msgTyp}" MESSAGE="${msgText}" Status="${statusFlag}" SuccessCount=${successCount} ErrorCount=${errorCount} | Full keys: ${Object.keys(parsed || {}).join(', ')}`);
 
-    // Build readable message
+    // Build readable message — prefer the per-row message; fall back to summary
     const messageParts: string[] = [];
     if (msgTyp)  messageParts.push(`[${msgTyp}]`);
     if (msgText) messageParts.push(msgText);
-    const message = messageParts.join(' ') || (sapArt ? `Article created: ${sapArt}` : `SAP response HTTP ${statusCode} — ${JSON.stringify(parsed)}`);
+    // Append top-level summary (e.g. "1 created, 0 failed (of 1 rows).") if different from per-row text
+    const summaryMsg = toStr(parsed?.Message ?? '');
+    if (summaryMsg && summaryMsg !== msgText) messageParts.push(summaryMsg);
+    const message = messageParts.join(' ') || (realSapArt ? `Article created: ${realSapArt}` : `SAP response HTTP ${statusCode} — ${JSON.stringify(parsed)}`);
 
     // Determine success:
     // - HTTP 2xx AND
-    // - Status !== false AND
+    // - Status !== false (new API uses boolean true/false) AND
+    // - SuccessCount > 0 (if present) AND ErrorCount === 0 (if present) AND
     // - MSG_TYP not 'E' (error)
     const isHttpOk = statusCode >= 200 && statusCode < 300;
     const isStatusOk = statusFlag !== false && statusFlag !== 'false' && statusFlag !== 0 && statusFlag !== '0';
-    const isBusinessOk = isStatusOk && msgTyp !== 'E' && msgTyp !== 'ERROR';
-    // If SAP_ART is present, treat as success regardless
-    const ok = isHttpOk && (sapArt ? true : isBusinessOk);
+    const hasSuccessCount = successCount !== undefined ? successCount > 0  : true;
+    const hasNoErrors     = errorCount   !== undefined ? errorCount   === 0 : true;
+    const isBusinessOk = isStatusOk && hasSuccessCount && hasNoErrors && msgTyp !== 'E' && msgTyp !== 'ERROR';
+    // Only short-circuit on SAP_ART when it is a real article number (not an error field name)
+    const ok = isHttpOk && (realSapArt ? true : isBusinessOk);
 
     return {
         ok,
-        sapArticleNumber: sapArt || undefined,
+        sapArticleNumber: realSapArt || undefined,
         message,
     };
 }
@@ -591,15 +617,17 @@ export async function syncArticlesToSapViaRfc(
 
         console.log(`\n========== [ZMM_RFC] FULL PAYLOAD for flat_id=${item.id} ==========`);
         console.log(`API URL : ${ZMM_RFC_URL}`);
-        console.log(JSON.stringify(payload, null, 2));
+        console.log(JSON.stringify({ IM_DATA: [payload] }, null, 2));
         console.log(`====================================================================\n`);
 
         // ── 3. Call SAP RFC ──────────────────────────────────────────────────
+        // New API expects: { "IM_DATA": [ { ...fields } ] }
+        const requestBody = { IM_DATA: [payload] };
         try {
             const response = await fetch(ZMM_RFC_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(requestBody),
             });
 
             const responseText = await response.text();
