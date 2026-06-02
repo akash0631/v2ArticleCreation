@@ -1354,7 +1354,7 @@ export class ApproverController {
                 'frontOpenStyle', 'noOfPocket', 'pocketType', 'extraPocket',
                 'fit', 'pattern', 'length', 'colour', 'fatherBelt', 'childBelt',
                 // Fabric detail fields
-                'fCount', 'fConstruction', 'fOunce', 'fWidth', 'fabDiv',
+                'fCount', 'fConstruction', 'fOunce', 'fWidth', 'fabDiv', 'fabVdr',
                 // VA Accessories
                 'drawcord', 'dcShape', 'button', 'btnColour', 'zipper', 'zipColour',
                 'patches', 'patchesType',
@@ -1697,9 +1697,9 @@ export class ApproverController {
                     fatherBelt: true, childBelt: true, printType: true, printStyle: true,
                     printPlacement: true, patches: true, patchesType: true, embroidery: true,
                     embroideryType: true, embPlacement: true, htrfType: true, htrfStyle: true,
-                    wash: true, fit: true, segment: true, ageGroup: true,
+                    wash: true, fit: true, pattern: true, segment: true, ageGroup: true,
                     articleFashionType: true, mvgrBrandVendor: true, fCount: true,
-                    fConstruction: true, fOunce: true, fWidth: true, fabDiv: true, impAtrbt2: true,
+                    fConstruction: true, fOunce: true, fWidth: true, fabDiv: true, fabVdr: true, impAtrbt2: true,
                     mcCode: true, hsnTaxCode: true, articleDescription: true, fashionGrid: true,
                     season: true, year: true, articleType: true, referenceArticleNumber: true,
                     referenceArticleDescription: true, imageUrl: true, imageName: true,

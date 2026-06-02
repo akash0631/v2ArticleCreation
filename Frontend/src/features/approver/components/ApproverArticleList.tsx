@@ -48,23 +48,24 @@ const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_
 // freeText: true → renders as text input and is always visible (no dropdown/allowedValues check)
 const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string; schemaKey: string; freeText?: boolean }[] }[] = [
     {
-        group: 'FAB',
+        group: 'FABRIC',
         color: '#e6f4ff',
         fields: [
+            { field: 'fabDiv',         schemaKey: 'fab_div' },
             { field: 'yarn1',          schemaKey: 'yarn_01' },
             { field: 'mainMvgr',       schemaKey: 'main_mvgr' },
             { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
+            { field: 'fabVdr',         schemaKey: 'fab_vdr' },
             { field: 'weave',          schemaKey: 'weave' },
             { field: 'mFab2',          schemaKey: 'm_fab2' },
-            { field: 'composition',    schemaKey: 'composition' },
             { field: 'fCount',         schemaKey: 'f_count' },
-            { field: 'fConstruction',  schemaKey: 'f_construction' },
-            { field: 'lycra',          schemaKey: 'lycra_non_lycra' },
-            { field: 'finish',         schemaKey: 'finish' },
             { field: 'gsm',            schemaKey: 'gsm' },
             { field: 'fOunce',         schemaKey: 'f_ounce' },
+            { field: 'fConstruction',  schemaKey: 'f_construction' },
+            { field: 'composition',    schemaKey: 'composition' },
+            { field: 'finish',         schemaKey: 'finish' },
             { field: 'fWidth',         schemaKey: 'f_width' },
-            { field: 'fabDiv',         schemaKey: 'fab_div' },
+            { field: 'lycra',          schemaKey: 'lycra_non_lycra' },
             { field: 'shade',          schemaKey: 'shade',           freeText: true },
             { field: 'weight',         schemaKey: 'weight',          freeText: true },
         ],
@@ -89,7 +90,6 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
             { field: 'fit',            schemaKey: 'fit' },
             { field: 'pattern',        schemaKey: 'body_style' },
             { field: 'length',         schemaKey: 'length' },
-            { field: 'frontOpenStyle', schemaKey: 'front_open_style', freeText: true },
         ],
     },
     {
@@ -127,8 +127,8 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
         fields: [
             { field: 'ageGroup',           schemaKey: 'age_group' },
             { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
+            { field: 'impAtrbt2',          schemaKey: 'imp_atrbt2' },
             { field: 'segment',            schemaKey: 'segment',           freeText: true },
-            { field: 'mvgrBrandVendor',    schemaKey: 'mvgr_brand_vendor', freeText: true },
         ],
     },
 ];
@@ -136,9 +136,9 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
 // Builds ATTRIBUTE_GROUPS from API-driven AttributeGroupEntry list.
 // Falls back to the hardcoded ATTRIBUTE_GROUPS if API returns nothing.
 const GROUP_COLORS: Record<string, string> = {
-    'FAB': '#e6f4ff', 'BODY': '#f6ffed', 'VA ACC.': '#fff7e6', 'VA PRCS': '#fff0f6', 'BUSINESS': '#f9f0ff',
+    'FAB': '#e6f4ff', 'FABRIC': '#e6f4ff', 'BODY': '#f6ffed', 'VA ACC.': '#fff7e6', 'VA PRCS': '#fff0f6', 'BUSINESS': '#f9f0ff',
 };
-const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+const GROUP_ORDER = ['FAB', 'FABRIC', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 
 type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 
@@ -146,7 +146,6 @@ type CardGroup = typeof ATTRIBUTE_GROUPS[number];
 // even if they appear in the DB admin attribute list with a group assigned.
 const BOM_ONLY_SCHEMA_KEYS = new Set([
     'macro_mvgr',   // IMP_ATBT-1 / macroMvgr  → BOM field
-    'imp_atrbt2',   // IMP_ATBT   / impAtrbt2   → BOM field
 ]);
 
 function buildCardGroups(entries: { key: string; type: string; group: string }[]): CardGroup[] {
@@ -479,7 +478,7 @@ const ArticleCard = React.memo(({
     const refreshAttempted = React.useRef(false);
 
     const FAB_FIELDS = useMemo(() =>
-        (cardGroups.find(g => g.group === 'FAB')?.fields ?? []).filter(f => !f.freeText),
+        (cardGroups.find(g => g.group === 'FAB' || g.group === 'FABRIC')?.fields ?? []).filter(f => !f.freeText),
     [cardGroups]);
     const BODY_FIELDS = useMemo(() =>
         (cardGroups.find(g => g.group === 'BODY')?.fields ?? []).filter(f => !f.freeText),
@@ -977,7 +976,7 @@ const ArticleCard = React.memo(({
                         if (!groupMap[attr.group]) groupMap[attr.group] = { color: attr.groupColor, attrs: [] };
                         groupMap[attr.group].attrs.push(attr);
                     }
-                    const activeGroups = ATTRIBUTE_GROUPS.filter(g => groupMap[g.group]);
+                    const activeGroups = cardGroups.filter(g => groupMap[g.group]);
 
                     // BOM fields — always shown
                     const rateVal = String(getValue('rate') ?? '').trim();
@@ -1153,7 +1152,7 @@ const ArticleCard = React.memo(({
                                     </table>
 
                                     {/* FAB group: fabric article no + desc + button */}
-                                    {g.group === 'FAB' && (() => {
+                                    {(g.group === 'FAB' || g.group === 'FABRIC') && (() => {
                                         const renderField = (field: string, label: string, autoFillFn?: () => void, maxLen?: number) => {
                                             const displayVal = localValues[field] !== undefined ? localValues[field] : (item as any)[field];
                                             const isEditingThis = editingField === `bot_${field}`;
@@ -1273,17 +1272,14 @@ const ArticleCard = React.memo(({
                                             { label: 'RATE / COST',  field: 'rate',       editable: true,  mandatory: true  },
                                             { label: 'MRP',          field: 'mrp',        editable: true,  mandatory: true  },
                                             { label: 'MARKDOWN',     field: '_markdown',  editable: false, mandatory: false },
-                                            { label: 'IMP_ATBT',     field: 'impAtrbt2',  editable: true,  mandatory: true  },
                                         ].map(({ label, field, editable, mandatory }) => {
                                             const isEditingBom = editingField === `bom_${field}`;
                                             const val = field === '_markdown' ? markdown
                                                 : String(getValue(field) ?? '').trim() || '—';
                                             const isEmpty = val === '—';
-                                            const isDropdown = field === 'impAtrbt2' || field === 'macroMvgr';
+                                            const isDropdown = field === 'macroMvgr';
                                             const dropdownOptions: string[] = isDropdown
-                                                ? field === 'impAtrbt2'
-                                                    ? (getMajCatGridEntry(effectiveMajCat, 'IMP ATBT') ??attributes.find(a => a.key === 'imp_atrbt2')?.allowedValues.map(v => v.shortForm) ?? getCachedValues(item.division ?? '', 'impAtrbt2') ?? [])
-                                                    : (getCachedValues(item.division ?? '', field) ?? [])
+                                                ? (getCachedValues(item.division ?? '', field) ?? [])
                                                 : [];
                                             return (
                                                 <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>

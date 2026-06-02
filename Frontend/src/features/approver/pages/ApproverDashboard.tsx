@@ -36,7 +36,7 @@ function getMissingMandatoryFields(item: any): string[] {
     if (!item.vendorName) missing.push('VENDOR NAME');
     if (!item.rate)       missing.push('RATE / COST');
     if (!item.mrp)        missing.push('MRP');
-    if (!item.impAtrbt2)  missing.push('IMP_ATBT');
+    if (!item.impAtrbt2)  missing.push('M_IMP_ATBT');
 
     // ── Grid-driven mandatory fields ──
     const majorCat = item.majorCategory || '';
@@ -138,12 +138,11 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
     // BOM
     'Rate',
     'MRP',
-    'IMP_ATBT',
     // FAB group
-    'FAB_MAIN_MVGR-1',
-    'FAB-MAIN-MVGR-2',
-    'WEAVE-01',
-    'WEAVE 02',
+    'M_FAB_MAIN_MVGR_1',
+    'M_FAB_MAIN_MVGR_2',
+    'M_WEAVE_01',
+    'M_WEAVE_02',
     'M_YARN',
     'M_COMPOSITION',
     'M_COUNT',
@@ -154,10 +153,11 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
     'M_OUNZ',
     'M_WIDTH',
     'M_FAB_DIV',
+    'M_FAB_VDR',
     'SHADE',
     'WEIGHT',
     // BODY group
-    'BODY STYLE',
+    'M_BODY_STYLE',
     'M_COLLAR_TYPE',
     'M_COLLAR_STYLE',
     'M_NECK_TYPE',
@@ -173,7 +173,6 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
     'M_EXTRA_POCKET',
     'M_FIT',
     'M_LENGTH',
-    'FO BTN STYLE',
     // VA ACC group
     'M_DC_STYLE',
     'M_DC_SHAPE',
@@ -194,10 +193,10 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
     'M_EMB_PLACEMENT',
     'M_WASH',
     // BUSINESS group
-    'AGE GROUP',
+    'M_IMP_ATBT',
+    'M_AGE_GROUP',
     'ARTICLE FASHION TYPE',
     'SEGMENT',
-    'MVGR_BRAND_VENDOR',
     // Meta
     'Extracted By',
     'Created Date',
@@ -424,12 +423,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 // BOM
                 'Rate':                             row.rate == null ? undefined : Number(row.rate),
                 'MRP':                              row.mrp == null ? undefined : Number(row.mrp),
-                'IMP_ATBT':                         row.impAtrbt2 || '',
                 // FAB group
-                'FAB_MAIN_MVGR-1':                  row.mainMvgr || '',
-                'FAB-MAIN-MVGR-2':                  row.fabricMainMvgr || '',
-                'WEAVE-01':                         row.weave || '',
-                'WEAVE 02':                         row.mFab2 || '',
+                'M_FAB_MAIN_MVGR_1':               row.mainMvgr || '',
+                'M_FAB_MAIN_MVGR_2':               row.fabricMainMvgr || '',
+                'M_WEAVE_01':                       row.weave || '',
+                'M_WEAVE_02':                       row.mFab2 || '',
                 'M_YARN':                           row.yarn1 || '',
                 'M_COMPOSITION':                    row.composition || '',
                 'M_COUNT':                          row.fCount || '',
@@ -440,10 +438,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 'M_OUNZ':                           row.fOunce || '',
                 'M_WIDTH':                          row.fWidth || '',
                 'M_FAB_DIV':                        row.fabDiv || '',
+                'M_FAB_VDR':                        row.fabVdr || '',
                 'SHADE':                            row.shade || '',
                 'WEIGHT':                           row.weight || '',
                 // BODY group
-                'BODY STYLE':                       row.pattern || '',
+                'M_BODY_STYLE':                     row.pattern || '',
                 'M_COLLAR_TYPE':                    row.collar || '',
                 'M_COLLAR_STYLE':                   row.collarStyle || '',
                 'M_NECK_TYPE':                      row.neck || '',
@@ -459,7 +458,6 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 'M_EXTRA_POCKET':                   row.extraPocket || '',
                 'M_FIT':                            row.fit || '',
                 'M_LENGTH':                         row.length || '',
-                'FO BTN STYLE':                     row.frontOpenStyle || '',
                 // VA ACC group
                 'M_DC_STYLE':                       row.drawcord || '',
                 'M_DC_SHAPE':                       row.dcShape || '',
@@ -480,10 +478,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 'M_EMB_PLACEMENT':                  row.embPlacement || '',
                 'M_WASH':                           row.wash || '',
                 // BUSINESS group
-                'AGE GROUP':                        row.ageGroup || '',
+                'M_IMP_ATBT':                       row.impAtrbt2 || '',
+                'M_AGE_GROUP':                      row.ageGroup || '',
                 'ARTICLE FASHION TYPE':             row.articleFashionType || '',
                 'SEGMENT':                          row.segment || '',
-                'MVGR_BRAND_VENDOR':                row.mvgrBrandVendor || '',
                 // Meta
                 'Extracted By':                     row.userName || '',
                 'Created Date':                     formattedDate,
