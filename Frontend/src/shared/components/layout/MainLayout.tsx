@@ -179,7 +179,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="main-layout flex h-screen flex-col overflow-hidden">
-      <header className="top-nav flex items-center justify-between gap-4 border-b border-border bg-background px-6">
+      <header className="top-nav glass flex items-center justify-between gap-4 px-6 sticky top-0 z-50">
         <div className="top-nav-left flex items-center gap-6">
           <div
             className="brand flex cursor-pointer items-center gap-2"

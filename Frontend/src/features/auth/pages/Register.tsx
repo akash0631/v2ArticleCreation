@@ -121,11 +121,15 @@ export default function Register() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center p-5"
-      style={{ background: 'linear-gradient(135deg, #FF6F61 0%, #FFA62B 100%)' }}
+      className="flex min-h-screen items-center justify-center p-5 relative overflow-hidden"
     >
-      <Card className="w-[400px] shadow-2xl">
-        <CardContent className="p-6">
+      {/* Dynamic Background */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/90 via-[#FFA62B]/80 to-primary/90"></div>
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-white/20 blur-3xl mix-blend-overlay"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-white/20 blur-3xl mix-blend-overlay"></div>
+      
+      <Card className="w-full max-w-[440px] shadow-2xl glass card-3d z-10 relative">
+        <CardContent className="p-8">
           <div className="mb-6 text-center">
             <h1 className="mb-1 text-3xl font-semibold text-primary">Join Us</h1>
             <p className="text-sm text-muted-foreground">Create your AI Fashion Extractor account</p>

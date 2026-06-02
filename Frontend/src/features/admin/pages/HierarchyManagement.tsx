@@ -63,11 +63,11 @@ export default function HierarchyManagement() {
   };
 
   return (
-    <div className="page-scroll-enabled min-h-screen bg-[#f0f2f5]">
+    <div className="page-scroll-enabled min-h-screen">
       <div className="p-6">
         <div className="mx-auto max-w-[1600px]">
           {/* Header */}
-          <Card className="mb-6">
+          <Card className="mb-6 glass card-3d rounded-2xl border border-white/60 overflow-hidden">
             <CardContent className="flex items-center justify-between p-6">
               <div>
                 <h1 className="m-0 text-2xl font-semibold">Hierarchy Management</h1>
@@ -83,7 +83,7 @@ export default function HierarchyManagement() {
           </Card>
 
           {/* Tabs */}
-          <Card className="overflow-hidden">
+          <Card className="glass rounded-2xl border border-white/60 overflow-hidden">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
               <div className="border-b border-border px-6">
                 <TabsList className="bg-transparent">

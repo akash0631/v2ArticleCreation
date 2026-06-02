@@ -57,23 +57,42 @@ export default function Profile() {
   }
 
   return (
-    <div className="p-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-3">
-            <User className="h-6 w-6" />
-            <span>User Profile</span>
-          </CardTitle>
+    <div className="flex items-start justify-center p-6">
+      <Card className="glass card-3d w-full max-w-xl overflow-hidden rounded-2xl border border-white/60">
+        {/* Gradient header strip */}
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ background: 'linear-gradient(135deg, #FF6F61 0%, #FFA62B 100%)' }}
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 shadow-lg ring-2 ring-white/40 backdrop-blur">
+              <User className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="m-0 text-lg font-bold text-white">User Profile</h2>
+              <p className="m-0 text-xs text-white/70">Manage your account details</p>
+            </div>
+          </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={loadProfile}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadProfile}
+              className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            >
               Refresh
             </Button>
-            <Button variant="destructive" onClick={handleLogout}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleLogout}
+              className="shadow-md"
+            >
               Logout
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <CardContent className="p-6">
           <Spinner spinning={loading}>
             {user && (
               <Descriptions bordered column={1}>

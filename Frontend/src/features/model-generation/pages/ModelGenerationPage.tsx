@@ -589,7 +589,7 @@ export default function ModelGenerationPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[9fr_15fr]">
         {/* LEFT — Config Panel */}
-        <Card className="sticky top-20 self-start">
+        <Card className="sticky top-20 self-start glass rounded-2xl border border-white/60">
           <CardHeader>
             <CardTitle className="text-base">Generation Settings</CardTitle>
           </CardHeader>
@@ -613,8 +613,8 @@ export default function ModelGenerationPage() {
                     }}
                     onClick={() => designInputRef.current?.click()}
                     className={cn(
-                      'cursor-pointer rounded-md border-2 border-dashed py-3 text-center transition-colors',
-                      isDragging ? 'border-[#FF6F61] bg-[#FF6F61]/5' : 'border-border bg-muted/30 hover:bg-muted/50',
+                      'cursor-pointer rounded-xl border-2 border-dashed py-3 text-center transition-all duration-300',
+                      isDragging ? 'border-[#FF6F61] bg-[#FF6F61]/10 shadow-lg shadow-[#FF6F61]/20' : 'border-border bg-white/40 backdrop-blur-sm hover:bg-white/60 hover:shadow-md',
                     )}
                   >
                     <Inbox className="mx-auto my-2 h-7 w-7 text-[#FF6F61]" />
@@ -1013,7 +1013,7 @@ export default function ModelGenerationPage() {
         <div>
           {/* Recent bulk jobs — survives tab switches; click any to view its results */}
           {recentJobs.length > 0 && (
-            <Card className="mb-4">
+            <Card className="mb-4 glass rounded-2xl border border-white/60">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <History className="h-4 w-4" />
@@ -1094,7 +1094,7 @@ export default function ModelGenerationPage() {
           )}
 
           {!loading && garmentRows.length === 0 && !error && (
-            <Card className="flex min-h-[400px] items-center justify-center">
+            <Card className="flex min-h-[400px] items-center justify-center glass rounded-2xl border border-white/60">
               <CardContent className="pt-6">
                 <Empty
                   description={
@@ -1108,7 +1108,7 @@ export default function ModelGenerationPage() {
           )}
 
           {garmentRows.length > 0 && (
-            <Card>
+            <Card className="glass rounded-2xl border border-white/60">
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="flex items-center gap-2 text-base">
                   {results.length} Generated Image{results.length !== 1 ? 's' : ''}
@@ -1127,7 +1127,7 @@ export default function ModelGenerationPage() {
                 {garmentRows.map((row) => {
                   const columnsCount = visibleViews.length + 1; // +1 for source
                   return (
-                    <Card key={row.fileName}>
+                    <Card key={row.fileName} className="card-3d rounded-xl border border-white/50">
                       <CardHeader className="px-3 py-2">
                         <CardTitle className="truncate text-xs font-normal" title={row.fileName}>
                           {row.fileName}

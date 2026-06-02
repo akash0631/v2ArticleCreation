@@ -125,11 +125,11 @@ const LandingPage: React.FC = () => {
               {features.map((feature, i) => (
                 <Card
                   key={i}
-                  className="feature-card h-full rounded-2xl border-0 text-center shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+                  className="h-full rounded-2xl text-center card-3d glass"
                 >
                   <CardContent className="px-5 py-8">
                     <div className="mb-5 flex justify-center">
-                      <feature.Icon className="h-12 w-12" style={{ color: feature.color }} />
+                      <feature.Icon className="h-12 w-12 transition-transform duration-300 hover:scale-110" style={{ color: feature.color }} />
                     </div>
                     <h3 className="mb-3 text-lg font-semibold">{feature.title}</h3>
                     <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
@@ -179,7 +179,7 @@ const LandingPage: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {testimonials.map((t, i) => (
-                <Card key={i} className="h-full rounded-2xl shadow-sm">
+                <Card key={i} className="h-full rounded-2xl card-3d glass">
                   <CardContent className="p-8">
                     <div className="mb-5 flex gap-1">
                       {[...Array(t.rating)].map((_, k) => (

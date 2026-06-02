@@ -445,22 +445,25 @@ export default function UsersManagement() {
 
   return (
     <div className="p-3">
-      <Card>
-        <CardContent className="flex items-center justify-between p-4">
+      <Card className="glass card-3d rounded-2xl border border-white/60 overflow-hidden">
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ background: 'linear-gradient(135deg, #1f2937 0%, #334155 100%)' }}
+        >
           <div>
-            <h3 className="mb-1 text-xl font-semibold">User Management</h3>
-            <p className="text-sm text-muted-foreground">Add users and manage access roles.</p>
+            <h3 className="mb-0.5 text-lg font-bold text-white">User Management</h3>
+            <p className="text-xs text-white/60">Add users and manage access roles.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={downloadBulkTemplate}>
+            <Button variant="outline" onClick={downloadBulkTemplate} className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
               <Download />
               Download Bulk Template
             </Button>
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
               <UploadIcon />
               Upload Filled Excel
             </Button>
-            <Button onClick={() => setIsModalOpen(true)}>
+            <Button onClick={() => setIsModalOpen(true)} className="bg-[#FF6F61] text-white hover:bg-[#ff5b4d] shadow-md">
               <Plus />
               Add User
             </Button>
@@ -472,10 +475,10 @@ export default function UsersManagement() {
               onChange={handleBulkFileSelected}
             />
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      <Card className="mt-4">
+      <Card className="mt-4 glass rounded-2xl border border-white/60">
         <CardContent className="pt-6">
           <div className="mb-4 flex items-center gap-3">
             <Input

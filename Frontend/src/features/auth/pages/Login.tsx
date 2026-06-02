@@ -67,7 +67,7 @@ export default function Login() {
       className="flex min-h-screen items-center justify-start p-5"
       style={{
         backgroundImage:
-          'linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0.05) 100%), url("/Centric-Page2.jpg")',
+          'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 35%, rgba(0,0,0,0.05) 100%), url("/Centric-Page2.jpg")',
         backgroundSize: 'cover',
         backgroundPosition: 'center right',
         backgroundRepeat: 'no-repeat',
@@ -75,7 +75,7 @@ export default function Login() {
       }}
     >
       <Card
-        className="w-full max-w-[440px] rounded-xl border-white/45 bg-white/85 shadow-2xl backdrop-blur"
+        className="w-full max-w-[440px] rounded-xl glass card-3d shadow-2xl"
       >
         <CardContent className="p-8">
           <div className="mb-8 text-center">

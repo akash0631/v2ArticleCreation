@@ -417,7 +417,7 @@ const SimplifiedExtractionPage = () => {
         <div className="main-grid">
           <div className="left-panel">
             {currentStep === 'category' && (
-              <Card className="step-card border-2 border-[#7DB9B6] p-4 shadow-lg">
+              <Card className="step-card border border-[#7DB9B6]/50 p-4 card-3d glass">
                 <div className="mb-4 text-center">
                   <h4 className="mb-1 text-lg font-semibold text-[#7DB9B6]">Step 1: Select Division</h4>
                   <span className="text-[13px] text-muted-foreground">Choose Division → Sub-Division (Upper/Lower/Sets/Denim)</span>
@@ -431,7 +431,7 @@ const SimplifiedExtractionPage = () => {
             )}
 
             {currentStep === 'upload' && (
-              <Card className="step-card border-2 border-[#E6C79C] p-4 shadow-lg">
+              <Card className="step-card border border-[#E6C79C]/50 p-4 card-3d glass">
                 <div className="mb-4 text-center">
                   <h4 className="mb-1 text-lg font-semibold text-[#CFAF7F]">Step 2: Upload Images</h4>
                   <span className="text-[13px] text-muted-foreground">
@@ -503,7 +503,7 @@ const SimplifiedExtractionPage = () => {
             )}
 
             {currentStep === 'extraction' && extractedRows.length > 0 && (
-              <Card className="step-card border-2 border-[#A7B6D9] px-4 py-3 shadow-lg">
+              <Card className="step-card border border-[#A7B6D9]/50 px-4 py-3 card-3d glass">
                 <div className="mb-3">
                   <div className="mb-2 flex items-center justify-between">
                     <div>
