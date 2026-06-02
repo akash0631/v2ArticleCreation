@@ -1315,33 +1315,34 @@ const ArticleCard = React.memo(
           </div>
 
           {/* ─── MAIN GRID — image+info | attribute groups ─── */}
-          <div className="grid min-h-0 flex-1 gap-1.5 overflow-hidden p-1.5 lg:grid-cols-[230px_1fr]">
+          <div className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2 lg:grid-cols-[minmax(320px,28%)_1fr] xl:grid-cols-[minmax(360px,26%)_1fr] 2xl:grid-cols-[minmax(400px,24%)_1fr]">
             {/* ─── LEFT: Image + Article Info + Reference ─── */}
-            <aside className="flex min-h-0 min-w-0 flex-col gap-1.5">
-              {/* Article image */}
-              <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2 py-1">
-                  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+            <aside className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto pr-0.5">
+              {/* Article image — dominant focal point of the left column, sized like the mockup */}
+              <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-sm)]">
+                <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2.5 py-1.5">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     <Info className="h-3 w-3" />
                     Article Image
                   </span>
                   <Badge variant="success" className="text-[9px]">1 / 1</Badge>
                 </div>
-                <div className="relative h-32 bg-muted">
+                <div className="group relative aspect-square max-h-[48vh] w-full bg-gradient-to-br from-slate-50 to-slate-100">
                   {imgUrl ? (
                     <>
                       <img
                         src={imgUrl}
                         alt=""
-                        className="block h-full w-full cursor-pointer object-cover"
+                        className="block h-full w-full cursor-zoom-in object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.02]"
                         onError={handleImgError}
                         onClick={() => setImgModalOpen(true)}
                       />
                       <Button
                         size="icon"
                         variant="outline"
-                        className="absolute right-2 top-2 h-7 w-7 bg-white/90 backdrop-blur"
+                        className="absolute right-2 top-2 h-8 w-8 bg-white/90 opacity-0 shadow-[var(--shadow-md)] backdrop-blur transition-opacity duration-200 group-hover:opacity-100"
                         onClick={() => setImgModalOpen(true)}
+                        aria-label="Expand image"
                       >
                         <Maximize2 />
                       </Button>
