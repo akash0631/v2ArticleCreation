@@ -72,6 +72,48 @@
   --duration-slow: 320ms;
 }
 
+/* ─── Dark mode token overrides ─────────────────────────────────────────────
+ * Tailwind v4 @theme tokens above resolve to CSS variables on :root. Here
+ * we override them when <html class="dark"> is set so bg-*, text-*, border-*
+ * utilities swap automatically. Surfaces with hardcoded hex colours (in
+ * inline styles or feature-specific CSS) need manual dark: variants and are
+ * tracked as follow-ups.
+ */
+.dark {
+  --color-background: hsl(220 14% 8%);            /* deep slate page */
+  --color-foreground: hsl(35 20% 92%);            /* warm off-white text */
+
+  --color-card: hsl(220 14% 12%);                 /* card on page */
+  --color-card-foreground: hsl(35 20% 92%);
+
+  --color-popover: hsl(220 14% 14%);
+  --color-popover-foreground: hsl(35 20% 92%);
+
+  --color-border: hsl(220 10% 22%);
+  --color-input: hsl(220 10% 24%);
+  --color-ring: hsl(11 100% 64%);                 /* coral focus ring (same) */
+
+  --color-primary: hsl(11 100% 67%);              /* slightly brighter coral on dark */
+  --color-primary-foreground: hsl(220 14% 8%);
+
+  --color-secondary: hsl(220 10% 18%);
+  --color-secondary-foreground: hsl(35 20% 92%);
+
+  --color-muted: hsl(220 10% 18%);
+  --color-muted-foreground: hsl(35 10% 64%);
+
+  --color-accent: hsl(220 10% 20%);
+  --color-accent-foreground: hsl(35 20% 92%);
+
+  --color-destructive: hsl(0 72% 60%);
+  --color-destructive-foreground: hsl(35 20% 96%);
+
+  /* Slate brand stops stay similar — slightly lifted so the gradient
+   * doesn't disappear into the page background. */
+  --color-slate-brand-from: #2a3445;
+  --color-slate-brand-to: #3a4659;
+}
+
 @layer base {
   /* Smoother global scrolling */
   html { scroll-behavior: smooth; }
@@ -150,8 +192,8 @@
   }
 
   .dark .glass {
-    background: rgba(23, 23, 23, 0.75);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(30, 36, 48, 0.75);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   /* Opt-in spring lift on hover. NOT applied by default on Button/Card —

@@ -20,6 +20,9 @@ import {
   LogOut,
   Settings,
   PanelLeftClose,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import {
   Avatar,
@@ -43,6 +46,7 @@ import {
   TooltipTrigger,
 } from '@/shared/components/ui-tw';
 import { cn } from '@/lib/utils';
+import { useThemeMode, type Theme } from '@/lib/use-theme';
 import {
   getNotifications,
   markAllRead,
@@ -81,6 +85,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [themeMode, setThemeMode] = useThemeMode();
+  const cycleTheme = () => {
+    const order: Theme[] = ['light', 'dark', 'system'];
+    const next = order[(order.indexOf(themeMode) + 1) % order.length];
+    setThemeMode(next);
+  };
+  const ThemeIcon = themeMode === 'dark' ? Moon : themeMode === 'system' ? Monitor : Sun;
+  const themeLabel = themeMode === 'dark' ? 'Dark' : themeMode === 'system' ? 'System' : 'Light';
 
   useEffect(() => {
     const load = () => {
@@ -481,6 +493,34 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
               </div>
             </PopoverContent>
           </Popover>
+
+          {/* Theme toggle — cycles light → dark → system */}
+          {collapsed ? (
+            <TooltipRoot>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={cycleTheme}
+                  className="flex h-9 w-full items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent"
+                >
+                  <ThemeIcon className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                Theme: {themeLabel} (click to cycle)
+              </TooltipContent>
+            </TooltipRoot>
+          ) : (
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm text-foreground transition-colors hover:bg-accent"
+            >
+              <ThemeIcon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">Theme</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{themeLabel}</span>
+            </button>
+          )}
 
           {/* User */}
           <DropdownMenu>
