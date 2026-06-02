@@ -1,79 +1,24 @@
-/* Main Layout Styles */
+/* Main Layout — sidebar shell + content area */
 
 .main-layout {
   min-height: 100vh;
 }
 
-/* Top Navigation Layout */
-.top-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  line-height: normal;
-  height: 64px;
-  flex-wrap: nowrap;
-  gap: 12px;
-  transition: all 0.3s ease;
+/* Authenticated content area — flex-1 inside the sidebar/content split.
+ * No height calc needed: the parent main-layout is h-screen overflow-hidden,
+ * and content-shell takes the rest of the row alongside the sidebar. */
+.content-shell {
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(246, 241, 236, 0.6) 0%, rgba(246, 241, 236, 0.3) 100%);
 }
 
-.top-nav-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;          /* lets the menu shrink instead of pushing siblings */
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
+.content-landing {
+  margin: 0;
+  padding: 0;
+  background: transparent;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  color: #111827;
-  cursor: pointer;
-  /* Brand text must stay on one line and not get squeezed. */
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.brand span {
-  white-space: nowrap;
-}
-
-.brand svg {
-  color: #FF6F61;
-}
-
-.top-nav-menu {
-  background: transparent !important;
-  border-bottom: none !important;
-  /* The horizontal menu is the most flexible piece — let it shrink and use
-     its built-in overflow ellipsis ("...") rather than pushing the user chip
-     into a new line. */
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.user-chip {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* Auth Layout */
+/* Auth (login / register) — full-bleed branded gradient. */
 .auth-layout {
   min-height: 100vh;
   background: radial-gradient(1200px 500px at 10% -20%, rgba(255, 111, 97, 0.25), transparent 60%),
@@ -83,76 +28,3 @@
   align-items: center;
   justify-content: center;
 }
-
-/* Header Improvements */
-.content-shell {
-  margin: 6px;
-  padding: 8px;
-  background: linear-gradient(180deg, rgba(246, 241, 236, 0.9) 0%, rgba(246, 241, 236, 0.6) 100%);
-  border-radius: 14px;
-  height: calc(100vh - 76px);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.content-landing {
-  margin: 0;
-  padding: 0;
-  background: transparent;
-}
-
-.footer-shell {
-  text-align: center;
-  background: #111827;
-  color: #fff;
-  padding: 24px 50px;
-}
-
-.footer-landing {
-  text-align: center;
-  background: transparent;
-  padding: 24px 50px;
-}
-
-.footer-text-dark {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.footer-text-light {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-/* Notifications */
-.notification-dropdown {
-  width: 360px;
-  max-height: 420px;
-  overflow: auto;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
-  padding: 12px 12px 4px;
-}
-
-.notification-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.notification-item {
-  padding: 10px 8px !important;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.notification-item.unread {
-  background: rgba(91, 157, 255, 0.08);
-}
-
-.notification-item.read {
-  background: transparent;
-}
-
