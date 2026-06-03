@@ -73,11 +73,15 @@
 }
 
 /* ─── Dark mode token overrides ─────────────────────────────────────────────
- * Tailwind v4 @theme tokens above resolve to CSS variables on :root. Here
- * we override them when <html class="dark"> is set so bg-*, text-*, border-*
- * utilities swap automatically. Surfaces with hardcoded hex colours (in
- * inline styles or feature-specific CSS) need manual dark: variants and are
- * tracked as follow-ups.
+ * Two layers:
+ *   1. Tailwind v4 @theme tokens above resolve to CSS variables on :root.
+ *      We override them in .dark so bg-card / text-foreground / border-input
+ *      utilities swap automatically.
+ *   2. A LOT of surfaces in this codebase use hardcoded utilities
+ *      (bg-white, bg-slate-50, text-slate-700, etc.) instead of token-based
+ *      ones. The "remap" block below catches those so dark mode is visible
+ *      on day one without rewriting 49 files. Long-term, prefer token-based
+ *      utilities (bg-card, text-foreground) in new code.
  */
 .dark {
   --color-background: hsl(220 14% 8%);            /* deep slate page */
@@ -112,6 +116,71 @@
    * doesn't disappear into the page background. */
   --color-slate-brand-from: #2a3445;
   --color-slate-brand-to: #3a4659;
+}
+
+/* ─── Hardcoded-utility remap for dark mode ────────────────────────────────
+ * Catches the most common literal Tailwind utilities used across the app
+ * so they read correctly on dark without per-file rewrites. Each rule
+ * targets the .dark ancestor + the literal utility; specificity is .dark +
+ * .util (2 classes) which beats the .util baseline (1 class) — no !important
+ * needed for backgrounds. Borders and a few text rules use !important
+ * because Tailwind's own .border utility carries higher source-order weight.
+ */
+.dark .bg-white { background-color: hsl(220 14% 14%); }
+.dark .bg-white\/80,
+.dark .bg-white\/85,
+.dark .bg-white\/90,
+.dark .bg-white\/95 { background-color: hsla(220, 14%, 14%, 0.85); }
+
+.dark .bg-slate-50  { background-color: hsl(220 14% 15%); }
+.dark .bg-slate-100 { background-color: hsl(220 12% 18%); }
+.dark .bg-slate-200 { background-color: hsl(220 10% 22%); }
+.dark .bg-gray-50   { background-color: hsl(220 14% 15%); }
+.dark .bg-gray-100  { background-color: hsl(220 12% 18%); }
+.dark .bg-muted    { background-color: hsl(220 10% 18%); }
+
+/* Pastel surface tints — keep the hue but darken substantially */
+.dark .bg-amber-50    { background-color: hsl(38 25% 15%); }
+.dark .bg-emerald-50  { background-color: hsl(160 22% 14%); }
+.dark .bg-rose-50,
+.dark .bg-red-50      { background-color: hsl(0 25% 16%); }
+.dark .bg-sky-50,
+.dark .bg-blue-50     { background-color: hsl(210 20% 16%); }
+
+/* Text — slate / gray scale flips */
+.dark .text-slate-900,
+.dark .text-gray-900,
+.dark .text-black     { color: hsl(35 20% 92%) !important; }
+.dark .text-slate-800,
+.dark .text-gray-800  { color: hsl(35 18% 88%) !important; }
+.dark .text-slate-700,
+.dark .text-gray-700  { color: hsl(35 15% 80%) !important; }
+.dark .text-slate-600,
+.dark .text-gray-600  { color: hsl(35 12% 70%) !important; }
+.dark .text-slate-500,
+.dark .text-gray-500  { color: hsl(35 10% 60%) !important; }
+
+/* Borders — light Tailwind borders need to read on dark */
+.dark .border-slate-200,
+.dark .border-gray-200,
+.dark .border-slate-100,
+.dark .border-gray-100 { border-color: hsl(220 10% 24%) !important; }
+.dark .border-white\/60,
+.dark .border-white\/50,
+.dark .border-white\/40 { border-color: hsl(220 10% 22%) !important; }
+
+/* Divide colours used in lists */
+.dark .divide-border > * + *,
+.dark .divide-slate-200 > * + *,
+.dark .divide-gray-200 > * + * { border-color: hsl(220 10% 22%); }
+
+/* Common inline gradient — slate brand strip (currently rendered via
+ * `style={{ background: 'linear-gradient(...#1f2937...#334155...)' }}`
+ * on the approver / admin header strips). Lift a step on dark so the
+ * gradient still reads as a band rather than blending into the page. */
+.dark [style*="linear-gradient(135deg, #1f2937 0%, #334155"],
+.dark [style*="linear-gradient(90deg, #1f2937 0%, #334155"] {
+  background: linear-gradient(135deg, #2a3445 0%, #3a4659 100%) !important;
 }
 
 @layer base {
