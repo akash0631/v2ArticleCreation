@@ -14009,6 +14009,7 @@ export namespace Prisma {
     sapArticleId: string | null
     sapSyncMessage: string | null
     srmOriginalDesignNumber: string | null
+    srmUniqueId: string | null
   }
 
   export type ExtractionResultFlatMaxAggregateOutputType = {
@@ -14133,6 +14134,7 @@ export namespace Prisma {
     sapArticleId: string | null
     sapSyncMessage: string | null
     srmOriginalDesignNumber: string | null
+    srmUniqueId: string | null
   }
 
   export type ExtractionResultFlatCountAggregateOutputType = {
@@ -14257,6 +14259,7 @@ export namespace Prisma {
     sapArticleId: number
     sapSyncMessage: number
     srmOriginalDesignNumber: number
+    srmUniqueId: number
     _all: number
   }
 
@@ -14413,6 +14416,7 @@ export namespace Prisma {
     sapArticleId?: true
     sapSyncMessage?: true
     srmOriginalDesignNumber?: true
+    srmUniqueId?: true
   }
 
   export type ExtractionResultFlatMaxAggregateInputType = {
@@ -14537,6 +14541,7 @@ export namespace Prisma {
     sapArticleId?: true
     sapSyncMessage?: true
     srmOriginalDesignNumber?: true
+    srmUniqueId?: true
   }
 
   export type ExtractionResultFlatCountAggregateInputType = {
@@ -14661,6 +14666,7 @@ export namespace Prisma {
     sapArticleId?: true
     sapSyncMessage?: true
     srmOriginalDesignNumber?: true
+    srmUniqueId?: true
     _all?: true
   }
 
@@ -14872,6 +14878,7 @@ export namespace Prisma {
     sapArticleId: string | null
     sapSyncMessage: string | null
     srmOriginalDesignNumber: string | null
+    srmUniqueId: string | null
     _count: ExtractionResultFlatCountAggregateOutputType | null
     _avg: ExtractionResultFlatAvgAggregateOutputType | null
     _sum: ExtractionResultFlatSumAggregateOutputType | null
@@ -15015,6 +15022,7 @@ export namespace Prisma {
     sapArticleId?: boolean
     sapSyncMessage?: boolean
     srmOriginalDesignNumber?: boolean
+    srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
     srmSyncRunItems?: boolean | ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>
@@ -15143,6 +15151,7 @@ export namespace Prisma {
     sapArticleId?: boolean
     sapSyncMessage?: boolean
     srmOriginalDesignNumber?: boolean
+    srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
@@ -15269,6 +15278,7 @@ export namespace Prisma {
     sapArticleId?: boolean
     sapSyncMessage?: boolean
     srmOriginalDesignNumber?: boolean
+    srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
@@ -15395,9 +15405,10 @@ export namespace Prisma {
     sapArticleId?: boolean
     sapSyncMessage?: boolean
     srmOriginalDesignNumber?: boolean
+    srmUniqueId?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
@@ -15542,6 +15553,7 @@ export namespace Prisma {
       sapArticleId: string | null
       sapSyncMessage: string | null
       srmOriginalDesignNumber: string | null
+      srmUniqueId: string | null
     }, ExtArgs["result"]["extractionResultFlat"]>
     composites: {}
   }
@@ -16089,6 +16101,7 @@ export namespace Prisma {
     readonly sapArticleId: FieldRef<"ExtractionResultFlat", 'String'>
     readonly sapSyncMessage: FieldRef<"ExtractionResultFlat", 'String'>
     readonly srmOriginalDesignNumber: FieldRef<"ExtractionResultFlat", 'String'>
+    readonly srmUniqueId: FieldRef<"ExtractionResultFlat", 'String'>
   }
     
 
@@ -36130,6 +36143,7 @@ export namespace Prisma {
     extractedAt: Date | null
     flatId: string | null
     lockedUntil: Date | null
+    articleNumber: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -36156,6 +36170,7 @@ export namespace Prisma {
     extractedAt: Date | null
     flatId: string | null
     lockedUntil: Date | null
+    articleNumber: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -36183,6 +36198,7 @@ export namespace Prisma {
     extractedAt: number
     flatId: number
     lockedUntil: number
+    articleNumber: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -36223,6 +36239,7 @@ export namespace Prisma {
     extractedAt?: true
     flatId?: true
     lockedUntil?: true
+    articleNumber?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -36249,6 +36266,7 @@ export namespace Prisma {
     extractedAt?: true
     flatId?: true
     lockedUntil?: true
+    articleNumber?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -36276,6 +36294,7 @@ export namespace Prisma {
     extractedAt?: true
     flatId?: true
     lockedUntil?: true
+    articleNumber?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -36390,6 +36409,7 @@ export namespace Prisma {
     extractedAt: Date | null
     flatId: string | null
     lockedUntil: Date | null
+    articleNumber: string | null
     createdAt: Date
     updatedAt: Date
     _count: RawArticleCountAggregateOutputType | null
@@ -36436,6 +36456,7 @@ export namespace Prisma {
     extractedAt?: boolean
     flatId?: boolean
     lockedUntil?: boolean
+    articleNumber?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36463,6 +36484,7 @@ export namespace Prisma {
     extractedAt?: boolean
     flatId?: boolean
     lockedUntil?: boolean
+    articleNumber?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36490,6 +36512,7 @@ export namespace Prisma {
     extractedAt?: boolean
     flatId?: boolean
     lockedUntil?: boolean
+    articleNumber?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["rawArticle"]>
@@ -36517,11 +36540,12 @@ export namespace Prisma {
     extractedAt?: boolean
     flatId?: boolean
     lockedUntil?: boolean
+    articleNumber?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type RawArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "presentationNo" | "vendorCode" | "vendorName" | "division" | "subDivision" | "majorCategory" | "presentationReceivedDate" | "designNumber" | "fabric" | "noOfColors" | "price" | "imageUrl" | "uniqueKey" | "source" | "status" | "retryCount" | "errorMessage" | "extractedData" | "extractedAt" | "flatId" | "lockedUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["rawArticle"]>
+  export type RawArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "presentationNo" | "vendorCode" | "vendorName" | "division" | "subDivision" | "majorCategory" | "presentationReceivedDate" | "designNumber" | "fabric" | "noOfColors" | "price" | "imageUrl" | "uniqueKey" | "source" | "status" | "retryCount" | "errorMessage" | "extractedData" | "extractedAt" | "flatId" | "lockedUntil" | "articleNumber" | "createdAt" | "updatedAt", ExtArgs["result"]["rawArticle"]>
 
   export type $RawArticlePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "RawArticle"
@@ -36549,6 +36573,7 @@ export namespace Prisma {
       extractedAt: Date | null
       flatId: string | null
       lockedUntil: Date | null
+      articleNumber: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["rawArticle"]>
@@ -36996,6 +37021,7 @@ export namespace Prisma {
     readonly extractedAt: FieldRef<"RawArticle", 'DateTime'>
     readonly flatId: FieldRef<"RawArticle", 'String'>
     readonly lockedUntil: FieldRef<"RawArticle", 'DateTime'>
+    readonly articleNumber: FieldRef<"RawArticle", 'String'>
     readonly createdAt: FieldRef<"RawArticle", 'DateTime'>
     readonly updatedAt: FieldRef<"RawArticle", 'DateTime'>
   }
@@ -39963,7 +39989,8 @@ export namespace Prisma {
     sapSyncStatus: 'sapSyncStatus',
     sapArticleId: 'sapArticleId',
     sapSyncMessage: 'sapSyncMessage',
-    srmOriginalDesignNumber: 'srmOriginalDesignNumber'
+    srmOriginalDesignNumber: 'srmOriginalDesignNumber',
+    srmUniqueId: 'srmUniqueId'
   };
 
   export type ExtractionResultFlatScalarFieldEnum = (typeof ExtractionResultFlatScalarFieldEnum)[keyof typeof ExtractionResultFlatScalarFieldEnum]
@@ -40338,6 +40365,7 @@ export namespace Prisma {
     extractedAt: 'extractedAt',
     flatId: 'flatId',
     lockedUntil: 'lockedUntil',
+    articleNumber: 'articleNumber',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -40610,7 +40638,8 @@ export namespace Prisma {
     variantColor: 'variantColor',
     sapArticleId: 'sapArticleId',
     sapSyncMessage: 'sapSyncMessage',
-    srmOriginalDesignNumber: 'srmOriginalDesignNumber'
+    srmOriginalDesignNumber: 'srmOriginalDesignNumber',
+    srmUniqueId: 'srmUniqueId'
   };
 
   export type ExtractionResultFlatOrderByRelevanceFieldEnum = (typeof ExtractionResultFlatOrderByRelevanceFieldEnum)[keyof typeof ExtractionResultFlatOrderByRelevanceFieldEnum]
@@ -40902,7 +40931,8 @@ export namespace Prisma {
     uniqueKey: 'uniqueKey',
     source: 'source',
     errorMessage: 'errorMessage',
-    flatId: 'flatId'
+    flatId: 'flatId',
+    articleNumber: 'articleNumber'
   };
 
   export type RawArticleOrderByRelevanceFieldEnum = (typeof RawArticleOrderByRelevanceFieldEnum)[keyof typeof RawArticleOrderByRelevanceFieldEnum]
@@ -42107,6 +42137,7 @@ export namespace Prisma {
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmUniqueId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
     srmSyncRunItems?: SrmSyncRunItemListRelationFilter
@@ -42234,6 +42265,7 @@ export namespace Prisma {
     sapArticleId?: SortOrderInput | SortOrder
     sapSyncMessage?: SortOrderInput | SortOrder
     srmOriginalDesignNumber?: SortOrderInput | SortOrder
+    srmUniqueId?: SortOrderInput | SortOrder
     approver?: UserOrderByWithRelationInput
     job?: ExtractionJobOrderByWithRelationInput
     srmSyncRunItems?: SrmSyncRunItemOrderByRelationAggregateInput
@@ -42365,6 +42397,7 @@ export namespace Prisma {
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmUniqueId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
     srmSyncRunItems?: SrmSyncRunItemListRelationFilter
@@ -42492,6 +42525,7 @@ export namespace Prisma {
     sapArticleId?: SortOrderInput | SortOrder
     sapSyncMessage?: SortOrderInput | SortOrder
     srmOriginalDesignNumber?: SortOrderInput | SortOrder
+    srmUniqueId?: SortOrderInput | SortOrder
     _count?: ExtractionResultFlatCountOrderByAggregateInput
     _avg?: ExtractionResultFlatAvgOrderByAggregateInput
     _max?: ExtractionResultFlatMaxOrderByAggregateInput
@@ -42624,6 +42658,7 @@ export namespace Prisma {
     sapArticleId?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     srmOriginalDesignNumber?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
+    srmUniqueId?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
   }
 
   export type MvgrLookupWhereInput = {
@@ -44433,6 +44468,7 @@ export namespace Prisma {
     extractedAt?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
     flatId?: StringNullableFilter<"RawArticle"> | string | null
     lockedUntil?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    articleNumber?: StringNullableFilter<"RawArticle"> | string | null
     createdAt?: DateTimeFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
   }
@@ -44460,6 +44496,7 @@ export namespace Prisma {
     extractedAt?: SortOrderInput | SortOrder
     flatId?: SortOrderInput | SortOrder
     lockedUntil?: SortOrderInput | SortOrder
+    articleNumber?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _relevance?: RawArticleOrderByRelevanceInput
@@ -44491,6 +44528,7 @@ export namespace Prisma {
     extractedAt?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
     flatId?: StringNullableFilter<"RawArticle"> | string | null
     lockedUntil?: DateTimeNullableFilter<"RawArticle"> | Date | string | null
+    articleNumber?: StringNullableFilter<"RawArticle"> | string | null
     createdAt?: DateTimeFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeFilter<"RawArticle"> | Date | string
   }, "id" | "uniqueKey">
@@ -44518,6 +44556,7 @@ export namespace Prisma {
     extractedAt?: SortOrderInput | SortOrder
     flatId?: SortOrderInput | SortOrder
     lockedUntil?: SortOrderInput | SortOrder
+    articleNumber?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: RawArticleCountOrderByAggregateInput
@@ -44553,6 +44592,7 @@ export namespace Prisma {
     extractedAt?: DateTimeNullableWithAggregatesFilter<"RawArticle"> | Date | string | null
     flatId?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
     lockedUntil?: DateTimeNullableWithAggregatesFilter<"RawArticle"> | Date | string | null
+    articleNumber?: StringNullableWithAggregatesFilter<"RawArticle"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"RawArticle"> | Date | string
   }
@@ -45762,6 +45802,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
     job: ExtractionJobCreateNestedOneWithoutFlatResultInput
     srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
@@ -45889,6 +45930,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
@@ -46012,6 +46054,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
     job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
     srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
@@ -46139,6 +46182,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
@@ -46264,6 +46308,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
   }
 
   export type ExtractionResultFlatUpdateManyMutationInput = {
@@ -46386,6 +46431,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ExtractionResultFlatUncheckedUpdateManyInput = {
@@ -46510,6 +46556,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type MvgrLookupCreateInput = {
@@ -48633,6 +48680,7 @@ export namespace Prisma {
     extractedAt?: Date | string | null
     flatId?: string | null
     lockedUntil?: Date | string | null
+    articleNumber?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48660,6 +48708,7 @@ export namespace Prisma {
     extractedAt?: Date | string | null
     flatId?: string | null
     lockedUntil?: Date | string | null
+    articleNumber?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48687,6 +48736,7 @@ export namespace Prisma {
     extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     flatId?: NullableStringFieldUpdateOperationsInput | string | null
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48714,6 +48764,7 @@ export namespace Prisma {
     extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     flatId?: NullableStringFieldUpdateOperationsInput | string | null
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48741,6 +48792,7 @@ export namespace Prisma {
     extractedAt?: Date | string | null
     flatId?: string | null
     lockedUntil?: Date | string | null
+    articleNumber?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -48768,6 +48820,7 @@ export namespace Prisma {
     extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     flatId?: NullableStringFieldUpdateOperationsInput | string | null
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -48795,6 +48848,7 @@ export namespace Prisma {
     extractedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     flatId?: NullableStringFieldUpdateOperationsInput | string | null
     lockedUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -50141,6 +50195,7 @@ export namespace Prisma {
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
     srmOriginalDesignNumber?: SortOrder
+    srmUniqueId?: SortOrder
   }
 
   export type ExtractionResultFlatAvgOrderByAggregateInput = {
@@ -50280,6 +50335,7 @@ export namespace Prisma {
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
     srmOriginalDesignNumber?: SortOrder
+    srmUniqueId?: SortOrder
   }
 
   export type ExtractionResultFlatMinOrderByAggregateInput = {
@@ -50404,6 +50460,7 @@ export namespace Prisma {
     sapArticleId?: SortOrder
     sapSyncMessage?: SortOrder
     srmOriginalDesignNumber?: SortOrder
+    srmUniqueId?: SortOrder
   }
 
   export type ExtractionResultFlatSumOrderByAggregateInput = {
@@ -51762,6 +51819,7 @@ export namespace Prisma {
     extractedAt?: SortOrder
     flatId?: SortOrder
     lockedUntil?: SortOrder
+    articleNumber?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -51794,6 +51852,7 @@ export namespace Prisma {
     extractedAt?: SortOrder
     flatId?: SortOrder
     lockedUntil?: SortOrder
+    articleNumber?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -51820,6 +51879,7 @@ export namespace Prisma {
     extractedAt?: SortOrder
     flatId?: SortOrder
     lockedUntil?: SortOrder
+    articleNumber?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -54952,6 +55012,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
     srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
@@ -55077,6 +55138,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
@@ -55324,6 +55386,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
     srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
@@ -55449,6 +55512,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
@@ -56410,6 +56474,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     job: ExtractionJobCreateNestedOneWithoutFlatResultInput
     srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
@@ -56535,6 +56600,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedCreateNestedManyWithoutFlatInput
   }
 
@@ -56790,6 +56856,7 @@ export namespace Prisma {
     sapArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     sapSyncMessage?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    srmUniqueId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
   }
 
   export type UserCreateWithoutApiKeysInput = {
@@ -58327,6 +58394,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
     job: ExtractionJobCreateNestedOneWithoutFlatResultInput
   }
@@ -58453,6 +58521,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
   }
 
   export type ExtractionResultFlatCreateOrConnectWithoutSrmSyncRunItemsInput = {
@@ -58628,6 +58697,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
     job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
   }
@@ -58754,6 +58824,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type SubDepartmentCreateManyDepartmentInput = {
@@ -59501,6 +59572,7 @@ export namespace Prisma {
     sapArticleId?: string | null
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
+    srmUniqueId?: string | null
   }
 
   export type ApiKeyUpdateWithoutUserInput = {
@@ -59785,6 +59857,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
     srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
@@ -59910,6 +59983,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     srmSyncRunItems?: SrmSyncRunItemUncheckedUpdateManyWithoutFlatNestedInput
   }
 
@@ -60034,6 +60108,7 @@ export namespace Prisma {
     sapArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type SapAttributeValueCreateManyFieldConfigInput = {
