@@ -358,6 +358,8 @@ model ExtractionResultFlat {
 
   // SRM dedup key — set ONCE on insert from SRM, NEVER updated even if user edits designNumber
   srmOriginalDesignNumber     String?        @map("srm_original_design_number") @db.VarChar(255)
+  // FK to raw_articles.id — only set when extraction came from SRM/raw_articles flow
+  srmUniqueId                 String?        @map("srm_unique_id") @db.VarChar(100)
 
   job                         ExtractionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
   srmSyncRunItems             SrmSyncRunItem[]
@@ -958,8 +960,9 @@ model RawArticle {
   errorMessage               String?           @map("error_message")
   extractedData              Json?             @map("extracted_data")
   extractedAt                DateTime?         @map("extracted_at")
-  flatId                     String?           @map("flat_id")       // FK ref to extraction_results_flat
-  lockedUntil                DateTime?         @map("locked_until")  // worker lock expiry
+  flatId                     String?           @map("flat_id")        // FK ref to extraction_results_flat
+  lockedUntil                DateTime?         @map("locked_until")   // worker lock expiry
+  articleNumber              String?           @map("article_number") @db.VarChar(100)
 
   createdAt                  DateTime          @default(now()) @map("created_at")
   updatedAt                  DateTime          @updatedAt @map("updated_at")

@@ -594,15 +594,16 @@ async function insertRowAndReturn(row: SrmRow): Promise<{ id: string; imageUrl: 
 /**
  * Public export — used by rawArticleExtractionService to create a flat record
  * from a raw_articles row without going through the full SRM sync flow.
+ * Pass rawArticleId to populate srm_unique_id on the flat record.
  */
-export async function insertRawArticleAsFlat(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
-  return insertRow(row);
+export async function insertRawArticleAsFlat(row: SrmRow, rawArticleId?: string): Promise<{ id: string; imageUrl: string | null } | null> {
+  return insertRow(row, rawArticleId);
 }
 
 /** Exported type so rawArticleExtractionService can build SrmRow objects */
 export type { SrmRow };
 
-async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | null } | null> {
+async function insertRow(row: SrmRow, rawArticleId?: string): Promise<{ id: string; imageUrl: string | null } | null> {
   const categoryId = await resolveCategoryId(row.major_category, row.division);
 
   // Create ExtractionJob (required by FK; no AI used — just a shell record)
@@ -650,6 +651,8 @@ async function insertRow(row: SrmRow): Promise<{ id: string; imageUrl: string | 
       designNumber:             row.design_number   || null,
       // Immutable dedup key — NEVER updated even if user changes designNumber later
       srmOriginalDesignNumber:  row.design_number   || null,
+      // FK back to raw_articles.id (only set when called from rawArticleExtractionService)
+      srmUniqueId:              rawArticleId        || null,
       vendorCode:     normaliseVendorCode(row.vendor_code),
       vendorName:     row.vendor_name     || null,
       division:       row.division        || null,

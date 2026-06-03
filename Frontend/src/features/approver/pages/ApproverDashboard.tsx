@@ -403,7 +403,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
             return {
                 // Identity
-                'Article Number':                   row.articleNumber || row.imageName || '',
+                'Article Number':                   row.articleNumber || '',
                 'Division':                         row.division || '',
                 'Sub Division':                     row.subDivision || '',
                 'Major Category':                   row.majorCategory || '',
