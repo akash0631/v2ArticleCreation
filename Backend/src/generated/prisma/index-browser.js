@@ -372,7 +372,8 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   sapSyncStatus: 'sapSyncStatus',
   sapArticleId: 'sapArticleId',
   sapSyncMessage: 'sapSyncMessage',
-  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber',
+  srmUniqueId: 'srmUniqueId'
 };
 
 exports.Prisma.MvgrLookupScalarFieldEnum = {
@@ -696,6 +697,7 @@ exports.Prisma.RawArticleScalarFieldEnum = {
   extractedAt: 'extractedAt',
   flatId: 'flatId',
   lockedUntil: 'lockedUntil',
+  articleNumber: 'articleNumber',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -917,7 +919,8 @@ exports.Prisma.ExtractionResultFlatOrderByRelevanceFieldEnum = {
   variantColor: 'variantColor',
   sapArticleId: 'sapArticleId',
   sapSyncMessage: 'sapSyncMessage',
-  srmOriginalDesignNumber: 'srmOriginalDesignNumber'
+  srmOriginalDesignNumber: 'srmOriginalDesignNumber',
+  srmUniqueId: 'srmUniqueId'
 };
 
 exports.Prisma.MvgrLookupOrderByRelevanceFieldEnum = {
@@ -1158,7 +1161,8 @@ exports.Prisma.RawArticleOrderByRelevanceFieldEnum = {
   uniqueKey: 'uniqueKey',
   source: 'source',
   errorMessage: 'errorMessage',
-  flatId: 'flatId'
+  flatId: 'flatId',
+  articleNumber: 'articleNumber'
 };
 
 exports.Prisma.SrmSyncRunOrderByRelevanceFieldEnum = {
@@ -1217,7 +1221,8 @@ exports.UserRole = exports.$Enums.UserRole = {
   PO_COMMITTEE: 'PO_COMMITTEE',
   APPROVER: 'APPROVER',
   CATEGORY_HEAD: 'CATEGORY_HEAD',
-  SUB_DIVISION_HEAD: 'SUB_DIVISION_HEAD'
+  SUB_DIVISION_HEAD: 'SUB_DIVISION_HEAD',
+  PD_DESIGNER: 'PD_DESIGNER'
 };
 
 exports.ChangeAction = exports.$Enums.ChangeAction = {

@@ -32,9 +32,18 @@ import './styles/index.css';
 // Route Guards
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // PD_DESIGNER only has access to model-generation
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -90,6 +99,29 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // APPROVER and CATEGORY_HEAD cannot access creator pages; SUB_DIVISION_HEAD can
     if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
+    }
+    // PD_DESIGNER only has access to model-generation
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
+// PD_DESIGNER (and ADMIN) only — model-generation page
+const ModelGenerationRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role !== 'PD_DESIGNER' && userData.role !== 'ADMIN') {
+      return <Navigate to="/dashboard" replace />;
     }
   }
 
@@ -282,20 +314,29 @@ const App: React.FC = () => {
                 }
               />
 
-              {/* Model Generation */}
+              {/* Model Generation — PD_DESIGNER and ADMIN only */}
               <Route
                 path="/model-generation"
                 element={
-                  <CreatorRoute>
+                  <ModelGenerationRoute>
                     <MainLayout>
                       <ModelGenerationPage />
                     </MainLayout>
-                  </CreatorRoute>
+                  </ModelGenerationRoute>
                 }
               />
 
               {/* Fallback */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="*"
+                element={(() => {
+                  const u = localStorage.getItem('user');
+                  if (u && JSON.parse(u).role === 'PD_DESIGNER') {
+                    return <Navigate to="/model-generation" replace />;
+                  }
+                  return <Navigate to="/dashboard" replace />;
+                })()}
+              />
             </Routes>
         </Router>
       </ErrorBoundary>

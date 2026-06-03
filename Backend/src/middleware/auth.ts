@@ -287,9 +287,9 @@ export const requireUser = (
     return;
   }
 
-  // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD and ADMIN roles are allowed
+  // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, PD_DESIGNER and ADMIN roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN') {
+  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'PD_DESIGNER') {
     res.status(403).json({
       success: false,
       error: 'User access required. Invalid role.',

@@ -59,7 +59,7 @@ const userSchema = z.object({
   name: z.string().min(1, 'Please enter name'),
   email: z.string().email('Enter a valid email').min(1, 'Please enter email'),
   password: z.string().optional(),
-  role: z.enum(['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN']),
+  role: z.enum(['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN', 'PD_DESIGNER']),
   departmentId: z.string().optional(),
   subDivision: z.array(z.string()).optional(),
 });
@@ -221,7 +221,7 @@ export default function UsersManagement() {
       usersSheet.addRow(['John Creator', 'john.creator@company.com', 'Temp@123', 'CREATOR', 'MENS', 'ML']);
       usersSheet.addRow(['Rita CategoryHead', 'rita.head@company.com', 'Temp@123', 'CATEGORY_HEAD', 'LADIES', '']);
 
-      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN'];
+      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN', 'PD_DESIGNER'];
       const divisionOptions = divisionNames;
       const subDivisionOptions = Array.from(
         new Set(departments.flatMap((d) => (d.subDepartments || []).map((s) => s.code).filter(Boolean))),
@@ -282,7 +282,7 @@ export default function UsersManagement() {
 
       const toRole = (roleRaw: string): AdminUser['role'] | null => {
         const role = roleRaw.toUpperCase();
-        if (['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN'].includes(role))
+        if (['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN', 'PD_DESIGNER'].includes(role))
           return role as AdminUser['role'];
         return null;
       };
@@ -567,7 +567,7 @@ export default function UsersManagement() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN'].map((r) => (
+                          {['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN', 'PD_DESIGNER'].map((r) => (
                             <SelectItem key={r} value={r}>
                               {r}
                             </SelectItem>

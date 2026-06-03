@@ -111,23 +111,34 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
     };
   }, [userData?.id]);
 
-  const items: NavItem[] = [{ key: '/dashboard', Icon: Home, label: 'Home' }];
+  // PD_DESIGNER is a single-purpose role — only Model Generation, no other nav.
+  const isPdDesigner = role === 'PD_DESIGNER';
 
-  if (isAdmin) {
-    items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
-  }
-  if (!isApproverSide) {
-    items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
-    items.push({ key: '/model-generation', Icon: Camera, label: 'Model Generation' });
+  const items: NavItem[] = isPdDesigner
+    ? [{ key: '/model-generation', Icon: Camera, label: 'Model Generation' }]
+    : [{ key: '/dashboard', Icon: Home, label: 'Home' }];
+
+  if (!isPdDesigner) {
+    if (isAdmin) {
+      items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
+    }
+    if (!isApproverSide) {
+      items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
+    }
+    // Model Generation — ADMIN only on this branch (PD_DESIGNER already has it via the items init above).
+    if (isAdmin) {
+      items.push({ key: '/model-generation', Icon: Camera, label: 'Model Generation' });
+    }
   }
 
   if (
-    role === 'APPROVER' ||
-    role === 'CATEGORY_HEAD' ||
-    role === 'SUB_DIVISION_HEAD' ||
-    isAdmin ||
-    role === 'CREATOR' ||
-    role === 'PO_COMMITTEE'
+    !isPdDesigner &&
+    (role === 'APPROVER' ||
+      role === 'CATEGORY_HEAD' ||
+      role === 'SUB_DIVISION_HEAD' ||
+      isAdmin ||
+      role === 'CREATOR' ||
+      role === 'PO_COMMITTEE')
   ) {
     items.push({
       key: '/approver-group',
@@ -142,11 +153,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
     });
   }
 
-  if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin) {
+  if (!isPdDesigner && (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin)) {
     items.push({ key: '/po-presentation', Icon: FileText, label: 'PO Presentation' });
   }
 
-  if (isAdmin) {
+  if (!isPdDesigner && isAdmin) {
     items.push({
       key: '/admin',
       Icon: SlidersHorizontal,
