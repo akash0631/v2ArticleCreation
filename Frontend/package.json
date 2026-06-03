@@ -22,7 +22,8 @@
     "gpt-4-vision",
     "fashion-tech",
     "machine-learning",
-    "antd"
+    "tailwindcss",
+    "shadcn"
   ],
   "scripts": {
     "dev": "vite",
