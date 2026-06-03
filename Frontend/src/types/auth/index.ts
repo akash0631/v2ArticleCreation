@@ -3,7 +3,7 @@
  * All type definitions related to user authentication and authorization
  */
 
-export type UserRole = 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD' | 'SUB_DIVISION_HEAD';
+export type UserRole = 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD' | 'SUB_DIVISION_HEAD' | 'PD_DESIGNER';
 
 export interface User {
   id: number;

@@ -234,7 +234,7 @@ export default function UsersManagement() {
       usersSheet.addRow(['Rita CategoryHead', 'rita.head@company.com', 'Temp@123', 'CATEGORY_HEAD', 'LADIES', '']);
 
       // Lists for dropdowns
-      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN'];
+      const roleOptions = ['CREATOR', 'PO_COMMITTEE', 'APPROVER', 'CATEGORY_HEAD', 'SUB_DIVISION_HEAD', 'ADMIN', 'PD_DESIGNER'];
       const divisionOptions = divisionNames;
       const subDivisionOptions = Array.from(new Set(
         departments.flatMap((d) => (d.subDepartments || []).map((s) => s.code).filter(Boolean))
@@ -315,7 +315,7 @@ export default function UsersManagement() {
 
       const toRole = (roleRaw: string): AdminUser['role'] | null => {
         const role = roleRaw.toUpperCase();
-        if (role === 'CREATOR' || role === 'PO_COMMITTEE' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || role === 'ADMIN') return role;
+        if (role === 'CREATOR' || role === 'PO_COMMITTEE' || role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || role === 'ADMIN' || role === 'PD_DESIGNER') return role;
         return null;
       };
 
@@ -597,6 +597,7 @@ export default function UsersManagement() {
                 { value: 'CATEGORY_HEAD', label: 'CATEGORY_HEAD' },
                 { value: 'SUB_DIVISION_HEAD', label: 'SUB_DIVISION_HEAD' },
                 { value: 'ADMIN', label: 'ADMIN' },
+                { value: 'PD_DESIGNER', label: 'PD_DESIGNER' },
               ]}
             />
           </Form.Item>
