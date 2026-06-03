@@ -5,14 +5,15 @@ import { cn } from '@/lib/utils';
 const cardVariants = cva('text-card-foreground transition-colors', {
   variants: {
     variant: {
-      /** Default — refined hairline surface, no hover transform. */
+      /** Default — refined hairline surface, no hover transform. Uses the
+       * .card-flat utility which sets a 1.5px border + xs shadow. */
       default: 'card-flat rounded-[var(--radius-card)]',
       /** Subtle elevated panel — modal-like, no hover transform. */
-      elevated: 'rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-md)]',
+      elevated: 'rounded-[var(--radius-card)] border-[1.5px] border-border bg-card shadow-[var(--shadow-md)]',
       /** Frosted translucent surface (used by hero/auth / over-imagery cards). */
       glass: 'glass rounded-[var(--radius-card)]',
       /** Spring-lift on hover — reserve for feature cards / clickable cards. */
-      lift: 'card-3d rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-sm)]',
+      lift: 'card-3d rounded-[var(--radius-card)] border-[1.5px] border-border bg-card shadow-[var(--shadow-sm)]',
       /** Gradient hero — slate brand for dark surfaces. */
       hero: 'bg-slate-brand rounded-[var(--radius-card)] text-white shadow-[var(--shadow-xl)]',
     },

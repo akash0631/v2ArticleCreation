@@ -195,28 +195,32 @@
     letter-spacing: -0.005em;
     color: var(--color-foreground);
     background: var(--color-background);
+    font-weight: 500;  /* default body weight bumped from 400 → medium */
   }
 
-  /* Form / table labels carry more weight by default so key fields read
+  /* Form / table labels carry the bold treatment so key fields read
    * confidently. Specific surfaces can override with .font-normal. */
   label,
   th,
   thead td,
   .field-label {
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: -0.005em;
     color: var(--color-foreground);
   }
 
-  /* HTML headings get display font by default — pages can opt out
-   * with className="font-sans". */
+  /* HTML headings — display font + bold. Pages can opt out with
+   * className="font-sans" or override the weight. */
   h1, h2, h3, h4 {
     font-family: var(--font-display);
     font-optical-sizing: auto;
     font-variation-settings: "SOFT" 50, "WONK" 0;
     letter-spacing: -0.015em;
-    font-weight: 600;
+    font-weight: 700;
   }
+
+  /* Strong / b — visibly bolder, not just font-weight 600 */
+  strong, b { font-weight: 700; }
 
   /* Display font for headings — opted-in via class to avoid mass cascading */
   .font-display {
@@ -294,10 +298,11 @@
   }
 
   /* Soft hairline border + tonal background — replaces "shadow-sm + border"
-   * for a more refined default card. */
+   * for a more refined default card. Border deliberately 1.5px so cards
+   * read as solid surfaces, not floating ghosts. */
   .card-flat {
     background: var(--color-card);
-    border: 1px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
     box-shadow: var(--shadow-xs);
   }
 
