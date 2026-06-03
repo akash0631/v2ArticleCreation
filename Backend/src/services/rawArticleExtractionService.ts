@@ -134,7 +134,7 @@ export async function runRawArticleExtraction(
               price:                      row.price != null ? Number(row.price) : 0,
               image_url:                  row.imageUrl,
             };
-            const created = await insertRawArticleAsFlat(srmRow);
+            const created = await insertRawArticleAsFlat(srmRow, row.id);
             if (created) {
               flatId = created.id;
               console.log(`[RawExtract] ⚠️ PERM_FAILED fallback — created SRM-only flat record ${flatId} for ${row.presentationNo}/${row.designNumber}`);
@@ -207,7 +207,7 @@ async function processOneRow(row: {
             pptNumber:               row.presentationNo,
             ...(row.imageUrl ? { imageUrl: row.imageUrl } : {}),
           },
-          select: { id: true, imageUrl: true, majorCategory: true },
+          select: { id: true, imageUrl: true, majorCategory: true, srmUniqueId: true },
         })
       : null;
 
@@ -216,6 +216,14 @@ async function processOneRow(row: {
       flatImageUrl      = existing.imageUrl ?? row.imageUrl;
       flatMajorCategory = existing.majorCategory ?? row.majorCategory;
       console.log(`[RawExtract] Found existing flat record ${flatId} for design ${row.designNumber}`);
+
+      // Backfill srm_unique_id if not already set (handles records created before this feature)
+      if (!existing.srmUniqueId) {
+        await prisma.extractionResultFlat.update({
+          where: { id: flatId },
+          data:  { srmUniqueId: row.id },
+        });
+      }
     } else {
       // Create a new flat record (same path as srmSyncService insertRow)
       const srmRow: SrmRow = {
@@ -233,7 +241,8 @@ async function processOneRow(row: {
         image_url:                  row.imageUrl,
       };
 
-      const created = await insertRawArticleAsFlat(srmRow);
+      // Pass row.id so srm_unique_id is set on the flat record from creation
+      const created = await insertRawArticleAsFlat(srmRow, row.id);
       if (!created) throw new Error('insertRawArticleAsFlat returned null — insertRow failed');
 
       flatId           = created.id;

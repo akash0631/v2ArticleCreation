@@ -1706,6 +1706,7 @@ export class ApproverController {
                     sapArticleId: true, isGeneric: true, genericArticleId: true,
                     colour: true, variantSize: true, variantColor: true,
                     attrArticleNums: true, source: true, createdAt: true,
+                    srmUniqueId: true,
                 }
             });
 
@@ -1742,6 +1743,25 @@ export class ApproverController {
 
             if (syncUpdates.length > 0) {
                 await prisma.$transaction(syncUpdates);
+            }
+
+            // Write SAP article number back to raw_articles if the flat record came from SRM flow
+            const rawArticleWritebacks = finalizedSyncResults
+                .filter((r: any) => r.success && r.sapArticleNumber)
+                .map((r: any) => {
+                    const approvedItem = approvedItemById.get(r.id);
+                    return approvedItem?.srmUniqueId
+                        ? prisma.rawArticle.update({
+                            where: { id: approvedItem.srmUniqueId },
+                            data:  { articleNumber: r.sapArticleNumber },
+                          })
+                        : null;
+                })
+                .filter(Boolean) as any[];
+
+            if (rawArticleWritebacks.length > 0) {
+                await prisma.$transaction(rawArticleWritebacks);
+                console.log(`[APPROVE] Wrote article numbers back to ${rawArticleWritebacks.length} raw_articles row(s)`);
             }
 
             // Mirror approval + SAP sync outcome to 360article.article_360_flat
