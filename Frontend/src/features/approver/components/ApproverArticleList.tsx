@@ -1022,8 +1022,6 @@ const ArticleCard = React.memo(({
                                                 const isEffectivelyEmpty = !currentValue || currentValue.trim() === '';
                                                 const isEmpty = isEffectivelyEmpty;
                                                 const isEditing = editingField === field;
-                                                const artNum = getArtNum(schemaKey, field, isEffectivelyEmpty ? null : currentValue);
-                                                const isEditingArtNum = editingField === `artnum_${field}`;
                                                 const isEmptyMandatory = isMandatory && isEffectivelyEmpty && !isLocked;
                                                 return (
                                                     <tr key={field} style={{ borderBottom: '1px solid #f5f5f5' }}>
@@ -1043,37 +1041,8 @@ const ArticleCard = React.memo(({
                                                         }}>
                                                             {label}{isMandatory && <span style={{ color: '#ff4d4f', marginLeft: 1 }}>*</span>}
                                                         </td>
-                                                        {/* Art # column — hidden for freeText fields (no BOM lookup needed) */}
-                                                        {!freeText && (
-                                                            <td
-                                                                style={{
-                                                                    padding: '3px 6px',
-                                                                    borderRight: '1px solid #f0f0f0',
-                                                                    verticalAlign: 'middle',
-                                                                    background: isEditingArtNum ? '#e6f7ff' : '#fafafa',
-                                                                    cursor: isLocked ? 'default' : 'pointer',
-                                                                    minWidth: 70,
-                                                                    maxWidth: 90,
-                                                                }}
-                                                                onClick={() => { if (!isLocked && !isEditingArtNum) setEditingField(`artnum_${field}`); }}
-                                                            >
-                                                                {isEditingArtNum ? (
-                                                                    <Input
-                                                                        autoFocus size="small"
-                                                                        defaultValue={artNum}
-                                                                        style={{ fontSize: 10, padding: '0 4px', width: '100%' }}
-                                                                        onPressEnter={(e) => { saveAttrArticleNum(field, (e.target as HTMLInputElement).value); setEditingField(null); }}
-                                                                        onBlur={(e) => { saveAttrArticleNum(field, e.target.value); setEditingField(null); }}
-                                                                    />
-                                                                ) : (
-                                                                    <span style={{ fontSize: 10, color: artNum ? '#1d39c4' : '#d9d9d9', fontStyle: artNum ? 'normal' : 'italic' }}>
-                                                                        {artNum || 'Art #'}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                        )}
                                                         <td
-                                                            colSpan={freeText ? 2 : 1}
+                                                            colSpan={1}
                                                             style={{
                                                                 padding: '3px 8px',
                                                                 cursor: isLocked ? 'default' : 'pointer',
