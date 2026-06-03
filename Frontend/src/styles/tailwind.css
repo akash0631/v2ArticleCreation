@@ -316,11 +316,10 @@
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-sunset) 100%);
   }
 
-  /* Key field label — heavier weight + slightly tighter tracking for the
-   * approver attribute names, BOM rows, etc. Applies the "bold key fields"
-   * design pass. */
+  /* Key field label — heaviest weight + tight tracking for the approver
+   * attribute names, BOM rows, etc. Applies the "bold key fields" design pass. */
   .key-field {
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: -0.005em;
     color: var(--color-foreground);
   }
@@ -328,7 +327,30 @@
   /* Mandatory marker — bolder, more visual weight than a tiny red dot */
   .mandatory-mark {
     color: hsl(0 75% 52%);
-    font-weight: 700;
+    font-weight: 800;
     margin-right: 2px;
   }
 }
+
+/* Card-content typography floor — anything inside a flat / elevated / lift
+ * card reads with weight even when the inline classes are silent. */
+.card-flat,
+[class*="card-flat"],
+[data-card-content] {
+  font-weight: 500;
+}
+.card-flat span,
+.card-flat div,
+.card-flat td,
+.card-flat th {
+  font-weight: inherit;
+}
+
+/* Border thickness floor — every utility .border / .border-{t,b,l,r}
+ * gets bumped from 1px to 1.5px so all surfaces (not just Card primitive)
+ * carry the heavier border treatment. */
+.border        { border-width: 1.5px !important; }
+.border-t      { border-top-width: 1.5px !important; }
+.border-b      { border-bottom-width: 1.5px !important; }
+.border-l      { border-left-width: 1.5px !important; }
+.border-r      { border-right-width: 1.5px !important; }

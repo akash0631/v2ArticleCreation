@@ -1031,11 +1031,11 @@ const ArticleCard = React.memo(
             if (!isLocked && !isEditing) setEditingField(attr.field);
           }}
         >
-          <span className="w-4 shrink-0 text-right text-[10px] font-semibold tabular-nums text-muted-foreground">{num}.</span>
+          <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-muted-foreground">{num}.</span>
           <span
             className={cn(
               'flex-1 truncate text-[10.5px] leading-snug',
-              isMandatory ? 'key-field text-foreground' : 'font-medium text-muted-foreground',
+              isMandatory ? 'key-field text-foreground' : 'font-semibold text-foreground/80',
             )}
           >
             {isMandatory && <span className="mandatory-mark">*</span>}
@@ -1059,7 +1059,7 @@ const ArticleCard = React.memo(
                   style={{
                     color: isEffectivelyEmpty ? (isMandatory ? '#dc2626' : '#9ca3af') : '#111827',
                     fontStyle: isEffectivelyEmpty && !isMandatory ? 'italic' : 'normal',
-                    fontWeight: isMandatory && isEffectivelyEmpty ? 600 : 'normal',
+                    fontWeight: isMandatory && isEffectivelyEmpty ? 700 : 600,
                   }}
                 >
                   {isEffectivelyEmpty
@@ -1093,7 +1093,7 @@ const ArticleCard = React.memo(
                 style={{
                   color: isEffectivelyEmpty ? (isMandatory ? '#dc2626' : '#9ca3af') : '#111827',
                   fontStyle: isEffectivelyEmpty && !isMandatory ? 'italic' : 'normal',
-                  fontWeight: isMandatory && isEffectivelyEmpty ? 600 : 'normal',
+                  fontWeight: isMandatory && isEffectivelyEmpty ? 700 : 600,
                 }}
               >
                 <span className="truncate">
@@ -1327,8 +1327,8 @@ const ArticleCard = React.memo(
              */}
             <aside className="sticky top-[120px] flex min-w-0 flex-col gap-3 self-start">
               {/* Article image — dominant focal point, mockup-style */}
-              <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-white shadow-[var(--shadow-sm)]">
-                <div className="flex items-center justify-between border-b border-border bg-slate-50 px-2.5 py-1.5">
+              <div className="overflow-hidden rounded-[var(--radius-card)] border-[1.5px] border-border bg-white shadow-[var(--shadow-sm)]">
+                <div className="flex items-center justify-between border-b-[1.5px] border-border bg-slate-50 px-2.5 py-1.5">
                   <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     <Info className="h-3 w-3" />
                     Article Image
@@ -1364,48 +1364,48 @@ const ArticleCard = React.memo(
               </div>
 
               {/* Article information */}
-              <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="border-b border-border bg-slate-50 px-2 py-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+              <div className="overflow-hidden rounded-lg border-[1.5px] border-border bg-white">
+                <div className="border-b-[1.5px] border-border bg-slate-50 px-2 py-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                     Article Information
                   </span>
                 </div>
-                <div className="space-y-0.5 px-2 py-1 text-[10.5px]">
+                <div className="space-y-0.5 px-2 py-1 text-[10.5px] font-medium">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Article ID</span>
-                    <span className="truncate text-right font-medium">
+                    <span className="font-semibold text-muted-foreground">Article ID</span>
+                    <span className="truncate text-right font-bold text-foreground">
                       {item.sapArticleId || item.articleNumber || item.imageName || '—'}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Category</span>
-                    <span className="truncate text-right text-[11px]">
+                    <span className="font-semibold text-muted-foreground">Category</span>
+                    <span className="truncate text-right text-[11px] font-semibold text-foreground">
                       {[formatDivisionLabel(item.division), item.subDivision, effectiveMajCat]
                         .filter(Boolean)
                         .join(' › ') || '—'}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">AI Confidence</span>
+                    <span className="font-semibold text-muted-foreground">AI Confidence</span>
                     <Badge variant="success">{aiConfidence}%</Badge>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Image Quality</span>
-                    <span className={`font-semibold ${qualityColor(imageQualityLevel)}`}>{imageQualityLevel}</span>
+                    <span className="font-semibold text-muted-foreground">Image Quality</span>
+                    <span className={`font-bold ${qualityColor(imageQualityLevel)}`}>{imageQualityLevel}</span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Product Clarity</span>
-                    <span className={`font-semibold ${qualityColor(productClarityLevel)}`}>{productClarityLevel}</span>
+                    <span className="font-semibold text-muted-foreground">Product Clarity</span>
+                    <span className={`font-bold ${qualityColor(productClarityLevel)}`}>{productClarityLevel}</span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">Attribute Match</span>
-                    <span className={`font-semibold ${qualityColor(attrMatchLevel)}`}>
+                    <span className="font-semibold text-muted-foreground">Attribute Match</span>
+                    <span className={`font-bold ${qualityColor(attrMatchLevel)}`}>
                       {attrMatchLevel} ({filledAttrCount}/{visibleAttrs.length})
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-muted-foreground">{pathType === 'created' ? 'Last Updated' : 'Created'}</span>
-                    <span className="text-[11px]">
+                    <span className="font-semibold text-muted-foreground">{pathType === 'created' ? 'Last Updated' : 'Created'}</span>
+                    <span className="text-[11px] font-semibold text-foreground">
                       {(pathType === 'created' ? item.updatedAt : item.createdAt) || item.updatedAt || item.createdAt
                         ? new Date(((pathType === 'created' ? item.updatedAt : item.createdAt) || item.updatedAt || item.createdAt) as string).toLocaleString('en-IN', {
                             day: 'numeric',
@@ -1421,9 +1421,9 @@ const ArticleCard = React.memo(
               </div>
 
               {/* Reference & Vendor — 7 editable fields stacked */}
-              <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <div className="border-b border-border bg-slate-50 px-2 py-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+              <div className="overflow-hidden rounded-lg border-[1.5px] border-border bg-white">
+                <div className="border-b-[1.5px] border-border bg-slate-50 px-2 py-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                     Reference &amp; Vendor
                   </span>
                 </div>
