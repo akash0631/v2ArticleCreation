@@ -230,12 +230,15 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
   BUSINESS: <Briefcase className="h-3.5 w-3.5" />,
 };
 
+// Group surfaces use saturated 400-tier border stops so the card edges
+// read confidently against the page. BUSINESS shifted from purple
+// (palette violation) to slate to fit the locked slate+coral palette.
 const GROUP_HEADER_STYLE: Record<string, { bg: string; fg: string; border: string }> = {
-  FAB: { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa' },
-  BODY: { bg: '#ecfdf5', fg: '#047857', border: '#bbf7d0' },
-  'VA ACC.': { bg: '#fef3c7', fg: '#a16207', border: '#fde68a' },
-  'VA PRCS': { bg: '#fdf2f8', fg: '#be185d', border: '#fbcfe8' },
-  BUSINESS: { bg: '#faf5ff', fg: '#7e22ce', border: '#e9d5ff' },
+  FAB: { bg: '#fff7ed', fg: '#9a3412', border: '#fb923c' },        // amber
+  BODY: { bg: '#ecfdf5', fg: '#065f46', border: '#34d399' },       // emerald
+  'VA ACC.': { bg: '#fef3c7', fg: '#854d0e', border: '#facc15' },  // yellow
+  'VA PRCS': { bg: '#fff1f2', fg: '#9f1239', border: '#fb7185' },  // rose
+  BUSINESS: { bg: '#f1f5f9', fg: '#1e293b', border: '#64748b' },   // slate (was purple)
 };
 
 type CardGroup = typeof ATTRIBUTE_GROUPS[number];
@@ -1327,8 +1330,8 @@ const ArticleCard = React.memo(
              */}
             <aside className="sticky top-[120px] flex min-w-0 flex-col gap-3 self-start">
               {/* Article image — dominant focal point, mockup-style */}
-              <div className="overflow-hidden rounded-[var(--radius-card)] border-[1.5px] border-border bg-white shadow-[var(--shadow-sm)]">
-                <div className="flex items-center justify-between border-b-[1.5px] border-border bg-slate-50 px-2.5 py-1.5">
+              <div className="overflow-hidden rounded-[var(--radius-card)] border-2 border-foreground/20 bg-white shadow-[var(--shadow-md)]">
+                <div className="flex items-center justify-between border-b-2 border-foreground/15 bg-slate-50 px-2.5 py-1.5">
                   <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
                     <Info className="h-3 w-3" />
                     Article Image
@@ -1364,8 +1367,8 @@ const ArticleCard = React.memo(
               </div>
 
               {/* Article information */}
-              <div className="overflow-hidden rounded-lg border-[1.5px] border-border bg-white">
-                <div className="border-b-[1.5px] border-border bg-slate-50 px-2 py-1">
+              <div className="overflow-hidden rounded-lg border-2 border-foreground/20 bg-white shadow-[var(--shadow-sm)]">
+                <div className="border-b-2 border-foreground/15 bg-slate-50 px-2 py-1">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                     Article Information
                   </span>
@@ -1421,8 +1424,8 @@ const ArticleCard = React.memo(
               </div>
 
               {/* Reference & Vendor — 7 editable fields stacked */}
-              <div className="overflow-hidden rounded-lg border-[1.5px] border-border bg-white">
-                <div className="border-b-[1.5px] border-border bg-slate-50 px-2 py-1">
+              <div className="overflow-hidden rounded-lg border-2 border-foreground/20 bg-white shadow-[var(--shadow-sm)]">
+                <div className="border-b-2 border-foreground/15 bg-slate-50 px-2 py-1">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700">
                     Reference &amp; Vendor
                   </span>
@@ -1495,13 +1498,13 @@ const ArticleCard = React.memo(
                     return (
                       <div
                         key={g.group}
-                        className="overflow-hidden rounded-lg border bg-white"
+                        className="overflow-hidden rounded-lg border-2 bg-white shadow-[var(--shadow-sm)]"
                         style={{ borderColor: style.border }}
                       >
                         <button
                           type="button"
                           onClick={() => toggleGroupCollapse(g.group)}
-                          className="flex w-full items-center justify-between border-b px-2 py-1 transition-colors hover:brightness-95"
+                          className="flex w-full items-center justify-between border-b-2 px-2 py-1.5 transition-colors hover:brightness-95"
                           style={{ background: style.bg, borderColor: style.border }}
                         >
                           <span
