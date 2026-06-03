@@ -13,7 +13,7 @@ const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   neck_detail: 'neckDetails', fit: 'fit', length: 'length',
   body_style: 'pattern', pocket_type: 'pocketType', no_of_pocket: 'noOfPocket',
   print_type: 'printType', print_style: 'printStyle', print_placement: 'printPlacement',
-  patches: 'patches', patch_type: 'patchesType', patches_type: 'patches',
+  patches: 'patches', patch_type: 'patchesType', patches_type: 'patchesType',
   embroidery: 'embroidery', embroidery_type: 'embroideryType',
   emb_placement: 'embPlacement', button: 'button', btn_colour: 'btnColour',
   zipper: 'zipper', zip_colour: 'zipColour', wash: 'wash',
@@ -23,7 +23,7 @@ const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   segment: 'segment', age_group: 'ageGroup', article_fashion_type: 'articleFashionType',
   mvgr_brand_vendor: 'mvgrBrandVendor', f_count: 'fCount',
   f_construction: 'fConstruction', f_ounce: 'fOunce', f_width: 'fWidth',
-  fab_div: 'fabDiv',
+  fab_div: 'fabDiv', fab_vdr: 'fabVdr',
   extra_pocket: 'extraPocket', imp_atrbt2: 'impAtrbt2',
 };
 

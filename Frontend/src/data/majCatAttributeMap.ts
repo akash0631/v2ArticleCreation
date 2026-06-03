@@ -7,12 +7,12 @@ import { getCachedValues, getCachedCategoryAttributes, getMajCatGridEntry } from
  * Used to filter allowed values per major category from maj-cat-attribute-values.json.
  */
 export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
-  macro_mvgr:        'IMP ATBT',           // DB col E: 'IMP ATBT'  (was 'IMP ATBT-1')
-  main_mvgr:         'FAB_MAIN_MVGR-1',
+  macro_mvgr:        'M_IMP_ATBT',
+  main_mvgr:         'M_FAB_MAIN_MVGR_1',
   yarn_01:           'M_YARN',
-  fabric_main_mvgr:  'FAB-MAIN-MVGR-2',
-  weave:             'WEAVE-01',           // DB col E: 'WEAVE-01'  (was 'WEAVE 01' with space)
-  m_fab2:            'WEAVE 02',
+  fabric_main_mvgr:  'M_FAB_MAIN_MVGR_2',
+  weave:             'M_WEAVE_01',
+  m_fab2:            'M_WEAVE_02',
   composition:       'M_COMPOSITION',
   finish:            'M_FINISH',
   gsm:               'M_GSM',
@@ -28,7 +28,7 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
   neck_detail:       'M_NECK_STYLE',
   fit:               'M_FIT',
   length:            'M_LENGTH',
-  body_style:        'BODY STYLE',
+  body_style:        'M_BODY_STYLE',
   pocket_type:       'M_POCKET',
   no_of_pocket:      'M_NO_OF_POCKET',
   print_type:        'M_PRINT_TYPE',
@@ -58,7 +58,8 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
   vendor_code:       'VENDOR CODE',
   article_description: 'ARTICLE DESC',
   segment:           'SEGMENT',
-  age_group:         'AGE GROUP',          // DB col E: 'AGE GROUP' (was 'M_AGE_GROUP')
+  age_group:         'M_AGE_GROUP',
+  imp_atrbt2:        'M_IMP_ATBT',
   article_fashion_type: 'ARTICLE FASHION TYPE',
   mvgr_brand_vendor: 'MVGR_BRAND_VENDOR',
   f_count:           'M_COUNT',
@@ -67,6 +68,7 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
   f_width:           'M_WIDTH',
   fab_div:           'M_FAB_DIV',
   extra_pocket:      'M_EXTRA_POCKET',
+  fab_vdr:           'M_FAB_VDR',
 };
 
 /**
@@ -74,12 +76,18 @@ export const SCHEMA_KEY_TO_EXCEL_ATTR: Record<string, string> = {
  */
 export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_MACRO_MVGR:        'macro_mvgr',
+  M_IMP_ATBT:          'imp_atrbt2',
   M_YARN:              'yarn_01',
   'M_YARN-02':         'main_mvgr',
   M_YARN_02:           'main_mvgr',         // legacy alias
+  M_FAB_MAIN_MVGR_1:   'main_mvgr',
   M_WEAVE_2:           'fabric_main_mvgr',
+  M_FAB_MAIN_MVGR_2:   'fabric_main_mvgr',
   M_FAB:               'weave',
+  M_WEAVE_01:          'weave',
   M_FAB2:              'm_fab2',
+  M_WEAVE_02:          'm_fab2',
+  M_FAB_VDR:           'fab_vdr',
   M_COMPOSITION:       'composition',
   M_COUNT:             'f_count',
   M_CONSTRUCTION:      'f_construction',
@@ -115,7 +123,8 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_EXTRA_POCKET:      'extra_pocket',
   // Fit / Pattern / Length
   M_FIT:               'fit',
-  M_PATTERN:           'body_style',
+  M_PATTERN:           'body_style',        // legacy alias
+  M_BODY_STYLE:        'body_style',
   M_LENGTH:            'length',
   // Drawcord / Zipper / Button
   M_DC_STYLE:          'drawcord',
@@ -193,7 +202,7 @@ export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   print_placement:      'printPlacement',
   patches:              'patches',
   patch_type:           'patchesType',
-  patches_type:         'patches',
+  patches_type:         'patchesType',
   patch_style:          'patches',
   embroidery:           'embroidery',
   embroidery_type:      'embroideryType',
@@ -214,6 +223,7 @@ export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   front_open_style:     'frontOpenStyle',
   segment:              'segment',
   age_group:            'ageGroup',
+  imp_atrbt2:           'impAtrbt2',
   article_fashion_type: 'articleFashionType',
   mvgr_brand_vendor:    'mvgrBrandVendor',
   f_count:              'fCount',
@@ -221,6 +231,7 @@ export const SCHEMA_KEY_TO_DB_FIELD: Record<string, string> = {
   f_ounce:              'fOunce',
   f_width:              'fWidth',
   fab_div:              'fabDiv',
+  fab_vdr:              'fabVdr',
   extra_pocket:         'extraPocket',
 };
 

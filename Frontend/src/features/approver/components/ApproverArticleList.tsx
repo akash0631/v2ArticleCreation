@@ -98,9 +98,6 @@ const fetchBomMap = (category: string): Promise<Record<string, Record<string, st
 
 const f = (schemaKey: string) => SCHEMA_KEY_TO_EXCEL_ATTR[schemaKey] ?? schemaKey;
 
-// Reverse map: schemaKey → ALL SAP keys (including legacy aliases).
-// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
-// which SAP key variant the uploaded Excel used (e.g. NO_OF_POCKET vs M_NO_OF_POCKET).
 const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY).reduce(
   (acc, [sapKey, schemaKey]) => {
     if (!acc[schemaKey]) acc[schemaKey] = [];
@@ -114,7 +111,8 @@ const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_
 // even if they appear in the DB admin attribute list with a group assigned.
 const BOM_ONLY_SCHEMA_KEYS = new Set([
   'macro_mvgr', // IMP_ATBT-1 / macroMvgr  → BOM field
-  'imp_atrbt2', // IMP_ATBT   / impAtrbt2  → BOM field
+  // imp_atrbt2 used to live here but main moved it to the BUSINESS group
+  // (4ec4bac "fields added"). Keeping it out so it renders in BUSINESS.
 ]);
 
 const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string; schemaKey: string; freeText?: boolean }[] }[] = [
@@ -122,20 +120,21 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
     group: 'FAB',
     color: '#e6f4ff',
     fields: [
+      { field: 'fabDiv', schemaKey: 'fab_div' },
       { field: 'yarn1', schemaKey: 'yarn_01' },
       { field: 'mainMvgr', schemaKey: 'main_mvgr' },
       { field: 'fabricMainMvgr', schemaKey: 'fabric_main_mvgr' },
+      { field: 'fabVdr', schemaKey: 'fab_vdr' },
       { field: 'weave', schemaKey: 'weave' },
       { field: 'mFab2', schemaKey: 'm_fab2' },
-      { field: 'composition', schemaKey: 'composition' },
       { field: 'fCount', schemaKey: 'f_count' },
-      { field: 'fConstruction', schemaKey: 'f_construction' },
-      { field: 'lycra', schemaKey: 'lycra_non_lycra' },
-      { field: 'finish', schemaKey: 'finish' },
       { field: 'gsm', schemaKey: 'gsm' },
       { field: 'fOunce', schemaKey: 'f_ounce' },
+      { field: 'fConstruction', schemaKey: 'f_construction' },
+      { field: 'composition', schemaKey: 'composition' },
+      { field: 'finish', schemaKey: 'finish' },
       { field: 'fWidth', schemaKey: 'f_width' },
-      { field: 'fabDiv', schemaKey: 'fab_div' },
+      { field: 'lycra', schemaKey: 'lycra_non_lycra' },
       { field: 'shade', schemaKey: 'shade', freeText: true },
       { field: 'weight', schemaKey: 'weight', freeText: true },
     ],
@@ -160,7 +159,6 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
       { field: 'fit', schemaKey: 'fit' },
       { field: 'pattern', schemaKey: 'body_style' },
       { field: 'length', schemaKey: 'length' },
-      { field: 'frontOpenStyle', schemaKey: 'front_open_style', freeText: true },
     ],
   },
   {
@@ -198,8 +196,8 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
     fields: [
       { field: 'ageGroup', schemaKey: 'age_group' },
       { field: 'articleFashionType', schemaKey: 'article_fashion_type' },
+      { field: 'impAtrbt2', schemaKey: 'imp_atrbt2' },
       { field: 'segment', schemaKey: 'segment', freeText: true },
-      { field: 'mvgrBrandVendor', schemaKey: 'mvgr_brand_vendor', freeText: true },
     ],
   },
 ];
@@ -625,7 +623,10 @@ const ArticleCard = React.memo(
     const refreshAttempted = React.useRef(false);
 
     const FAB_FIELDS = useMemo(
-      () => (cardGroups.find((g) => g.group === 'FAB')?.fields ?? []).filter((f) => !f.freeText),
+      () =>
+        (cardGroups.find((g) => g.group === 'FAB' || g.group === 'FABRIC')?.fields ?? []).filter(
+          (f) => !f.freeText,
+        ),
       [cardGroups],
     );
     const BODY_FIELDS = useMemo(
