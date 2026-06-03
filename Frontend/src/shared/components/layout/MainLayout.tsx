@@ -76,6 +76,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, [userData?.id]);
 
   const getMenuItems = () => {
+    // PD_DESIGNER only sees Model Generation
+    if (userData?.role === 'PD_DESIGNER') {
+      return [{ key: '/model-generation', icon: <CameraOutlined />, label: 'Model Generation' }];
+    }
+
     const menuItems = [
       { key: '/dashboard', icon: <HomeOutlined />, label: 'Home' },
     ];
@@ -88,6 +93,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Only show Extraction to creator-side roles (SUB_DIVISION_HEAD can also extract)
     if (userData?.role !== 'APPROVER' && userData?.role !== 'CATEGORY_HEAD') {
       menuItems.push({ key: '/extraction', icon: <FileSearchOutlined />, label: 'Extraction' });
+    }
+
+    // Model Generation — ADMIN only (PD_DESIGNER is handled above with early return)
+    if (userData?.role === 'ADMIN') {
       menuItems.push({ key: '/model-generation', icon: <CameraOutlined />, label: 'Model Generation' });
     }
 
