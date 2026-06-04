@@ -37,6 +37,7 @@ export const message = {
     const kind = (config.type as 'success' | 'error' | 'info' | 'warning' | 'loading') || 'info';
     return wrap(kind)(config.content, config.duration);
   },
+  dismiss: (id?: string | number) => toast.dismiss(id),
   destroy: () => toast.dismiss(),
 };
 

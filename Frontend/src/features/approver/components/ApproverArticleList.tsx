@@ -1733,7 +1733,6 @@ const ArticleCard = React.memo(
                         { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false },
                         { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
                         { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isMarkdown: true },
-                        { label: 'IMP_ATBT', field: 'impAtrbt2', editable: true, mandatory: true, isDropdown: true },
                       ].map((bom) => {
                         const isEditingBom = editingField === `bom_${bom.field}`;
                         const val = bom.isMarkdown

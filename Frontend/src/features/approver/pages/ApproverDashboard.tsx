@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, XCircle, RotateCw, Download, FileText, LayoutGrid, Rocket, Sparkles, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import {
   Button,
@@ -62,7 +62,7 @@ const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_
 
 /**
  * Returns the list of mandatory field labels that are empty for a given article.
- * Always-required: VENDOR NAME, RATE, MRP, IMP_ATBT (for all major categories).
+ * Always-required: VENDOR NAME, RATE, MRP (for all major categories).
  * Grid-driven: any field marked active (1) in the uploaded Mandatory Grid Excel.
  * Uses human-readable labels from the Excel Row 4 (e.g. "BODY STYLE" not "M_PATTERN").
  */
@@ -73,7 +73,6 @@ function getMissingMandatoryFields(item: any): string[] {
     if (!item.vendorName) missing.push('VENDOR NAME');
     if (!item.rate)       missing.push('RATE / COST');
     if (!item.mrp)        missing.push('MRP');
-    if (!item.impAtrbt2)  missing.push('M_IMP_ATBT');
 
   // ── Grid-driven mandatory fields ──
   const majorCat = item.majorCategory || '';
@@ -222,7 +221,6 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
     'M_EMB_PLACEMENT',
     'M_WASH',
     // BUSINESS group
-    'M_IMP_ATBT',
     'M_AGE_GROUP',
     'ARTICLE FASHION TYPE',
     'SEGMENT',
@@ -533,10 +531,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   }, [buildApproverExportData, items, selectedRowKeys]);
 
   const [exportingAll, setExportingAll] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const handleExportAll = useCallback(async () => {
     setExportingAll(true);
-    message.loading('Fetching all records for export…');
+    const loadingId = message.loading('Fetching all records for export…');
     try {
       const token = localStorage.getItem('authToken');
       const params = new URLSearchParams();
@@ -562,6 +561,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         mcCode: item.mcCode || inferMcCode(item.majorCategory),
       }));
       if (allRows.length === 0) {
+        message.dismiss(loadingId);
         message.warning('No records found for the current filters');
         return;
       }
@@ -570,8 +570,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
       const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
       await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
+      message.dismiss(loadingId);
       message.success(`Exported ${allRows.length} records`);
     } catch {
+      message.dismiss(loadingId);
       message.error('Export failed. Please try again.');
     } finally {
       setExportingAll(false);
@@ -653,6 +655,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   };
 
   const doApprove = async () => {
+    setApproving(true);
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/approve`, {
@@ -662,6 +665,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       });
       if (!response.ok) throw new Error('Approval failed');
       const payload = await response.json();
+      setConfirmDialog(null);
       if (payload?.sapSync) {
         const { synced, failed, failures } = payload.sapSync;
         if (failed === 0) {
@@ -680,7 +684,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       setSelectedRowKeys([]);
       fetchItems(1);
     } catch {
+      setConfirmDialog(null);
       message.error('Failed to approve items');
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -1488,16 +1495,21 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 Are you sure you want to approve {confirmDialog.count} items? This action cannot be undone.
               </p>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setConfirmDialog(null)}>
+                <Button variant="outline" onClick={() => setConfirmDialog(null)} disabled={approving}>
                   Cancel
                 </Button>
                 <Button
-                  onClick={async () => {
-                    setConfirmDialog(null);
-                    await doApprove();
-                  }}
+                  disabled={approving}
+                  onClick={doApprove}
                 >
-                  Approve
+                  {approving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Approving…
+                    </>
+                  ) : (
+                    'Approve'
+                  )}
                 </Button>
               </DialogFooter>
             </>
