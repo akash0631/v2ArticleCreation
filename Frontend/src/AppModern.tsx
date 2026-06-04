@@ -17,6 +17,7 @@ import { HierarchyManagement, UsersManagement } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
+import ArticleDetailPage from './features/approver/pages/ArticleDetailPage'; // Article detail view
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
 import ModelGenerationPage from './features/model-generation/pages/ModelGenerationPage';
 
@@ -272,11 +273,31 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/approver/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
                 path="/approver/old-articles"
                 element={
                   <ApproverRoute>
                     <MainLayout>
                       <ApproverDashboard key="old-articles" pathType="old" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/old-articles/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
                 }
@@ -292,11 +313,31 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/approver/rejected/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
                 path="/approver/created"
                 element={
                   <ApproverRoute>
                     <MainLayout>
                       <ApproverDashboard key="created-articles" pathType="created" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/created/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
                 }

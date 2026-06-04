@@ -33,15 +33,17 @@ interface TooltipProps {
   children: React.ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
   asChild?: boolean;
+  /** Extra classes forwarded to TooltipContent (merged via tailwind-merge, so overrides work) */
+  contentClassName?: string;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ title, children, side = 'top', asChild = true }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ title, children, side = 'top', asChild = true, contentClassName }) => {
   if (!title) return <>{children}</>;
   return (
     <TooltipProvider delayDuration={200}>
       <TooltipRoot>
         <TooltipTrigger asChild={asChild}>{children}</TooltipTrigger>
-        <TooltipContent side={side}>{title}</TooltipContent>
+        <TooltipContent side={side} className={contentClassName}>{title}</TooltipContent>
       </TooltipRoot>
     </TooltipProvider>
   );

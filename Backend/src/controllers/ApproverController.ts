@@ -1308,6 +1308,50 @@ export class ApproverController {
         }
     }
 
+    // Fetch a single item by id — used by the detail page on direct URL access
+    static async getById(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const item = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: {
+                    id: true, imageName: true, imageUrl: true, imageUncPath: true,
+                    articleNumber: true, division: true, subDivision: true, majorCategory: true,
+                    vendorName: true, vendorCode: true, designNumber: true, pptNumber: true,
+                    referenceArticleNumber: true, referenceArticleDescription: true,
+                    approvalStatus: true, sapSyncStatus: true, sapSyncMessage: true, sapArticleId: true,
+                    createdAt: true, updatedAt: true, userName: true, source: true,
+                    rate: true, mrp: true, size: true, colour: true,
+                    fabricMainMvgr: true, pattern: true, fit: true, neck: true, neckDetails: true,
+                    sleeve: true, sleeveFold: true, length: true, collar: true, collarStyle: true,
+                    placket: true, bottomFold: true, frontOpenStyle: true, pocketType: true,
+                    noOfPocket: true, extraPocket: true, composition: true, gsm: true, weight: true,
+                    finish: true, shade: true, lycra: true, yarn1: true, yarn2: true, weave: true,
+                    macroMvgr: true, mainMvgr: true, mFab2: true, fabDiv: true,
+                    fCount: true, fConstruction: true, fOunce: true, fWidth: true, wash: true,
+                    drawcord: true, dcShape: true, button: true, btnColour: true,
+                    zipper: true, zipColour: true, fatherBelt: true, childBelt: true,
+                    printType: true, printStyle: true, printPlacement: true,
+                    patches: true, patchesType: true, embroidery: true, embroideryType: true,
+                    embPlacement: true, htrfType: true, htrfStyle: true,
+                    ageGroup: true, articleFashionType: true, articleDimension: true,
+                    mcCode: true, impAtrbt2: true, segment: true, season: true,
+                    hsnTaxCode: true, articleDescription: true, fashionGrid: true,
+                    year: true, articleType: true,
+                    bodyArticle: true, bodyArticleDescription: true,
+                    fabricArticleNumber: true, fabricArticleDescription: true,
+                    attrArticleNums: true, mvgrBrandVendor: true,
+                    isGeneric: true, genericArticleId: true, variantSize: true, variantColor: true,
+                },
+            });
+            if (!item) return res.status(404).json({ error: 'Item not found' });
+            return res.json(item);
+        } catch (error) {
+            console.error('Error fetching item by id:', error);
+            return res.status(500).json({ error: 'Failed to fetch item' });
+        }
+    }
+
     // Delete a variant (only PENDING variants may be deleted)
     static async deleteItem(req: Request, res: Response) {
         try {
