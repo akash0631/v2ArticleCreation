@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { RotateCw, Download, Sparkles } from 'lucide-react';
+import { RotateCw, Download, Sparkles, Search, ChevronDown } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import {
   Button,
   Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   RangePicker,
   Select,
   SelectContent,
@@ -13,6 +16,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui-tw';
 import { message } from '@/lib/message';
+import { cn } from '@/lib/utils';
 import type { ApproverItem } from '../components/ApproverTable';
 import { ArticleCard } from '../components/ArticleCard';
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -94,6 +98,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
+
+  // Combobox open/search state for the two searchable filter dropdowns
+  const [subDivOpen, setSubDivOpen] = useState(false);
+  const [subDivSearch, setSubDivSearch] = useState('');
+  const [majCatOpen, setMajCatOpen] = useState(false);
+  const [majCatSearch, setMajCatSearch] = useState('');
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks whether this is the first fetch so we honour the ?page= from the URL
@@ -396,36 +406,148 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 </Select>
               )}
               {(showSubDivisionFilter || user?.role === 'ADMIN') && (
-                <Select value={subDivisionFilter} onValueChange={(v) => { setSubDivisionFilter(v); setMajorCategoryFilter(''); }}>
-                  <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue placeholder="Sub-Division" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Sub-Divs</SelectItem>
-                    {user?.role === 'ADMIN'
-                      ? (getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
-                          ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
-                          : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
-                        ).map(sd => <SelectItem key={sd} value={sd}>{sd}</SelectItem>)
-                      : userAssignedSubDivisions.map(sd => <SelectItem key={sd} value={sd}>{sd}</SelectItem>)
-                    }
-                  </SelectContent>
-                </Select>
+                <Popover
+                  open={subDivOpen}
+                  onOpenChange={(o) => { setSubDivOpen(o); if (!o) setSubDivSearch(''); }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-7 w-[130px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <span className="truncate text-left">
+                        {subDivisionFilter === 'ALL' ? 'All Sub-Divs' : subDivisionFilter}
+                      </span>
+                      <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-0" align="start">
+                    <div className="flex items-center border-b px-2 py-1.5">
+                      <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={subDivSearch}
+                        onChange={(e) => setSubDivSearch(e.target.value)}
+                        placeholder="Search sub-division..."
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {(['ALL'] as string[])
+                        .concat(
+                          user?.role === 'ADMIN'
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .map((sd) => (
+                          <button
+                            key={sd}
+                            type="button"
+                            onClick={() => {
+                              setSubDivisionFilter(sd);
+                              setMajorCategoryFilter('');
+                              setSubDivOpen(false);
+                              setSubDivSearch('');
+                            }}
+                            className={cn(
+                              'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                              subDivisionFilter === sd && 'bg-accent font-medium',
+                            )}
+                          >
+                            {sd === 'ALL' ? 'All Sub-Divs' : sd}
+                          </button>
+                        ))}
+                      {(['ALL'] as string[])
+                        .concat(
+                          user?.role === 'ADMIN'
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">No results</div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
-              <Select value={majorCategoryFilter || '__all__'} onValueChange={v => setMajorCategoryFilter(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="!h-7 w-[170px] text-[12px]"><SelectValue placeholder="Major Category" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All Major Categories</SelectItem>
-                  {(() => {
-                    const div = divisionFilter === 'ALL' ? '' : divisionFilter;
-                    let prefixRegex: RegExp | null = null;
-                    if (div.match(/MEN/i)) prefixRegex = /^M|^MW/i;
-                    else if (div.match(/LADIES|WOMEN/i)) prefixRegex = /^L|^LW/i;
-                    else if (div.match(/KIDS/i)) prefixRegex = /^(K|I|J|Y|G)/i;
-                    return MAJOR_CATEGORY_ALLOWED_VALUES
-                      .filter(v => !prefixRegex || v.shortForm.match(prefixRegex))
-                      .map(v => <SelectItem key={v.shortForm} value={v.shortForm}>{v.shortForm}</SelectItem>);
-                  })()}
-                </SelectContent>
-              </Select>
+              <Popover
+                open={majCatOpen}
+                onOpenChange={(o) => { setMajCatOpen(o); if (!o) setMajCatSearch(''); }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-7 w-[170px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <span className="truncate text-left">
+                      {majorCategoryFilter || 'All Major Categories'}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="flex items-center border-b px-2 py-1.5">
+                    <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={majCatSearch}
+                      onChange={(e) => setMajCatSearch(e.target.value)}
+                      placeholder="Search category..."
+                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {(() => {
+                      const div = divisionFilter === 'ALL' ? '' : divisionFilter;
+                      let prefixRegex: RegExp | null = null;
+                      if (div.match(/MEN/i)) prefixRegex = /^M|^MW/i;
+                      else if (div.match(/LADIES|WOMEN/i)) prefixRegex = /^L|^LW/i;
+                      else if (div.match(/KIDS/i)) prefixRegex = /^(K|I|J|Y|G)/i;
+                      const filtered = MAJOR_CATEGORY_ALLOWED_VALUES
+                        .filter((v) => !prefixRegex || v.shortForm.match(prefixRegex))
+                        .filter((v) => v.shortForm.toLowerCase().includes(majCatSearch.toLowerCase()));
+                      return (
+                        <>
+                          {!majCatSearch && (
+                            <button
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(''); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                !majorCategoryFilter && 'bg-accent font-medium',
+                              )}
+                            >
+                              All Major Categories
+                            </button>
+                          )}
+                          {filtered.map((v) => (
+                            <button
+                              key={v.shortForm}
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(v.shortForm); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                majorCategoryFilter === v.shortForm && 'bg-accent font-medium',
+                              )}
+                            >
+                              {v.shortForm}
+                            </button>
+                          ))}
+                          {filtered.length === 0 && (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">No categories found</div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
                 <SelectTrigger className="!h-7 w-[110px] text-[12px]"><SelectValue /></SelectTrigger>
                 <SelectContent>

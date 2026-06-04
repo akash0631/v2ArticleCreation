@@ -19,6 +19,7 @@ import {
   Plus,
   Minus,
   RotateCw,
+  Search,
 } from 'lucide-react';
 import {
   Autocomplete,
@@ -78,6 +79,9 @@ import { APP_CONFIG } from '../../../constants/app/config';
 import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import VariantSubTable from './VariantSubTable';
+
+// Alias so the combobox trigger can use a distinct name from the plain icon
+const ChevronDownIcon = ChevronDown;
 
 // Module-level BOM cache (shared across card instances)
 const bomCache = new Map<string, Promise<Record<string, Record<string, string>>>>();
@@ -327,6 +331,8 @@ const ArticleCard = React.memo(
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
     const [imgZoom, setImgZoom] = useState(1);
     const [imgRotation, setImgRotation] = useState(0);
+    const [catOpen, setCatOpen] = useState(false);
+    const [catSearch, setCatSearch] = useState('');
 
     const resetImageView = useCallback(() => {
       setImgZoom(1);
@@ -925,21 +931,62 @@ const ArticleCard = React.memo(
             </span>
             <div className="min-w-0 flex-1 text-right">
               {isEditingThis && field === 'majorCategory' ? (
-                <Select
-                  defaultValue={displayVal || undefined}
-                  onValueChange={(val) => handleSave(field, val || null)}
+                <Popover
+                  open={catOpen}
+                  onOpenChange={(o) => {
+                    setCatOpen(o);
+                    if (!o) setCatSearch('');
+                  }}
                 >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getMajorCategoriesByDivision(item.division || '').map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-7 w-full items-center justify-between rounded border border-input bg-background px-2 text-xs hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <span className="truncate text-left">{displayVal || 'Select...'}</span>
+                      <ChevronDownIcon className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <div className="flex items-center border-b px-2 py-1.5">
+                      <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={catSearch}
+                        onChange={(e) => setCatSearch(e.target.value)}
+                        placeholder="Search category..."
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {getMajorCategoriesByDivision(item.division || '')
+                        .filter((cat) =>
+                          cat.toLowerCase().includes(catSearch.toLowerCase()),
+                        )
+                        .map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              handleSave(field, cat);
+                              setCatOpen(false);
+                              setCatSearch('');
+                            }}
+                            className="w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      {getMajorCategoriesByDivision(item.division || '').filter((cat) =>
+                        cat.toLowerCase().includes(catSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          No categories found
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               ) : isEditingThis && field === 'vendorName' ? (
                 <Autocomplete
                   autoFocus

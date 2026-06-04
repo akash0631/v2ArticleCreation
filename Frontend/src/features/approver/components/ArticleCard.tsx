@@ -1,3 +1,12 @@
+import { useState, useCallback } from 'react';
+import { Minus, Plus, RotateCw, ZoomIn } from 'lucide-react';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui-tw';
 import type { ApproverItem } from './ApproverTable';
 
 export interface ArticleCardProps {
@@ -24,72 +33,187 @@ export function ArticleCard({ item, index, onClick }: ArticleCardProps) {
   const statusKey = (item.approvalStatus ?? 'PENDING') as string;
   const s = STATUS_STYLES[statusKey] ?? STATUS_STYLES.PENDING;
 
+  const [imgModalOpen, setImgModalOpen] = useState(false);
+  const [imgZoom, setImgZoom] = useState(1);
+  const [imgRotation, setImgRotation] = useState(0);
+
+  const resetImageView = useCallback(() => {
+    setImgZoom(1);
+    setImgRotation(0);
+  }, []);
+
   return (
-    <div
-      onClick={() => onClick(item, index)}
-      className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-    >
-      {/* Status + SAP tag */}
-      <div className="flex items-center justify-between">
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.bg} ${s.text}`}>
-          {statusKey}
-        </span>
-        {item.sapSyncStatus === 'SYNCED' && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">SAP ✓</span>
-        )}
-        {item.sapSyncStatus === 'FAILED' && (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">SAP ✗</span>
-        )}
-      </div>
-
-      {/* Thumbnail + division/category */}
-      <div className="flex items-start gap-2">
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt="article"
-            className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-[9px] text-muted-foreground">
-            No img
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {[item.division, item.subDivision].filter(Boolean).join(' › ') || '—'}
-          </div>
-          <div className="truncate text-[13px] font-bold text-foreground" title={item.majorCategory || undefined}>
-            {item.majorCategory || '—'}
-          </div>
-        </div>
-      </div>
-
-      {/* Key fields */}
-      <div className="space-y-1">
-        <FieldRow label="Design" value={item.designNumber || item.articleNumber || '—'} />
-        <FieldRow label="Vendor" value={item.vendorName || '—'} />
-        <FieldRow label="Code"   value={item.vendorCode   || '—'} />
-        <FieldRow label="Date"   value={formatDate(item.createdAt)} />
-      </div>
-
-      {/* Rate / MRP */}
-      {(item.rate || item.mrp) && (
-        <div className="flex items-center gap-3 border-t border-border pt-2">
-          {item.rate && (
-            <span className="text-[11px] text-muted-foreground">
-              Cost <span className="font-semibold text-foreground">₹{item.rate}</span>
-            </span>
+    <>
+      <div
+        onClick={() => onClick(item, index)}
+        className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+      >
+        {/* Status + SAP tag */}
+        <div className="flex items-center justify-between">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.bg} ${s.text}`}>
+            {statusKey}
+          </span>
+          {item.sapSyncStatus === 'SYNCED' && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">SAP ✓</span>
           )}
-          {item.mrp && (
-            <span className="text-[11px] text-muted-foreground">
-              MRP <span className="font-semibold text-foreground">₹{item.mrp}</span>
-            </span>
+          {item.sapSyncStatus === 'FAILED' && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">SAP ✗</span>
           )}
         </div>
+
+        {/* Thumbnail + division/category */}
+        <div className="flex items-start gap-2">
+          {item.imageUrl ? (
+            <div
+              className="relative h-14 w-14 shrink-0 cursor-zoom-in"
+              onClick={(e) => {
+                e.stopPropagation();
+                resetImageView();
+                setImgModalOpen(true);
+              }}
+            >
+              <img
+                src={item.imageUrl}
+                alt="article"
+                className="h-14 w-14 rounded-lg border border-border object-cover transition-opacity group-hover:opacity-90"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 transition-colors hover:bg-black/25">
+                <ZoomIn className="h-4 w-4 text-white opacity-0 drop-shadow transition-opacity hover:opacity-100" />
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-[9px] text-muted-foreground">
+              No img
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {[item.division, item.subDivision].filter(Boolean).join(' › ') || '—'}
+            </div>
+            <div className="truncate text-[13px] font-bold text-foreground" title={item.majorCategory || undefined}>
+              {item.majorCategory || '—'}
+            </div>
+          </div>
+        </div>
+
+        {/* Key fields */}
+        <div className="space-y-1">
+          {item.articleNumber && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="w-10 shrink-0 text-muted-foreground">Article</span>
+              <span
+                className="min-w-0 truncate rounded bg-blue-50 px-1.5 py-0.5 font-semibold text-blue-700"
+                title={item.articleNumber}
+              >
+                {item.articleNumber}
+              </span>
+            </div>
+          )}
+          <FieldRow label="Design" value={item.designNumber || '—'} />
+          <FieldRow label="Vendor" value={item.vendorName || '—'} />
+          <FieldRow label="Code"   value={item.vendorCode   || '—'} />
+          <FieldRow label="Date"   value={formatDate(item.createdAt)} />
+        </div>
+
+        {/* Rate / MRP */}
+        {(item.rate || item.mrp) && (
+          <div className="flex items-center gap-3 border-t border-border pt-2">
+            {item.rate && (
+              <span className="text-[11px] text-muted-foreground">
+                Cost <span className="font-semibold text-foreground">₹{item.rate}</span>
+              </span>
+            )}
+            {item.mrp && (
+              <span className="text-[11px] text-muted-foreground">
+                MRP <span className="font-semibold text-foreground">₹{item.mrp}</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Image preview modal */}
+      {item.imageUrl && (
+        <Dialog
+          open={imgModalOpen}
+          onOpenChange={(o) => {
+            setImgModalOpen(o);
+            if (!o) resetImageView();
+          }}
+        >
+          <DialogContent className="w-auto max-w-[92vw] p-0">
+            <DialogHeader className="flex flex-row items-center justify-between border-b border-border px-4 py-2">
+              <DialogTitle className="truncate text-sm">
+                {item.imageName || 'Image Preview'}
+              </DialogTitle>
+              {/* Zoom + rotate controls */}
+              <div className="mr-8 flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => setImgZoom((z) => Math.max(0.25, Number((z - 0.25).toFixed(2))))}
+                  aria-label="Zoom out"
+                  disabled={imgZoom <= 0.25}
+                >
+                  <Minus />
+                </Button>
+                <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">
+                  {Math.round(imgZoom * 100)}%
+                </span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-7 w-7"
+                  onClick={() => setImgZoom((z) => Math.min(4, Number((z + 0.25).toFixed(2))))}
+                  aria-label="Zoom in"
+                  disabled={imgZoom >= 4}
+                >
+                  <Plus />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="ml-1 h-7 w-7"
+                  onClick={() => setImgRotation((r) => (r + 90) % 360)}
+                  aria-label="Rotate 90°"
+                >
+                  <RotateCw />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-1 h-7 px-2 text-xs"
+                  onClick={resetImageView}
+                  disabled={imgZoom === 1 && imgRotation === 0}
+                >
+                  Reset
+                </Button>
+              </div>
+            </DialogHeader>
+            <div
+              className="flex items-center justify-center overflow-auto p-4"
+              style={{ maxHeight: '80vh' }}
+            >
+              <img
+                src={item.imageUrl}
+                alt={item.imageName || 'preview'}
+                className="block transition-transform duration-200 will-change-transform"
+                style={{
+                  maxWidth: '85vw',
+                  maxHeight: '75vh',
+                  objectFit: 'contain',
+                  transform: `scale(${imgZoom}) rotate(${imgRotation}deg)`,
+                  transformOrigin: 'center',
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }
 
