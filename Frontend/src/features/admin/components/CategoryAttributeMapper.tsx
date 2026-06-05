@@ -2,53 +2,67 @@
  * CategoryAttributeMapper
  * Primary admin tab for managing which attributes are enabled per category.
  *
- * Layout:
- *   Left (280px) — scrollable category list grouped by department, with search
- *   Right (flex) — attribute toggle table for the selected category
- *
- * Clicking a category in the hierarchy tab passes it in via `initialCategory`
- * so the user lands directly on the right category.
+ * Left (280px): scrollable category list grouped by department, with search
+ * Right (flex): attribute toggle table for the selected category
  */
-
 import { useState, useMemo, useEffect } from 'react';
+import { ChevronDown, ChevronRight, Save } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Input, Typography, Space, Tag, Empty, Spin, Switch, Table,
-  Button, Select, Badge, message, Collapse,
-} from 'antd';
-import { DownOutlined, RightOutlined } from '@ant-design/icons';
-import { SaveOutlined } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Badge,
+  Button,
+  DataTable,
+  Empty,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Switch,
+  Tag,
+  type DataTableColumn,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
 import {
-  getHierarchyTreeLightweight, getCategoryWithAllAttributes,
-  updateCategoryAttributeMapping, updateCategory,
+  getHierarchyTreeLightweight,
+  getCategoryWithAllAttributes,
+  updateCategoryAttributeMapping,
+  updateCategory,
 } from '../../../services/adminApi';
-import type { LightweightDepartment, LightweightCategory, LightweightSubDepartment } from '../../../services/adminApi';
+import type {
+  LightweightDepartment,
+  LightweightCategory,
+  LightweightSubDepartment,
+} from '../../../services/adminApi';
 import type { SelectedCategory } from './HierarchyTreeEditor';
-
-const { Text } = Typography;
-const { Panel } = Collapse;
 
 const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 const GROUP_COLORS: Record<string, string> = {
-  'FAB':      '#e6f4ff',
-  'BODY':     '#f6ffed',
-  'VA ACC.':  '#fff7e6',
-  'VA PRCS':  '#fff0f6',
-  'BUSINESS': '#f9f0ff',
+  FAB: '#e6f4ff',
+  BODY: '#f6ffed',
+  'VA ACC.': '#fff7e6',
+  'VA PRCS': '#fff0f6',
+  BUSINESS: '#f9f0ff',
 };
 const GROUP_BORDER: Record<string, string> = {
-  'FAB':      '#91caff',
-  'BODY':     '#95de64',
-  'VA ACC.':  '#ffd591',
-  'VA PRCS':  '#ffadd2',
-  'BUSINESS': '#d3adf7',
+  FAB: '#91caff',
+  BODY: '#95de64',
+  'VA ACC.': '#ffd591',
+  'VA PRCS': '#ffadd2',
+  BUSINESS: '#d3adf7',
 };
 const GROUP_TEXT: Record<string, string> = {
-  'FAB':      '#0958d9',
-  'BODY':     '#389e0d',
-  'VA ACC.':  '#d46b08',
-  'VA PRCS':  '#c41d7f',
-  'BUSINESS': '#531dab',
+  FAB: '#0958d9',
+  BODY: '#389e0d',
+  'VA ACC.': '#d46b08',
+  'VA PRCS': '#c41d7f',
+  BUSINESS: '#531dab',
 };
 
 const GARMENT_TYPES = [
@@ -81,12 +95,10 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     staleTime: 0,
   });
 
-  // Reset local changes when category changes
   useEffect(() => {
     setLocalChanges({});
     setGarmentType(category.garmentType);
   }, [category.id]);
-
 
   const rows: AttrRow[] = useMemo(() => {
     if (!catAttrs?.allAttributes) return [];
@@ -101,7 +113,6 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     }));
   }, [catAttrs, localChanges]);
 
-  // Group rows by card group
   const groupedRows = useMemo(() => {
     const groups: Record<string, AttrRow[]> = {};
     const other: AttrRow[] = [];
@@ -116,11 +127,11 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     return { groups, other };
   }, [rows]);
 
-  const enabledCount = rows.filter(r => r.isEnabled).length;
+  const enabledCount = rows.filter((r) => r.isEnabled).length;
   const changedCount = Object.keys(localChanges).length;
 
   const handleToggle = (attrId: number, field: 'isEnabled' | 'isRequired', value: boolean) => {
-    setLocalChanges(prev => {
+    setLocalChanges((prev) => {
       const existing = prev[attrId] || {};
       const next = { ...existing, [field]: value };
       if (field === 'isEnabled' && !value) next.isRequired = false;
@@ -137,7 +148,9 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
       try {
         await updateCategoryAttributeMapping(category.id, parseInt(id), changes);
         ok++;
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
     message.success(`Saved ${ok}/${entries.length} changes`);
     setLocalChanges({});
@@ -162,174 +175,179 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
     for (const r of rows) {
       changes[r.attributeId] = { isEnabled: enable, ...(enable ? {} : { isRequired: false }) };
     }
-    setLocalChanges(prev => ({ ...prev, ...changes }));
+    setLocalChanges((prev) => ({ ...prev, ...changes }));
   };
 
-  const columns = [
+  const columns: DataTableColumn<AttrRow>[] = [
     {
       title: 'Key',
       key: 'key',
       width: 140,
-      render: (_: any, r: AttrRow) => (
-        <Tag style={{ fontFamily: 'monospace', fontSize: 11 }}>{r.attrKey}</Tag>
-      ),
+      render: (_v, r) => <Tag className="font-mono text-[11px]">{r.attrKey}</Tag>,
     },
     {
       title: 'Attribute Name',
       key: 'label',
-      render: (_: any, r: AttrRow) => <Text style={{ fontSize: 13 }}>{r.attrLabel}</Text>,
+      render: (_v, r) => <span className="text-[13px]">{r.attrLabel}</span>,
     },
     {
       title: 'Type',
       key: 'type',
       width: 80,
-      render: (_: any, r: AttrRow) => (
-        <Tag color="geekblue" style={{ fontSize: 11 }}>{r.attrType}</Tag>
+      render: (_v, r) => (
+        <Badge variant="info" className="text-[11px]">
+          {r.attrType}
+        </Badge>
       ),
     },
     {
-      title: () => (
-        <Space>
+      title: (
+        <span className="flex items-center gap-2">
           <span>Enabled</span>
-          <Badge count={enabledCount} style={{ backgroundColor: '#52c41a' }} />
-        </Space>
+          <Badge variant="success">{enabledCount}</Badge>
+        </span>
       ),
       key: 'enabled',
       width: 90,
-      render: (_: any, r: AttrRow) => (
-        <Switch size="small" checked={r.isEnabled} onChange={v => handleToggle(r.attributeId, 'isEnabled', v)} />
+      render: (_v, r) => (
+        <Switch checked={r.isEnabled} onCheckedChange={(v) => handleToggle(r.attributeId, 'isEnabled', v)} />
       ),
     },
     {
       title: 'Required',
       key: 'required',
       width: 90,
-      render: (_: any, r: AttrRow) => (
-        <Switch size="small" checked={r.isRequired} disabled={!r.isEnabled} onChange={v => handleToggle(r.attributeId, 'isRequired', v)} />
+      render: (_v, r) => (
+        <Switch
+          checked={r.isRequired}
+          disabled={!r.isEnabled}
+          onCheckedChange={(v) => handleToggle(r.attributeId, 'isRequired', v)}
+        />
       ),
     },
   ];
 
   return (
-    <div style={{ padding: '16px 20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="flex h-full flex-col px-5 py-4">
       {/* Category header */}
-      <div style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: 14, marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>Selected Category</Text>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-              <Text strong style={{ fontSize: 18 }}>{category.name}</Text>
-              <Tag style={{ fontFamily: 'monospace' }}>{category.code}</Tag>
-              <Tag color="blue">{category.departmentName}</Tag>
-            </div>
+      <div className="mb-3.5 flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3.5">
+        <div>
+          <span className="text-xs text-muted-foreground">Selected Category</span>
+          <div className="mt-0.5 flex items-center gap-2">
+            <strong className="text-lg">{category.name}</strong>
+            <Tag className="font-mono">{category.code}</Tag>
+            <Badge variant="info">{category.departmentName}</Badge>
           </div>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Garment Type</Text>
-            <Select
-              value={garmentType}
-              options={GARMENT_TYPES}
-              onChange={saveGarmentType}
-              style={{ width: 260 }}
-              size="small"
-            />
-          </div>
+        </div>
+        <div>
+          <span className="mb-1 block text-xs text-muted-foreground">Garment Type</span>
+          <Select value={garmentType} onValueChange={saveGarmentType}>
+            <SelectTrigger className="h-8 w-[260px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GARMENT_TYPES.map((g) => (
+                <SelectItem key={g.value} value={g.value}>
+                  {g.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Space>
-          <Button size="small" onClick={() => toggleAll(true)}>Enable All</Button>
-          <Button size="small" onClick={() => toggleAll(false)}>Disable All</Button>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => toggleAll(true)}>
+            Enable All
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => toggleAll(false)}>
+            Disable All
+          </Button>
           {changedCount > 0 && (
-            <Tag color="orange">{changedCount} unsaved change{changedCount !== 1 ? 's' : ''}</Tag>
+            <Badge variant="warning">
+              {changedCount} unsaved change{changedCount !== 1 ? 's' : ''}
+            </Badge>
           )}
-        </Space>
-        <Button
-          type="primary" icon={<SaveOutlined />} size="small"
-          loading={saving} disabled={!changedCount}
-          onClick={saveAll}
-        >
+        </div>
+        <Button size="sm" onClick={saveAll} disabled={!changedCount || saving}>
+          <Save />
           Save Changes
         </Button>
       </div>
 
       {/* Grouped attribute sections */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        <Spin spinning={isLoading}>
-          <Collapse
-            defaultActiveKey={GROUP_ORDER}
-            bordered={false}
-            style={{ background: 'transparent' }}
-          >
-            {GROUP_ORDER.map(groupName => {
+      <div className="flex-1 overflow-auto">
+        <Spinner spinning={isLoading}>
+          <Accordion type="multiple" defaultValue={GROUP_ORDER}>
+            {GROUP_ORDER.map((groupName) => {
               const groupRows = groupedRows.groups[groupName] || [];
-              const enabledInGroup = groupRows.filter(r => r.isEnabled).length;
+              const enabledInGroup = groupRows.filter((r) => r.isEnabled).length;
               if (groupRows.length === 0) return null;
               return (
-                <Panel
+                <AccordionItem
                   key={groupName}
-                  header={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
-                        background: GROUP_TEXT[groupName],
-                      }} />
-                      <Text strong style={{ color: GROUP_TEXT[groupName], fontSize: 13 }}>{groupName}</Text>
-                      <Badge
-                        count={`${enabledInGroup}/${groupRows.length}`}
-                        style={{ backgroundColor: enabledInGroup > 0 ? GROUP_TEXT[groupName] : '#d9d9d9', fontSize: 10 }}
-                      />
-                    </div>
-                  }
-                  style={{
-                    marginBottom: 8,
-                    border: `1px solid ${GROUP_BORDER[groupName]}`,
-                    borderRadius: 6,
-                    background: GROUP_COLORS[groupName],
-                    overflow: 'hidden',
-                  }}
+                  value={groupName}
+                  className="mb-2 overflow-hidden rounded-md border"
+                  style={{ borderColor: GROUP_BORDER[groupName], background: GROUP_COLORS[groupName] }}
                 >
-                  <Table
-                    dataSource={groupRows}
+                  <AccordionTrigger className="px-3 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ background: GROUP_TEXT[groupName] }}
+                      />
+                      <strong className="text-[13px]" style={{ color: GROUP_TEXT[groupName] }}>
+                        {groupName}
+                      </strong>
+                      <Badge style={{ background: enabledInGroup > 0 ? GROUP_TEXT[groupName] : '#d9d9d9' }}>
+                        {enabledInGroup}/{groupRows.length}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="bg-background/40 px-3 pb-3">
+                    <DataTable<AttrRow>
+                      dataSource={groupRows}
+                      columns={columns}
+                      rowKey="attributeId"
+                      size="small"
+                      pagination={false}
+                      rowClassName={(r) => (localChanges[r.attributeId] ? 'attr-row-changed' : '')}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+
+            {groupedRows.other.length > 0 && (
+              <AccordionItem
+                value="__other__"
+                className="mb-2 overflow-hidden rounded-md border border-border"
+              >
+                <AccordionTrigger className="px-3 hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-[13px] text-muted-foreground">Other / Unassigned</strong>
+                    <Badge variant="secondary">{groupedRows.other.length}</Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-3 pb-3">
+                  <DataTable<AttrRow>
+                    dataSource={groupedRows.other}
                     columns={columns}
                     rowKey="attributeId"
                     size="small"
                     pagination={false}
-                    rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
-                    style={{ background: 'transparent' }}
+                    rowClassName={(r) => (localChanges[r.attributeId] ? 'attr-row-changed' : '')}
                   />
-                </Panel>
-              );
-            })}
-
-            {/* Other / Unassigned */}
-            {groupedRows.other.length > 0 && (
-              <Panel
-                key="__other__"
-                header={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Text strong style={{ color: '#8c8c8c', fontSize: 13 }}>Other / Unassigned</Text>
-                    <Badge count={groupedRows.other.length} style={{ backgroundColor: '#8c8c8c', fontSize: 10 }} />
-                  </div>
-                }
-                style={{ marginBottom: 8, border: '1px solid #d9d9d9', borderRadius: 6 }}
-              >
-                <Table
-                  dataSource={groupedRows.other}
-                  columns={columns}
-                  rowKey="attributeId"
-                  size="small"
-                  pagination={false}
-                  rowClassName={r => localChanges[r.attributeId] ? 'attr-row-changed' : ''}
-                />
-              </Panel>
+                </AccordionContent>
+              </AccordionItem>
             )}
-          </Collapse>
-        </Spin>
+          </Accordion>
+        </Spinner>
       </div>
 
-      <style>{`.attr-row-changed { background: #fffbe6 !important; }`}</style>
+      <style>{`.attr-row-changed > td { background: #fffbe6 !important; }`}</style>
     </div>
   );
 };
@@ -346,30 +364,27 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
   const [collapsedDepts, setCollapsedDepts] = useState<Set<string>>(new Set());
 
   const toggleDept = (deptName: string) => {
-    setCollapsedDepts(prev => {
+    setCollapsedDepts((prev) => {
       const next = new Set(prev);
-      next.has(deptName) ? next.delete(deptName) : next.add(deptName);
+      if (next.has(deptName)) next.delete(deptName);
+      else next.add(deptName);
       return next;
     });
   };
 
-  // Jump to category when navigated from hierarchy tab
   useEffect(() => {
-    if (initialCategory) {
-      setSelectedCat(initialCategory);
-    }
+    if (initialCategory) setSelectedCat(initialCategory);
   }, [initialCategory?.id]);
 
   const { data: hierarchyData, isLoading } = useQuery({
     queryKey: ['hierarchy-tree-lightweight'],
     queryFn: getHierarchyTreeLightweight,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Flatten all categories with dept + sub info — counts come pre-computed from backend
   const allCategories = useMemo(() => {
     if (!Array.isArray(hierarchyData)) return [];
-    return (hierarchyData as LightweightDepartment[]).flatMap(dept =>
+    return (hierarchyData as LightweightDepartment[]).flatMap((dept) =>
       (dept.subDepartments ?? []).flatMap((sub: LightweightSubDepartment) =>
         (sub.categories ?? []).map((cat: LightweightCategory) => ({
           cat,
@@ -377,20 +392,20 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
           sub,
           enabledCount: cat.enabledCount,
           totalCount: cat.totalCount,
-        }))
-      )
+        })),
+      ),
     );
   }, [hierarchyData]);
 
-  // Group by department, filtered by search
   const grouped = useMemo(() => {
     const lower = searchText.toLowerCase().trim();
     const filtered = lower
-      ? allCategories.filter(({ cat, sub, dept }) =>
-          cat.name.toLowerCase().includes(lower) ||
-          cat.code.toLowerCase().includes(lower) ||
-          sub.name.toLowerCase().includes(lower) ||
-          dept.name.toLowerCase().includes(lower)
+      ? allCategories.filter(
+          ({ cat, sub, dept }) =>
+            cat.name.toLowerCase().includes(lower) ||
+            cat.code.toLowerCase().includes(lower) ||
+            sub.name.toLowerCase().includes(lower) ||
+            dept.name.toLowerCase().includes(lower),
         )
       : allCategories;
 
@@ -405,155 +420,123 @@ export const CategoryAttributeMapper: React.FC<CategoryAttributeMapperProps> = (
   const totalCats = allCategories.length;
 
   return (
-    <div style={{ display: 'flex', height: '78vh', border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-
-      {/* ── Left: category browser ── */}
-      <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid #f0f0f0', display: 'flex', flexDirection: 'column', background: '#fafafa' }}>
-        {/* Search */}
-        <div style={{ padding: '12px', borderBottom: '1px solid #f0f0f0' }}>
-          <Input.Search
+    <div className="flex h-[78vh] overflow-hidden rounded-lg border border-border bg-background">
+      {/* Left: category browser */}
+      <div className="flex w-[280px] shrink-0 flex-col border-r border-border bg-muted/30">
+        <div className="border-b border-border p-3">
+          <Input
             placeholder={`Search ${totalCats} categories…`}
             value={searchText}
-            onChange={e => setSearchText(e.target.value)}
+            onChange={(e) => setSearchText(e.target.value)}
             allowClear
-            size="small"
+            onClear={() => setSearchText('')}
           />
         </div>
 
-        {/* Category list */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <Spin spinning={isLoading} size="small" style={{ margin: 20 }}>
+        <div className="flex-1 overflow-y-auto">
+          <Spinner spinning={isLoading}>
             {Object.entries(grouped).map(([deptName, items]) => {
               const isCollapsed = collapsedDepts.has(deptName);
               return (
-              <div key={deptName}>
-                {/* Department section header — click to collapse/expand */}
-                <div
-                  onClick={() => toggleDept(deptName)}
-                  style={{
-                    padding: '6px 14px 4px',
-                    background: '#f0f0f0',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#555',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.6px',
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 1,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    userSelect: 'none',
-                  }}
-                >
-                  <span>{deptName}</span>
-                  <span style={{ fontSize: 10, color: '#888' }}>
-                    {isCollapsed
-                      ? <><RightOutlined /> {items.length}</>
-                      : <DownOutlined />}
-                  </span>
-                </div>
+                <div key={deptName}>
+                  <div
+                    onClick={() => toggleDept(deptName)}
+                    className="sticky top-0 z-[1] flex cursor-pointer select-none items-center justify-between bg-muted px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    <span>{deptName}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {isCollapsed ? (
+                        <span className="inline-flex items-center gap-1">
+                          <ChevronRight className="h-3 w-3" /> {items.length}
+                        </span>
+                      ) : (
+                        <ChevronDown className="h-3 w-3" />
+                      )}
+                    </span>
+                  </div>
 
-                {/* Category rows — hidden when collapsed */}
-                {!isCollapsed && items.map(({ cat, sub, enabledCount, totalCount }) => {
-                  const isSelected = selectedCat?.id === cat.id;
-                  return (
-                    <div
-                      key={cat.id}
-                      onClick={() => setSelectedCat({
-                        id: cat.id,
-                        name: cat.name,
-                        code: cat.code,
-                        garmentType: cat.garmentType ?? 'UPPER',
-                        departmentName: deptName ?? '',
-                      })}
-                      style={{
-                        padding: '8px 14px',
-                        cursor: 'pointer',
-                        borderLeft: isSelected ? '3px solid #1890ff' : '3px solid transparent',
-                        background: isSelected ? '#e6f7ff' : 'transparent',
-                        transition: 'background 0.12s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                      }}
-                      className="cat-picker-row"
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Tag style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, flexShrink: 0 }}>
-                            {cat.code}
-                          </Tag>
-                          <Text
-                            style={{ fontSize: 12, lineHeight: 1.3 }}
-                            ellipsis={{ tooltip: cat.name }}
+                  {!isCollapsed &&
+                    items.map(({ cat, sub, enabledCount, totalCount }) => {
+                      const isSelected = selectedCat?.id === cat.id;
+                      return (
+                        <div
+                          key={cat.id}
+                          onClick={() =>
+                            setSelectedCat({
+                              id: cat.id,
+                              name: cat.name,
+                              code: cat.code,
+                              garmentType: cat.garmentType ?? 'UPPER',
+                              departmentName: deptName ?? '',
+                            })
+                          }
+                          className="cat-picker-row flex cursor-pointer items-center justify-between gap-2 px-3.5 py-2 transition-colors"
+                          style={{
+                            borderLeft: isSelected ? '3px solid #1890ff' : '3px solid transparent',
+                            background: isSelected ? '#e6f7ff' : 'transparent',
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <Tag className="m-0 shrink-0 font-mono text-[10px]">{cat.code}</Tag>
+                              <span className="truncate text-xs leading-tight" title={cat.name}>
+                                {cat.name}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground">{sub.name}</span>
+                          </div>
+                          <Badge
+                            variant={enabledCount > 0 ? 'success' : 'secondary'}
+                            className="m-0 shrink-0 text-[10px]"
                           >
-                            {cat.name}
-                          </Text>
+                            {enabledCount}/{totalCount}
+                          </Badge>
                         </div>
-                        <Text type="secondary" style={{ fontSize: 11 }}>{sub.name}</Text>
-                      </div>
-                      <Tag
-                        color={enabledCount > 0 ? 'green' : 'default'}
-                        style={{ fontSize: 10, margin: 0, flexShrink: 0 }}
-                      >
-                        {enabledCount}/{totalCount}
-                      </Tag>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                </div>
               );
             })}
 
             {Object.keys(grouped).length === 0 && !isLoading && (
               <Empty
                 description={searchText ? `No results for "${searchText}"` : 'No categories found'}
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                style={{ marginTop: 40 }}
+                className="mt-10"
               />
             )}
-          </Spin>
+          </Spinner>
         </div>
 
-        {/* Footer hint */}
-        <div style={{ padding: '8px 14px', borderTop: '1px solid #f0f0f0', background: '#f5f5f5' }}>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+        <div className="border-t border-border bg-muted px-3.5 py-2">
+          <span className="text-[11px] text-muted-foreground">
             {totalCats} categories · click to edit attributes
-          </Text>
+          </span>
         </div>
       </div>
 
-      {/* ── Right: attribute table ── */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      {/* Right: attribute table */}
+      <div className="flex-1 overflow-hidden">
         {selectedCat ? (
           <AttributeTable key={selectedCat.id} category={selectedCat} />
         ) : (
           <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            style={{ marginTop: 100 }}
+            className="mt-24"
             description={
-              <Space direction="vertical" size={6}>
-                <Text strong style={{ fontSize: 15 }}>Select a category</Text>
-                <Text type="secondary">
+              <div className="flex flex-col items-center gap-1.5">
+                <strong className="text-[15px]">Select a category</strong>
+                <span className="text-sm text-muted-foreground">
                   Pick any category from the left panel to view and manage its attributes.
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  The <strong>Enabled</strong> count (e.g. 23/45) shows how many attributes
-                  are currently active for extraction.
-                </Text>
-              </Space>
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  The <strong>Enabled</strong> count (e.g. 23/45) shows how many attributes are currently active for extraction.
+                </span>
+              </div>
             }
           />
         )}
       </div>
 
-      <style>{`
-        .cat-picker-row:hover { background: #f0f7ff !important; }
-      `}</style>
+      <style>{`.cat-picker-row:hover { background: #f0f7ff !important; }`}</style>
     </div>
   );
 };

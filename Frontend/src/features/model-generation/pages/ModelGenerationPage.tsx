@@ -1,19 +1,49 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import {
-  App, Card, Button, Form, Select, Radio, Upload, Input, Row, Col,
-  Typography, Space, Spin, Alert, Image, Divider, Tag,
-  Empty, Progress,
-} from 'antd';
+  Upload as UploadIcon,
+  Zap,
+  Download,
+  Trash2,
+  Camera,
+  Inbox,
+  FolderOpen,
+  FileArchive,
+  RotateCw,
+  Eye,
+  History,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import {
-  UploadOutlined, ThunderboltOutlined, DownloadOutlined, DeleteOutlined,
-  CameraOutlined, InboxOutlined, FolderOpenOutlined, FileZipOutlined,
-  ReloadOutlined, EyeOutlined, HistoryOutlined,
-} from '@ant-design/icons';
-import type { RcFile } from 'antd/es/upload';
-
-const { Title, Text, Paragraph } = Typography;
-const { Dragger } = Upload;
-const { TextArea } = Input;
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  Empty,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  Input,
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Spinner,
+  Tag,
+  Textarea,
+} from '@/shared/components/ui-tw';
+import { cn } from '@/lib/utils';
+import { message } from '@/lib/message';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
 const SERVER_BASE = API_BASE.replace(/\/api$/, '');
@@ -95,6 +125,13 @@ const BODYTYPE_OPTIONS = [
   { label: 'Lower Body', value: 'Lower-Body' },
 ];
 
+const BROACH_PLACEMENT_OPTIONS = [
+  { label: 'Left Chest', value: 'left chest' },
+  { label: 'Right Chest', value: 'right chest' },
+  { label: 'Center', value: 'center' },
+  { label: 'Collar', value: 'collar' },
+];
+
 const VIEW_LABELS: Record<string, string> = {
   front: 'Front',
   back: 'Back',
@@ -104,16 +141,52 @@ const VIEW_LABELS: Record<string, string> = {
 };
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
-const isImage = (name: string) => IMAGE_EXTS.some(ext => name.toLowerCase().endsWith(ext));
+const isImage = (name: string) => IMAGE_EXTS.some((ext) => name.toLowerCase().endsWith(ext));
+
+interface FormValues {
+  gender: string;
+  bodytype: string;
+  imagesCount: string;
+  broach_placement?: string;
+  color_name?: string;
+  special_instructions?: string;
+}
+
+// Status -> tailwind classes for the various job/task chips. Coral for in-flight
+// (matches slate+coral brand palette), green for DONE, red for FAILED, amber for PARTIAL.
+const statusTagClass = (s: JobStatus | 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | undefined): string => {
+  switch (s) {
+    case 'DONE':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'FAILED':
+      return 'border-rose-200 bg-rose-50 text-rose-700';
+    case 'PARTIAL':
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'QUEUED':
+    case 'RUNNING':
+      return 'border-[#FF6F61]/30 bg-[#FF6F61]/10 text-[#FF6F61]';
+    default:
+      return 'border-border bg-muted text-muted-foreground';
+  }
+};
 
 export default function ModelGenerationPage() {
-  const { message } = App.useApp();
-  const [form] = Form.useForm();
-  const [designFiles, setDesignFiles] = useState<RcFile[]>([]);
+  const form = useForm<FormValues>({
+    defaultValues: {
+      gender: 'female',
+      bodytype: 'Full-Body',
+      imagesCount: '1',
+      broach_placement: '',
+      color_name: '',
+      special_instructions: '',
+    },
+  });
+
+  const [designFiles, setDesignFiles] = useState<File[]>([]);
   const [zipFile, setZipFile] = useState<File | null>(null);
-  const [patternFile, setPatternFile] = useState<RcFile | null>(null);
-  const [broachFile, setBroachFile] = useState<RcFile | null>(null);
-  const [colorImageFile, setColorImageFile] = useState<RcFile | null>(null);
+  const [patternFile, setPatternFile] = useState<File | null>(null);
+  const [broachFile, setBroachFile] = useState<File | null>(null);
+  const [colorImageFile, setColorImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<GeneratedImage[]>([]);
@@ -121,10 +194,20 @@ export default function ModelGenerationPage() {
   const [job, setJob] = useState<JobSummary | null>(null);
   const [recentJobs, setRecentJobs] = useState<JobListItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recentTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const designInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const patternInputRef = useRef<HTMLInputElement>(null);
+  const broachInputRef = useRef<HTMLInputElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
+
+  const imagesCount = form.watch('imagesCount');
 
   const loadRecentJobs = async () => {
     const token = localStorage.getItem('authToken');
@@ -148,9 +231,9 @@ export default function ModelGenerationPage() {
     const savedJobId = localStorage.getItem(ACTIVE_JOB_KEY);
     if (savedJobId) {
       const token = localStorage.getItem('authToken');
-      resumeJob(savedJobId, token);
+      void resumeJob(savedJobId, token);
     }
-    loadRecentJobs();
+    void loadRecentJobs();
     recentTimerRef.current = setInterval(loadRecentJobs, RECENT_JOBS_REFRESH_MS);
     return () => {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -165,7 +248,10 @@ export default function ModelGenerationPage() {
     let p = 0;
     progressTimerRef.current = setInterval(() => {
       p += Math.random() * 4;
-      if (p >= 90) { clearInterval(progressTimerRef.current!); p = 90; }
+      if (p >= 90) {
+        clearInterval(progressTimerRef.current!);
+        p = 90;
+      }
       setProgress(Math.round(p));
     }, 800);
   };
@@ -191,7 +277,11 @@ export default function ModelGenerationPage() {
   const designSourceMap = useMemo(() => {
     const m: Record<string, string> = {};
     for (const f of designFiles) {
-      try { m[f.name] = URL.createObjectURL(f); } catch { /* ignore */ }
+      try {
+        m[f.name] = URL.createObjectURL(f);
+      } catch {
+        /* ignore */
+      }
     }
     return m;
   }, [designFiles]);
@@ -203,7 +293,10 @@ export default function ModelGenerationPage() {
     const acc = new Map<string, GarmentRow>();
     const ensure = (fileName: string, source?: string) => {
       let row = acc.get(fileName);
-      if (!row) { row = { fileName, source, cells: {} }; acc.set(fileName, row); }
+      if (!row) {
+        row = { fileName, source, cells: {} };
+        acc.set(fileName, row);
+      }
       if (!row.source && source) row.source = source;
       return row;
     };
@@ -211,14 +304,14 @@ export default function ModelGenerationPage() {
     if (job) {
       for (const r of job.results) {
         const row = ensure(r.fileName, r.sourceUrl);
-        if (VIEW_ORDER.includes(r.view as ViewName)) {
+        if ((VIEW_ORDER as readonly string[]).includes(r.view)) {
           row.cells[r.view as ViewName] = { url: r.url, status: r.status, error: r.error };
         }
       }
     } else {
       for (const r of results) {
         const row = ensure(r.file, r.source ?? designSourceMap[r.file]);
-        if (VIEW_ORDER.includes(r.view as ViewName)) {
+        if ((VIEW_ORDER as readonly string[]).includes(r.view)) {
           row.cells[r.view as ViewName] = { url: r.url, status: 'DONE' };
         }
       }
@@ -231,26 +324,20 @@ export default function ModelGenerationPage() {
   // derive from the form so single-view mode renders as 2 cells (source + front).
   const visibleViews = useMemo<ViewName[]>(() => {
     if (job) {
-      const set = new Set(job.results.map(r => r.view as ViewName));
-      const ordered = VIEW_ORDER.filter(v => set.has(v));
+      const set = new Set(job.results.map((r) => r.view as ViewName));
+      const ordered = VIEW_ORDER.filter((v) => set.has(v));
       return ordered.length > 0 ? ordered : ['front'];
     }
-    const v = form.getFieldValue('imagesCount');
-    return v === '4' ? [...VIEW_ORDER] : ['front'];
-  }, [job, results, form]);
+    return imagesCount === '4' ? [...VIEW_ORDER] : ['front'];
+  }, [job, imagesCount]);
 
-  const addDesigns = (files: RcFile[] | File[]) => {
-    const filtered = Array.from(files).filter(f => isImage(f.name)) as RcFile[];
+  const addDesigns = (files: File[] | FileList) => {
+    const filtered = Array.from(files).filter((f) => isImage(f.name));
     if (filtered.length === 0) {
       message.warning('No image files found in selection.');
       return;
     }
-    setDesignFiles(prev => [...prev, ...filtered]);
-  };
-
-  const addDesign = (file: RcFile) => {
-    setDesignFiles(prev => [...prev, file]);
-    return false;
+    setDesignFiles((prev) => [...prev, ...filtered]);
   };
 
   const onPickFolder = () => folderInputRef.current?.click();
@@ -258,23 +345,22 @@ export default function ModelGenerationPage() {
   const onFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = e.target.files;
     if (!list) return;
-    addDesigns(Array.from(list) as RcFile[]);
-    // reset so picking the same folder again re-triggers onChange
+    addDesigns(list);
     e.target.value = '';
   };
 
-  const onZipPicked = (file: RcFile) => {
+  const onZipPicked = (file: File | undefined) => {
+    if (!file) return;
     if (!file.name.toLowerCase().endsWith('.zip')) {
       message.error('Please pick a .zip file.');
-      return false;
+      return;
     }
     setZipFile(file);
-    return false;
   };
 
-  const buildFormData = (values: any, forBulk: boolean): FormData => {
+  const buildFormData = (values: FormValues, forBulk: boolean): FormData => {
     const fd = new FormData();
-    designFiles.forEach(f => fd.append('designs', f));
+    designFiles.forEach((f) => fd.append('designs', f));
     if (forBulk && zipFile) fd.append('archive', zipFile);
     if (patternFile) fd.append('pattern', patternFile);
     if (broachFile) fd.append('broach', broachFile);
@@ -284,22 +370,89 @@ export default function ModelGenerationPage() {
     fd.append('imagesCount', values.imagesCount);
     if (values.broach_placement) fd.append('broach_placement', values.broach_placement);
     if (values.special_instructions) fd.append('special_instructions', values.special_instructions);
+    if (values.color_name) fd.append('color_name', values.color_name);
     return fd;
   };
 
-  const handleGenerate = async () => {
-    try {
-      await form.validateFields();
-    } catch {
-      return;
-    }
+  // Apply a job snapshot to component state (no side-effects beyond setState).
+  const applyJobUpdate = (j: JobSummary) => {
+    setJob(j);
+    const pct = j.total > 0 ? Math.round(((j.done + j.failed) / j.total) * 100) : 0;
+    setProgress(pct);
+    const done = j.results.filter((r) => r.status === 'DONE' && r.url);
+    setResults(done.map((r) => ({ file: r.fileName, view: r.view, url: r.url!, source: r.sourceUrl })));
+  };
 
+  // Continuously poll a job until it reaches a terminal status. Used by both
+  // "start a new job" and "resume after tab switch."
+  const startPolling = (jobId: string, token: string | null) => {
+    stopPolling();
+    const tick = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/model-generation/bulk/job/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Failed to poll job');
+        const j: JobSummary = data.job;
+        applyJobUpdate(j);
+
+        if (!isActiveStatus(j.status)) {
+          stopPolling();
+          setLoading(false);
+          if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
+          if (j.status === 'DONE') message.success(`All ${j.done} image(s) generated!`);
+          else if (j.status === 'PARTIAL') message.warning(`${j.done} succeeded, ${j.failed} failed.`);
+          else message.error('Job failed. ' + (j.error || ''));
+          void loadRecentJobs();
+        }
+      } catch (err: any) {
+        stopPolling();
+        setLoading(false);
+        setError(err.message || 'Lost connection to job.');
+      }
+    };
+    void tick();
+    pollTimerRef.current = setInterval(tick, 3000);
+  };
+
+  // Resume a job after a tab switch / page reload (called from useEffect on mount).
+  const resumeJob = async (jobId: string, token: string | null) => {
+    try {
+      const res = await fetch(`${API_BASE}/model-generation/bulk/job/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
+        return;
+      }
+      const j: JobSummary = data.job;
+      applyJobUpdate(j);
+      if (isActiveStatus(j.status)) {
+        setLoading(true);
+        startPolling(jobId, token);
+      } else {
+        if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
+      }
+    } catch {
+      // silent — user can click the job in the Recent panel to retry
+    }
+  };
+
+  // Click handler for "View" in the Recent Jobs panel.
+  const viewJob = async (jobId: string) => {
+    setError(null);
+    const token = localStorage.getItem('authToken');
+    await resumeJob(jobId, token);
+  };
+
+  const handleGenerate = async (values: FormValues) => {
     if (!designFiles.length && !zipFile) {
       message.error('Please upload at least one garment image, a folder, or a .zip.');
       return;
     }
 
-    const values = form.getFieldsValue();
     setError(null);
     setResults([]);
     setJob(null);
@@ -337,85 +490,12 @@ export default function ModelGenerationPage() {
       message.success(`Job created: ${data.totalImages} image(s), ${data.totalTasks} task(s). Generating in the background...`);
       localStorage.setItem(ACTIVE_JOB_KEY, data.jobId);
       startPolling(data.jobId, token);
-      loadRecentJobs();
+      void loadRecentJobs();
     } catch (err: any) {
       setError(err.message || 'Generation failed. Please try again.');
       stopFakeProgress();
       setLoading(false);
     }
-  };
-
-  // Apply a job snapshot to component state (no side-effects beyond setState).
-  const applyJobUpdate = (j: JobSummary) => {
-    setJob(j);
-    const pct = j.total > 0 ? Math.round(((j.done + j.failed) / j.total) * 100) : 0;
-    setProgress(pct);
-    const done = j.results.filter(r => r.status === 'DONE' && r.url);
-    setResults(done.map(r => ({ file: r.fileName, view: r.view, url: r.url!, source: r.sourceUrl })));
-  };
-
-  // Continuously poll a job until it reaches a terminal status. Used by both
-  // "start a new job" and "resume after tab switch."
-  const startPolling = (jobId: string, token: string | null) => {
-    stopPolling();
-    const tick = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/model-generation/bulk/job/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Failed to poll job');
-        const j: JobSummary = data.job;
-        applyJobUpdate(j);
-
-        if (!isActiveStatus(j.status)) {
-          stopPolling();
-          setLoading(false);
-          if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
-          if (j.status === 'DONE') message.success(`All ${j.done} image(s) generated!`);
-          else if (j.status === 'PARTIAL') message.warning(`${j.done} succeeded, ${j.failed} failed.`);
-          else message.error('Job failed. ' + (j.error || ''));
-          loadRecentJobs();
-        }
-      } catch (err: any) {
-        stopPolling();
-        setLoading(false);
-        setError(err.message || 'Lost connection to job.');
-      }
-    };
-    tick();
-    pollTimerRef.current = setInterval(tick, 3000);
-  };
-
-  // Resume a job after a tab switch / page reload (called from useEffect on mount).
-  const resumeJob = async (jobId: string, token: string | null) => {
-    try {
-      const res = await fetch(`${API_BASE}/model-generation/bulk/job/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
-        return;
-      }
-      const j: JobSummary = data.job;
-      applyJobUpdate(j);
-      if (isActiveStatus(j.status)) {
-        setLoading(true);
-        startPolling(jobId, token);
-      } else {
-        if (localStorage.getItem(ACTIVE_JOB_KEY) === jobId) localStorage.removeItem(ACTIVE_JOB_KEY);
-      }
-    } catch {
-      // silent — user can click the job in the Recent panel to retry
-    }
-  };
-
-  // Click handler for "View" in the Recent Jobs panel.
-  const viewJob = async (jobId: string) => {
-    setError(null);
-    const token = localStorage.getItem('authToken');
-    await resumeJob(jobId, token);
   };
 
   const cancelJob = async () => {
@@ -451,14 +531,19 @@ export default function ModelGenerationPage() {
     // and stream back a single .zip. Way faster than N download dialogs.
     if (job) {
       const token = localStorage.getItem('authToken');
-      const hide = message.loading('Building zip…', 0);
+      const toastId = message.loading('Building zip…');
       try {
         const res = await fetch(`${API_BASE}/model-generation/bulk/job/${job.id}/download-zip`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
           let errText = 'Zip download failed';
-          try { const j = await res.json(); errText = j?.error || errText; } catch { /* not json */ }
+          try {
+            const j = await res.json();
+            errText = j?.error || errText;
+          } catch {
+            /* not json */
+          }
           throw new Error(errText);
         }
         const blob = await res.blob();
@@ -472,7 +557,7 @@ export default function ModelGenerationPage() {
       } catch (err: any) {
         message.error(err?.message || 'Failed to download zip');
       } finally {
-        hide();
+        toast.dismiss(toastId);
       }
       return;
     }
@@ -485,449 +570,690 @@ export default function ModelGenerationPage() {
     }
   };
 
-  const beforeUpload = (setter: (f: RcFile) => void) => (file: RcFile) => {
-    setter(file);
-    return false;
+  const handleDesignDrop = (files: FileList | null) => {
+    if (!files) return;
+    addDesigns(files);
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <CameraOutlined style={{ marginRight: 10, color: '#1677ff' }} />
+    <div className="mx-auto max-w-[1200px] px-4 py-6">
+      <div className="mb-6">
+        <h1 className="m-0 flex items-center gap-2.5 text-2xl font-semibold">
+          <Camera className="h-6 w-6 text-[#FF6F61]" />
           AI Model Generation
-        </Title>
-        <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Upload garment images and generate professional fashion model photos using AI.
-        </Paragraph>
+        </p>
       </div>
 
-      <Row gutter={24}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[9fr_15fr]">
         {/* LEFT — Config Panel */}
-        <Col xs={24} lg={9}>
-          <Card title="Generation Settings" style={{ position: 'sticky', top: 80 }}>
-            <Form form={form} layout="vertical" initialValues={{ gender: 'female', bodytype: 'Full-Body', imagesCount: '1' }}>
-              {/* Garment Images */}
-              <Form.Item label={<Text strong>Garment Images</Text>} required>
-                <Dragger
-                  accept="image/*"
-                  multiple
-                  beforeUpload={addDesign}
-                  showUploadList={false}
-                  style={{ padding: '8px 0' }}
-                >
-                  <p className="ant-upload-drag-icon" style={{ margin: '8px 0' }}>
-                    <InboxOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-                  </p>
-                  <p className="ant-upload-text" style={{ fontSize: 13 }}>Click or drag garment images here</p>
-                </Dragger>
-
-                <Space style={{ marginTop: 8, width: '100%' }} wrap>
-                  <Button size="small" icon={<FolderOpenOutlined />} onClick={onPickFolder}>
-                    Pick Folder
-                  </Button>
-                  <Upload
-                    accept=".zip,application/zip"
-                    beforeUpload={onZipPicked}
-                    showUploadList={false}
-                    maxCount={1}
+        <Card className="sticky top-20 self-start glass rounded-2xl border border-white/60">
+          <CardHeader>
+            <CardTitle className="text-base">Generation Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleGenerate)} className="flex flex-col gap-4">
+                {/* Garment Images */}
+                <FormItem>
+                  <FormLabel>Garment Images *</FormLabel>
+                  <div
+                    onDragEnter={() => setIsDragging(true)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      handleDesignDrop(e.dataTransfer.files);
+                    }}
+                    onClick={() => designInputRef.current?.click()}
+                    className={cn(
+                      'cursor-pointer rounded-xl border-2 border-dashed py-3 text-center transition-all duration-300',
+                      isDragging ? 'border-[#FF6F61] bg-[#FF6F61]/10 shadow-lg shadow-[#FF6F61]/20' : 'border-border bg-white/40 backdrop-blur-sm hover:bg-white/60 hover:shadow-md',
+                    )}
                   >
-                    <Button size="small" icon={<FileZipOutlined />}>
-                      {zipFile ? `Zip: ${zipFile.name}` : 'Upload ZIP'}
-                    </Button>
-                  </Upload>
-                  {zipFile && (
-                    <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setZipFile(null)}>
-                      Remove zip
-                    </Button>
-                  )}
-                </Space>
+                    <Inbox className="mx-auto my-2 h-7 w-7 text-[#FF6F61]" />
+                    <p className="text-[13px]">Click or drag garment images here</p>
+                  </div>
+                  <input
+                    ref={designInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleDesignDrop(e.target.files)}
+                  />
 
-                {/* Hidden folder input — webkitdirectory is non-standard, cast to any to satisfy TS */}
-                <input
-                  ref={folderInputRef}
-                  type="file"
-                  multiple
-                  {...({ webkitdirectory: '', directory: '' } as any)}
-                  style={{ display: 'none' }}
-                  onChange={onFolderInputChange}
-                />
-
-                {(designFiles.length > 0 || zipFile) && (
-                  <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
-                    {designFiles.length > 0 && (
-                      <div style={{ fontSize: 11, color: '#888', padding: '4px 0' }}>
-                        {designFiles.length} image{designFiles.length !== 1 ? 's' : ''} selected
-                        {isBulkMode && <Tag color="orange" style={{ marginLeft: 8, fontSize: 10 }}>Bulk mode</Tag>}
-                      </div>
-                    )}
-                    {designFiles.slice(0, 8).map((f, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-                        <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: f.name }}>{f.name}</Text>
-                        <Button size="small" type="text" icon={<DeleteOutlined />} danger onClick={() => setDesignFiles(prev => prev.filter((_, j) => j !== i))} />
-                      </div>
-                    ))}
-                    {designFiles.length > 8 && (
-                      <Text type="secondary" style={{ fontSize: 11 }}>… and {designFiles.length - 8} more</Text>
-                    )}
-                    {designFiles.length > 0 && (
-                      <Button size="small" type="link" danger onClick={() => setDesignFiles([])} style={{ padding: 0, marginTop: 4 }}>
-                        Clear all
+                  {/* Folder + Zip alternative pickers */}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={onPickFolder}>
+                      <FolderOpen />
+                      Pick Folder
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => zipInputRef.current?.click()}>
+                      <FileArchive />
+                      {zipFile ? `Zip: ${zipFile.name.slice(0, 20)}${zipFile.name.length > 20 ? '…' : ''}` : 'Upload ZIP'}
+                    </Button>
+                    {zipFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => setZipFile(null)}
+                      >
+                        <Trash2 />
+                        Remove zip
                       </Button>
                     )}
                   </div>
-                )}
-              </Form.Item>
 
-              <Form.Item name="gender" label={<Text strong>Gender</Text>} rules={[{ required: true }]}>
-                <Select options={GENDER_OPTIONS} />
-              </Form.Item>
-
-              <Form.Item name="bodytype" label={<Text strong>Body Type</Text>} rules={[{ required: true }]}>
-                <Select options={BODYTYPE_OPTIONS} />
-              </Form.Item>
-
-              <Form.Item name="imagesCount" label={<Text strong>Views</Text>}>
-                <Radio.Group>
-                  <Radio value="1">Single (Front only)</Radio>
-                  <Radio value="4">All Views (Front / Back / Side / Closeup)</Radio>
-                </Radio.Group>
-              </Form.Item>
-
-              <Divider style={{ margin: '8px 0 16px' }}>Optional</Divider>
-
-              <Form.Item label={<Text>Pattern Image</Text>}>
-                <Upload accept="image/*" beforeUpload={beforeUpload(f => setPatternFile(f))} showUploadList={false} maxCount={1}>
-                  <Button icon={<UploadOutlined />} size="small">
-                    {patternFile ? patternFile.name : 'Upload Pattern'}
-                  </Button>
-                </Upload>
-                {patternFile && (
-                  <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setPatternFile(null)} style={{ marginLeft: 4 }} />
-                )}
-              </Form.Item>
-
-              <Form.Item label={<Text>Accessory / Broach Image</Text>}>
-                <Upload accept="image/*" beforeUpload={beforeUpload(f => setBroachFile(f))} showUploadList={false} maxCount={1}>
-                  <Button icon={<UploadOutlined />} size="small">
-                    {broachFile ? broachFile.name : 'Upload Accessory'}
-                  </Button>
-                </Upload>
-                {broachFile && (
-                  <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setBroachFile(null)} style={{ marginLeft: 4 }} />
-                )}
-              </Form.Item>
-
-              <Form.Item name="broach_placement" label={<Text>Broach Placement</Text>}>
-                <Select allowClear placeholder="e.g. left chest" options={[
-                  { label: 'Left Chest', value: 'left chest' },
-                  { label: 'Right Chest', value: 'right chest' },
-                  { label: 'Center', value: 'center' },
-                  { label: 'Collar', value: 'collar' },
-                ]} />
-              </Form.Item>
-
-              <Form.Item label={<Text>Color Attachment (image lock)</Text>} help={
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  Upload a reference image. The garment will be recolored to match the dominant color of this image.
-                </Text>
-              }>
-                <Space align="start">
-                  <Upload
-                    accept="image/*"
-                    beforeUpload={beforeUpload(f => setColorImageFile(f))}
-                    showUploadList={false}
-                    maxCount={1}
-                  >
-                    <Button icon={<UploadOutlined />} size="small">
-                      {colorImageFile ? colorImageFile.name : 'Upload Color Reference'}
-                    </Button>
-                  </Upload>
-                  {colorImageFile && (
-                    <>
-                      <img
-                        src={URL.createObjectURL(colorImageFile)}
-                        alt="color reference"
-                        style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, border: '1px solid #d9d9d9' }}
-                      />
-                      <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setColorImageFile(null)} />
-                    </>
-                  )}
-                </Space>
-              </Form.Item>
-
-              <Form.Item name="special_instructions" label={<Text>Special Instructions</Text>}>
-                <TextArea rows={2} placeholder="Any specific requirements..." />
-              </Form.Item>
-
-              <Button
-                type="primary"
-                block
-                size="large"
-                icon={<ThunderboltOutlined />}
-                onClick={handleGenerate}
-                loading={loading}
-                disabled={!designFiles.length && !zipFile}
-              >
-                {loading ? (isBulkMode ? 'Processing job...' : 'Generating...') : (isBulkMode ? 'Start Bulk Job' : 'Generate Models')}
-              </Button>
-
-              {loading && progress > 0 && (
-                <Progress percent={progress} size="small" style={{ marginTop: 12 }} strokeColor={{ '0%': '#1677ff', '100%': '#52c41a' }} />
-              )}
-
-              {job && (
-                <Card size="small" style={{ marginTop: 12 }} bodyStyle={{ padding: 12 }}>
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    <Text style={{ fontSize: 12 }}>
-                      Job <Text code style={{ fontSize: 11 }}>{job.id.slice(0, 16)}…</Text>
-                    </Text>
-                    <Text style={{ fontSize: 12 }}>
-                      Status: <Tag color={
-                        job.status === 'DONE' ? 'green' :
-                        job.status === 'FAILED' ? 'red' :
-                        job.status === 'PARTIAL' ? 'orange' :
-                        'blue'
-                      }>{job.status}</Tag>
-                    </Text>
-                    <Text style={{ fontSize: 12 }}>
-                      {job.done}/{job.total} done · {job.failed} failed · {job.running} running · {job.pending} pending
-                    </Text>
-                    {loading && (
-                      <Button size="small" danger onClick={cancelJob}>Cancel job</Button>
-                    )}
-                  </Space>
-                </Card>
-              )}
-            </Form>
-          </Card>
-        </Col>
-
-        {/* RIGHT — Results Panel */}
-        <Col xs={24} lg={15}>
-          {/* Recent bulk jobs — survives tab switches; click any to view its results */}
-          {recentJobs.length > 0 && (
-            <Card
-              size="small"
-              style={{ marginBottom: 16 }}
-              title={
-                <Space>
-                  <HistoryOutlined />
-                  <Text strong>Recent Bulk Jobs</Text>
-                </Space>
-              }
-              extra={
-                <Button
-                  size="small"
-                  type="text"
-                  icon={<ReloadOutlined spin={recentLoading} />}
-                  onClick={loadRecentJobs}
-                />
-              }
-              styles={{ body: { padding: '4px 12px', maxHeight: 240, overflowY: 'auto' } }}
-            >
-              {recentJobs.map(rj => {
-                const pct = rj.total > 0 ? Math.round(((rj.done + rj.failed) / rj.total) * 100) : 0;
-                const isActive = isActiveStatus(rj.status);
-                const isCurrent = job?.id === rj.id;
-                return (
-                  <div
-                    key={rj.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '6px 0',
-                      borderBottom: '1px solid #f0f0f0',
-                      background: isCurrent ? '#e6f4ff' : undefined,
+                  {/* Hidden folder + zip inputs */}
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    multiple
+                    // webkitdirectory is non-standard, the React types don't know it
+                    {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+                    className="hidden"
+                    onChange={onFolderInputChange}
+                  />
+                  <input
+                    ref={zipInputRef}
+                    type="file"
+                    accept=".zip,application/zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      onZipPicked(e.target.files?.[0]);
+                      e.target.value = '';
                     }}
-                  >
-                    <Tag
-                      color={
-                        rj.status === 'DONE' ? 'green' :
-                        rj.status === 'FAILED' ? 'red' :
-                        rj.status === 'PARTIAL' ? 'orange' :
-                        'blue'
-                      }
-                      style={{ fontSize: 10, margin: 0, minWidth: 64, textAlign: 'center' }}
-                    >
-                      {rj.status}
-                    </Tag>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={{ fontSize: 11, display: 'block' }} ellipsis={{ tooltip: rj.id }}>
-                        {rj.id.slice(0, 22)}…
-                      </Text>
-                      <Text type="secondary" style={{ fontSize: 10 }}>
-                        {rj.done}/{rj.total} done · {rj.failed} failed · {new Date(rj.createdAt).toLocaleTimeString()}
-                      </Text>
-                      {isActive && (
-                        <Progress percent={pct} size="small" showInfo={false} style={{ marginTop: 2 }} />
+                  />
+
+                  {(designFiles.length > 0 || zipFile) && (
+                    <div className="mt-2 max-h-52 overflow-y-auto">
+                      {designFiles.length > 0 && (
+                        <div className="flex items-center gap-2 py-1 text-[11px] text-muted-foreground">
+                          {designFiles.length} image{designFiles.length !== 1 ? 's' : ''} selected
+                          {isBulkMode && (
+                            <Tag className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">Bulk mode</Tag>
+                          )}
+                        </div>
+                      )}
+                      {designFiles.slice(0, 8).map((f, i) => (
+                        <div key={i} className="flex items-center justify-between border-b border-border py-1">
+                          <span className="truncate text-xs" title={f.name}>
+                            {f.name}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive"
+                            onClick={() => setDesignFiles((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ))}
+                      {designFiles.length > 8 && (
+                        <p className="py-1 text-[11px] text-muted-foreground">
+                          … and {designFiles.length - 8} more
+                        </p>
+                      )}
+                      {designFiles.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-destructive"
+                          onClick={() => setDesignFiles([])}
+                        >
+                          Clear all
+                        </Button>
                       )}
                     </div>
-                    <Button
-                      size="small"
-                      type={isCurrent ? 'primary' : 'default'}
-                      icon={<EyeOutlined />}
-                      onClick={() => viewJob(rj.id)}
-                    >
-                      View
+                  )}
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {GENDER_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bodytype"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Body Type</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BODYTYPE_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="imagesCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Views</FormLabel>
+                      <FormControl>
+                        <div className="grid grid-cols-1 gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={field.value === '1' ? 'default' : 'outline'}
+                            className={cn(
+                              'justify-start',
+                              field.value === '1' && 'bg-[#FF6F61] text-white hover:bg-[#ff5b4d]',
+                            )}
+                            onClick={() => field.onChange('1')}
+                          >
+                            Single (Front only)
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={field.value === '4' ? 'default' : 'outline'}
+                            className={cn(
+                              'justify-start',
+                              field.value === '4' && 'bg-[#FF6F61] text-white hover:bg-[#ff5b4d]',
+                            )}
+                            onClick={() => field.onChange('4')}
+                          >
+                            All Views (Front / Back / Side / Closeup)
+                          </Button>
+                        </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Separator>Optional</Separator>
+
+                <FormItem>
+                  <FormLabel>Pattern Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={patternInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setPatternFile(e.target.files?.[0] || null)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => patternInputRef.current?.click()}>
+                      <UploadIcon />
+                      {patternFile ? patternFile.name : 'Upload Pattern'}
                     </Button>
+                    {patternFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setPatternFile(null)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
                   </div>
-                );
-              })}
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Accessory / Broach Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={broachInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setBroachFile(e.target.files?.[0] || null)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => broachInputRef.current?.click()}>
+                      <UploadIcon />
+                      {broachFile ? broachFile.name : 'Upload Accessory'}
+                    </Button>
+                    {broachFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => setBroachFile(null)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="broach_placement"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Broach Placement</FormLabel>
+                      <FormControl>
+                        <Select value={field.value || ''} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="e.g. left chest" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BROACH_PLACEMENT_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormItem>
+                  <FormLabel>Color Attachment (image lock)</FormLabel>
+                  <p className="text-[11px] text-muted-foreground">
+                    Upload a reference image. The garment will be recolored to match the dominant color of this image.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={colorInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setColorImageFile(e.target.files?.[0] || null)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => colorInputRef.current?.click()}>
+                      <UploadIcon />
+                      {colorImageFile ? colorImageFile.name : 'Upload Color Reference'}
+                    </Button>
+                    {colorImageFile && (
+                      <>
+                        <img
+                          src={URL.createObjectURL(colorImageFile)}
+                          alt="color reference"
+                          className="h-8 w-8 rounded border border-border object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => setColorImageFile(null)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="color_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color Name (optional lock)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Navy Blue" {...field} value={field.value ?? ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="special_instructions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Special Instructions</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} placeholder="Any specific requirements..." {...field} value={field.value ?? ''} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full bg-[#FF6F61] text-white hover:bg-[#ff5b4d]"
+                  disabled={loading || (!designFiles.length && !zipFile)}
+                >
+                  <Zap />
+                  {loading
+                    ? isBulkMode
+                      ? 'Processing job...'
+                      : 'Generating...'
+                    : isBulkMode
+                      ? 'Start Bulk Job'
+                      : 'Generate Models'}
+                </Button>
+
+                {loading && progress > 0 && (
+                  <Progress
+                    value={progress}
+                    indicatorClassName="bg-gradient-to-r from-[#FF6F61] to-emerald-500"
+                    className="mt-3"
+                  />
+                )}
+
+                {job && (
+                  <Card className="mt-3">
+                    <CardContent className="flex flex-col gap-1 p-3">
+                      <span className="text-xs">
+                        Job{' '}
+                        <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{job.id.slice(0, 16)}…</code>
+                      </span>
+                      <span className="text-xs">
+                        Status:{' '}
+                        <Tag className={cn('text-[10px]', statusTagClass(job.status))}>{job.status}</Tag>
+                      </span>
+                      <span className="text-xs">
+                        {job.done}/{job.total} done · {job.failed} failed · {job.running} running · {job.pending} pending
+                      </span>
+                      {loading && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="self-start text-destructive"
+                          onClick={cancelJob}
+                        >
+                          Cancel job
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* RIGHT — Results Panel */}
+        <div>
+          {/* Recent bulk jobs — survives tab switches; click any to view its results */}
+          {recentJobs.length > 0 && (
+            <Card className="mb-4 glass rounded-2xl border border-white/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <History className="h-4 w-4" />
+                  Recent Bulk Jobs
+                </CardTitle>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={loadRecentJobs}>
+                  <RotateCw className={cn(recentLoading && 'animate-spin')} />
+                </Button>
+              </CardHeader>
+              <CardContent className="max-h-60 overflow-y-auto px-3 py-1">
+                {recentJobs.map((rj) => {
+                  const pct = rj.total > 0 ? Math.round(((rj.done + rj.failed) / rj.total) * 100) : 0;
+                  const isActive = isActiveStatus(rj.status);
+                  const isCurrent = job?.id === rj.id;
+                  return (
+                    <div
+                      key={rj.id}
+                      className={cn(
+                        'flex items-center gap-2 border-b border-border py-1.5 last:border-b-0',
+                        isCurrent && 'bg-[#FF6F61]/5',
+                      )}
+                    >
+                      <Tag className={cn('min-w-[64px] justify-center text-[10px]', statusTagClass(rj.status))}>
+                        {rj.status}
+                      </Tag>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px]" title={rj.id}>
+                          {rj.id.slice(0, 22)}…
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {rj.done}/{rj.total} done · {rj.failed} failed · {new Date(rj.createdAt).toLocaleTimeString()}
+                        </span>
+                        {isActive && (
+                          <Progress
+                            value={pct}
+                            className="mt-1 h-1"
+                            indicatorClassName="bg-[#FF6F61]"
+                          />
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isCurrent ? 'default' : 'outline'}
+                        className={cn(isCurrent && 'bg-[#FF6F61] text-white hover:bg-[#ff5b4d]')}
+                        onClick={() => viewJob(rj.id)}
+                      >
+                        <Eye />
+                        View
+                      </Button>
+                    </div>
+                  );
+                })}
+              </CardContent>
             </Card>
           )}
 
           {error && (
-            <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} style={{ marginBottom: 16 }} />
+            <Alert type="error" showIcon className="mb-4">
+              <div className="flex items-start justify-between gap-2">
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="text-muted-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </Alert>
           )}
 
           {loading && garmentRows.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <Spin size="large" />
-              <Paragraph type="secondary" style={{ marginTop: 16 }}>
+            <div className="py-16 text-center">
+              <Spinner size="lg" />
+              <p className="mt-4 text-sm text-muted-foreground">
                 {isBulkMode
                   ? 'Bulk job running — images appear here as they finish. Pacing keeps Gemini below its rate limit.'
                   : 'AI is generating your fashion models. This may take 30–90 seconds...'}
-              </Paragraph>
+              </p>
             </div>
           )}
 
           {!loading && garmentRows.length === 0 && !error && (
-            <Card style={{ minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <Text type="secondary">
-                    Upload garment images, a folder, or a .zip and click <strong>Generate</strong> to get started.
-                  </Text>
-                }
-              />
+            <Card className="flex min-h-[400px] items-center justify-center glass rounded-2xl border border-white/60">
+              <CardContent className="pt-6">
+                <Empty
+                  description={
+                    <span className="text-muted-foreground">
+                      Upload garment images, a folder, or a .zip and click <strong>Generate</strong> to get started.
+                    </span>
+                  }
+                />
+              </CardContent>
             </Card>
           )}
 
           {garmentRows.length > 0 && (
-            <Card
-              title={
-                <Space>
-                  <Text strong>{results.length} Generated Image{results.length !== 1 ? 's' : ''}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>· {garmentRows.length} garment{garmentRows.length !== 1 ? 's' : ''}</Text>
-                  {loading && <Spin size="small" />}
-                </Space>
-              }
-              extra={
-                <Button icon={<DownloadOutlined />} size="small" onClick={downloadAll}>
+            <Card className="glass rounded-2xl border border-white/60">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  {results.length} Generated Image{results.length !== 1 ? 's' : ''}
+                  <span className="text-xs text-muted-foreground">
+                    · {garmentRows.length} garment{garmentRows.length !== 1 ? 's' : ''}
+                  </span>
+                  {loading && <Spinner size="sm" />}
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={downloadAll}>
+                  <Download />
                   Download All
                 </Button>
-              }
-            >
-              {/* One row per garment — [source | front | back | left side | closeup] */}
-              {garmentRows.map(row => {
-                const columnsCount = visibleViews.length + 1; // +1 for source
-                return (
-                  <Card
-                    key={row.fileName}
-                    size="small"
-                    style={{ marginBottom: 12 }}
-                    bodyStyle={{ padding: 8 }}
-                    title={
-                      <Text style={{ fontSize: 12 }} ellipsis={{ tooltip: row.fileName }}>
-                        {row.fileName}
-                      </Text>
-                    }
-                  >
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(${columnsCount}, 1fr)`,
-                        gap: 8,
-                      }}
-                    >
-                      {/* Source cell */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {row.source ? (
-                          <Image
-                            src={row.source.startsWith('blob:') ? row.source : `${SERVER_BASE}${row.source}`}
-                            alt={`${row.fileName} - source`}
-                            style={{ objectFit: 'cover', width: '100%', aspectRatio: '2/3' }}
-                            preview={{ mask: 'Source' }}
-                          />
-                        ) : (
-                          <div style={{ width: '100%', aspectRatio: '2/3', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #d9d9d9' }}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>no source</Text>
-                          </div>
-                        )}
-                        <Tag color="default" style={{ fontSize: 10, alignSelf: 'flex-start' }}>Source</Tag>
-                      </div>
-
-                      {/* One cell per expected view */}
-                      {visibleViews.map(view => {
-                        const cell = row.cells[view];
-                        const url = cell?.url;
-                        const status = cell?.status;
-                        return (
-                          <div key={view} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {url && status === 'DONE' ? (
-                              <>
-                                <Image
-                                  src={`${SERVER_BASE}${url}`}
-                                  alt={`${row.fileName} - ${view}`}
-                                  style={{ objectFit: 'cover', width: '100%', aspectRatio: '2/3' }}
-                                  preview={{ mask: 'Preview' }}
-                                />
-                                <Space size={4} style={{ justifyContent: 'space-between' }}>
-                                  <Tag color="blue" style={{ fontSize: 10 }}>{VIEW_LABELS[view] || view}</Tag>
-                                  <Button
-                                    size="small"
-                                    type="text"
-                                    icon={<DownloadOutlined />}
-                                    onClick={() => downloadImage(
-                                      `${SERVER_BASE}${url}`,
-                                      `${row.fileName.split('.')[0]}_${view.replace(/\s+/g, '_')}.png`
-                                    )}
-                                  />
-                                </Space>
-                              </>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {/* One row per garment — [source | front | back | left side | closeup] */}
+                {garmentRows.map((row) => {
+                  const columnsCount = visibleViews.length + 1; // +1 for source
+                  return (
+                    <Card key={row.fileName} className="card-3d rounded-xl border border-white/50">
+                      <CardHeader className="px-3 py-2">
+                        <CardTitle className="truncate text-xs font-normal" title={row.fileName}>
+                          {row.fileName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-2">
+                        <div
+                          className="grid gap-2"
+                          style={{ gridTemplateColumns: `repeat(${columnsCount}, minmax(0, 1fr))` }}
+                        >
+                          {/* Source cell */}
+                          <div className="flex flex-col gap-1">
+                            {row.source ? (
+                              <img
+                                src={row.source.startsWith('blob:') ? row.source : `${SERVER_BASE}${row.source}`}
+                                alt={`${row.fileName} - source`}
+                                className="aspect-[2/3] w-full cursor-pointer object-cover"
+                                onClick={() =>
+                                  setPreviewUrl(
+                                    row.source!.startsWith('blob:')
+                                      ? row.source!
+                                      : `${SERVER_BASE}${row.source}`,
+                                  )
+                                }
+                              />
                             ) : (
-                              <>
-                                <div style={{
-                                  width: '100%',
-                                  aspectRatio: '2/3',
-                                  background: status === 'FAILED' ? '#fff1f0' : '#fafafa',
-                                  border: '1px dashed ' + (status === 'FAILED' ? '#ffa39e' : '#d9d9d9'),
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexDirection: 'column',
-                                  gap: 4,
-                                }}>
-                                  {status === 'RUNNING' && <Spin size="small" />}
-                                  <Text type="secondary" style={{ fontSize: 11 }}>
-                                    {status === 'RUNNING' ? 'Generating…'
-                                     : status === 'PENDING' ? 'Queued'
-                                     : status === 'FAILED' ? 'Failed'
-                                     : '—'}
-                                  </Text>
+                              <div className="flex aspect-[2/3] w-full items-center justify-center border border-dashed border-border bg-muted/30">
+                                <span className="text-[11px] text-muted-foreground">no source</span>
+                              </div>
+                            )}
+                            <Tag className="self-start text-[10px]">Source</Tag>
+                          </div>
+
+                          {/* One cell per expected view */}
+                          {visibleViews.map((view) => {
+                            const cell = row.cells[view];
+                            const url = cell?.url;
+                            const status = cell?.status;
+                            if (url && status === 'DONE') {
+                              return (
+                                <div key={view} className="flex flex-col gap-1">
+                                  <img
+                                    src={`${SERVER_BASE}${url}`}
+                                    alt={`${row.fileName} - ${view}`}
+                                    className="aspect-[2/3] w-full cursor-pointer object-cover"
+                                    onClick={() => setPreviewUrl(`${SERVER_BASE}${url}`)}
+                                  />
+                                  <div className="flex items-center justify-between">
+                                    <Tag className="border-[#FF6F61]/30 bg-[#FF6F61]/10 text-[10px] text-[#FF6F61]">
+                                      {VIEW_LABELS[view] || view}
+                                    </Tag>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6"
+                                      onClick={() =>
+                                        downloadImage(
+                                          `${SERVER_BASE}${url}`,
+                                          `${row.fileName.split('.')[0]}_${view.replace(/\s+/g, '_')}.png`,
+                                        )
+                                      }
+                                    >
+                                      <Download />
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={view} className="flex flex-col gap-1">
+                                <div
+                                  className={cn(
+                                    'flex aspect-[2/3] w-full flex-col items-center justify-center gap-1 border border-dashed',
+                                    status === 'FAILED'
+                                      ? 'border-rose-300 bg-rose-50'
+                                      : 'border-border bg-muted/30',
+                                  )}
+                                >
+                                  {status === 'RUNNING' && <Spinner size="sm" />}
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {status === 'RUNNING'
+                                      ? 'Generating…'
+                                      : status === 'PENDING'
+                                        ? 'Queued'
+                                        : status === 'FAILED'
+                                          ? 'Failed'
+                                          : '—'}
+                                  </span>
                                 </div>
                                 <Tag
-                                  color={status === 'FAILED' ? 'red' : 'default'}
-                                  style={{ fontSize: 10, alignSelf: 'flex-start' }}
+                                  className={cn(
+                                    'self-start text-[10px]',
+                                    status === 'FAILED'
+                                      ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                      : '',
+                                  )}
                                 >
                                   {VIEW_LABELS[view] || view}
                                 </Tag>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </Card>
-                );
-              })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </CardContent>
             </Card>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
+
+      {/* Lightbox preview for any source/output image */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
+        <DialogContent className="max-w-3xl border-none bg-transparent p-0 shadow-none">
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="preview"
+              className="max-h-[85vh] w-full rounded-lg object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

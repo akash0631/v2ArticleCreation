@@ -1,25 +1,22 @@
-﻿import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Check, X, Info, Bot } from 'lucide-react';
 import {
-  Select,
-  Input,
   Badge,
   Button,
+  Input,
   Popover,
-  Space,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Tag,
-  Typography
-} from 'antd';
-import {
-  CheckOutlined,
-  CloseOutlined,
-  InfoCircleOutlined,
-  RobotOutlined
-} from '@ant-design/icons';
+} from '@/shared/components/ui-tw';
+import { cn } from '@/lib/utils';
 import type { AttributeDetail, SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
 import { submitCorrection } from '../../../services/feedbackService';
-
-const { Text } = Typography;
-const { Option } = Select;
 
 interface AttributeCellProps {
   attribute?: AttributeDetail | null;
@@ -34,8 +31,7 @@ interface AttributeCellProps {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
 
-const normalizeText = (value: string | number | null | undefined): string =>
-  String(value ?? '').trim();
+const normalizeText = (value: string | number | null | undefined): string => String(value ?? '').trim();
 
 const persistNewValueToBackend = async (attributeKey: string, value: string) => {
   try {
@@ -44,12 +40,12 @@ const persistNewValueToBackend = async (attributeKey: string, value: string) => 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ shortForm: value, fullForm: value })
+      body: JSON.stringify({ shortForm: value, fullForm: value }),
     });
   } catch {
-    // Non-critical
+    /* non-critical */
   }
 };
 
@@ -65,57 +61,35 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState<string | number | null>(null);
-  const [selectSearch, setSelectSearch] = useState('');
-  const inputRef = useRef<any>(null);
-  const savedByEnterRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const normalizeSelectValue = useCallback((value: string | number | null | undefined) => {
-    const candidate = normalizeText(value);
-    if (!candidate || schemaItem.type !== 'select' || !schemaItem.allowedValues?.length) {
+  const normalizeSelectValue = useCallback(
+    (value: string | number | null | undefined) => {
+      const candidate = normalizeText(value);
+      if (!candidate || schemaItem.type !== 'select' || !schemaItem.allowedValues?.length) return candidate;
+      const lowerCandidate = candidate.toLowerCase();
+      const exactShort = schemaItem.allowedValues.find(
+        (item) => normalizeText(item.shortForm).toLowerCase() === lowerCandidate,
+      );
+      if (exactShort?.shortForm) return exactShort.shortForm;
+      const exactFull = schemaItem.allowedValues.find(
+        (item) => normalizeText(item.fullForm || item.shortForm).toLowerCase() === lowerCandidate,
+      );
+      if (exactFull?.shortForm) return exactFull.shortForm;
       return candidate;
-    }
+    },
+    [schemaItem.allowedValues, schemaItem.type],
+  );
 
-    const lowerCandidate = candidate.toLowerCase();
-    const exactShort = schemaItem.allowedValues.find(
-      (item) => normalizeText(item.shortForm).toLowerCase() === lowerCandidate
-    );
-    if (exactShort?.shortForm) {
-      return exactShort.shortForm;
-    }
-
-    const exactFull = schemaItem.allowedValues.find(
-      (item) => normalizeText(item.fullForm || item.shortForm).toLowerCase() === lowerCandidate
-    );
-    if (exactFull?.shortForm) {
-      return exactFull.shortForm;
-    }
-
-    return candidate;
-  }, [schemaItem.allowedValues, schemaItem.type]);
-
-  const getDisplayValue = useCallback((value: string | number | null | undefined) => {
-    const candidate = normalizeText(value);
-    if (!candidate) {
-      return '';
-    }
-
-    if (schemaItem.type !== 'select' || !schemaItem.allowedValues?.length) {
-      return candidate;
-    }
-
-    return normalizeSelectValue(candidate);
-  }, [normalizeSelectValue, schemaItem.allowedValues, schemaItem.type]);
-
-  useEffect(() => {
-    if (schemaItem.key === 'fab_yarn-01' || schemaItem.key === 'fab_yarn-02' || schemaItem.key === 'fab_weave-02') {
-      console.log(`[AttributeCell] ${schemaItem.key}:`, {
-        hasAttribute: !!attribute,
-        attribute,
-        schemaValue: attribute?.schemaValue,
-        rawValue: attribute?.rawValue
-      });
-    }
-  }, [attribute, schemaItem.key]);
+  const getDisplayValue = useCallback(
+    (value: string | number | null | undefined) => {
+      const candidate = normalizeText(value);
+      if (!candidate) return '';
+      if (schemaItem.type !== 'select' || !schemaItem.allowedValues?.length) return candidate;
+      return normalizeSelectValue(candidate);
+    },
+    [normalizeSelectValue, schemaItem.allowedValues, schemaItem.type],
+  );
 
   useEffect(() => {
     setEditValue(attribute?.schemaValue ?? attribute?.rawValue ?? null);
@@ -127,7 +101,8 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
       setEditValue(attribute?.schemaValue ?? attribute?.rawValue ?? null);
       onAutoFocused?.();
     }
-  }, [autoFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocus]);
 
   useEffect(() => {
     if (isEditing && schemaItem.type === 'text') {
@@ -141,194 +116,129 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
     setEditValue(attribute?.schemaValue ?? attribute?.rawValue ?? null);
   }, [disabled, attribute?.schemaValue, attribute?.rawValue]);
 
-  const handleSaveEdit = useCallback((triggeredByEnter = false, explicitValue?: string | number | null) => {
-    const baseValue = explicitValue !== undefined ? explicitValue : editValue;
-    const effectiveValue = (explicitValue === undefined && schemaItem.type === 'select' && selectSearch.trim())
-      ? selectSearch.trim()
-      : baseValue;
-    const normalizedEffectiveValue = schemaItem.type === 'select'
-      ? normalizeSelectValue(effectiveValue)
-      : effectiveValue;
+  const handleSaveEdit = useCallback(
+    (triggeredByEnter = false, explicitValue?: string | number | null) => {
+      const baseValue = explicitValue !== undefined ? explicitValue : editValue;
+      const normalizedEffectiveValue =
+        schemaItem.type === 'select' ? normalizeSelectValue(baseValue) : baseValue;
 
-    if (normalizedEffectiveValue !== editValue) {
-      setEditValue(normalizedEffectiveValue);
-    }
+      if (normalizedEffectiveValue !== editValue) setEditValue(normalizedEffectiveValue);
 
-    const aiPredictedValue = schemaItem.type === 'select'
-      ? normalizeSelectValue(attribute?.schemaValue)
-      : attribute?.schemaValue;
-    const isCorrection = aiPredictedValue && normalizedEffectiveValue !== aiPredictedValue;
+      const aiPredictedValue =
+        schemaItem.type === 'select' ? normalizeSelectValue(attribute?.schemaValue) : attribute?.schemaValue;
+      const isCorrection = aiPredictedValue && normalizedEffectiveValue !== aiPredictedValue;
 
-    if (isCorrection) {
-      submitCorrection({
-        attributeKey: schemaItem.key,
-        aiPredicted: String(aiPredictedValue),
-        userCorrected: String(normalizedEffectiveValue),
-        timestamp: new Date().toISOString()
-      }).catch((err) => {
-        console.warn('Failed to log correction (non-critical):', err);
-      });
-    }
-
-    onChange(normalizedEffectiveValue, isCorrection ? String(aiPredictedValue) : undefined);
-    setIsEditing(false);
-    setSelectSearch('');
-    savedByEnterRef.current = triggeredByEnter;
-
-    if (
-      normalizedEffectiveValue !== null &&
-      normalizedEffectiveValue !== undefined &&
-      normalizedEffectiveValue !== '' &&
-      schemaItem.type === 'select' &&
-      schemaItem.allowedValues &&
-      schemaItem.allowedValues.length > 0
-    ) {
-      const strVal = String(normalizedEffectiveValue).trim().toLowerCase();
-      const exists = schemaItem.allowedValues.some(
-        (v) => (v.shortForm || '').toLowerCase() === strVal || (v.fullForm || '').toLowerCase() === strVal
-      );
-      if (!exists) {
-        onAddToSchema?.(String(normalizedEffectiveValue).trim());
-        persistNewValueToBackend(schemaItem.key, String(normalizedEffectiveValue).trim());
+      if (isCorrection) {
+        submitCorrection({
+          attributeKey: schemaItem.key,
+          aiPredicted: String(aiPredictedValue),
+          userCorrected: String(normalizedEffectiveValue),
+          timestamp: new Date().toISOString(),
+        }).catch((err) => console.warn('Failed to log correction (non-critical):', err));
       }
-    }
 
-    if (triggeredByEnter) {
-      onSaveAndNext?.();
-    }
-  }, [editValue, onChange, onAddToSchema, attribute?.schemaValue, schemaItem, selectSearch, onSaveAndNext, normalizeSelectValue]);
+      onChange(normalizedEffectiveValue, isCorrection ? String(aiPredictedValue) : undefined);
+      setIsEditing(false);
+
+      if (
+        normalizedEffectiveValue !== null &&
+        normalizedEffectiveValue !== undefined &&
+        normalizedEffectiveValue !== '' &&
+        schemaItem.type === 'select' &&
+        schemaItem.allowedValues &&
+        schemaItem.allowedValues.length > 0
+      ) {
+        const strVal = String(normalizedEffectiveValue).trim().toLowerCase();
+        const exists = schemaItem.allowedValues.some(
+          (v) => (v.shortForm || '').toLowerCase() === strVal || (v.fullForm || '').toLowerCase() === strVal,
+        );
+        if (!exists) {
+          onAddToSchema?.(String(normalizedEffectiveValue).trim());
+          persistNewValueToBackend(schemaItem.key, String(normalizedEffectiveValue).trim());
+        }
+      }
+
+      if (triggeredByEnter) onSaveAndNext?.();
+    },
+    [editValue, onChange, onAddToSchema, attribute?.schemaValue, schemaItem, onSaveAndNext, normalizeSelectValue],
+  );
 
   const handleCancelEdit = useCallback(() => {
     setEditValue(attribute?.schemaValue ?? attribute?.rawValue ?? null);
     setIsEditing(false);
-    setSelectSearch('');
   }, [attribute?.schemaValue, attribute?.rawValue]);
 
-  const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 80) return '#52c41a';
-    if (confidence >= 60) return '#faad14';
-    if (confidence >= 40) return '#fa8c16';
-    return '#f5222d';
-  };
+  const confidencePillColor = (c: number) =>
+    c >= 80 ? '#52c41a' : c >= 60 ? '#faad14' : c >= 40 ? '#fa8c16' : '#f5222d';
 
   const renderDisplayValue = () => {
     const schemaValue = attribute?.schemaValue;
     const rawValue = attribute?.rawValue;
 
     if (schemaValue !== null && schemaValue !== undefined && schemaValue !== '') {
-      return (
-        <Text strong style={{ fontSize: 12 }}>
-          {getDisplayValue(schemaValue)}
-        </Text>
-      );
+      return <strong className="text-xs">{getDisplayValue(schemaValue)}</strong>;
     }
-
     if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
-      return (
-        <Text style={{ fontSize: 12, color: '#666', fontStyle: 'italic' }}>
-          {getDisplayValue(rawValue)}
-        </Text>
-      );
+      return <span className="text-xs italic text-muted-foreground">{getDisplayValue(rawValue)}</span>;
     }
-
-    return (
-      <Text type="secondary" style={{ fontStyle: 'italic' }}>
-        No value
-      </Text>
-    );
+    return <span className="text-xs italic text-muted-foreground">No value</span>;
   };
 
-  const renderEditInput = () => (
+  const renderEditInput = () =>
     schemaItem.type === 'text' ? (
       <Input
         ref={inputRef}
-        value={editValue as string}
+        value={(editValue as string) ?? ''}
         onChange={(e) => setEditValue(e.target.value)}
-        onPressEnter={() => handleSaveEdit(true)}
-        style={{ width: '100%', minWidth: 120 }}
-        size="small"
+        onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(true)}
+        className="h-8 w-full min-w-[120px] text-xs"
         placeholder="Type value"
       />
     ) : (
       <Select
         value={normalizeText(editValue) || undefined}
-        onChange={(val) => {
-          const newVal = val ?? null;
-          setEditValue(newVal);
-          setSelectSearch('');
-          handleSaveEdit(true, newVal);
+        onValueChange={(val) => {
+          setEditValue(val);
+          handleSaveEdit(true, val);
         }}
-        onSearch={setSelectSearch}
-        style={{ width: '100%', minWidth: 120 }}
-        size="small"
-        showSearch
-        allowClear
-        autoFocus
-        placeholder="Select or type value"
-        filterOption={(input, option) =>
-          option?.value === '__custom__' ||
-          (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-        }
-        popupRender={menu => (
-          <div>
-            {menu}
-            {selectSearch.trim() && (
-              <div
-                style={{ padding: '6px 12px', borderTop: '1px solid #f0f0f0', cursor: 'pointer', color: '#1677ff', fontSize: 12 }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  const custom = selectSearch.trim();
-                  setEditValue(custom);
-                  setSelectSearch('');
-                  handleSaveEdit(true, custom);
-                }}
-              >
-                + Add "{selectSearch.trim()}" as new value
-              </div>
-            )}
-          </div>
-        )}
       >
-        {schemaItem.allowedValues?.map((valObj) => {
-          const value = valObj.shortForm || valObj.fullForm || '';
-          const label = valObj.shortForm || valObj.fullForm || '';
-          return (
-            <Option key={value} value={value} label={label}>
-              {label}
-            </Option>
-          );
-        })}
+        <SelectTrigger className="h-8 w-full min-w-[120px] text-xs">
+          <SelectValue placeholder="Select value" />
+        </SelectTrigger>
+        <SelectContent>
+          {schemaItem.allowedValues?.map((valObj) => {
+            const value = valObj.shortForm || valObj.fullForm || '';
+            return (
+              <SelectItem key={value} value={value}>
+                {value}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
       </Select>
-    )
-  );
+    );
 
   const reasoningContent = (
-    <div style={{ maxWidth: 250 }}>
-      <div style={{ marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 12 }}>AI Reasoning:</Text>
-        <div style={{ fontSize: 11, marginTop: 4 }}>
-          {attribute?.reasoning || 'No reasoning provided'}
-        </div>
+    <div className="max-w-[250px]">
+      <div className="mb-2">
+        <strong className="text-xs">AI Reasoning:</strong>
+        <div className="mt-1 text-[11px]">{attribute?.reasoning || 'No reasoning provided'}</div>
       </div>
-
-      <div style={{ marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 12 }}>Raw Value:</Text>
-        <div style={{ fontSize: 11, marginTop: 4, fontFamily: 'monospace' }}>
-          {attribute?.rawValue || 'null'}
-        </div>
+      <div className="mb-2">
+        <strong className="text-xs">Raw Value:</strong>
+        <div className="mt-1 font-mono text-[11px]">{attribute?.rawValue || 'null'}</div>
       </div>
-
-      <Space size="small">
-        <Tag color="blue" style={{ fontSize: 10 }}>
+      <div className="flex gap-1">
+        <Tag className="bg-sky-50 text-sky-800 text-[10px]">
           Visual: {attribute?.visualConfidence || 0}%
         </Tag>
-        <Tag color="green" style={{ fontSize: 10 }}>
+        <Tag className="bg-emerald-50 text-emerald-800 text-[10px]">
           Mapping: {attribute?.mappingConfidence || 0}%
         </Tag>
-      </Space>
-
+      </div>
       {attribute?.isNewDiscovery && (
-        <Tag icon={<RobotOutlined />} color="purple" style={{ fontSize: '11px', marginTop: 8 }}>
+        <Tag className="mt-2 bg-purple-50 text-purple-800 text-[11px]">
+          <Bot className="h-3 w-3" />
           New Discovery
         </Tag>
       )}
@@ -337,23 +247,15 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
 
   if (isEditing) {
     return (
-      <Space.Compact style={{ width: '100%' }}>
+      <div className="flex w-full items-center gap-0.5">
         {renderEditInput()}
-        <Button
-          type="text"
-          icon={<CheckOutlined />}
-          size="small"
-          onClick={() => handleSaveEdit(false)}
-          style={{ color: '#52c41a' }}
-        />
-        <Button
-          type="text"
-          icon={<CloseOutlined />}
-          size="small"
-          onClick={handleCancelEdit}
-          style={{ color: '#f5222d' }}
-        />
-      </Space.Compact>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => handleSaveEdit(false)}>
+          <Check />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={handleCancelEdit}>
+          <X />
+        </Button>
+      </div>
     );
   }
 
@@ -361,80 +263,50 @@ export const AttributeCell: React.FC<AttributeCellProps> = ({
 
   return (
     <div
-      className="attribute-cell"
-      style={{
-        padding: 8,
-        minHeight: 50,
-        backgroundColor: isUserEdited ? '#f6ffed' : attribute?.schemaValue ? '#fafafa' : '#f8f9fa',
-        border: `1px solid ${isUserEdited ? '#b7eb8f' : '#e8e8e8'}`,
-        borderRadius: 4,
-        cursor: disabled ? 'default' : 'pointer',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between'
-      }}
+      className={cn(
+        'attribute-cell relative flex min-h-[50px] flex-col justify-between rounded border p-2 transition-colors',
+        disabled ? 'cursor-default' : 'cursor-pointer hover:bg-muted/60',
+        isUserEdited ? 'border-emerald-200 bg-emerald-50' : attribute?.schemaValue ? 'bg-muted/30' : 'bg-muted/20',
+      )}
       onClick={handleStartEdit}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.backgroundColor = '#f0f0f0';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = isUserEdited ? '#f6ffed' : attribute?.schemaValue ? '#fafafa' : '#f8f9fa';
-      }}
     >
-      <div style={{ flex: 1 }}>
-        {renderDisplayValue()}
-      </div>
+      <div className="flex-1">{renderDisplayValue()}</div>
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 4
-      }}>
+      <div className="mt-1 flex items-center justify-between">
         {isUserEdited && (
-          <Tag color="green" style={{ fontSize: 9, padding: '0 3px', lineHeight: '14px', height: 14, margin: 0 }}>
+          <Tag className="m-0 h-3.5 bg-emerald-100 px-1 py-0 text-[9px] leading-[14px] text-emerald-800">
             Updated
           </Tag>
         )}
 
-        {!isUserEdited && attribute?.rawValue && (
-          <RobotOutlined style={{ fontSize: 10, color: '#FF6F61' }} />
-        )}
+        {!isUserEdited && attribute?.rawValue && <Bot className="h-2.5 w-2.5 text-primary" />}
 
         {attribute?.reasoning && (
-          <Popover
-            content={reasoningContent}
-            title="AI Analysis"
-            trigger="hover"
-          >
-            <Button
-              type="text"
-              icon={<InfoCircleOutlined />}
-              style={{
-                fontSize: 11,
-                color: '#8c8c8c',
-                minWidth: 16,
-                height: 16,
-                padding: 0,
-                cursor: 'help'
-              }}
-            />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4 cursor-help text-muted-foreground"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Info />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto">
+              <div className="mb-2 text-xs font-semibold">AI Analysis</div>
+              {reasoningContent}
+            </PopoverContent>
           </Popover>
         )}
 
         {attribute && attribute.visualConfidence > 0 && !isUserEdited && (
           <Badge
-            count={`${attribute.visualConfidence}%`}
-            style={{
-              backgroundColor: getConfidenceColor(attribute.visualConfidence),
-              fontSize: 9,
-              height: 14,
-              minWidth: 24
-            }}
-          />
+            className="h-3.5 min-w-[24px] text-[9px]"
+            style={{ background: confidencePillColor(attribute.visualConfidence) }}
+          >
+            {attribute.visualConfidence}%
+          </Badge>
         )}
       </div>
     </div>

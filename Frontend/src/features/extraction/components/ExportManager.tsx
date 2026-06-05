@@ -1,35 +1,32 @@
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import {
-  Card,
   Button,
-  Select,
-  Space,
-  Typography,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Checkbox,
-  Divider,
-  notification,
-  Progress
-} from 'antd';
-import {
-  DownloadOutlined,
-  FileExcelOutlined,
-  FileTextOutlined
-} from '@ant-design/icons';
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+} from '@/shared/components/ui-tw';
+import { notification } from '@/lib/message';
 import {
   ORDERED_EXPORT_HEADERS,
-  HEADER_TO_SCHEMA_KEY,
   buildExportSchema,
   exportToCSV,
   exportToExcel,
   exportToJSON,
   mapMasterAttributes,
-  prepareExportData
+  prepareExportData,
 } from '../../../shared/utils/export/extractionExport';
 import type { ExtractedRowEnhanced, SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
 import { APP_CONFIG } from '../../../constants/app/config';
-
-const { Text } = Typography;
-const { Option } = Select;
 
 interface ExportManagerProps {
   extractedRows: ExtractedRowEnhanced[];
@@ -40,23 +37,16 @@ interface ExportManagerProps {
 
 type ExportFormat = 'excel' | 'csv' | 'json';
 
-
-const ExportManager: React.FC<ExportManagerProps> = ({
-  extractedRows,
-  schema,
-  categoryName,
-  onClose
-}) => {
+const ExportManager: React.FC<ExportManagerProps> = ({ extractedRows, schema, categoryName, onClose }) => {
   const [format, setFormat] = useState<ExportFormat>('excel');
   const [includeMetadata, setIncludeMetadata] = useState(false);
   const [includeDiscoveries, setIncludeDiscoveries] = useState(false);
-  const [selectedAttributes, setSelectedAttributes] = useState<string[]>(schema.map(item => item.key));
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>(schema.map((item) => item.key));
   const [masterAttributes, setMasterAttributes] = useState<SchemaItem[]>([]);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const exportSchema = useMemo(() => buildExportSchema(schema, masterAttributes), [masterAttributes, schema]);
-
   const orderedHeaders = useMemo(() => [...ORDERED_EXPORT_HEADERS], []);
 
   useEffect(() => {
@@ -64,28 +54,22 @@ const ExportManager: React.FC<ExportManagerProps> = ({
       try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(`${APP_CONFIG.api.baseURL}/user/attributes?includeValues=true`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-
         if (!response.ok) return;
-
         const result = await response.json().catch(() => null);
         const data = result?.data;
         if (!Array.isArray(data)) return;
-
         setMasterAttributes(mapMasterAttributes(data));
       } catch {
-        // Fail silently; fallback to current schema
+        /* fallback to current schema */
       }
     };
-
     fetchMasterAttributes();
   }, []);
 
   useEffect(() => {
-    if (exportSchema.length > 0) {
-      setSelectedAttributes(exportSchema.map(item => item.key));
-    }
+    if (exportSchema.length > 0) setSelectedAttributes(exportSchema.map((item) => item.key));
   }, [exportSchema]);
 
   const prepareExport = useCallback(() => {
@@ -116,123 +100,123 @@ const ExportManager: React.FC<ExportManagerProps> = ({
       notification.success({
         message: 'Export Successful',
         description: `Data exported as ${format.toUpperCase()} file`,
-        duration: 3
       });
-
       setTimeout(onClose, 1000);
     } catch {
-      notification.error({
-        message: 'Export Failed',
-        description: 'An error occurred during export',
-        duration: 5
-      });
+      notification.error({ message: 'Export Failed', description: 'An error occurred during export' });
     } finally {
       setExporting(false);
       setProgress(0);
     }
   }, [categoryName, exportSchema, format, onClose, orderedHeaders, prepareExport]);
 
-  const formatIcons = {
-    excel: <FileExcelOutlined style={{ color: '#1B6F00' }} />,
-    csv: <FileTextOutlined style={{ color: '#52c41a' }} />,
-    json: <FileTextOutlined style={{ color: '#FF6F61' }} />
+  const formatIcon = {
+    excel: <FileSpreadsheet className="h-4 w-4 text-emerald-700" />,
+    csv: <FileText className="h-4 w-4 text-emerald-500" />,
+    json: <FileText className="h-4 w-4 text-primary" />,
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card size="small" title="Export Format">
-        <Select
-          value={format}
-          onChange={setFormat}
-          style={{ width: '100%' }}
-          size="large"
-        >
-          <Option value="excel">
-            <Space>{formatIcons.excel} Excel Spreadsheet (.xlsx)</Space>
-          </Option>
-          <Option value="csv">
-            <Space>{formatIcons.csv} CSV File (.csv)</Space>
-          </Option>
-          <Option value="json">
-            <Space>{formatIcons.json} JSON Data (.json)</Space>
-          </Option>
-        </Select>
+    <div className="flex w-full flex-col gap-6">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Export Format</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excel">
+                <span className="flex items-center gap-2">
+                  {formatIcon.excel} Excel Spreadsheet (.xlsx)
+                </span>
+              </SelectItem>
+              <SelectItem value="csv">
+                <span className="flex items-center gap-2">{formatIcon.csv} CSV File (.csv)</span>
+              </SelectItem>
+              <SelectItem value="json">
+                <span className="flex items-center gap-2">{formatIcon.json} JSON Data (.json)</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
       </Card>
 
-      <Card size="small" title={`Attributes to Export (${exportSchema.length})`}>
-        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-          <Checkbox
-            indeterminate={false}
-            checked={true}
-            onChange={() => setSelectedAttributes(exportSchema.map(item => item.key))}
-            style={{ marginBottom: 8 }}
-          >
-            All attributes included
-          </Checkbox>
-          <Divider style={{ margin: '8px 0' }} />
-          <Checkbox.Group
-            value={selectedAttributes}
-            onChange={setSelectedAttributes}
-            style={{ width: '100%' }}
-          >
-            <Space direction="vertical" style={{ width: '100%' }}>
-              {exportSchema.map(item => (
-                <Checkbox key={item.key} value={item.key} disabled>
-                  <Space>
-                    <Text>{item.label}</Text>
-                    {item.required && <Text type="secondary" style={{ fontSize: 11 }}>(Required)</Text>}
-                  </Space>
-                </Checkbox>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Attributes to Export ({exportSchema.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[200px] overflow-y-auto">
+            <label className="mb-2 flex items-center gap-2">
+              <Checkbox
+                checked={true}
+                onCheckedChange={() => setSelectedAttributes(exportSchema.map((item) => item.key))}
+              />
+              <span>All attributes included</span>
+            </label>
+            <Separator className="my-2" />
+            <div className="flex flex-col gap-2">
+              {exportSchema.map((item) => (
+                <label key={item.key} className="flex items-center gap-2">
+                  <Checkbox checked={selectedAttributes.includes(item.key)} disabled />
+                  <span>{item.label}</span>
+                  {item.required && (
+                    <span className="text-[11px] text-muted-foreground">(Required)</span>
+                  )}
+                </label>
               ))}
-            </Space>
-          </Checkbox.Group>
-        </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
-      <Card size="small" title="Export Options">
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Checkbox checked={includeMetadata} onChange={(e) => setIncludeMetadata(e.target.checked)}>
-            Include AI metadata (confidence scores, processing time, token usage)
-          </Checkbox>
-          <Checkbox checked={includeDiscoveries} onChange={(e) => setIncludeDiscoveries(e.target.checked)}>
-            Include AI discoveries (additional attributes found)
-          </Checkbox>
-        </Space>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Export Options</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <label className="flex items-center gap-2">
+            <Checkbox checked={includeMetadata} onCheckedChange={(v) => setIncludeMetadata(!!v)} />
+            <span>Include AI metadata (confidence scores, processing time, token usage)</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <Checkbox checked={includeDiscoveries} onCheckedChange={(v) => setIncludeDiscoveries(!!v)} />
+            <span>Include AI discoveries (additional attributes found)</span>
+          </label>
+        </CardContent>
       </Card>
 
       {exporting && (
         <Progress
-          percent={progress}
-          status="active"
-          strokeColor={{ from: '#FF6F61', to: '#FFA62B' }}
+          value={progress}
+          indicatorClassName="bg-gradient-to-r from-[#FF6F61] to-[#FFA62B]"
         />
       )}
 
-      <Card size="small" style={{ backgroundColor: '#f6f8fa' }}>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Text strong>Export Summary:</Text>
-          <Text>• {extractedRows.length} images will be exported</Text>
-          <Text>• {selectedAttributes.length} attributes per image</Text>
-          <Text>• Format: {format.toUpperCase()}</Text>
-          {includeMetadata && <Text>• AI metadata included</Text>}
-          {includeDiscoveries && <Text>• Discovery data included</Text>}
-        </Space>
+      <Card className="bg-muted/30">
+        <CardContent className="flex flex-col gap-1 pt-6">
+          <strong>Export Summary:</strong>
+          <span>• {extractedRows.length} images will be exported</span>
+          <span>• {selectedAttributes.length} attributes per image</span>
+          <span>• Format: {format.toUpperCase()}</span>
+          {includeMetadata && <span>• AI metadata included</span>}
+          {includeDiscoveries && <span>• Discovery data included</span>}
+        </CardContent>
       </Card>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          loading={exporting}
-          onClick={handleExport}
-          disabled={selectedAttributes.length === 0}
-          className="btn-primary"
-        >
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleExport} disabled={exporting || selectedAttributes.length === 0}>
+          <Download />
           {exporting ? 'Exporting...' : `Export ${format.toUpperCase()}`}
         </Button>
       </div>
-    </Space>
+    </div>
   );
 };
 

@@ -1,145 +1,25 @@
-/* Main Layout Styles */
+/* Main Layout — sidebar shell + content area */
 
 .main-layout {
   min-height: 100vh;
 }
 
-/* Top Navigation Layout */
-.top-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  /* Antd Header defaults to line-height: 64px which causes oversized vertical
-     spacing when any inline child has to wrap. Force normal line-height so the
-     row stays exactly 64px tall regardless of content. */
-  line-height: normal;
-  height: 64px;
-  flex-wrap: nowrap;
-  gap: 12px;
-}
-
-.top-nav-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;          /* lets the menu shrink instead of pushing siblings */
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  color: #111827;
-  cursor: pointer;
-  /* Brand text must stay on one line and not get squeezed. */
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.brand span {
-  white-space: nowrap;
-}
-
-.brand svg {
-  color: #FF6F61;
-}
-
-.top-nav-menu {
-  background: transparent !important;
-  border-bottom: none !important;
-  /* The horizontal menu is the most flexible piece — let it shrink and use
-     its built-in overflow ellipsis ("...") rather than pushing the user chip
-     into a new line. */
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* The Menu component sets its own height — ensure it doesn't stretch the row */
-.top-nav-menu.ant-menu-horizontal {
-  height: 62px;
-  line-height: 62px;
-  border-bottom: none !important;
-}
-
-.top-nav-menu .ant-menu-item {
-  border-radius: 999px;
-  margin: 0 4px;
-  padding: 0 14px;
-}
-
-.top-nav-menu .ant-menu-item-selected {
-  background: linear-gradient(90deg, rgba(255, 111, 97, 0.18), rgba(255, 166, 43, 0.18)) !important;
-  color: #111827 !important;
-}
-
-.user-chip {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.user-chip .ant-typography {
-  white-space: nowrap;
-}
-
-/* Auth Layout */
-.auth-layout {
-  min-height: 100vh;
-  background: radial-gradient(1200px 500px at 10% -20%, rgba(255, 111, 97, 0.25), transparent 60%),
-              radial-gradient(1200px 500px at 90% 0%, rgba(255, 166, 43, 0.25), transparent 60%),
-              #F6F1EC;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Breadcrumb */
-.ant-breadcrumb {
-  font-size: 14px;
-}
-
-.ant-breadcrumb-link {
-  color: rgba(0, 0, 0, 0.65);
-}
-
-/* Breadcrumb inside the top nav must stay on one line and not push siblings down. */
-.top-nav .ant-breadcrumb,
-.top-nav .ant-breadcrumb * {
-  white-space: nowrap;
-}
-
-.top-nav .ant-breadcrumb {
-  flex-shrink: 0;
-}
-
-/* The right-hand controls (notifications + user chip) should never wrap. */
-.top-nav > .ant-space {
-  flex-shrink: 0;
-  flex-wrap: nowrap;
-}
-
-/* Header Improvements */
+/* Authenticated content area — flex-1 inside the sidebar/content split.
+ * No height calc needed: the parent main-layout is h-screen overflow-hidden,
+ * and content-shell takes the rest of the row alongside the sidebar. */
 .content-shell {
-  margin: 24px;
-  padding: 24px;
-  background: #F6F1EC;
-  border-radius: 16px;
-  height: calc(100vh - 112px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  padding: 14px;
+  background:
+    radial-gradient(900px 400px at 0% 0%, rgba(255, 111, 97, 0.04), transparent 60%),
+    radial-gradient(900px 400px at 100% 100%, rgba(31, 41, 55, 0.04), transparent 60%),
+    var(--color-background);
+}
+
+.dark .content-shell {
+  background:
+    radial-gradient(900px 400px at 0% 0%, rgba(255, 111, 97, 0.08), transparent 60%),
+    radial-gradient(900px 400px at 100% 100%, rgba(255, 166, 43, 0.05), transparent 60%),
+    var(--color-background);
 }
 
 .content-landing {
@@ -148,61 +28,13 @@
   background: transparent;
 }
 
-.footer-shell {
-  text-align: center;
-  background: #111827;
-  color: #fff;
-  padding: 24px 50px;
-}
-
-.footer-landing {
-  text-align: center;
-  background: transparent;
-  padding: 24px 50px;
-}
-
-.footer-text-dark {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.footer-text-light {
-  color: rgba(0, 0, 0, 0.6);
-}
-
-/* Notifications */
-.notification-dropdown {
-  width: 360px;
-  max-height: 420px;
-  overflow: auto;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-  padding: 12px 12px 4px;
-}
-
-.notification-header {
+/* Auth (login / register) — full-bleed branded gradient. */
+.auth-layout {
+  min-height: 100vh;
+  background: radial-gradient(1200px 500px at 10% -20%, rgba(255, 111, 97, 0.25), transparent 60%),
+              radial-gradient(1200px 500px at 90% 0%, rgba(255, 166, 43, 0.25), transparent 60%),
+              #F6F1EC;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.notification-item {
-  padding: 10px 8px !important;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.notification-item.unread {
-  background: rgba(91, 157, 255, 0.08);
-}
-
-.notification-item.read {
-  background: transparent;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .modern-sider .ant-menu-item {
-    margin: 4px !important;
-  }
+  justify-content: center;
 }

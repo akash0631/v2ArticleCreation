@@ -1,8 +1,6 @@
 // Modern App Root with Clean Architecture
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, App as AntdApp } from 'antd';
-import { antdTheme } from './theme';
 
 // App Configuration
 import { AppProviders } from './app/providers/AppProviders';
@@ -19,12 +17,14 @@ import { HierarchyManagement, UsersManagement } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
+import ArticleDetailPage from './features/approver/pages/ArticleDetailPage'; // Article detail view
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
 import ModelGenerationPage from './features/model-generation/pages/ModelGenerationPage';
 
 // Shared Components
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { SentryTest } from './components/SentryTest';
+import { Toaster } from './shared/components/ui-tw';
 
 // Global Styles
 import './styles/App.css';
@@ -131,11 +131,10 @@ const ModelGenerationRoute: React.FC<{ children: React.ReactNode }> = ({ childre
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider theme={antdTheme}>
-      <AntdApp>
-      <AppProviders>
-        <ErrorBoundary>
-          <Router>
+    <AppProviders>
+      <ErrorBoundary>
+        <Toaster />
+        <Router>
             <Routes>
               {/* Public Routes - No MainLayout */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -274,11 +273,31 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/approver/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
                 path="/approver/old-articles"
                 element={
                   <ApproverRoute>
                     <MainLayout>
                       <ApproverDashboard key="old-articles" pathType="old" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/old-articles/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
                 }
@@ -294,11 +313,31 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/approver/rejected/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
                 path="/approver/created"
                 element={
                   <ApproverRoute>
                     <MainLayout>
                       <ApproverDashboard key="created-articles" pathType="created" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/created/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
                 }
@@ -340,11 +379,9 @@ const App: React.FC = () => {
                 })()}
               />
             </Routes>
-          </Router>
-        </ErrorBoundary>
-      </AppProviders>
-      </AntdApp>
-    </ConfigProvider>
+        </Router>
+      </ErrorBoundary>
+    </AppProviders>
   );
 };
 

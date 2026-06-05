@@ -1,24 +1,22 @@
 import React from 'react';
+import { Plus, Info, FlaskConical, Trophy } from 'lucide-react';
 import {
-  Modal,
-  Descriptions,
-  Tag,
-  Space,
-  Button,
   Badge,
-  Typography,
+  Button,
   Card,
-  Progress
-} from 'antd';
-import {
-  PlusOutlined,
-  InfoCircleOutlined,
-  ExperimentOutlined,
-  TrophyOutlined
-} from '@ant-design/icons';
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Descriptions,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Progress,
+  Tag,
+} from '@/shared/components/ui-tw';
 import type { DiscoveredAttribute } from '../../../shared/types/extraction/ExtractionTypes';
-
-const { Text, Paragraph } = Typography;
 
 interface DiscoveryDetailModalProps {
   discovery: DiscoveredAttribute | null;
@@ -31,196 +29,174 @@ export const DiscoveryDetailModal: React.FC<DiscoveryDetailModalProps> = ({
   discovery,
   visible,
   onClose,
-  onPromote
+  onPromote,
 }) => {
   if (!discovery) return null;
 
-  const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 80) return '#52c41a';
-    if (confidence >= 60) return '#faad14';
-    return '#ff7875';
-  };
-
-  const getConfidenceStatus = (confidence: number): string => {
-    if (confidence >= 80) return 'High';
-    if (confidence >= 60) return 'Medium';
-    return 'Low';
-  };
+  const getConfidenceBar = (c: number) =>
+    c >= 80 ? 'bg-emerald-500' : c >= 60 ? 'bg-amber-500' : 'bg-red-500';
+  const getConfidenceStatus = (c: number) => (c >= 80 ? 'High' : c >= 60 ? 'Medium' : 'Low');
 
   const isPromotable = discovery.frequency >= 2 && discovery.confidence >= 75;
 
   return (
-    <Modal
-      title={
-        <Space>
-          <ExperimentOutlined style={{ color: '#722ed1' }} />
-          <span>Discovery Details</span>
-          {isPromotable && (
-            <Tag icon={<TrophyOutlined />} color="success">
-              Ready for Schema
-            </Tag>
-          )}
-        </Space>
-      }
-      open={visible}
-      onCancel={onClose}
-      width={600}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          Close
-        </Button>,
-        isPromotable && (
-          <Button
-            key="promote"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              onPromote(discovery.key);
-              onClose();
-            }}
-            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-          >
-            Add to Schema
-          </Button>
-        )
-      ].filter(Boolean)}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Main Info */}
-        <Descriptions bordered size="small" column={1}>
-          <Descriptions.Item label="Attribute Name">
-            <Text strong style={{ fontSize: 16, color: '#722ed1' }}>
-              {discovery.label}
-            </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Technical Key">
-            <Text code>{discovery.key}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Current Value">
-            <Text strong style={{ color: '#FF6F61' }}>
-              {discovery.normalizedValue}
-            </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Raw AI Output">
-            <Text type="secondary" style={{ fontStyle: 'italic' }}>
-              {discovery.rawValue}
-            </Text>
-          </Descriptions.Item>
-        </Descriptions>
+    <Dialog open={visible} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-purple-600" />
+            <span>Discovery Details</span>
+            {isPromotable && (
+              <Badge variant="success" className="gap-1">
+                <Trophy className="h-3 w-3" />
+                Ready for Schema
+              </Badge>
+            )}
+          </DialogTitle>
+        </DialogHeader>
 
-        {/* Confidence & Quality */}
-        <Card size="small" title="AI Analysis Quality">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Text strong>AI Confidence: </Text>
-              <Progress
-                percent={discovery.confidence}
-                strokeColor={getConfidenceColor(discovery.confidence)}
-                size="small"
-                style={{ width: 200, display: 'inline-block', marginLeft: 8 }}
-              />
-              <Text style={{ marginLeft: 8 }}>
-                {discovery.confidence}% ({getConfidenceStatus(discovery.confidence)})
-              </Text>
-            </div>
-            
-            <div>
-              <Text strong>Times Observed: </Text>
-              <Badge 
-                count={discovery.frequency} 
-                style={{ 
-                  backgroundColor: discovery.frequency > 1 ? '#FF6F61' : '#8c8c8c' 
-                }}
-              />
-            </div>
-            
-            <div>
-              <Text strong>Suggested Type: </Text>
-              <Tag color="blue" style={{ textTransform: 'uppercase' }}>
-                {discovery.suggestedType.toUpperCase()}
-              </Tag>
-            </div>
-          </Space>
-        </Card>
+        <div className="flex flex-col gap-6">
+          {/* Main Info */}
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="Attribute Name">
+              <strong className="text-base text-purple-600">{discovery.label}</strong>
+            </Descriptions.Item>
+            <Descriptions.Item label="Technical Key">
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">{discovery.key}</code>
+            </Descriptions.Item>
+            <Descriptions.Item label="Current Value">
+              <strong className="text-primary">{discovery.normalizedValue}</strong>
+            </Descriptions.Item>
+            <Descriptions.Item label="Raw AI Output">
+              <span className="italic text-muted-foreground">{discovery.rawValue}</span>
+            </Descriptions.Item>
+          </Descriptions>
 
-        {/* AI Reasoning */}
-        <Card size="small" title="AI Reasoning">
-          <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
-            <InfoCircleOutlined style={{ color: '#FF6F61', marginRight: 8 }} />
-            <strong>Why AI identified this attribute:</strong>
-          </Paragraph>
-          <Paragraph 
-            style={{ 
-              marginTop: 8, 
-              padding: 12, 
-              backgroundColor: '#f6f8fa',
-              borderRadius: 6,
-              fontStyle: 'italic',
-              fontSize: 13
-            }}
-          >
-            {discovery.reasoning}
-          </Paragraph>
-        </Card>
+          {/* Confidence & Quality */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">AI Analysis Quality</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <strong>AI Confidence:</strong>
+                <Progress
+                  value={discovery.confidence}
+                  indicatorClassName={getConfidenceBar(discovery.confidence)}
+                  className="inline-block w-[200px]"
+                />
+                <span>
+                  {discovery.confidence}% ({getConfidenceStatus(discovery.confidence)})
+                </span>
+              </div>
 
-        {/* Possible Values */}
-        {discovery.possibleValues && discovery.possibleValues.length > 0 && (
-          <Card size="small" title="Observed Values">
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Values AI has observed for this attribute:
-              </Text>
-            </div>
-            <Space wrap>
-              {discovery.possibleValues.map((value, index) => (
-                <Tag key={index} color="geekblue" style={{ marginBottom: 4 }}>
-                  {value}
-                </Tag>
-              ))}
-            </Space>
+              <div className="flex items-center gap-2">
+                <strong>Times Observed:</strong>
+                <Badge variant={discovery.frequency > 1 ? 'default' : 'secondary'}>
+                  {discovery.frequency}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <strong>Suggested Type:</strong>
+                <Badge variant="info" className="uppercase">
+                  {discovery.suggestedType.toUpperCase()}
+                </Badge>
+              </div>
+            </CardContent>
           </Card>
-        )}
 
-        {/* Promotion Info */}
-        <Card 
-          size="small" 
-          style={{ 
-            backgroundColor: isPromotable ? '#f6ffed' : '#fff7e6',
-            border: isPromotable ? '1px solid #b7eb8f' : '1px solid #ffd591'
-          }}
-        >
-          {isPromotable ? (
-            <Space direction="vertical">
-              <Space>
-                <TrophyOutlined style={{ color: '#52c41a' }} />
-                <Text strong style={{ color: '#52c41a' }}>
-                  Ready for Schema Promotion
-                </Text>
-              </Space>
-              <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
-                This discovery has high confidence ({discovery.confidence}%) and has been
-                observed {discovery.frequency} times. Adding it to your schema will
-                automatically extract this attribute in future analyses.
-              </Paragraph>
-            </Space>
-          ) : (
-            <Space direction="vertical">
-              <Space>
-                <InfoCircleOutlined style={{ color: '#faad14' }} />
-                <Text strong style={{ color: '#faad14' }}>
-                  Not Yet Promotable
-                </Text>
-              </Space>
-              <Paragraph style={{ marginBottom: 0, fontSize: 13 }}>
-                {discovery.frequency < 2
-                  ? `Needs to be observed more times (currently: ${discovery.frequency}, needs: 2+)`
-                  : `Needs higher confidence (currently: ${discovery.confidence}%, needs: 75%+)`
-                } to be eligible for schema promotion.
-              </Paragraph>
-            </Space>
+          {/* AI Reasoning */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">AI Reasoning</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="m-0 text-[13px]">
+                <Info className="mr-2 inline h-4 w-4 text-primary" />
+                <strong>Why AI identified this attribute:</strong>
+              </p>
+              <p className="mt-2 rounded-md bg-muted/40 p-3 text-[13px] italic">
+                {discovery.reasoning}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Possible Values */}
+          {discovery.possibleValues && discovery.possibleValues.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Observed Values</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Values AI has observed for this attribute:
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {discovery.possibleValues.map((value, index) => (
+                    <Tag key={index} className="bg-sky-50 text-sky-800">
+                      {value}
+                    </Tag>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </Card>
-      </Space>
-    </Modal>
+
+          {/* Promotion Info */}
+          <Card
+            className={
+              isPromotable ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
+            }
+          >
+            <CardContent className="pt-6">
+              {isPromotable ? (
+                <>
+                  <div className="mb-1 flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-emerald-600" />
+                    <strong className="text-emerald-700">Ready for Schema Promotion</strong>
+                  </div>
+                  <p className="m-0 text-[13px]">
+                    This discovery has high confidence ({discovery.confidence}%) and has been observed{' '}
+                    {discovery.frequency} times. Adding it to your schema will automatically extract this attribute in future analyses.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="mb-1 flex items-center gap-2">
+                    <Info className="h-4 w-4 text-amber-600" />
+                    <strong className="text-amber-700">Not Yet Promotable</strong>
+                  </div>
+                  <p className="m-0 text-[13px]">
+                    {discovery.frequency < 2
+                      ? `Needs to be observed more times (currently: ${discovery.frequency}, needs: 2+)`
+                      : `Needs higher confidence (currently: ${discovery.confidence}%, needs: 75%+)`}{' '}
+                    to be eligible for schema promotion.
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          {isPromotable && (
+            <Button
+              onClick={() => {
+                onPromote(discovery.key);
+                onClose();
+              }}
+              className="bg-emerald-500 hover:bg-emerald-600"
+            >
+              <Plus />
+              Add to Schema
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

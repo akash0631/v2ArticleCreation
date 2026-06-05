@@ -1,1463 +1,610 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Typography, App, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker, Tooltip } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, DownloadOutlined, FileTextOutlined, AppstoreAddOutlined, RocketOutlined } from '@ant-design/icons';
-// FileTextOutlined, AppstoreAddOutlined, RocketOutlined used in per-article modal icons
-import { ApproverTable } from '../components/ApproverTable';
-import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
-import { ApproverArticleList } from '../components/ApproverArticleList';
-import VariantSubTable from '../components/VariantSubTable';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { RotateCw, Download, Sparkles, Search, ChevronDown } from 'lucide-react';
+import type { Dayjs } from 'dayjs';
+import {
+  Button,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  RangePicker,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
+import { cn } from '@/lib/utils';
+import type { ApproverItem } from '../components/ApproverTable';
+import { ArticleCard } from '../components/ArticleCard';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
 import { getMcCodeByMajorCategory, MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
-import { getMajCatAllowedValues, getMajCatMandatoryKeys, SCHEMA_KEY_TO_EXCEL_ATTR, normalizeMajorCategory, SAP_NAME_TO_SCHEMA_KEY, SCHEMA_KEY_TO_DB_FIELD } from '../../../data/majCatAttributeMap';
-import { preloadAttributeValues, isMandatoryGridFieldActive, getMandatoryGridFieldLabel } from '../../../services/articleConfigService';
-
-// schemaKey → primary SAP key (used for mandatory-grid lookups)
-// Maps schemaKey → ALL SAP key aliases (including legacy/DB variants).
-// Using ALL aliases ensures isMandatoryGridFieldActive finds a match regardless of
-// which variant the uploaded Excel used (e.g. 'Price Band Category' vs 'SEGMENT').
-const SCHEMA_KEY_TO_ALL_SAP_KEYS: Record<string, string[]> = Object.entries(SAP_NAME_TO_SCHEMA_KEY)
-    .reduce((acc, [sapKey, schemaKey]) => {
-        if (!acc[schemaKey]) acc[schemaKey] = [];
-        acc[schemaKey].push(sapKey);
-        return acc;
-    }, {} as Record<string, string[]>);
-
-/**
- * Returns the list of mandatory field labels that are empty for a given article.
- * Always-required: VENDOR NAME, IMP_ATBT (for all major categories).
- * Grid-driven: any field marked active (1) in the uploaded Mandatory Grid Excel.
- * Uses human-readable labels from the Excel Row 4 (e.g. "BODY STYLE" not "M_PATTERN").
- */
-function getMissingMandatoryFields(item: any): string[] {
-    const missing: string[] = [];
-
-    // ── Always required for every major category ──
-    if (!item.vendorName) missing.push('VENDOR NAME');
-    if (!item.rate)       missing.push('RATE / COST');
-    if (!item.mrp)        missing.push('MRP');
-    if (!item.impAtrbt2)  missing.push('M_IMP_ATBT');
-
-    // ── Grid-driven mandatory fields ──
-    const majorCat = item.majorCategory || '';
-    if (!majorCat) return missing;
-
-    for (const [schemaKey, dbField] of Object.entries(SCHEMA_KEY_TO_DB_FIELD)) {
-        // Check ALL SAP key aliases — DB may use a different variant than the Excel header
-        // e.g. segment: 'Price Band Category' (Excel) vs 'SEGMENT' (DB sap_key)
-        const sapKeys = SCHEMA_KEY_TO_ALL_SAP_KEYS[schemaKey] ?? [];
-        if (sapKeys.length === 0) continue;
-        const isActive = sapKeys.some(sk => isMandatoryGridFieldActive(majorCat, sk) === true);
-        if (!isActive) continue;
-        const value = item[dbField];
-        if (!value) {
-            // Use label from whichever alias is active in the grid (first match wins)
-            const activeSapKey = sapKeys.find(sk => isMandatoryGridFieldActive(majorCat, sk) === true)!;
-            const label = getMandatoryGridFieldLabel(activeSapKey) || activeSapKey;
-            missing.push(label);
-        }
-    }
-    return missing;
-}
-import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
-import type { Dayjs } from 'dayjs';
 import { exportToExcel } from '../../../shared/utils/export/extractionExport';
+import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import type { DetailFilters, DetailNavigationState } from './ArticleDetailPage';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { RangePicker } = DatePicker;
+const inferMcCode = (majorCategory?: string | null) => getMcCodeByMajorCategory(majorCategory);
 
-const inferMcCode = (majorCategory?: string | null): string | null =>
-    getMcCodeByMajorCategory(majorCategory);
-
-const parseNumericValue = (value: unknown): number | null => {
-    if (value === null || value === undefined || value === '') return null;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-
-    const cleaned = String(value)
-        .replace(/[₹$€£¥,]/g, '')
-        .replace(/\s+/g, ' ')
-        .replace(/\/-$/, '')
-        .replace(/\/$/, '')
-        .replace(/-$/, '')
-        .trim();
-    const match = cleaned.match(/-?\d+(\.\d+)?/);
-    if (!match) return null;
-    const parsed = parseFloat(match[0]);
-    return Number.isNaN(parsed) ? null : parsed;
-};
-
-const calcMarkdown = (mrp: unknown, rate: unknown): string | null => {
-    const m = parseNumericValue(mrp);
-    const r = parseNumericValue(rate);
-    if (m === null || r === null || m === 0) return null;
-    return ((m - r) / m * 100).toFixed(1) + '%';
-};
-
-const normalizeText = (value?: string | null): string =>
-    String(value || '').trim().toUpperCase();
+const normalizeText = (value?: string | null): string => String(value || '').trim().toUpperCase();
 
 const getDivisionVariants = (value?: string | null): string[] => {
-    const normalized = normalizeText(value);
-    if (!normalized) return [];
-
-    if (normalized === 'MEN' || normalized === 'MENS') return ['MEN', 'MENS'];
-    if (normalized === 'LADIES' || normalized === 'WOMEN' || normalized === 'WOMAN') return ['LADIES', 'WOMEN'];
-    if (normalized === 'KID' || normalized === 'KIDS') return ['KID', 'KIDS'];
-
-    return [normalized];
+  const n = normalizeText(value);
+  if (!n) return [];
+  if (n === 'MEN' || n === 'MENS') return ['MEN', 'MENS'];
+  if (n === 'LADIES' || n === 'WOMEN' || n === 'WOMAN') return ['LADIES', 'WOMEN'];
+  if (n === 'KID' || n === 'KIDS') return ['KID', 'KIDS'];
+  return [n];
 };
 
 const getSubDivisionVariants = (value?: string | null): string[] =>
-    Array.from(new Set(
-        String(value || '')
-            .split(/[;,|]+/)
-            .map((item) => normalizeText(item))
-            .filter(Boolean)
-    ));
+  Array.from(new Set(String(value || '').split(/[;,|]+/).map(normalizeText).filter(Boolean)));
+
+const getSubDivisionOptions = (division?: string): string[] => {
+  if (!division) return [];
+  if (division.match(/LADIES|WOMEN/i)) return SIMPLIFIED_HIERARCHY['Ladies'];
+  if (division.match(/KIDS/i)) return SIMPLIFIED_HIERARCHY['Kids'];
+  if (division.match(/MEN/i)) return SIMPLIFIED_HIERARCHY['MENS'];
+  return [];
+};
 
 export const SIMPLE_APPROVER_EXPORT_HEADERS = [
-    // Identity
-    'Article Number',
-    'Division',
-    'Sub Division',
-    'Major Category',
-    'MC Code',
-    'Status',
-    'Vendor Name',
-    'Vendor Code',
-    'Design Number',
-    'PPT Number',
-    'Article Description',
-    'Reference Article Number',
-    'Reference Article Description',
-    'Season',
-    'HSN Tax Code',
-    'Year',
-    'Article Type',
-    // BOM
-    'Rate',
-    'MRP',
-    // FAB group
-    'M_FAB_MAIN_MVGR_1',
-    'M_FAB_MAIN_MVGR_2',
-    'M_WEAVE_01',
-    'M_WEAVE_02',
-    'M_YARN',
-    'M_COMPOSITION',
-    'M_COUNT',
-    'M_CONSTRUCTION',
-    'M_LYCRA',
-    'M_FINISH',
-    'M_GSM',
-    'M_OUNZ',
-    'M_WIDTH',
-    'M_FAB_DIV',
-    'M_FAB_VDR',
-    'SHADE',
-    'WEIGHT',
-    // BODY group
-    'M_BODY_STYLE',
-    'M_COLLAR_TYPE',
-    'M_COLLAR_STYLE',
-    'M_NECK_TYPE',
-    'M_NECK_STYLE',
-    'M_PLACKET',
-    'M_BLT_TYPE',
-    'M_BLT_STYLE',
-    'M_SLEEVES_MAIN_STYLE',
-    'M_SLEEVE_FOLD',
-    'M_BTM_FOLD',
-    'M_NO_OF_POCKET',
-    'M_POCKET',
-    'M_EXTRA_POCKET',
-    'M_FIT',
-    'M_LENGTH',
-    // VA ACC group
-    'M_DC_STYLE',
-    'M_DC_SHAPE',
-    'M_BTN_TYPE',
-    'M_BTN_CLR',
-    'M_ZIP_TYPE',
-    'M_ZIP_COL',
-    'M_PATCH_STYLE',
-    'M_PATCHE_TYPE',
-    'M_HTRF_TYPE',
-    'M_HTRF_STYLE',
-    // VA PRCS group
-    'M_PRINT_TYPE',
-    'M_PRINT_STYLE',
-    'M_PRINT_PLACEMENT',
-    'M_EMB_TYPE',
-    'M_EMBROIDERY_STYLE',
-    'M_EMB_PLACEMENT',
-    'M_WASH',
-    // BUSINESS group
-    'M_IMP_ATBT',
-    'M_AGE_GROUP',
-    'ARTICLE FASHION TYPE',
-    'SEGMENT',
-    // Meta
-    'Extracted By',
-    'Created Date',
+    'Article Number', 'Division', 'Sub Division', 'Major Category', 'MC Code', 'Status',
+    'Vendor Name', 'Vendor Code', 'Design Number', 'PPT Number', 'Article Description',
+    'Reference Article Number', 'Reference Article Description', 'Season', 'HSN Tax Code',
+    'Year', 'Article Type',
+    'Rate', 'MRP',
+    'M_FAB_MAIN_MVGR_1', 'M_FAB_MAIN_MVGR_2', 'M_WEAVE_01', 'M_WEAVE_02', 'M_YARN',
+    'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH', 'M_GSM',
+    'M_OUNZ', 'M_WIDTH', 'M_FAB_DIV', 'M_FAB_VDR', 'SHADE', 'WEIGHT',
+    'M_BODY_STYLE', 'M_COLLAR_TYPE', 'M_COLLAR_STYLE', 'M_NECK_TYPE', 'M_NECK_STYLE',
+    'M_PLACKET', 'M_BLT_TYPE', 'M_BLT_STYLE', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD',
+    'M_BTM_FOLD', 'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'M_LENGTH',
+    'M_DC_STYLE', 'M_DC_SHAPE', 'M_BTN_TYPE', 'M_BTN_CLR', 'M_ZIP_TYPE', 'M_ZIP_COL',
+    'M_PATCH_STYLE', 'M_PATCHE_TYPE', 'M_HTRF_TYPE', 'M_HTRF_STYLE',
+    'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT', 'M_EMB_TYPE',
+    'M_EMBROIDERY_STYLE', 'M_EMB_PLACEMENT', 'M_WASH',
+    'M_IMP_ATBT', 'M_AGE_GROUP', 'ARTICLE FASHION TYPE', 'SEGMENT',
+    'Extracted By', 'Created Date',
 ] as const;
-
-// Complete list of attribute fields with their form name, display label, and schema key
-// Schema key links to getMajCatAllowedValues / getMajCatMandatoryKeys from the Excel data
-const ATTRIBUTE_FIELDS: { formName: string; label: string; schemaKey: string }[] = [
-    { formName: 'macroMvgr',      label: 'Macro MVGR',        schemaKey: 'macro_mvgr' },
-    { formName: 'mainMvgr',       label: 'Main MVGR',         schemaKey: 'main_mvgr' },
-    { formName: 'yarn1',          label: 'Yarn 1',            schemaKey: 'yarn_01' },
-    { formName: 'fabricMainMvgr', label: 'Fabric Main MVGR',  schemaKey: 'fabric_main_mvgr' },
-    { formName: 'weave',          label: 'Weave',             schemaKey: 'weave' },
-    { formName: 'mFab2',          label: 'M FAB 2',           schemaKey: 'm_fab2' },
-    { formName: 'fabDiv',         label: 'M FAB DIV',         schemaKey: 'fab_div' },
-    { formName: 'composition',    label: 'Composition',       schemaKey: 'composition' },
-    { formName: 'finish',         label: 'Finish',            schemaKey: 'finish' },
-    { formName: 'gsm',            label: 'GSM',               schemaKey: 'gsm' },
-    { formName: 'weight',         label: 'G-Weight',          schemaKey: 'weight' },
-    { formName: 'lycra',          label: 'Lycra / Non-Lycra', schemaKey: 'lycra_non_lycra' },
-    { formName: 'shade',          label: 'Shade',             schemaKey: 'shade' },
-    { formName: 'pattern',        label: 'Body Style',        schemaKey: 'body_style' },
-    { formName: 'fit',            label: 'Fit',               schemaKey: 'fit' },
-    { formName: 'wash',           label: 'Wash',              schemaKey: 'wash' },
-    { formName: 'neck',           label: 'Neck',              schemaKey: 'neck' },
-    { formName: 'neckDetails',    label: 'Neck Details',      schemaKey: 'neck_details' },
-    { formName: 'collar',         label: 'Collar',            schemaKey: 'collar' },
-    { formName: 'placket',        label: 'Placket',           schemaKey: 'placket' },
-    { formName: 'sleeve',         label: 'Sleeve',            schemaKey: 'sleeve' },
-    { formName: 'length',         label: 'Length',            schemaKey: 'length' },
-    { formName: 'bottomFold',     label: 'Bottom Fold',       schemaKey: 'bottom_fold' },
-    { formName: 'frontOpenStyle', label: 'Front Open Style',  schemaKey: 'front_open_style' },
-    { formName: 'pocketType',     label: 'Pocket Type',       schemaKey: 'pocket_type' },
-    { formName: 'drawcord',       label: 'Drawcord',          schemaKey: 'drawcord' },
-    { formName: 'button',         label: 'Button',            schemaKey: 'button' },
-    { formName: 'zipper',         label: 'Zipper',            schemaKey: 'zipper' },
-    { formName: 'zipColour',      label: 'Zip Colour',        schemaKey: 'zip_colour' },
-    { formName: 'fatherBelt',     label: 'Father Belt',       schemaKey: 'father_belt' },
-    { formName: 'childBelt',      label: 'Child Belt',        schemaKey: 'child_belt' },
-    { formName: 'printType',      label: 'Print Type',        schemaKey: 'print_type' },
-    { formName: 'printStyle',     label: 'Print Style',       schemaKey: 'print_style' },
-    { formName: 'printPlacement', label: 'Print Placement',   schemaKey: 'print_placement' },
-    { formName: 'patches',        label: 'Patches',           schemaKey: 'patches' },
-    { formName: 'patchesType',    label: 'Patches Type',      schemaKey: 'patches_type' },
-    { formName: 'embroidery',     label: 'Embroidery',        schemaKey: 'embroidery' },
-    { formName: 'embroideryType', label: 'Embroidery Type',   schemaKey: 'embroidery_type' },
-];
 
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-    pathType?: 'old' | 'new' | 'rejected' | 'created';
+  pathType?: 'old' | 'new' | 'rejected' | 'created';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
-    const { message } = App.useApp();
-    const [items, setItems] = useState<ApproverItem[]>([]);
-    const [attributes, setAttributes] = useState<MasterAttribute[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-    const [user, setUser] = useState<any>(null);
-    const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD';
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-    // Filters
-    const [statusFilter, setStatusFilter] = useState<string>('ALL');
-    const [searchText, setSearchText] = useState('');
-    const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
-    const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
-    const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>('');
-    const [sourceFilter, setSourceFilter] = useState<string>('ALL');
-    const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [items, setItems] = useState<ApproverItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  // Read ?page=N from URL so Back-button navigation restores the correct page
+  const [currentPage, setCurrentPage] = useState(() => {
+    const p = parseInt(searchParams.get('page') || '1', 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [user, setUser] = useState<any>(null);
 
-    // Debounce search — wait 700ms idle AND require at least 3 chars (or empty to reset)
-    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-        // Fire immediately on clear, otherwise wait 700ms and require 3+ chars
-        if (value === '') {
-            setSearchText('');
-            return;
-        }
-        if (value.length < 3) return; // don't search on 1-2 chars
-        searchDebounceRef.current = setTimeout(() => setSearchText(value), 700);
-    }, []);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [searchText, setSearchText] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
+  const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
+  const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>('');
+  const [sourceFilter, setSourceFilter] = useState<string>('ALL');
+  const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
 
-    // Derived: user's assigned divisions/sub-divisions (parsed from their profile)
-    const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
-    const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
+  // Combobox open/search state for the two searchable filter dropdowns
+  const [subDivOpen, setSubDivOpen] = useState(false);
+  const [subDivSearch, setSubDivSearch] = useState('');
+  const [majCatOpen, setMajCatOpen] = useState(false);
+  const [majCatSearch, setMajCatSearch] = useState('');
 
-    // Show division filter if non-admin user has more than one division assigned
-    const showDivisionFilter = user?.role !== 'ADMIN' && userAssignedDivisions.length > 1;
-    // Show sub-division filter if non-admin user has more than one sub-division assigned
-    const showSubDivisionFilter = user?.role !== 'ADMIN' && userAssignedSubDivisions.length > 1;
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether this is the first fetch so we honour the ?page= from the URL
+  const isInitialFetch = useRef(true);
 
-    useEffect(() => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try {
-                setUser(JSON.parse(userStr));
-            } catch (e) {
-                console.error('Failed to parse user', e);
-            }
-        }
-    }, []);
+  const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
+  const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
+  const showDivisionFilter = user?.role !== 'ADMIN' && userAssignedDivisions.length > 1;
+  const showSubDivisionFilter = user?.role !== 'ADMIN' && userAssignedSubDivisions.length > 1;
 
-    // Edit Modal State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<ApproverItem | null>(null);
-    const [form] = Form.useForm();
-    // Track selected division in modal to cascade subDivision dropdown
-    const [modalDivision, setModalDivision] = useState<string | undefined>(undefined);
-    // Live markdown preview in edit modal (MRP - Rate) / MRP * 100%
-    const [modalMarkdown, setModalMarkdown] = useState<string | null>(null);
+  useEffect(() => {
+    const str = localStorage.getItem('user');
+    if (str) { try { setUser(JSON.parse(str)); } catch { /* skip */ } }
+  }, []);
 
-    const fetchAttributes = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/attributes`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setAttributes(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch attributes', error);
-        }
-    }, []);
+  useEffect(() => {
+    if (pathType === 'created') setStatusFilter('APPROVED');
+  }, [pathType]);
 
-    // Server-side pagination + filtering. Recreated whenever any filter changes,
-    // which causes the useEffect below to re-fire and reset to page 1.
-    const fetchItems = useCallback(async (page = 1) => {
-        setLoading(true);
-        setCurrentPage(page);
-        try {
-            const token = localStorage.getItem('authToken');
-            const params = new URLSearchParams();
-            params.set('page', String(page));
-            params.set('limit', String(PAGE_SIZE));
-            // Enforce correct status per page type — never let search return wrong-status articles
-            const effectiveStatus = pathType === 'new' ? 'PENDING'
-                : pathType === 'rejected' ? 'REJECTED'
-                : pathType === 'created' ? 'APPROVED'
-                : statusFilter;
-            params.set('status', effectiveStatus);
-            if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
-            if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
-            if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
-            if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
-            if (searchText) params.set('search', searchText);
-            if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
-            if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
-            if (pathType) params.set('pathType', pathType);
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (value === '') { setSearchText(''); return; }
+    if (value.length < 3) return;
+    searchDebounceRef.current = setTimeout(() => setSearchText(value), 700);
+  }, []);
 
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+  const fetchItems = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      setCurrentPage(page);
+      try {
+        const token = localStorage.getItem('authToken');
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(PAGE_SIZE));
+        const effectiveStatus =
+          pathType === 'new' ? 'PENDING'
+          : pathType === 'rejected' ? 'REJECTED'
+          : pathType === 'created' ? 'APPROVED'
+          : statusFilter;
+        params.set('status', effectiveStatus);
+        if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
+        if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
+        if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+        if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+        if (searchText) params.set('search', searchText);
+        if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
+        if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
+        if (pathType) params.set('pathType', pathType);
 
-            if (!response.ok) throw new Error('Failed to fetch items');
-
-            const result = await response.json();
-            const withMcCode = (result.data || []).map((item: ApproverItem) => ({
-                ...item,
-                mcCode: item.mcCode || inferMcCode(item.majorCategory)
-            }));
-            setItems(withMcCode);
-            setTotalCount(result.meta?.total || 0);
-        } catch (error) {
-            message.error('Failed to load items');
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType]);
-
-    useEffect(() => { fetchAttributes(); }, [fetchAttributes]);
-
-    // Lock status filter to APPROVED on the Created page
-    useEffect(() => {
-        if (pathType === 'created') setStatusFilter('APPROVED');
-    }, [pathType]);
-
-    // Preload DB attribute values (division-scoped) whenever editing item changes
-    useEffect(() => {
-        if (editingItem?.division) {
-            preloadAttributeValues(editingItem.division).catch(() => {});
-        }
-    }, [editingItem?.division]);
-
-    // Fires on mount and whenever fetchItems is recreated (i.e. any filter changes).
-    // Always resets to page 1 so filter results start from the beginning.
-    useEffect(() => { fetchItems(1); }, [fetchItems]);
-
-    const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
-        return rows.map((row) => {
-            const createdAt = row.createdAt ? new Date(row.createdAt) : null;
-            const formattedDate = createdAt && !Number.isNaN(createdAt.getTime())
-                ? createdAt.toLocaleDateString('en-GB')
-                : '';
-
-            return {
-                // Identity
-                'Article Number':                   row.articleNumber || '',
-                'Division':                         row.division || '',
-                'Sub Division':                     row.subDivision || '',
-                'Major Category':                   row.majorCategory || '',
-                'MC Code':                          row.mcCode || '',
-                'Status':                           row.approvalStatus || '',
-                'Vendor Name':                      row.vendorName || '',
-                'Vendor Code':                      row.vendorCode || '',
-                'Design Number':                    row.designNumber || '',
-                'PPT Number':                       row.pptNumber || '',
-                'Article Description':              row.articleDescription || '',
-                'Reference Article Number':         row.referenceArticleNumber || '',
-                'Reference Article Description':    row.referenceArticleDescription || '',
-                'Season':                           row.season || '',
-                'HSN Tax Code':                     row.hsnTaxCode || '',
-                'Year':                             row.year || '',
-                'Article Type':                     row.articleType || '',
-                // BOM
-                'Rate':                             row.rate == null ? undefined : Number(row.rate),
-                'MRP':                              row.mrp == null ? undefined : Number(row.mrp),
-                // FAB group
-                'M_FAB_MAIN_MVGR_1':               row.mainMvgr || '',
-                'M_FAB_MAIN_MVGR_2':               row.fabricMainMvgr || '',
-                'M_WEAVE_01':                       row.weave || '',
-                'M_WEAVE_02':                       row.mFab2 || '',
-                'M_YARN':                           row.yarn1 || '',
-                'M_COMPOSITION':                    row.composition || '',
-                'M_COUNT':                          row.fCount || '',
-                'M_CONSTRUCTION':                   row.fConstruction || '',
-                'M_LYCRA':                          row.lycra || '',
-                'M_FINISH':                         row.finish || '',
-                'M_GSM':                            row.gsm || '',
-                'M_OUNZ':                           row.fOunce || '',
-                'M_WIDTH':                          row.fWidth || '',
-                'M_FAB_DIV':                        row.fabDiv || '',
-                'M_FAB_VDR':                        row.fabVdr || '',
-                'SHADE':                            row.shade || '',
-                'WEIGHT':                           row.weight || '',
-                // BODY group
-                'M_BODY_STYLE':                     row.pattern || '',
-                'M_COLLAR_TYPE':                    row.collar || '',
-                'M_COLLAR_STYLE':                   row.collarStyle || '',
-                'M_NECK_TYPE':                      row.neck || '',
-                'M_NECK_STYLE':                     row.neckDetails || '',
-                'M_PLACKET':                        row.placket || '',
-                'M_BLT_TYPE':                       row.fatherBelt || '',
-                'M_BLT_STYLE':                      row.childBelt || '',
-                'M_SLEEVES_MAIN_STYLE':             row.sleeve || '',
-                'M_SLEEVE_FOLD':                    row.sleeveFold || '',
-                'M_BTM_FOLD':                       row.bottomFold || '',
-                'M_NO_OF_POCKET':                   row.noOfPocket || '',
-                'M_POCKET':                         row.pocketType || '',
-                'M_EXTRA_POCKET':                   row.extraPocket || '',
-                'M_FIT':                            row.fit || '',
-                'M_LENGTH':                         row.length || '',
-                // VA ACC group
-                'M_DC_STYLE':                       row.drawcord || '',
-                'M_DC_SHAPE':                       row.dcShape || '',
-                'M_BTN_TYPE':                       row.button || '',
-                'M_BTN_CLR':                        row.btnColour || '',
-                'M_ZIP_TYPE':                       row.zipper || '',
-                'M_ZIP_COL':                        row.zipColour || '',
-                'M_PATCH_STYLE':                    row.patchesType || '',
-                'M_PATCHE_TYPE':                    row.patches || '',
-                'M_HTRF_TYPE':                      row.htrfType || '',
-                'M_HTRF_STYLE':                     row.htrfStyle || '',
-                // VA PRCS group
-                'M_PRINT_TYPE':                     row.printType || '',
-                'M_PRINT_STYLE':                    row.printStyle || '',
-                'M_PRINT_PLACEMENT':                row.printPlacement || '',
-                'M_EMB_TYPE':                       row.embroidery || '',
-                'M_EMBROIDERY_STYLE':               row.embroideryType || '',
-                'M_EMB_PLACEMENT':                  row.embPlacement || '',
-                'M_WASH':                           row.wash || '',
-                // BUSINESS group
-                'M_IMP_ATBT':                       row.impAtrbt2 || '',
-                'M_AGE_GROUP':                      row.ageGroup || '',
-                'ARTICLE FASHION TYPE':             row.articleFashionType || '',
-                'SEGMENT':                          row.segment || '',
-                // Meta
-                'Extracted By':                     row.userName || '',
-                'Created Date':                     formattedDate,
-            } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+        const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-    }, []);
+        if (!response.ok) throw new Error('Failed to fetch items');
+        const result = await response.json();
+        const withMcCode = (result.data || []).map((item: ApproverItem) => ({
+          ...item,
+          mcCode: item.mcCode || inferMcCode(item.majorCategory),
+        }));
+        setItems(withMcCode);
+        setTotalCount(result.meta?.total || 0);
+      } catch {
+        message.error('Failed to load items');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType],
+  );
 
-    const handleExportSelected = useCallback(async () => {
-        if (selectedRowKeys.length === 0) {
-            message.warning('Select at least one article to export');
-            return;
-        }
+  useEffect(() => {
+    if (isInitialFetch.current) {
+      isInitialFetch.current = false;
+      // On mount honour the page from the URL (?page=N); filter changes always reset to 1
+      fetchItems(currentPage);
+    } else {
+      fetchItems(1);
+    }
+  // currentPage intentionally omitted: only used on first mount via the ref guard
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchItems]);
 
-        const selectedItems = items.filter((item) => selectedRowKeys.includes(item.id));
-        if (selectedItems.length === 0) {
-            message.warning('No selected articles available to export');
-            return;
-        }
+  // Sync currentPage → ?page=N in the URL (separate from fetching so the two don't interfere)
+  useEffect(() => {
+    setSearchParams(p => { p.set('page', String(currentPage)); return p; }, { replace: true });
+  // setSearchParams is stable; currentPage drives the sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
-        const exportData = buildApproverExportData(selectedItems);
-        await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], 'Article Creation');
-    }, [buildApproverExportData, items, selectedRowKeys]);
+  // ─── Export ──────────────────────────────────────────────────────────────────
 
-    const [exportingAll, setExportingAll] = useState(false);
+  const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
+    return rows.map((row) => {
+      const createdAt = row.createdAt ? new Date(row.createdAt) : null;
+      const formattedDate = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleDateString('en-GB') : '';
+      return {
+        'Article Number': row.articleNumber || '', Division: row.division || '',
+        'Sub Division': row.subDivision || '', 'Major Category': row.majorCategory || '',
+        'MC Code': row.mcCode || '', Status: row.approvalStatus || '',
+        'Vendor Name': row.vendorName || '', 'Vendor Code': row.vendorCode || '',
+        'Design Number': row.designNumber || '', 'PPT Number': row.pptNumber || '',
+        'Article Description': row.articleDescription || '',
+        'Reference Article Number': row.referenceArticleNumber || '',
+        'Reference Article Description': row.referenceArticleDescription || '',
+        Season: row.season || '', 'HSN Tax Code': row.hsnTaxCode || '',
+        Year: row.year || '', 'Article Type': row.articleType || '',
+        Rate: row.rate == null ? undefined : Number(row.rate),
+        MRP: row.mrp == null ? undefined : Number(row.mrp),
+        M_FAB_MAIN_MVGR_1: row.mainMvgr || '', M_FAB_MAIN_MVGR_2: row.fabricMainMvgr || '',
+        M_WEAVE_01: row.weave || '', M_WEAVE_02: row.mFab2 || '', M_YARN: row.yarn1 || '',
+        M_COMPOSITION: row.composition || '', M_COUNT: row.fCount || '',
+        M_CONSTRUCTION: row.fConstruction || '', M_LYCRA: row.lycra || '',
+        M_FINISH: row.finish || '', M_GSM: row.gsm || '', M_OUNZ: row.fOunce || '',
+        M_WIDTH: row.fWidth || '', M_FAB_DIV: row.fabDiv || '', M_FAB_VDR: (row as any).fabVdr || '',
+        SHADE: row.shade || '', WEIGHT: row.weight || '',
+        M_BODY_STYLE: row.pattern || '', M_COLLAR_TYPE: row.collar || '',
+        M_COLLAR_STYLE: row.collarStyle || '', M_NECK_TYPE: row.neck || '',
+        M_NECK_STYLE: row.neckDetails || '', M_PLACKET: row.placket || '',
+        M_BLT_TYPE: row.fatherBelt || '', M_BLT_STYLE: row.childBelt || '',
+        M_SLEEVES_MAIN_STYLE: row.sleeve || '', M_SLEEVE_FOLD: row.sleeveFold || '',
+        M_BTM_FOLD: row.bottomFold || '', M_NO_OF_POCKET: row.noOfPocket || '',
+        M_POCKET: row.pocketType || '', M_EXTRA_POCKET: row.extraPocket || '',
+        M_FIT: row.fit || '', M_LENGTH: row.length || '',
+        M_DC_STYLE: row.drawcord || '', M_DC_SHAPE: row.dcShape || '',
+        M_BTN_TYPE: row.button || '', M_BTN_CLR: row.btnColour || '',
+        M_ZIP_TYPE: row.zipper || '', M_ZIP_COL: row.zipColour || '',
+        M_PATCH_STYLE: row.patchesType || '', M_PATCHE_TYPE: row.patches || '',
+        M_HTRF_TYPE: row.htrfType || '', M_HTRF_STYLE: row.htrfStyle || '',
+        M_PRINT_TYPE: row.printType || '', M_PRINT_STYLE: row.printStyle || '',
+        M_PRINT_PLACEMENT: row.printPlacement || '', M_EMB_TYPE: row.embroidery || '',
+        M_EMBROIDERY_STYLE: row.embroideryType || '', M_EMB_PLACEMENT: row.embPlacement || '',
+        M_WASH: row.wash || '', M_IMP_ATBT: row.impAtrbt2 || '',
+        M_AGE_GROUP: row.ageGroup || '', 'ARTICLE FASHION TYPE': row.articleFashionType || '',
+        SEGMENT: row.segment || '', 'Extracted By': row.userName || '',
+        'Created Date': formattedDate,
+      } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+    });
+  }, []);
 
-    const handleExportAll = useCallback(async () => {
-        setExportingAll(true);
-        const hide = message.loading('Fetching all records for export…', 0);
-        try {
-            const token = localStorage.getItem('authToken');
-            const params = new URLSearchParams();
-            const effectiveStatus = pathType === 'new' ? 'PENDING'
-                : pathType === 'rejected' ? 'REJECTED'
-                : pathType === 'created' ? 'APPROVED'
-                : statusFilter;
-            params.set('status', effectiveStatus);
-            if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
-            if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
-            if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
-            if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
-            if (searchText) params.set('search', searchText);
-            if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
-            if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
-            if (pathType) params.set('pathType', pathType);
+  const handleExportAll = useCallback(async () => {
+    setExportingAll(true);
+    const loadingId = message.loading('Fetching all records for export…');
+    try {
+      const token = localStorage.getItem('authToken');
+      const params = new URLSearchParams();
+      const effectiveStatus =
+        pathType === 'new' ? 'PENDING' : pathType === 'rejected' ? 'REJECTED'
+        : pathType === 'created' ? 'APPROVED' : statusFilter;
+      params.set('status', effectiveStatus);
+      if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
+      if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
+      if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+      if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+      if (searchText) params.set('search', searchText);
+      if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
+      if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
+      if (pathType) params.set('pathType', pathType);
 
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/export-all?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+      const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/export-all?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const result = await response.json();
+      const allRows = (result.data || []).map((item: ApproverItem) => ({
+        ...item, mcCode: item.mcCode || inferMcCode(item.majorCategory),
+      }));
+      if (allRows.length === 0) {
+        message.dismiss(loadingId);
+        message.warning('No records found for the current filters');
+        return;
+      }
+      const exportData = buildApproverExportData(allRows);
+      const fileName =
+        pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+        : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
+      const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
+      await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
+      message.dismiss(loadingId);
+      message.success(`Exported ${allRows.length} records`);
+    } catch {
+      message.dismiss(loadingId);
+      message.error('Export failed. Please try again.');
+    } finally {
+      setExportingAll(false);
+    }
+  }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
 
-            if (!response.ok) throw new Error('Export failed');
+  // ─── Card click ───────────────────────────────────────────────────────────────
 
-            const result = await response.json();
-            const allRows = (result.data || []).map((item: ApproverItem) => ({
-                ...item,
-                mcCode: item.mcCode || inferMcCode(item.majorCategory)
-            }));
-
-            if (allRows.length === 0) {
-                message.warning('No records found for the current filters');
-                return;
-            }
-
-            const exportData = buildApproverExportData(allRows);
-            const fileName = pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
-            const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
-            await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
-            message.success(`Exported ${allRows.length} records`);
-        } catch {
-            message.error('Export failed. Please try again.');
-        } finally {
-            hide();
-            setExportingAll(false);
-        }
-    }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
-
-    // Only PENDING items from the current page selection are eligible for approve/reject actions
-    const pendingSelectedKeys = useMemo(() =>
-        selectedRowKeys.filter(key =>
-            items.find(item => item.id === key)?.approvalStatus === 'PENDING'
-        ),
-        [selectedRowKeys, items]
-    );
-
-    // Block approve if VENDOR CODE or any mandatory grid field is missing.
-    const approveBlockedReasons = useMemo(() => {
-        const pendingItems = items.filter(i => pendingSelectedKeys.includes(i.id));
-        const errors: { articleId: string; missing: string[] }[] = [];
-        for (const item of pendingItems) {
-            const missing: string[] = [];
-            if (!item.vendorCode) missing.push('VENDOR CODE');
-            const mandatoryMissing = getMissingMandatoryFields(item);
-            missing.push(...mandatoryMissing);
-            if (missing.length > 0) {
-                errors.push({
-                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
-                    missing,
-                });
-            }
-        }
-        return errors;
-    }, [pendingSelectedKeys, items]);
-
-    const handleApprove = async () => {
-        if (pendingSelectedKeys.length === 0) return;
-
-        // Validate mandatory fields for all selected pending items before approving
-        const pendingItems = items.filter(i => pendingSelectedKeys.includes(i.id));
-        const errors: { articleId: string; missing: string[] }[] = [];
-
-        for (const item of pendingItems) {
-            const missing: string[] = [];
-            if (!item.vendorCode) missing.push('VENDOR CODE');
-            const mandatoryMissing = getMissingMandatoryFields(item);
-            missing.push(...mandatoryMissing);
-            if (missing.length > 0) {
-                errors.push({
-                    articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id,
-                    missing,
-                });
-            }
-        }
-
-        if (errors.length > 0) {
-            Modal.error({
-                title: 'Cannot Approve — Mandatory Fields Missing',
-                width: 600,
-                content: (
-                    <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                        {errors.map(({ articleId, missing }) => (
-                            <div key={articleId} style={{ marginBottom: 12 }}>
-                                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{articleId}</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                    {missing.map(f => (
-                                        <span key={f} style={{
-                                            background: '#fff1f0', color: '#cf1322',
-                                            border: '1px solid #ffa39e', borderRadius: 3,
-                                            padding: '1px 6px', fontSize: 11,
-                                        }}>{f}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ),
-            });
-            return;
-        }
-
-        Modal.confirm({
-            title: 'Confirm Approval',
-            content: `Are you sure you want to approve ${pendingSelectedKeys.length} items? This action cannot be undone.`,
-            okText: 'Approve',
-            okType: 'primary',
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ ids: pendingSelectedKeys })
-                    });
-
-                    if (!response.ok) throw new Error('Approval failed');
-
-                    const payload = await response.json();
-
-                    if (payload?.sapSync) {
-                        const { synced, failed, failures } = payload.sapSync;
-                        if (failed === 0) {
-                            message.success(`✅ Approved ${payload.count}. SAP sync: ${synced} synced successfully.`);
-                        } else if (synced === 0) {
-                            // All failed — show SAP error messages
-                            const hasDetails = failures && failures.length > 0;
-                            Modal.error({
-                                title: `SAP Sync Failed (${failed} article${failed > 1 ? 's' : ''})`,
-                                content: (
-                                    <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                                        {hasDetails
-                                            ? failures.map((f: { id: string; message: string }, i: number) => (
-                                                <div key={i} style={{ marginBottom: 8, padding: '6px 8px', background: '#fff1f0', borderRadius: 4, fontSize: 13 }}>
-                                                    <span style={{ color: '#cf1322' }}>{f.message}</span>
-                                                </div>
-                                            ))
-                                            : (
-                                                <div style={{ padding: '6px 8px', background: '#fff1f0', borderRadius: 4, fontSize: 13, color: '#cf1322' }}>
-                                                    SAP rejected the article. Check the <strong>⚠ SAP Error</strong> banner on the article card below for the exact reason.
-                                                </div>
-                                            )
-                                        }
-                                        <div style={{ marginTop: 12, color: '#666', fontSize: 12 }}>
-                                            Please fix the highlighted field{failed > 1 ? 's' : ''} and try approving again.
-                                        </div>
-                                    </div>
-                                ),
-                                width: 520,
-                            });
-                        } else {
-                            // Partial success
-                            message.warning(`Approved ${synced} articles. ${failed} failed SAP sync.`);
-                            if (failures && failures.length > 0) {
-                                Modal.warning({
-                                    title: `${failed} Article${failed > 1 ? 's' : ''} Failed SAP Sync`,
-                                    content: (
-                                        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-                                            {failures.map((f: { id: string; message: string }, i: number) => (
-                                                <div key={i} style={{ marginBottom: 8, padding: '6px 8px', background: '#fffbe6', borderRadius: 4, fontSize: 13 }}>
-                                                    <span style={{ color: '#d46b08' }}>{f.message}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ),
-                                    width: 520,
-                                });
-                            }
-                        }
-                    } else {
-                        message.success('Items approved successfully');
-                    }
-
-                    setSelectedRowKeys([]);
-                    fetchItems(1);
-                } catch (error) {
-                    message.error('Failed to approve items');
-                }
-            }
-        });
+  const handleCardClick = useCallback((item: ApproverItem, index: number) => {
+    const effectiveStatus =
+      pathType === 'new' ? 'PENDING' : pathType === 'rejected' ? 'REJECTED'
+      : pathType === 'created' ? 'APPROVED' : statusFilter;
+    const filters: DetailFilters = {
+      status: effectiveStatus,
+      division: divisionFilter,
+      subDivision: subDivisionFilter,
+      majorCategory: majorCategoryFilter,
+      source: sourceFilter,
+      search: searchText,
+      startDate: dateRangeFilter?.[0]?.toISOString(),
+      endDate: dateRangeFilter?.[1]?.toISOString(),
+      pathType,
     };
-
-    const handleReject = async () => {
-        if (pendingSelectedKeys.length === 0) return;
-
-        Modal.confirm({
-            title: 'Confirm Rejection',
-            content: `Are you sure you want to reject ${pendingSelectedKeys.length} items?`,
-            okText: 'Reject',
-            okButtonProps: { danger: true },
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/reject`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ ids: pendingSelectedKeys })
-                    });
-
-                    if (!response.ok) throw new Error('Rejection failed');
-
-                    message.success('Items rejected');
-                    setSelectedRowKeys([]);
-                    fetchItems(1);
-                } catch (error) {
-                    message.error('Failed to reject items');
-                }
-            }
-        });
+    const basePath =
+      pathType === 'old' ? '/approver/old-articles'
+      : pathType === 'rejected' ? '/approver/rejected'
+      : pathType === 'created' ? '/approver/created'
+      : '/approver';
+    const state: DetailNavigationState = {
+      items, currentIndex: index, currentPage, totalCount, pathType, filters,
+      listPage: currentPage,
     };
+    navigate(`${basePath}/${item.id}`, { state });
+  }, [items, currentPage, totalCount, statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, navigate]);
 
-    const handleCreateFabricArticle = (item: ApproverItem) => {
-        Modal.confirm({
-            title: 'Create Fabric Article',
-            icon: <FileTextOutlined style={{ color: '#1677ff' }} />,
-            content: `Create fabric article for article "${item.articleNumber || item.imageName || item.id}"?`,
-            okText: 'Create Fabric Article',
-            okButtonProps: { style: { background: '#1677ff', borderColor: '#1677ff' } },
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/create-fabric-article`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ ids: [item.id] }),
-                    });
-                    if (!response.ok) throw new Error('Request failed');
-                    message.success('Fabric article creation initiated');
-                    fetchItems(currentPage);
-                } catch {
-                    message.error('Failed to create fabric article');
-                }
-            },
-        });
-    };
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
-    const handleCreateBodyArticle = (item: ApproverItem) => {
-        Modal.confirm({
-            title: 'Create Body Article',
-            icon: <AppstoreAddOutlined style={{ color: '#722ed1' }} />,
-            content: `Create body article for article "${item.articleNumber || item.imageName || item.id}"?`,
-            okText: 'Create Body Article',
-            okButtonProps: { style: { background: '#722ed1', borderColor: '#722ed1' } },
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/create-body-article`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ ids: [item.id] }),
-                    });
-                    if (!response.ok) throw new Error('Request failed');
-                    message.success('Body article creation initiated');
-                    fetchItems(currentPage);
-                } catch {
-                    message.error('Failed to create body article');
-                }
-            },
-        });
-    };
-
-    const handleProceedFGArticle = (item: ApproverItem) => {
-        Modal.confirm({
-            title: 'Proceed for FG Article Creation',
-            icon: <RocketOutlined style={{ color: '#f59e0b' }} />,
-            content: `Proceed with FG article creation for article "${item.articleNumber || item.imageName || item.id}"?`,
-            okText: 'Proceed',
-            okButtonProps: { style: { background: '#f59e0b', borderColor: '#f59e0b', color: '#fff' } },
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/proceed-fg-article`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ ids: [item.id] }),
-                    });
-                    if (!response.ok) throw new Error('Request failed');
-                    message.success('FG article creation initiated');
-                    fetchItems(currentPage);
-                } catch {
-                    message.error('Failed to proceed with FG article creation');
-                }
-            },
-        });
-    };
-
-    const handleEdit = (item: ApproverItem) => {
-        setEditingItem(item);
-        // Sync modal division tracker for cascading subDivision dropdown
-        setModalDivision(item.division || undefined);
-        form.setFieldsValue({
-            // Core
-            articleNumber: item.articleNumber,
-            division: item.division,
-            subDivision: item.subDivision,       // ✅ correct field
-            majorCategory: item.majorCategory,   // ✅ its own field
-            vendorName: item.vendorName,
-            designNumber: item.designNumber,
-            pptNumber: item.pptNumber,
-            referenceArticleNumber: item.referenceArticleNumber,
-            referenceArticleDescription: item.referenceArticleDescription,
-            rate: item.rate,
-            size: item.size,
-
-            // Fabric
-            fabricMainMvgr: item.fabricMainMvgr,
-            composition: item.composition,
-            weave: item.weave,
-            macroMvgr: item.macroMvgr,
-            mainMvgr: item.mainMvgr,
-            mFab2: item.mFab2,
-            fabDiv: item.fabDiv,
-            gsm: item.gsm,
-            finish: item.finish,
-            shade: item.shade,
-            weight: item.weight,
-            lycra: item.lycra,
-            yarn1: item.yarn1,
-
-            // Design / Styling
-            colour: item.colour,
-            pattern: item.pattern,
-            fit: item.fit,
-            neck: item.neck,
-            sleeve: item.sleeve,
-            length: item.length,
-            collar: item.collar,
-            placket: item.placket,
-            bottomFold: item.bottomFold,
-            frontOpenStyle: item.frontOpenStyle,
-            pocketType: item.pocketType,
-
-            // Trims & Closure
-            drawcord: item.drawcord,
-            button: item.button,
-            zipper: item.zipper,
-            zipColour: item.zipColour,
-            fatherBelt: item.fatherBelt,
-            childBelt: item.childBelt,
-
-            // Embellishment
-            printType: item.printType,
-            printStyle: item.printStyle,
-            printPlacement: item.printPlacement,
-            patches: item.patches,
-            patchesType: item.patchesType,
-            embroidery: item.embroidery,
-            embroideryType: item.embroideryType,
-            wash: item.wash,
-            neckDetails: item.neckDetails,
-
-            // New business fields
-            vendorCode: item.vendorCode,
-            mrp: item.mrp,
-            mcCode: item.mcCode || inferMcCode(item.majorCategory),
-            segment: item.segment,
-            season: item.season,
-            hsnTaxCode: item.hsnTaxCode,
-            articleDescription: item.articleDescription,
-            fashionGrid: item.fashionGrid,
-            year: item.year,
-            articleType: item.articleType,
-        });
-        setModalMarkdown(calcMarkdown(item.mrp, item.rate));
-        setIsEditModalOpen(true);
-    };
-
-    const handleSaveEdit = async () => {
-        try {
-            const values = await form.validateFields();
-            const token = localStorage.getItem('authToken');
-
-            // Auto-fill mcCode based on majorCategory
-            // Populate when category changes OR mcCode is empty.
-            if (values.majorCategory && (values.majorCategory !== editingItem?.majorCategory || !values.mcCode)) {
-                values.mcCode = inferMcCode(values.majorCategory) || values.mcCode;
-            }
-
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${editingItem?.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(values)
-            });
-
-            if (!response.ok) {
-                let errorText = 'Failed to update item';
-                try {
-                    const payload = await response.json();
-                    if (payload?.error) {
-                        errorText = payload.error;
-                    }
-                } catch {
-                    // keep default fallback
-                }
-                throw new Error(errorText);
-            }
-
-            message.success('Item updated');
-            setIsEditModalOpen(false);
-            setEditingItem(null);
-            fetchItems(currentPage);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : 'Failed to update item');
-        }
-    };
-
-    // Derive subDivision options based on current modal division
-    const getSubDivisionOptions = (division: string | undefined): string[] => {
-        if (!division) return [];
-        if (division.match(/LADIES|WOMEN/i)) return SIMPLIFIED_HIERARCHY['Ladies'];
-        if (division.match(/KIDS/i)) return SIMPLIFIED_HIERARCHY['Kids'];
-        if (division.match(/MEN/i)) return SIMPLIFIED_HIERARCHY['MENS'];
-        return [];
-    };
-
-    const coreDetailsTab = (
-        <Row gutter={16}>
-            <Col span={12}>
-                <Form.Item name="articleNumber" label="Article Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="designNumber" label="Design Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="majorCategory" label="Major Category">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="division" label="Division">
-                    <Select
-                        allowClear={user?.role !== 'APPROVER' && user?.role !== 'CATEGORY_HEAD'}
-                        disabled={(user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD') && !!user?.division}
-                        onChange={(val) => {
-                            // Cascade: reset subDivision when division changes
-                            setModalDivision(val);
-                            form.setFieldsValue({ subDivision: undefined });
-                        }}
-                    >
-                        <Option value="MEN">MENS</Option>
-                        <Option value="LADIES">LADIES</Option>
-                        <Option value="KIDS">KIDS</Option>
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                {/* ✅ Sub-Division: properly bound to subDivision field, cascades from Division */}
-                <Form.Item name="subDivision" label="Sub-Division">
-                    <Select
-                        allowClear
-                        placeholder="Select sub-division"
-                        disabled={user?.role === 'APPROVER' && !!user?.subDivision}
-                        showSearch
-                    >
-                        {getSubDivisionOptions(modalDivision).map(sd => (
-                            <Option key={sd} value={sd}>{sd}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="vendorName" label="Vendor Name">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="pptNumber" label="PPT Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="referenceArticleNumber" label="Ref. Article #">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="referenceArticleDescription" label="Ref. Description">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="rate" label="Rate">
-                    <Input
-                        onChange={(e) => {
-                            const md = calcMarkdown(form.getFieldValue('mrp'), e.target.value);
-                            setModalMarkdown(md);
-                        }}
-                    />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="mrp" label="MRP">
-                    <Input
-                        placeholder="e.g. 599"
-                        onChange={(e) => {
-                            const md = calcMarkdown(e.target.value, form.getFieldValue('rate'));
-                            setModalMarkdown(md);
-                        }}
-                    />
-                </Form.Item>
-            </Col>
-            {modalMarkdown !== null && (
-                <Col span={24}>
-                    <div style={{ background: '#f0f5ff', border: '1px solid #adc6ff', borderRadius: 6, padding: '6px 12px', marginBottom: 8, fontSize: 13 }}>
-                        <span style={{ color: '#595959' }}>Markdown: </span>
-                        <span style={{ fontWeight: 700, color: '#2f54eb' }}>{modalMarkdown}</span>
-                        <span style={{ color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>(MRP − Rate) ÷ MRP × 100</span>
-                    </div>
-                </Col>
-            )}
-            <Col span={12}>
-                <Form.Item name="size" label="Size">
-                    <Input />
-                </Form.Item>
-            </Col>
-        </Row>
-    );
-
-    // Dynamic attributes tab — shows only the attributes relevant for the selected major category.
-    // Values are filtered from the Excel grid data. Mandatory fields are marked with *.
-    const attributesTab = (() => {
-        const division = editingItem?.division || '';
-        const majorCat = normalizeMajorCategory(editingItem?.majorCategory || '', division);
-        const mandatoryKeys = getMajCatMandatoryKeys(majorCat);
-
-        const visibleFields = ATTRIBUTE_FIELDS.filter(field => {
-            if (!majorCat) return true; // no major category yet → show all so user can fill in
-            // Always show fields that already have a value (even if not mandatory) so user can clear bad values
-            const currentValue = editingItem?.[field.formName as keyof typeof editingItem];
-            if (currentValue) return true;
-            // Show mandatory fields that have dropdown values
-            if (!mandatoryKeys.has(field.schemaKey)) return false;
-            const values = getMajCatAllowedValues(division, field.schemaKey);
-            return values !== null;
-        });
-
-        if (visibleFields.length === 0) {
-            return (
-                <div style={{ padding: 24, textAlign: 'center', color: '#8c8c8c' }}>
-                    No attributes defined for this major category.
+  return (
+    <div className="flex flex-col">
+      {/* Sticky top bar */}
+      <div className="sticky top-0 z-30 mb-2 -mx-1 px-1 pt-1">
+        <div className="overflow-hidden rounded-xl border border-white/60 bg-white/85 shadow-[var(--shadow-md)] backdrop-blur">
+          {/* Brand strip */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-white"
+            style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FF6F61]/90">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-display truncate text-[13px] font-semibold leading-tight tracking-tight">
+                  {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+                    : pathType === 'rejected' ? 'Rejected Articles'
+                    : pathType === 'created' ? 'Created Articles' : 'Approver Dashboard'}
                 </div>
-            );
-        }
-
-        return (
-            <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 4 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <tbody>
-                        {visibleFields.map(field => {
-                            const values = division ? getMajCatAllowedValues(division, field.schemaKey) : null;
-                            const isMandatory = mandatoryKeys.has(field.schemaKey);
-                            return (
-                                <tr key={field.formName} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                    <td style={{
-                                        padding: '6px 12px 6px 0',
-                                        width: 180,
-                                        verticalAlign: 'middle',
-                                        fontSize: 13,
-                                        fontWeight: isMandatory ? 600 : 400,
-                                        color: isMandatory ? '#1f1f1f' : '#595959',
-                                        whiteSpace: 'nowrap',
-                                    }}>
-                                        {isMandatory && <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>}
-                                        {field.label}
-                                    </td>
-                                    <td style={{ padding: '4px 0' }}>
-                                        <Form.Item name={field.formName} style={{ margin: 0 }}>
-                                            {values ? (
-                                                <Select
-                                                    showSearch
-                                                    allowClear
-                                                    size="small"
-                                                    style={{ width: '100%' }}
-                                                    placeholder="Select..."
-                                                    optionFilterProp="children"
-                                                >
-                                                    {values.map(v => (
-                                                        <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
-                                                    ))}
-                                                </Select>
-                                            ) : (
-                                                <Input size="small" placeholder="Enter value..." />
-                                            )}
-                                        </Form.Item>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                {user?.division && (
+                  <div className="truncate text-[10px] font-medium text-white/65">
+                    {formatDivisionLabel(user.division)}{user.subDivision ? ` · ${user.subDivision}` : ''}
+                  </div>
+                )}
+              </div>
+              {totalCount > 0 && (
+                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                  {totalCount} articles
+                </span>
+              )}
             </div>
-        );
-    })();
-
-    const businessTab = (
-        <Row gutter={16}>
-            <Col span={24}><Typography.Title level={5}>Business & SAP Fields</Typography.Title></Col>
-            <Col span={8}><Form.Item name="vendorCode" label="Vendor Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="mcCode" label="MC Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="segment" label="Segment"><Input placeholder="e.g. PREMIUM, VALUE" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="season" label="Season"><Input placeholder="e.g. SS25, AW24" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="hsnTaxCode" label="HSN Tax Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="fashionGrid" label="Fashion Grid"><Input placeholder="e.g. BASIC, FASHION" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="year" label="Year"><Input placeholder="e.g. 2024-25" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="articleType" label="Article Type"><Input /></Form.Item></Col>
-            <Col span={24}><Form.Item name="articleDescription" label="Article Description"><Input.TextArea rows={3} /></Form.Item></Col>
-        </Row>
-    );
-
-    return (
-        <div>
-            <div style={{ marginBottom: 6, flexShrink: 0, position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{
-                    background: '#fff',
-                    borderRadius: 12,
-                    border: '1px solid #ebebeb',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                    overflow: 'hidden',
-                }}>
-                    {/* Title row */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 16px',
-                        borderBottom: '1px solid #f0f0f0',
-                        background: 'linear-gradient(90deg, #fafafa 0%, #f5f3ff 100%)',
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                                width: 6, height: 22, borderRadius: 3,
-                                background: 'linear-gradient(180deg, #6366f1, #a78bfa)',
-                            }} />
-                            <span style={{ fontWeight: 700, fontSize: 15, color: '#1e1b4b' }}>
-                                {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : pathType === 'created' ? 'Created Articles' : 'Approver Dashboard'}
-                            </span>
-                            {user?.division && (
-                                <span style={{
-                                    fontSize: 11, color: '#7c3aed', fontWeight: 500,
-                                    background: '#ede9fe', borderRadius: 20, padding: '2px 10px',
-                                }}>
-                                    {formatDivisionLabel(user.division)}{user.subDivision ? ` · ${user.subDivision}` : ''}
-                                </span>
-                            )}
-                        </div>
-                        <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 600, letterSpacing: 1.5 }}>
-                            AI FASHION
-                        </span>
-                    </div>
-
-                    {/* Filter row */}
-                    <div style={{ padding: '10px 16px 8px', borderBottom: '1px solid #f0f0f0' }}>
-                        <Row gutter={[10, 8]} align="middle">
-                            <Col xs={24} sm={12} md={7}>
-                                <Input.Search
-                                    placeholder="Search article, vendor, design, PPT no..."
-                                    onSearch={val => setSearchText(val)}
-                                    onChange={handleSearchChange}
-                                    allowClear
-                                    onClear={() => setSearchText('')}
-                                />
-                            </Col>
-                            {pathType !== 'rejected' && pathType !== 'created' && pathType !== 'new' && (
-                            <Col xs={12} sm={6} md={4}>
-                                <Select style={{ width: '100%' }} value={statusFilter} onChange={(val) => setStatusFilter(val)}>
-                                    <Option value="ALL">All Statuses</Option>
-                                    <Option value="PENDING">Pending</Option>
-                                    <Option value="APPROVED">Approved</Option>
-                                    <Option value="FAILED">Failed</Option>
-                                </Select>
-                            </Col>
-                            )}
-                            {(showDivisionFilter || user?.role === 'ADMIN') && (
-                                <Col xs={12} sm={6} md={4}>
-                                    <Select style={{ width: '100%' }} placeholder="Division" value={divisionFilter}
-                                        onChange={(val) => { setDivisionFilter(val); setSubDivisionFilter('ALL'); }}>
-                                        <Option value="ALL">All Divisions</Option>
-                                        {user?.role === 'ADMIN' ? (
-                                            <><Option value="MEN">MENS</Option><Option value="LADIES">LADIES</Option><Option value="KIDS">KIDS</Option></>
-                                        ) : userAssignedDivisions.map(d => <Option key={d} value={d}>{formatDivisionLabel(d)}</Option>)}
-                                    </Select>
-                                </Col>
-                            )}
-                            {(showSubDivisionFilter || user?.role === 'ADMIN') && (
-                                <Col xs={12} sm={6} md={4}>
-                                    <Select style={{ width: '100%' }} placeholder="Sub-Division" value={subDivisionFilter}
-                                        onChange={(val) => { setSubDivisionFilter(val); setMajorCategoryFilter(''); }} showSearch>
-                                        <Option value="ALL">All Sub-Divs</Option>
-                                        {user?.role === 'ADMIN'
-                                            ? (getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
-                                                ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).map(sd => <Option key={sd} value={sd}>{sd}</Option>)
-                                                : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']].map(sd => <Option key={sd} value={sd}>{sd}</Option>))
-                                            : userAssignedSubDivisions.map(sd => <Option key={sd} value={sd}>{sd}</Option>)
-                                        }
-                                    </Select>
-                                </Col>
-                            )}
-                            {/* Major Category single-select */}
-                            <Col xs={12} sm={6} md={4}>
-                                <Select
-                                    style={{ width: '100%' }}
-                                    placeholder="Major Category"
-                                    value={majorCategoryFilter || undefined}
-                                    onChange={(val) => setMajorCategoryFilter(val ?? '')}
-                                    showSearch
-                                    allowClear
-                                    optionFilterProp="children"
-                                >
-                                    {(() => {
-                                        const div = divisionFilter === 'ALL' ? '' : divisionFilter;
-                                        let prefixRegex: RegExp | null = null;
-                                        if (div.match(/MEN/i)) prefixRegex = /^M|^MW/i;
-                                        else if (div.match(/LADIES|WOMEN/i)) prefixRegex = /^L|^LW/i;
-                                        else if (div.match(/KIDS/i)) prefixRegex = /^(K|I|J|Y|G)/i;
-                                        return MAJOR_CATEGORY_ALLOWED_VALUES
-                                            .filter(v => !prefixRegex || v.shortForm.match(prefixRegex))
-                                            .map(v => <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>);
-                                    })()}
-                                </Select>
-                            </Col>
-                            <Col xs={12} sm={6} md={3}>
-                                <Select style={{ width: '100%' }} value={sourceFilter} onChange={(val) => setSourceFilter(val)}>
-                                    <Option value="ALL">All Sources</Option>
-                                    <Option value="SRM">SRM</Option>
-                                    <Option value="WATCHER">Watcher</Option>
-                                    <Option value="USER">User</Option>
-                                </Select>
-                            </Col>
-                            <Col xs={24} sm={12} md={5}>
-                                <RangePicker style={{ width: '100%' }} value={dateRangeFilter}
-                                    onChange={(dates) => setDateRangeFilter(dates)}
-                                    allowEmpty={[true, true]} format="DD-MM-YYYY"
-                                    placeholder={pathType === 'created'
-                                        ? ['Updated From', 'Updated To']
-                                        : ['Created From', 'Created To']} />
-                            </Col>
-                        </Row>
-                    </div>
-
-                    {/* Action row */}
-                    <div style={{ padding: '8px 16px', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
-                        {/* Row 1: counts + standard actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontSize: 12, color: '#6366f1', fontWeight: 600 }}>
-                                {totalCount.toLocaleString()} records
-                                {selectedRowKeys.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 8 }}>· {selectedRowKeys.length} selected</span>}
-                            </span>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchItems(currentPage)}>Refresh</Button>
-                                <Button size="small" icon={<DownloadOutlined />} onClick={handleExportSelected} disabled={selectedRowKeys.length === 0}>
-                                    Export Selected
-                                </Button>
-                                <Button size="small" icon={<DownloadOutlined />} onClick={handleExportAll} loading={exportingAll}
-                                    style={{ background: 'linear-gradient(90deg,#6366f1,#818cf8)', color: '#fff', border: 'none', fontWeight: 600 }}>
-                                    Export All ({totalCount})
-                                </Button>
-                                <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : ''}>
-                                    <Button size="small" danger icon={<CloseCircleOutlined />} onClick={handleReject} disabled={!canApprove || pendingSelectedKeys.length === 0}>
-                                        Reject ({pendingSelectedKeys.length})
-                                    </Button>
-                                </Tooltip>
-                                <Tooltip
-                                    placement="bottomRight"
-                                    color="#fff"
-                                    styles={{ root: { maxWidth: 500 }, body: { background: '#fff7f7', border: '1px solid #ffccc7', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 16px rgba(255,77,79,0.15)' } }}
-                                    title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can approve articles' : approveBlockedReasons.length > 0 ? (
-                                        <div style={{ color: '#434343', fontSize: 12, lineHeight: '1.6' }}>
-                                            <div style={{ fontWeight: 700, marginBottom: 6, color: '#cf1322', fontSize: 13 }}>⚠ Fill required fields first:</div>
-                                            {approveBlockedReasons.slice(0, 5).map(({ articleId, missing }) => (
-                                                <div key={articleId} style={{ marginBottom: 6, background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 4, padding: '4px 8px' }}>
-                                                    <span style={{ fontWeight: 600, color: '#d46b08' }}>{articleId}: </span>
-                                                    <span style={{ color: '#a8071a' }}>{missing.join(', ')}</span>
-                                                </div>
-                                            ))}
-                                            {approveBlockedReasons.length > 5 && <div style={{ color: '#8c8c8c', marginTop: 4 }}>...and {approveBlockedReasons.length - 5} more articles</div>}
-                                        </div>
-                                    ) : ''}
-                                >
-                                    <Button
-                                        size="small"
-                                        icon={<CheckCircleOutlined />}
-                                        onClick={handleApprove}
-                                        disabled={!canApprove || pendingSelectedKeys.length === 0 || approveBlockedReasons.length > 0}
-                                        style={canApprove && pendingSelectedKeys.length > 0 && approveBlockedReasons.length === 0
-                                            ? { background: 'linear-gradient(90deg,#10b981,#34d399)', color: '#fff', border: 'none', fontWeight: 600 }
-                                            : {}}
-                                    >
-                                        Approve ({pendingSelectedKeys.length})
-                                        {approveBlockedReasons.length > 0 && <span style={{ marginLeft: 4, fontSize: 10, color: '#ff4d4f' }}>⚠ {approveBlockedReasons.length} incomplete</span>}
-                                    </Button>
-                                </Tooltip>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+              <Button size="sm" variant="outline" onClick={() => fetchItems(currentPage)}
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                <RotateCw /> Refresh
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportAll} disabled={exportingAll}
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white disabled:opacity-50">
+                <Download /> Export ({totalCount})
+              </Button>
             </div>
+          </div>
 
-            <div style={{ marginTop: 6 }}>
-                <ApproverArticleList
-                    items={items}
-                    majorCategory={majorCategoryFilter}
-                    loading={loading}
-                    selectedRowKeys={selectedRowKeys}
-                    onSelectionChange={setSelectedRowKeys}
-                    onEdit={handleEdit}
-                    onCreateFabricArticle={handleCreateFabricArticle}
-                    onCreateBodyArticle={handleCreateBodyArticle}
-                    onProceedFGArticle={handleProceedFGArticle}
-                    onDuplicate={async () => {/* handled inside ApproverArticleList */}}
-                    attributes={attributes}
-                    onRefresh={() => fetchItems(currentPage)}
-                    pathType={pathType}
-                    serverPagination={{
-                        total: totalCount,
-                        current: currentPage,
-                        pageSize: PAGE_SIZE,
-                        onChange: (page) => { setSelectedRowKeys([]); fetchItems(page); }
-                    }}
-                    onSave={async (row, directUpdates, options) => {
-                        // Snapshot items BEFORE optimistic update so we can revert in-place on error
-                        const prevItems = [...items];
-
-                        const newData = [...items];
-                        const index = newData.findIndex((item) => item.id === row.id);
-                        let updatePayload: Record<string, unknown> = {};
-                        if (index > -1) {
-                            const item = newData[index];
-
-                            // Build payload from directUpdates — the exact fields the user changed.
-                            // This avoids stale-closure diffs that could send the wrong fields.
-                            updatePayload = Object.fromEntries(
-                                Object.entries(directUpdates || {})
-                                    .map(([key, value]) => [key, value === undefined ? null : value])
-                            );
-                            // Fallback: compute diff from full row (legacy path, should rarely trigger)
-                            if (Object.keys(updatePayload).length === 0) {
-                                updatePayload = Object.fromEntries(
-                                    Object.entries(row)
-                                        .filter(([key, value]) => (item as any)[key] !== value)
-                                        .map(([key, value]) => [key, value === undefined ? null : value])
-                                );
-                            }
-                            if (updatePayload.majorCategory && !updatePayload.mcCode) {
-                                updatePayload.mcCode = inferMcCode(updatePayload.majorCategory as string) || undefined;
-                            }
-
-                            // Optimistic update — show change immediately in the list
-                            newData.splice(index, 1, { ...item, ...updatePayload });
-                            setItems(newData);
-                        }
-                        if (Object.keys(updatePayload).length === 0) {
-                            return;
-                        }
-                        try {
-                            const token = localStorage.getItem('authToken');
-                            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                body: JSON.stringify(updatePayload)
-                            });
-                            if (!response.ok) {
-                                // Parse the real error message from the backend response
-                                let errorMsg = 'Failed to save';
-                                try {
-                                    const payload = await response.json();
-                                    if (payload?.error) errorMsg = payload.error;
-                                } catch { /* keep default */ }
-                                // Revert optimistic update in-place — no full page reload
-                                setItems(prevItems);
-                                message.error(errorMsg);
-                                return;
-                            }
-                            // Sync server's authoritative values (articleDescription, segment,
-                            // mcCode, hsnTaxCode, year, season) back into items state so the
-                            // card reflects derived-field recalculations without a full reload.
-                            const saved = await response.json();
-                            setItems(prev => {
-                                const idx = prev.findIndex(i => i.id === saved.id);
-                                if (idx === -1) return prev;
-                                const copy = [...prev];
-                                copy[idx] = {
-                                    ...copy[idx],
-                                    ...saved,
-                                    // Apply the same mcCode inference that fetchItems uses
-                                    mcCode: saved.mcCode || inferMcCode(saved.majorCategory) || copy[idx].mcCode || '',
-                                };
-                                return copy;
-                            });
-                            if (!options?.silent) message.success('Saved');
-                        } catch {
-                            // Network / unexpected error — revert in-place, no reload
-                            setItems(prevItems);
-                            message.error('Failed to save. Please check your connection.');
-                        }
-                    }}
-                />
-            </div>
-
-            <Modal
-                title="Edit Article Details"
-                open={isEditModalOpen}
-                onOk={handleSaveEdit}
-                onCancel={() => setIsEditModalOpen(false)}
-                okText="Save Changes"
-                width={1000}
-                centered
-            >
-                <Form form={form} layout="vertical">
-                    <Tabs
-                        defaultActiveKey="core"
-                        items={[
-                            { label: 'Core Details', key: 'core', children: coreDetailsTab },
-                            { label: 'Attributes', key: 'attributes', children: attributesTab },
-                            { label: 'Business & SAP', key: 'business', children: businessTab },
-                        ]}
+          {/* Filter row */}
+          <div className="border-t border-border/60 bg-gradient-to-b from-slate-50/40 to-transparent px-3 py-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Input
+                placeholder="Search article, vendor, design, PPT no..."
+                onChange={handleSearchChange}
+                allowClear
+                onClear={() => setSearchText('')}
+                className="!h-7 w-full text-[12px] sm:w-[240px]"
+              />
+              {pathType !== 'rejected' && pathType !== 'created' && pathType !== 'new' && (
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Statuses</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="APPROVED">Approved</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {(showDivisionFilter || user?.role === 'ADMIN') && (
+                <Select value={divisionFilter} onValueChange={(v) => { setDivisionFilter(v); setSubDivisionFilter('ALL'); }}>
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue placeholder="Division" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Divisions</SelectItem>
+                    {user?.role === 'ADMIN' ? (
+                      <>
+                        <SelectItem value="MEN">MENS</SelectItem>
+                        <SelectItem value="LADIES">LADIES</SelectItem>
+                        <SelectItem value="KIDS">KIDS</SelectItem>
+                      </>
+                    ) : (
+                      userAssignedDivisions.map(d => <SelectItem key={d} value={d}>{formatDivisionLabel(d)}</SelectItem>)
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              {(showSubDivisionFilter || user?.role === 'ADMIN') && (
+                <Popover
+                  open={subDivOpen}
+                  onOpenChange={(o) => { setSubDivOpen(o); if (!o) setSubDivSearch(''); }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-7 w-[130px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <span className="truncate text-left">
+                        {subDivisionFilter === 'ALL' ? 'All Sub-Divs' : subDivisionFilter}
+                      </span>
+                      <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-0" align="start">
+                    <div className="flex items-center border-b px-2 py-1.5">
+                      <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={subDivSearch}
+                        onChange={(e) => setSubDivSearch(e.target.value)}
+                        placeholder="Search sub-division..."
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {(['ALL'] as string[])
+                        .concat(
+                          user?.role === 'ADMIN'
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .map((sd) => (
+                          <button
+                            key={sd}
+                            type="button"
+                            onClick={() => {
+                              setSubDivisionFilter(sd);
+                              setMajorCategoryFilter('');
+                              setSubDivOpen(false);
+                              setSubDivSearch('');
+                            }}
+                            className={cn(
+                              'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                              subDivisionFilter === sd && 'bg-accent font-medium',
+                            )}
+                          >
+                            {sd === 'ALL' ? 'All Sub-Divs' : sd}
+                          </button>
+                        ))}
+                      {(['ALL'] as string[])
+                        .concat(
+                          user?.role === 'ADMIN'
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">No results</div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              <Popover
+                open={majCatOpen}
+                onOpenChange={(o) => { setMajCatOpen(o); if (!o) setMajCatSearch(''); }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-7 w-[170px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <span className="truncate text-left">
+                      {majorCategoryFilter || 'All Major Categories'}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="flex items-center border-b px-2 py-1.5">
+                    <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={majCatSearch}
+                      onChange={(e) => setMajCatSearch(e.target.value)}
+                      placeholder="Search category..."
+                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                     />
-                </Form>
-            </Modal>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {(() => {
+                      const div = divisionFilter === 'ALL' ? '' : divisionFilter;
+                      let prefixRegex: RegExp | null = null;
+                      if (div.match(/MEN/i)) prefixRegex = /^M|^MW/i;
+                      else if (div.match(/LADIES|WOMEN/i)) prefixRegex = /^L|^LW/i;
+                      else if (div.match(/KIDS/i)) prefixRegex = /^(K|I|J|Y|G)/i;
+                      const filtered = MAJOR_CATEGORY_ALLOWED_VALUES
+                        .filter((v) => !prefixRegex || v.shortForm.match(prefixRegex))
+                        .filter((v) => v.shortForm.toLowerCase().includes(majCatSearch.toLowerCase()));
+                      return (
+                        <>
+                          {!majCatSearch && (
+                            <button
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(''); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                !majorCategoryFilter && 'bg-accent font-medium',
+                              )}
+                            >
+                              All Major Categories
+                            </button>
+                          )}
+                          {filtered.map((v) => (
+                            <button
+                              key={v.shortForm}
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(v.shortForm); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                majorCategoryFilter === v.shortForm && 'bg-accent font-medium',
+                              )}
+                            >
+                              {v.shortForm}
+                            </button>
+                          ))}
+                          {filtered.length === 0 && (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">No categories found</div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="!h-7 w-[110px] text-[12px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Sources</SelectItem>
+                  <SelectItem value="SRM">SRM</SelectItem>
+                  <SelectItem value="WATCHER">Watcher</SelectItem>
+                  <SelectItem value="USER">User</SelectItem>
+                </SelectContent>
+              </Select>
+              <RangePicker
+                value={dateRangeFilter}
+                onChange={setDateRangeFilter}
+                placeholder={pathType === 'created' ? ['Updated From', 'Updated To'] : ['Created From', 'Created To']}
+              />
+            </div>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Card grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="h-56 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+          <span className="text-4xl">📭</span>
+          <span className="text-sm">No articles found</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {items.map((item, index) => (
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} />
+            ))}
+          </div>
+          {totalCount > PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-3 border-t py-3">
+              <Button size="sm" variant="outline" disabled={currentPage === 1}
+                onClick={() => fetchItems(currentPage - 1)}
+                className="h-7 px-3 text-[12px]">
+                ← Prev
+              </Button>
+              <span className="text-[12px] text-muted-foreground">
+                Page {currentPage} of {Math.ceil(totalCount / PAGE_SIZE)} · {totalCount} articles
+              </span>
+              <Button size="sm" variant="outline" disabled={currentPage * PAGE_SIZE >= totalCount}
+                onClick={() => fetchItems(currentPage + 1)}
+                className="h-7 px-3 text-[12px]">
+                Next →
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }

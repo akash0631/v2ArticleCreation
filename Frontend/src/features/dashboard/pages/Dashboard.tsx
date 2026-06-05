@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Typography, Space, Table, Select } from 'antd';
+import { ShoppingBag, Zap, SlidersHorizontal, Calendar } from 'lucide-react';
 import {
-  ShoppingOutlined,
-  ThunderboltOutlined,
-  ControlOutlined,
-  CalendarOutlined
-} from '@ant-design/icons';
+  Button,
+  Card,
+  DataTable,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  type DataTableColumn,
+} from '@/shared/components/ui-tw';
 import './Dashboard.css';
 import { APP_CONFIG } from '../../../constants/app/config';
-
-const { Title, Paragraph, Text } = Typography;
 
 type FlatDashboardRow = {
   id?: string;
@@ -40,15 +44,12 @@ const getDashboardTableViewportOffset = (): number => {
   const ratio = window.devicePixelRatio || 1;
   const width = window.innerWidth;
   const height = window.innerHeight;
-
   let offset = 150;
-
   if (height < 800) offset += 25;
   if (width < 1440) offset += 15;
   if (ratio > 1.25) offset += 20;
   if (ratio > 1.5) offset += 16;
   if (ratio < 1) offset -= 12;
-
   return offset;
 };
 
@@ -97,13 +98,11 @@ export default function Dashboard() {
         const response = await fetch(endpoint, {
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          }
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch extraction history');
-        }
+        if (!response.ok) throw new Error('Failed to fetch extraction history');
 
         const result = await response.json();
         const jobs: FlatDashboardRow[] = result?.data?.jobs || [];
@@ -119,7 +118,6 @@ export default function Dashboard() {
 
         jobs.forEach((job) => {
           if (!job.createdAt) return;
-
           const createdAt = new Date(job.createdAt);
           if (Number.isNaN(createdAt.getTime())) return;
 
@@ -134,14 +132,12 @@ export default function Dashboard() {
             division,
             subDivision,
             totalExtractions: 0,
-            totalApproved: 0
+            totalApproved: 0,
           };
-
           existing.totalExtractions += 1;
           if (String(job.approvalStatus || '').toUpperCase() === 'APPROVED') {
             existing.totalApproved += 1;
           }
-
           groupedRows.set(key, existing);
         });
 
@@ -171,31 +167,28 @@ export default function Dashboard() {
     fetchStats();
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === 'extractionsLastUpdated') {
-        fetchStats();
-      }
+      if (event.key === 'extractionsLastUpdated') fetchStats();
     };
-
-    const handleFocus = () => {
-      fetchStats();
-    };
+    const handleFocus = () => fetchStats();
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
-
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
     };
   }, [isAdmin, recalcAnalyticsScrollY]);
 
-  const analyticsColumns = useMemo(() => [
-    { title: 'Date', dataIndex: 'date', key: 'date', width: 130 },
-    { title: 'Division', dataIndex: 'division', key: 'division', width: 120 },
-    { title: 'Sub Division', dataIndex: 'subDivision', key: 'subDivision', width: 140 },
-    { title: 'Total Extractions', dataIndex: 'totalExtractions', key: 'totalExtractions', width: 150 },
-    { title: 'Total Approved', dataIndex: 'totalApproved', key: 'totalApproved', width: 140 }
-  ], []);
+  const analyticsColumns = useMemo<DataTableColumn<AnalyticsSummaryRow>[]>(
+    () => [
+      { title: 'Date', dataIndex: 'date', key: 'date', width: 130 },
+      { title: 'Division', dataIndex: 'division', key: 'division', width: 120 },
+      { title: 'Sub Division', dataIndex: 'subDivision', key: 'subDivision', width: 140 },
+      { title: 'Total Extractions', dataIndex: 'totalExtractions', key: 'totalExtractions', width: 150 },
+      { title: 'Total Approved', dataIndex: 'totalApproved', key: 'totalApproved', width: 140 },
+    ],
+    [],
+  );
 
   const dateOptions = useMemo(() => {
     return Array.from(new Set(analyticsRows.map((row) => row.date))).sort((a, b) => {
@@ -229,144 +222,134 @@ export default function Dashboard() {
   }, [analyticsRows, dateFilter, divisionFilter, subDivisionFilter]);
 
   useEffect(() => {
-    if (divisionFilter !== 'ALL' && !divisionOptions.includes(divisionFilter)) {
-      setDivisionFilter('ALL');
-    }
+    if (divisionFilter !== 'ALL' && !divisionOptions.includes(divisionFilter)) setDivisionFilter('ALL');
   }, [divisionFilter, divisionOptions]);
 
   useEffect(() => {
-    if (subDivisionFilter !== 'ALL' && !subDivisionOptions.includes(subDivisionFilter)) {
-      setSubDivisionFilter('ALL');
-    }
+    if (subDivisionFilter !== 'ALL' && !subDivisionOptions.includes(subDivisionFilter)) setSubDivisionFilter('ALL');
   }, [subDivisionFilter, subDivisionOptions]);
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-hero">
-        <div className="dashboard-hero-text">
-          <Text className="dashboard-hero-greeting">{greeting}</Text>
-          <Title level={2} className="dashboard-hero-title">
-            {userData?.name || 'Welcome back'}
-          </Title>
-          <Paragraph className="dashboard-hero-subtitle">
-            Keep your catalog organized with clean insights and a calmer workflow.
-          </Paragraph>
-          <Space>
-            <Button
-              type="primary"
-              icon={<ThunderboltOutlined />}
-              className="dashboard-hero-btn"
-              onClick={() => navigate('/extraction')}
-            >
-              Start Extraction
-            </Button>
-            <Button
-              icon={<ShoppingOutlined />}
-              className="dashboard-ghost-btn"
-              onClick={() => navigate('/approver')}
-            >
-              View Products
-            </Button>
-            {isAdmin && (
-              <Button
-                icon={<ControlOutlined />}
-                className="dashboard-ghost-btn"
-                onClick={() => navigate('/admin')}
-              >
-                Open Admin Panel
-              </Button>
-            )}
-          </Space>
-        </div>
-        <div className="dashboard-hero-card">
-          <div className="dashboard-hero-card-icon">
-            <ThunderboltOutlined />
+    <div className="flex flex-col gap-3">
+      {/* Consolidated hero — one row: greeting + quick stats + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-card px-4 py-3 shadow-[var(--shadow-sm)]">
+        <div className="flex min-w-0 items-center gap-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {greeting}
+            </div>
+            <h2 className="font-display text-[20px] font-semibold leading-tight tracking-tight text-foreground">
+              {userData?.name || 'Welcome back'}
+            </h2>
           </div>
-          <Text type="secondary">Today’s Processing</Text>
-          <Title level={3} className="dashboard-hero-metric">
-            {todayCount && todayCount > 0
-              ? `${todayCount} ${todayCount === 1 ? 'job' : 'jobs'}`
-              : 'No data yet'}
-          </Title>
-          <Text className="dashboard-hero-metric-sub">
-            {totalCount && totalCount > 0
-              ? `${totalCount} total extraction${totalCount === 1 ? '' : 's'}`
-              : 'Run an extraction to see stats'}
-          </Text>
+          <Separator orientation="vertical" className="hidden h-10 sm:block" />
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today</div>
+              <div className="font-display text-lg font-semibold tabular-nums text-foreground">
+                {todayCount ?? 0}
+                <span className="ml-1 text-xs font-medium text-muted-foreground">
+                  {(todayCount ?? 0) === 1 ? 'job' : 'jobs'}
+                </span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total</div>
+              <div className="font-display text-lg font-semibold tabular-nums text-foreground">
+                {totalCount ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" className="h-9" onClick={() => navigate('/extraction')}>
+            <Zap />
+            Start Extraction
+          </Button>
+          <Button size="sm" variant="outline" className="h-9" onClick={() => navigate('/approver')}>
+            <ShoppingBag />
+            View Products
+          </Button>
+          {isAdmin && (
+            <Button size="sm" variant="outline" className="h-9" onClick={() => navigate('/admin')}>
+              <SlidersHorizontal />
+              Admin
+            </Button>
+          )}
         </div>
       </div>
 
-      <Card className="dashboard-panel dashboard-panel-soft dashboard-analytics-card">
-        <div className="dashboard-analytics-header">
-          <div>
-            <Title level={4}>Analytics Timeline</Title>
-            <Paragraph type="secondary">
-              Daily division and sub-division summary for extractions and approvals.
-            </Paragraph>
+      <Card className="overflow-hidden">
+        {/* Tight header — title + filters + counts in one row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <h4 className="font-display text-base font-semibold leading-tight tracking-tight">Analytics Timeline</h4>
+            <Separator orientation="vertical" className="h-5" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              <span><span className="font-semibold tabular-nums text-foreground">{todayCount ?? 0}</span> today · <span className="font-semibold tabular-nums text-foreground">{totalCount ?? 0}</span> total</span>
+            </div>
           </div>
-          <div className="dashboard-analytics-summary">
-            <div className="dashboard-analytics-chip">
-              <CalendarOutlined />
-              <span>{todayCount ?? 0} today</span>
-            </div>
-            <div className="dashboard-analytics-chip accent">
-              <span>{totalCount ?? 0} total</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="!h-7 w-[140px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Dates</SelectItem>
+                {dateOptions.map((date) => (
+                  <SelectItem key={date} value={date}>
+                    {date}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={divisionFilter}
+              onValueChange={(value) => {
+                setDivisionFilter(value);
+                setSubDivisionFilter('ALL');
+              }}
+            >
+              <SelectTrigger className="!h-7 w-[140px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Divisions</SelectItem>
+                {divisionOptions.map((division) => (
+                  <SelectItem key={division} value={division}>
+                    {division}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={subDivisionFilter} onValueChange={setSubDivisionFilter}>
+              <SelectTrigger className="!h-7 w-[160px] text-[12px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Sub Divisions</SelectItem>
+                {subDivisionOptions.map((sd) => (
+                  <SelectItem key={sd} value={sd}>
+                    {sd}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <div className="dashboard-analytics-filters">
-          <Select
-            value={dateFilter}
-            onChange={setDateFilter}
-            className="dashboard-analytics-filter"
-            size="small"
-          >
-            <Select.Option value="ALL">All Dates</Select.Option>
-            {dateOptions.map((date) => (
-              <Select.Option key={date} value={date}>{date}</Select.Option>
-            ))}
-          </Select>
-
-          <Select
-            value={divisionFilter}
-            onChange={(value) => {
-              setDivisionFilter(value);
-              setSubDivisionFilter('ALL');
-            }}
-            className="dashboard-analytics-filter"
-            size="small"
-          >
-            <Select.Option value="ALL">All Divisions</Select.Option>
-            {divisionOptions.map((division) => (
-              <Select.Option key={division} value={division}>{division}</Select.Option>
-            ))}
-          </Select>
-
-          <Select
-            value={subDivisionFilter}
-            onChange={setSubDivisionFilter}
-            className="dashboard-analytics-filter"
-            size="small"
-          >
-            <Select.Option value="ALL">All Sub Divisions</Select.Option>
-            {subDivisionOptions.map((subDivision) => (
-              <Select.Option key={subDivision} value={subDivision}>{subDivision}</Select.Option>
-            ))}
-          </Select>
-        </div>
-
-        <div ref={analyticsTableRef} className="dashboard-analytics-table-shell">
-          <Table
+        <div ref={analyticsTableRef} className="p-3">
+          <DataTable<AnalyticsSummaryRow>
             columns={analyticsColumns}
             dataSource={filteredAnalyticsRows}
             loading={analyticsLoading}
             size="small"
+            rowKey="key"
             pagination={{
               pageSize: 50,
               showSizeChanger: true,
               pageSizeOptions: ['25', '50', '100'],
-              position: ['bottomRight']
             }}
             scroll={{ x: 'max-content', y: analyticsScrollY }}
             sticky

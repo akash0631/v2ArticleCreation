@@ -5,17 +5,18 @@
  * Tab 3: Master Attributes — manage the 45 attribute definitions
  * Tab 4: Overview — stats
  */
-
 import { useState } from 'react';
-import { Layout, Tabs, Button, Typography } from 'antd';
-import {
-  DashboardOutlined,
-  ApartmentOutlined,
-  BgColorsOutlined,
-  DownloadOutlined,
-  LinkOutlined,
-} from '@ant-design/icons';
+import { LayoutDashboard, Network, Palette, Download, Link2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import {
+  Button,
+  Card,
+  CardContent,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/shared/components/ui-tw';
 import { getDashboardStats, getHierarchyTree } from '../../../services/adminApi';
 import { HierarchyStats } from '../components/HierarchyStats';
 import { HierarchyTree } from '../components/HierarchyTree';
@@ -24,9 +25,6 @@ import { HierarchyTreeEditor } from '../components/HierarchyTreeEditor';
 import { CategoryAttributeMapper } from '../components/CategoryAttributeMapper';
 import type { SelectedCategory } from '../components/HierarchyTreeEditor';
 import VLMStatusPanel from '../../../components/vlm/VLMStatusPanel';
-
-const { Content } = Layout;
-const { Title, Text } = Typography;
 
 type TabType = 'mappings' | 'hierarchy' | 'attributes' | 'overview';
 
@@ -59,98 +57,85 @@ export default function HierarchyManagement() {
     }
   };
 
-  // Called when a category row in the Hierarchy tab is clicked
   const handleCategorySelectFromTree = (cat: SelectedCategory) => {
     setJumpCategory(cat);
     setActiveTab('mappings');
   };
 
-  const tabItems = [
-    {
-      key: 'mappings',
-      label: <span><LinkOutlined /> Attribute Mapping</span>,
-      children: (
-        <div style={{ padding: '16px 24px' }}>
-          <div style={{ marginBottom: 12 }}>
-            <Text type="secondary">
-              Search or browse the category list on the left. Select a category to view and toggle its attributes on the right.
-              Changes are saved per-category — click <strong>Save Changes</strong> after toggling.
-            </Text>
-          </div>
-          <CategoryAttributeMapper initialCategory={jumpCategory} />
-        </div>
-      ),
-    },
-    {
-      key: 'hierarchy',
-      label: <span><ApartmentOutlined /> Hierarchy</span>,
-      children: (
-        <div style={{ padding: '16px 24px' }}>
-          <div style={{ marginBottom: 12 }}>
-            <Text type="secondary">
-              Browse departments, sub-departments, and categories.
-              Use the <strong>pencil</strong> icon to rename and <strong>trash</strong> to delete.
-              Click any <strong>category row</strong> to jump straight to its attribute mapping.
-            </Text>
-          </div>
-          <HierarchyTreeEditor onCategorySelect={handleCategorySelectFromTree} />
-        </div>
-      ),
-    },
-    {
-      key: 'attributes',
-      label: <span><BgColorsOutlined /> Master Attributes</span>,
-      children: <div style={{ padding: '24px' }}><AttributeManager /></div>,
-    },
-    {
-      key: 'overview',
-      label: <span><DashboardOutlined /> Overview</span>,
-      children: (
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <VLMStatusPanel />
-          <HierarchyStats stats={stats} loading={statsLoading} />
-          <HierarchyTree hierarchy={hierarchy} loading={hierarchyLoading} />
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <Layout className="page-scroll-enabled" style={{ minHeight: '100vh', background: '#f0f2f5' }}>
-      <Content style={{ padding: '24px' }}>
-        <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+    <div className="page-scroll-enabled min-h-screen">
+      <div className="p-6">
+        <div className="mx-auto max-w-[1600px]">
           {/* Header */}
-          <div style={{
-            background: '#fff', padding: '20px 24px', marginBottom: 24,
-            borderRadius: 8,
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03), 0 1px 6px rgba(0,0,0,0.02)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Card className="mb-6 glass card-3d rounded-2xl border border-white/60 overflow-hidden">
+            <CardContent className="flex items-center justify-between p-6">
               <div>
-                <Title level={2} style={{ margin: 0 }}>Hierarchy Management</Title>
-                <Text type="secondary">
+                <h1 className="m-0 text-2xl font-semibold">Hierarchy Management</h1>
+                <p className="text-sm text-muted-foreground">
                   Manage departments, categories &amp; extraction attributes — changes reflect in the app within 5 minutes
-                </Text>
+                </p>
               </div>
-              <Button type="primary" icon={<DownloadOutlined />} onClick={handleExport}>
+              <Button onClick={handleExport}>
+                <Download />
                 Export JSON
               </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Tabs */}
-          <div style={{ background: '#fff', borderRadius: 8, overflow: 'hidden' }}>
-            <Tabs
-              activeKey={activeTab}
-              onChange={k => setActiveTab(k as TabType)}
-              items={tabItems}
-              size="large"
-              style={{ padding: '0 24px' }}
-              tabBarStyle={{ marginBottom: 0 }}
-            />
-          </div>
+          <Card className="glass rounded-2xl border border-white/60 overflow-hidden">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
+              <div className="border-b border-border px-6">
+                <TabsList className="bg-transparent">
+                  <TabsTrigger value="mappings">
+                    <Link2 className="mr-1 h-4 w-4" />
+                    Attribute Mapping
+                  </TabsTrigger>
+                  <TabsTrigger value="hierarchy">
+                    <Network className="mr-1 h-4 w-4" />
+                    Hierarchy
+                  </TabsTrigger>
+                  <TabsTrigger value="attributes">
+                    <Palette className="mr-1 h-4 w-4" />
+                    Master Attributes
+                  </TabsTrigger>
+                  <TabsTrigger value="overview">
+                    <LayoutDashboard className="mr-1 h-4 w-4" />
+                    Overview
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="mappings" className="m-0 px-6 py-4">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Search or browse the category list on the left. Select a category to view and toggle its attributes on the right.
+                  Changes are saved per-category — click <strong>Save Changes</strong> after toggling.
+                </p>
+                <CategoryAttributeMapper initialCategory={jumpCategory} />
+              </TabsContent>
+
+              <TabsContent value="hierarchy" className="m-0 px-6 py-4">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Browse departments, sub-departments, and categories.
+                  Use the <strong>pencil</strong> icon to rename and <strong>trash</strong> to delete.
+                  Click any <strong>category row</strong> to jump straight to its attribute mapping.
+                </p>
+                <HierarchyTreeEditor onCategorySelect={handleCategorySelectFromTree} />
+              </TabsContent>
+
+              <TabsContent value="attributes" className="m-0 p-6">
+                <AttributeManager />
+              </TabsContent>
+
+              <TabsContent value="overview" className="m-0 flex flex-col gap-6 p-6">
+                <VLMStatusPanel />
+                <HierarchyStats stats={stats} loading={statsLoading} />
+                <HierarchyTree hierarchy={hierarchy} loading={hierarchyLoading} />
+              </TabsContent>
+            </Tabs>
+          </Card>
         </div>
-      </Content>
-    </Layout>
+      </div>
+    </div>
   );
 }

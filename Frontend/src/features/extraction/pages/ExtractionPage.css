@@ -1,7 +1,7 @@
 ﻿/* Extraction Page Styles */
 
 .extraction-scroll-page {
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -62,17 +62,16 @@
 /* Step Cards */
 .step-card {
   border-radius: 12px;
-  transition: all 0.3s ease;
-  margin-bottom: 24px;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
 }
 
 .step-card:hover {
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 .step-card .ant-card-body {
-  padding: 32px;
+  padding: 16px;
 }
 
 /* Extraction Progress */

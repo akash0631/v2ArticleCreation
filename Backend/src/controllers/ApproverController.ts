@@ -29,9 +29,10 @@ export class ApproverController {
     private static numericOldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
     private static pendingNumericOldArticleIdsLoad: Promise<string[]> | null = null;
     // Combined cache: all "old" article IDs (path-marker based + numeric name based).
-    // Used so the main getItems query can do id IN/NOT IN instead of ILIKE on every request.
-    private static oldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
-    private static pendingOldArticleIdsLoad: Promise<string[]> | null = null;
+    // ids === null means the last query failed — callers fall back to direct ILIKE.
+    // A failed entry has a 2-minute TTL so the DB isn't hammered on every request.
+    private static oldArticleIdsCache: { ids: string[] | null; expiresAt: number } | null = null;
+    private static pendingOldArticleIdsLoad: Promise<string[] | null> | null = null;
     // Short-lived cache for getItems responses (8s TTL). Eliminates redundant DB hits
     // when multiple users load the same page simultaneously or filters haven't changed.
     private static readonly ITEMS_CACHE_TTL_MS = 8_000;
@@ -625,10 +626,10 @@ export class ApproverController {
      * the main getItems query can use  WHERE id IN (...)  or  WHERE id NOT IN (...)
      * instead of  ILIKE '%marker%'  on every request, avoiding full table scans.
      */
-    private static async getOldArticleIds(): Promise<string[]> {
+    private static async getOldArticleIds(): Promise<string[] | null> {
         const cached = ApproverController.oldArticleIdsCache;
         if (cached && cached.expiresAt > Date.now()) {
-            return cached.ids;
+            return cached.ids; // may be null (failed) or string[] (success / real empty)
         }
 
         if (ApproverController.pendingOldArticleIdsLoad) {
@@ -639,6 +640,11 @@ export class ApproverController {
 
         // Build the ILIKE conditions as a raw SQL OR chain.
         // Also include numeric-name articles (PENDING only, using index on approval_status).
+        // NOTE: ILIKE '%pattern%' requires a pg_trgm GIN index on image_unc_path to be fast.
+        //       Run this once in the Supabase SQL editor if the index is missing:
+        //       CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        //       CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_erf_image_unc_path_trgm
+        //         ON extraction_results_flat USING gin(image_unc_path gin_trgm_ops);
         const loadPromise = prisma.$queryRaw<{ id: string }[]>`
             SELECT id FROM extraction_results_flat
             WHERE image_unc_path ILIKE ${'%' + markers[0] + '%'}
@@ -657,10 +663,16 @@ export class ApproverController {
                 ids,
                 expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
             };
-            return ids;
+            return ids as string[] | null;
         }).catch((err) => {
-            console.error('[ApproverController] getOldArticleIds failed, using empty fallback:', err?.message);
-            return [] as string[];
+            console.error('[ApproverController] getOldArticleIds failed — using ILIKE fallback for this request:', err?.message);
+            // Cache the failure for 2 minutes so we don't hammer the DB on every request.
+            // Callers that receive null fall back to direct Prisma ILIKE conditions.
+            ApproverController.oldArticleIdsCache = {
+                ids: null,
+                expiresAt: Date.now() + 2 * 60 * 1000, // 2-minute retry backoff
+            };
+            return null as string[] | null;
         }).finally(() => {
             ApproverController.pendingOldArticleIdsLoad = null;
         });
@@ -738,25 +750,71 @@ export class ApproverController {
             }
 
             // Path-type filter — NON-BLOCKING.
+            // getOldArticleIds returns null on DB error; callers fall back to Prisma ILIKE conditions
+            // which are fast once the pg_trgm GIN index on image_unc_path exists.
             if (pathType === 'old' || pathType === 'new') {
                 const oldIds = await ApproverController.getOldArticleIds();
 
                 where.AND = where.AND || [];
                 if (pathType === 'old') {
-                    where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
+                    if (oldIds !== null) {
+                        // Fast path: id IN (...cached IDs...)
+                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
+                    } else {
+                        // Fallback: ILIKE — fast with pg_trgm index, safe without it
+                        where.AND.push({
+                            OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                imageUncPath: { contains: m, mode: 'insensitive' as const }
+                            }))
+                        });
+                    }
                 } else {
                     // 'new' — only PENDING articles, excluding old-path articles
-                    if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
                     // Set at TOP LEVEL (not just AND) so search can never bypass it
                     where.approvalStatus = ApprovalStatus.PENDING;
+                    if (oldIds !== null) {
+                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                    } else {
+                        // Fallback: exclude via ILIKE; include null/empty imageUncPath (they are new)
+                        where.AND.push({
+                            OR: [
+                                { imageUncPath: null },
+                                { imageUncPath: '' },
+                                {
+                                    NOT: {
+                                        OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                            imageUncPath: { contains: m, mode: 'insensitive' as const }
+                                        }))
+                                    }
+                                }
+                            ]
+                        });
+                    }
                 }
             } else if (pathType === 'rejected') {
                 where.approvalStatus = ApprovalStatus.REJECTED;
             } else if (pathType === 'created') {
                 const oldIds = await ApproverController.getOldArticleIds();
                 where.AND = where.AND || [];
-                if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
                 where.approvalStatus = ApprovalStatus.APPROVED;
+                if (oldIds !== null) {
+                    if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                } else {
+                    // Fallback: exclude via ILIKE
+                    where.AND.push({
+                        OR: [
+                            { imageUncPath: null },
+                            { imageUncPath: '' },
+                            {
+                                NOT: {
+                                    OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                        imageUncPath: { contains: m, mode: 'insensitive' as const }
+                                    }))
+                                }
+                            }
+                        ]
+                    });
+                }
             }
 
             // Status Filtering (Multi-select support)
@@ -1016,9 +1074,11 @@ export class ApproverController {
                 data: responseBody,
                 expiresAt: Date.now() + ApproverController.ITEMS_CACHE_TTL_MS,
             });
+            if (res.headersSent) return; // timeout fired while we were querying
             return res.json(responseBody);
         } catch (error) {
             console.error('Error fetching approver items:', error);
+            if (res.headersSent) return; // timeout fired before catch ran
             return res.status(500).json({ error: 'Failed to fetch items' });
         }
     }
@@ -1062,29 +1122,63 @@ export class ApproverController {
             }
 
             // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
+            // null means cache-load failed; fall back to Prisma ILIKE (fast with pg_trgm index).
             console.log(`[ApproverController] exportAll pathType=${pathType ?? 'none'}`);
             if (pathType === 'old' || pathType === 'new') {
                 const oldIds = await ApproverController.getOldArticleIds();
 
                 where.AND = where.AND || [];
                 if (pathType === 'old') {
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { in: oldIds } });
+                    if (oldIds !== null) {
+                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
                     } else {
-                        // Same as getItems: no ILIKE fallback — return empty to prevent timeout loops.
-                        where.AND.push({ id: { in: [] } });
+                        where.AND.push({
+                            OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                imageUncPath: { contains: m, mode: 'insensitive' as const }
+                            }))
+                        });
                     }
                 } else {
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { notIn: oldIds } });
-                    }
                     where.AND.push({ approvalStatus: ApprovalStatus.PENDING });
+                    if (oldIds !== null) {
+                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                    } else {
+                        where.AND.push({
+                            OR: [
+                                { imageUncPath: null },
+                                { imageUncPath: '' },
+                                {
+                                    NOT: {
+                                        OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                            imageUncPath: { contains: m, mode: 'insensitive' as const }
+                                        }))
+                                    }
+                                }
+                            ]
+                        });
+                    }
                 }
             } else if (pathType === 'created') {
                 const oldIds = await ApproverController.getOldArticleIds();
                 where.AND = where.AND || [];
-                if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
                 where.AND.push({ approvalStatus: ApprovalStatus.APPROVED });
+                if (oldIds !== null) {
+                    if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                } else {
+                    where.AND.push({
+                        OR: [
+                            { imageUncPath: null },
+                            { imageUncPath: '' },
+                            {
+                                NOT: {
+                                    OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
+                                        imageUncPath: { contains: m, mode: 'insensitive' as const }
+                                    }))
+                                }
+                            }
+                        ]
+                    });
+                }
             }
 
             // Status filter
@@ -1263,9 +1357,11 @@ export class ApproverController {
 
             console.log(`[ApproverController] exportAll returning ${items.length} rows`);
 
+            if (res.headersSent) return; // timeout fired while querying
             return res.json({ data: items, meta: { total: items.length, capped: false } });
         } catch (error) {
             console.error('Error in exportAll:', error);
+            if (res.headersSent) return; // timeout fired before catch ran
             return res.status(500).json({ error: 'Failed to export items' });
         }
     }
@@ -1305,6 +1401,50 @@ export class ApproverController {
         } catch (error) {
             console.error('Error fetching attributes:', error);
             return res.status(500).json({ error: 'Failed to fetch attributes' });
+        }
+    }
+
+    // Fetch a single item by id — used by the detail page on direct URL access
+    static async getById(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const item = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: {
+                    id: true, imageName: true, imageUrl: true, imageUncPath: true,
+                    articleNumber: true, division: true, subDivision: true, majorCategory: true,
+                    vendorName: true, vendorCode: true, designNumber: true, pptNumber: true,
+                    referenceArticleNumber: true, referenceArticleDescription: true,
+                    approvalStatus: true, sapSyncStatus: true, sapSyncMessage: true, sapArticleId: true,
+                    createdAt: true, updatedAt: true, userName: true, source: true,
+                    rate: true, mrp: true, size: true, colour: true,
+                    fabricMainMvgr: true, pattern: true, fit: true, neck: true, neckDetails: true,
+                    sleeve: true, sleeveFold: true, length: true, collar: true, collarStyle: true,
+                    placket: true, bottomFold: true, frontOpenStyle: true, pocketType: true,
+                    noOfPocket: true, extraPocket: true, composition: true, gsm: true, weight: true,
+                    finish: true, shade: true, lycra: true, yarn1: true, yarn2: true, weave: true,
+                    macroMvgr: true, mainMvgr: true, mFab2: true, fabDiv: true,
+                    fCount: true, fConstruction: true, fOunce: true, fWidth: true, wash: true,
+                    drawcord: true, dcShape: true, button: true, btnColour: true,
+                    zipper: true, zipColour: true, fatherBelt: true, childBelt: true,
+                    printType: true, printStyle: true, printPlacement: true,
+                    patches: true, patchesType: true, embroidery: true, embroideryType: true,
+                    embPlacement: true, htrfType: true, htrfStyle: true,
+                    ageGroup: true, articleFashionType: true, articleDimension: true,
+                    mcCode: true, impAtrbt2: true, segment: true, season: true,
+                    hsnTaxCode: true, articleDescription: true, fashionGrid: true,
+                    year: true, articleType: true,
+                    bodyArticle: true, bodyArticleDescription: true,
+                    fabricArticleNumber: true, fabricArticleDescription: true,
+                    attrArticleNums: true, mvgrBrandVendor: true,
+                    isGeneric: true, genericArticleId: true, variantSize: true, variantColor: true,
+                },
+            });
+            if (!item) return res.status(404).json({ error: 'Item not found' });
+            return res.json(item);
+        } catch (error) {
+            console.error('Error fetching item by id:', error);
+            return res.status(500).json({ error: 'Failed to fetch item' });
         }
     }
 

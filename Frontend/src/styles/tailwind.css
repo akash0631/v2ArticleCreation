@@ -1,0 +1,356 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* Typography — Fraunces (display, serif, optical-sized) + Inter Tight (body) */
+  --font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", "Inter Tight", ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Brand palette — slate + coral, deliberately darker than the prior pass
+   * so cards read as solid surfaces against the page, borders are visible
+   * at distance, and muted text doesn't disappear. */
+  --color-border: hsl(24 8% 84%);                 /* +6pp darker than prior */
+  --color-input: hsl(24 8% 82%);                  /* form-control border, slightly stronger */
+  --color-ring: hsl(11 100% 64%);                 /* coral focus ring, deeper */
+  --color-background: hsl(32 22% 91%);            /* tonal stone-warm — was very pale cream */
+  --color-foreground: hsl(20 14% 8%);             /* slightly inkier */
+
+  --color-primary: hsl(11 100% 64%);              /* coral #FF6F61 (kept) */
+  --color-primary-foreground: hsl(35 38% 98%);
+
+  --color-secondary: hsl(24 10% 93%);             /* warm neutral fill */
+  --color-secondary-foreground: hsl(20 14% 10%);
+
+  --color-muted: hsl(24 10% 93%);
+  --color-muted-foreground: hsl(20 8% 38%);       /* +7pp darker — readable at small sizes */
+
+  --color-accent: hsl(24 10% 93%);
+  --color-accent-foreground: hsl(20 14% 10%);
+
+  --color-destructive: hsl(0 84% 58%);            /* nudged darker for contrast */
+  --color-destructive-foreground: hsl(35 38% 98%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(20 14% 8%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(20 14% 8%);
+
+  /* Slate brand stops (for header strips, dark surfaces) */
+  --color-slate-brand-from: #1f2937;
+  --color-slate-brand-to: #334155;
+
+  /* Sunset accent (paired with coral) */
+  --color-sunset: #FFA62B;
+
+  /* Radius scale — tied to surface role */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-control: 0.5rem;   /* inputs, small buttons */
+  --radius-lg: 0.5rem;
+  --radius-card: 0.875rem;    /* cards, modals, panels */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1.25rem;      /* hero cards */
+  --radius-pill: 9999px;
+
+  /* Elevation — two-layer shadow stacks (large soft + tight crisp) */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 35px -10px rgba(15, 23, 42, 0.12), 0 8px 16px -8px rgba(15, 23, 42, 0.08);
+  --shadow-pop: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 12px 24px -12px rgba(15, 23, 42, 0.12);
+
+  /* Motion — shared timing/easing tokens */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+}
+
+/* ─── Dark mode token overrides ─────────────────────────────────────────────
+ * Two layers:
+ *   1. Tailwind v4 @theme tokens above resolve to CSS variables on :root.
+ *      We override them in .dark so bg-card / text-foreground / border-input
+ *      utilities swap automatically.
+ *   2. A LOT of surfaces in this codebase use hardcoded utilities
+ *      (bg-white, bg-slate-50, text-slate-700, etc.) instead of token-based
+ *      ones. The "remap" block below catches those so dark mode is visible
+ *      on day one without rewriting 49 files. Long-term, prefer token-based
+ *      utilities (bg-card, text-foreground) in new code.
+ */
+.dark {
+  --color-background: hsl(220 14% 8%);            /* deep slate page */
+  --color-foreground: hsl(35 20% 92%);            /* warm off-white text */
+
+  --color-card: hsl(220 14% 12%);                 /* card on page */
+  --color-card-foreground: hsl(35 20% 92%);
+
+  --color-popover: hsl(220 14% 14%);
+  --color-popover-foreground: hsl(35 20% 92%);
+
+  --color-border: hsl(220 10% 22%);
+  --color-input: hsl(220 10% 24%);
+  --color-ring: hsl(11 100% 64%);                 /* coral focus ring (same) */
+
+  --color-primary: hsl(11 100% 67%);              /* slightly brighter coral on dark */
+  --color-primary-foreground: hsl(220 14% 8%);
+
+  --color-secondary: hsl(220 10% 18%);
+  --color-secondary-foreground: hsl(35 20% 92%);
+
+  --color-muted: hsl(220 10% 18%);
+  --color-muted-foreground: hsl(35 10% 64%);
+
+  --color-accent: hsl(220 10% 20%);
+  --color-accent-foreground: hsl(35 20% 92%);
+
+  --color-destructive: hsl(0 72% 60%);
+  --color-destructive-foreground: hsl(35 20% 96%);
+
+  /* Slate brand stops stay similar — slightly lifted so the gradient
+   * doesn't disappear into the page background. */
+  --color-slate-brand-from: #2a3445;
+  --color-slate-brand-to: #3a4659;
+}
+
+/* ─── Hardcoded-utility remap for dark mode ────────────────────────────────
+ * Catches the most common literal Tailwind utilities used across the app
+ * so they read correctly on dark without per-file rewrites. Each rule
+ * targets the .dark ancestor + the literal utility; specificity is .dark +
+ * .util (2 classes) which beats the .util baseline (1 class) — no !important
+ * needed for backgrounds. Borders and a few text rules use !important
+ * because Tailwind's own .border utility carries higher source-order weight.
+ */
+.dark .bg-white { background-color: hsl(220 14% 14%); }
+.dark .bg-white\/80,
+.dark .bg-white\/85,
+.dark .bg-white\/90,
+.dark .bg-white\/95 { background-color: hsla(220, 14%, 14%, 0.85); }
+
+.dark .bg-slate-50  { background-color: hsl(220 14% 15%); }
+.dark .bg-slate-100 { background-color: hsl(220 12% 18%); }
+.dark .bg-slate-200 { background-color: hsl(220 10% 22%); }
+.dark .bg-gray-50   { background-color: hsl(220 14% 15%); }
+.dark .bg-gray-100  { background-color: hsl(220 12% 18%); }
+.dark .bg-muted    { background-color: hsl(220 10% 18%); }
+
+/* Pastel surface tints — keep the hue but darken substantially */
+.dark .bg-amber-50    { background-color: hsl(38 25% 15%); }
+.dark .bg-emerald-50  { background-color: hsl(160 22% 14%); }
+.dark .bg-rose-50,
+.dark .bg-red-50      { background-color: hsl(0 25% 16%); }
+.dark .bg-sky-50,
+.dark .bg-blue-50     { background-color: hsl(210 20% 16%); }
+
+/* Text — slate / gray scale flips */
+.dark .text-slate-900,
+.dark .text-gray-900,
+.dark .text-black     { color: hsl(35 20% 92%) !important; }
+.dark .text-slate-800,
+.dark .text-gray-800  { color: hsl(35 18% 88%) !important; }
+.dark .text-slate-700,
+.dark .text-gray-700  { color: hsl(35 15% 80%) !important; }
+.dark .text-slate-600,
+.dark .text-gray-600  { color: hsl(35 12% 70%) !important; }
+.dark .text-slate-500,
+.dark .text-gray-500  { color: hsl(35 10% 60%) !important; }
+
+/* Borders — light Tailwind borders need to read on dark */
+.dark .border-slate-200,
+.dark .border-gray-200,
+.dark .border-slate-100,
+.dark .border-gray-100 { border-color: hsl(220 10% 24%) !important; }
+.dark .border-white\/60,
+.dark .border-white\/50,
+.dark .border-white\/40 { border-color: hsl(220 10% 22%) !important; }
+
+/* Divide colours used in lists */
+.dark .divide-border > * + *,
+.dark .divide-slate-200 > * + *,
+.dark .divide-gray-200 > * + * { border-color: hsl(220 10% 22%); }
+
+/* Common inline gradient — slate brand strip (currently rendered via
+ * `style={{ background: 'linear-gradient(...#1f2937...#334155...)' }}`
+ * on the approver / admin header strips). Lift a step on dark so the
+ * gradient still reads as a band rather than blending into the page. */
+.dark [style*="linear-gradient(135deg, #1f2937 0%, #334155"],
+.dark [style*="linear-gradient(90deg, #1f2937 0%, #334155"] {
+  background: linear-gradient(135deg, #2a3445 0%, #3a4659 100%) !important;
+}
+
+@layer base {
+  /* Smoother global scrolling */
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "ss03";  /* Inter Tight stylistic sets */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.005em;
+    color: var(--color-foreground);
+    background: var(--color-background);
+    font-weight: 500;  /* default body weight bumped from 400 → medium */
+  }
+
+  /* Form / table labels carry the bold treatment so key fields read
+   * confidently. Specific surfaces can override with .font-normal. */
+  label,
+  th,
+  thead td,
+  .field-label {
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    color: var(--color-foreground);
+  }
+
+  /* HTML headings — display font + bold. Pages can opt out with
+   * className="font-sans" or override the weight. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: "SOFT" 50, "WONK" 0;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+  }
+
+  /* Strong / b — visibly bolder, not just font-weight 600 */
+  strong, b { font-weight: 700; }
+
+  /* Display font for headings — opted-in via class to avoid mass cascading */
+  .font-display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-variation-settings: "SOFT" 50, "WONK" 0;
+    letter-spacing: -0.015em;
+  }
+
+  /* Visible focus rings (coral) for keyboard navigation. */
+  :where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-primary, #FF6F61);
+    outline-offset: 2px;
+    border-radius: 4px;
+    transition: outline var(--duration-fast) var(--ease-out-quart);
+  }
+
+  /* Custom scrollbar in scrollable panels (thin, brand-tinted) */
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(120, 113, 108, 0.25);
+    border-radius: var(--radius-pill);
+  }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(120, 113, 108, 0.5); }
+
+  /* Selection — coral-tinted */
+  ::selection {
+    background: rgba(255, 111, 97, 0.22);
+    color: var(--color-foreground);
+  }
+}
+
+@layer utilities {
+  /* Translucent glass surface (12px backdrop blur) */
+  .glass {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: var(--shadow-md);
+  }
+
+  .dark .glass {
+    background: rgba(30, 36, 48, 0.75);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Opt-in spring lift on hover. NOT applied by default on Button/Card —
+   * surfaces request it explicitly via variant="lift". */
+  .btn-3d {
+    transition: transform var(--duration-base) var(--ease-spring),
+                box-shadow var(--duration-base) var(--ease-spring);
+    box-shadow: 0 2px 0 rgba(15, 23, 42, 0.08);
+  }
+  .btn-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), 0 4px 0 rgba(15, 23, 42, 0.08);
+  }
+  .btn-3d:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 rgba(15, 23, 42, 0);
+  }
+
+  .card-3d {
+    transition: transform var(--duration-slow) var(--ease-out-quart),
+                box-shadow var(--duration-slow) var(--ease-out-quart),
+                border-color var(--duration-slow) var(--ease-out-quart);
+    border: 1px solid transparent;
+  }
+  .card-3d:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-xl);
+    border-color: rgba(15, 23, 42, 0.05);
+  }
+
+  /* Soft hairline border + tonal background — replaces "shadow-sm + border"
+   * for a more refined default card. Border deliberately 1.5px so cards
+   * read as solid surfaces, not floating ghosts. */
+  .card-flat {
+    background: var(--color-card);
+    border: 1.5px solid var(--color-border);
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* Slate brand gradient — used by header strips on key pages */
+  .bg-slate-brand {
+    background: linear-gradient(135deg, var(--color-slate-brand-from) 0%, var(--color-slate-brand-to) 100%);
+  }
+
+  /* Coral / sunset gradient — used by hero CTAs */
+  .bg-coral-sunset {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-sunset) 100%);
+  }
+
+  /* Key field label — heaviest weight + tight tracking for the approver
+   * attribute names, BOM rows, etc. Applies the "bold key fields" design pass. */
+  .key-field {
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    color: var(--color-foreground);
+  }
+
+  /* Mandatory marker — bolder, more visual weight than a tiny red dot */
+  .mandatory-mark {
+    color: hsl(0 75% 52%);
+    font-weight: 800;
+    margin-right: 2px;
+  }
+}
+
+/* Card-content typography floor — anything inside a flat / elevated / lift
+ * card reads with weight even when the inline classes are silent. */
+.card-flat,
+[class*="card-flat"],
+[data-card-content] {
+  font-weight: 500;
+}
+.card-flat span,
+.card-flat div,
+.card-flat td,
+.card-flat th {
+  font-weight: inherit;
+}
+
+/* Border thickness floor — every utility .border / .border-{t,b,l,r}
+ * gets bumped from 1px to 1.5px so all surfaces (not just Card primitive)
+ * carry the heavier border treatment. */
+.border        { border-width: 1.5px !important; }
+.border-t      { border-top-width: 1.5px !important; }
+.border-b      { border-bottom-width: 1.5px !important; }
+.border-l      { border-left-width: 1.5px !important; }
+.border-r      { border-right-width: 1.5px !important; }
