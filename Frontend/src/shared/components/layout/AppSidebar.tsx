@@ -122,7 +122,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
     if (isAdmin) {
       items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
     }
-    if (!isApproverSide) {
+    // Extraction is available to creator-side roles and to APPROVER.
+    // (CATEGORY_HEAD remains approver-only and does not get it.)
+    if (!isApproverSide || role === 'APPROVER') {
       items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
     }
     // Model Generation — ADMIN only on this branch (PD_DESIGNER already has it via the items init above).

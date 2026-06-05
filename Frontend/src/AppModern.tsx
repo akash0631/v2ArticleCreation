@@ -110,6 +110,30 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return <>{children}</>;
 };
 
+// Extraction page — same access as CreatorRoute, but APPROVER is also allowed.
+const ExtractionRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user) {
+    const userData = JSON.parse(user);
+    // CATEGORY_HEAD has no extraction access; PD_DESIGNER is single-purpose.
+    // APPROVER is explicitly allowed (in addition to the creator-side roles).
+    if (userData.role === 'CATEGORY_HEAD') {
+      return <Navigate to="/approver" replace />;
+    }
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
 // PD_DESIGNER (and ADMIN) only — model-generation page
 const ModelGenerationRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('authToken');
@@ -170,22 +194,22 @@ const App: React.FC = () => {
               <Route
                 path="/extraction"
                 element={
-                  <CreatorRoute>
+                  <ExtractionRoute>
                     <MainLayout>
                       <SimplifiedExtractionPage />
                     </MainLayout>
-                  </CreatorRoute>
+                  </ExtractionRoute>
                 }
               />
 
               <Route
                 path="/extraction/simplified"
                 element={
-                  <CreatorRoute>
+                  <ExtractionRoute>
                     <MainLayout>
                       <SimplifiedExtractionPage />
                     </MainLayout>
-                  </CreatorRoute>
+                  </ExtractionRoute>
                 }
               />
               <Route

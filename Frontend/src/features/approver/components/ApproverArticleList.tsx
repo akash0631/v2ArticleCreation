@@ -215,6 +215,15 @@ const GROUP_COLORS: Record<string, string> = {
 };
 const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
 
+// Construction & Fabric (FAB): these attributes must appear first, in this
+// exact order, regardless of the order the backend returns them in. Everything
+// else in the group keeps its existing relative order below them.
+//   fab_div          → M_FAB_DIV
+//   yarn_01          → M_YARN
+//   main_mvgr        → M_FAB_MAIN_MVGR_1
+//   fabric_main_mvgr → M_FAB_MAIN_MVGR_2
+const FAB_PRIORITY_KEYS = ['fab_div', 'yarn_01', 'main_mvgr', 'fabric_main_mvgr'];
+
 // ─── Redesign tokens — header/icon palette per group ──────────────────────────
 const GROUP_LABELS: Record<string, string> = {
   FAB: 'Construction & Fabric',
@@ -254,11 +263,23 @@ function buildCardGroups(entries: { key: string; type: string; group: string }[]
     if (!map.has(e.group)) map.set(e.group, []);
     map.get(e.group)!.push({ field: dbField, schemaKey: e.key, freeText: e.type === 'TEXT' ? true : undefined });
   }
-  const built = GROUP_ORDER.filter((g) => map.has(g)).map((g) => ({
-    group: g,
-    color: GROUP_COLORS[g] || '#f0f0f0',
-    fields: map.get(g)!,
-  }));
+  const built = GROUP_ORDER.filter((g) => map.has(g)).map((g) => {
+    let fields = map.get(g)!;
+    if (g === 'FAB' || g === 'FABRIC') {
+      // Pin the priority keys to the top in FAB_PRIORITY_KEYS order; all other
+      // fields keep their existing relative order (Array.sort is stable).
+      const rank = (k: string) => {
+        const i = FAB_PRIORITY_KEYS.indexOf(k);
+        return i === -1 ? FAB_PRIORITY_KEYS.length : i;
+      };
+      fields = [...fields].sort((a, b) => rank(a.schemaKey) - rank(b.schemaKey));
+    }
+    return {
+      group: g,
+      color: GROUP_COLORS[g] || '#f0f0f0',
+      fields,
+    };
+  });
   return built.length > 0 ? built : ATTRIBUTE_GROUPS;
 }
 
@@ -333,6 +354,9 @@ const ArticleCard = React.memo(
     const [imgRotation, setImgRotation] = useState(0);
     const [catOpen, setCatOpen] = useState(false);
     const [catSearch, setCatSearch] = useState('');
+    // Search term for the attribute-value dropdown. A single shared term is
+    // enough because only one attribute (editingField) is open at a time.
+    const [attrSearch, setAttrSearch] = useState('');
 
     const resetImageView = useCallback(() => {
       setImgZoom(1);
@@ -1123,21 +1147,81 @@ const ArticleCard = React.memo(
                 </span>
               )
             ) : isEditing ? (
-              <Select
-                defaultValue={isEffectivelyEmpty ? undefined : currentValue || undefined}
-                onValueChange={(val) => handleSave(attr.field, val ?? null)}
+              <Popover
+                open
+                onOpenChange={(o) => {
+                  if (!o) {
+                    setEditingField(null);
+                    setAttrSearch('');
+                  }
+                }}
               >
-                <SelectTrigger className="h-6 w-full text-[11px]">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {attr.values.map((v) => (
-                    <SelectItem key={v.shortForm} value={v.shortForm}>
-                      {v.shortForm}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-6 w-full items-center justify-between rounded border border-input bg-background px-1.5 text-[11px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <span className="truncate text-left">
+                      {isEffectivelyEmpty ? 'Select' : currentValue}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-48 p-0"
+                  align="end"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center border-b px-2 py-1.5">
+                    <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={attrSearch}
+                      onChange={(e) => setAttrSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="flex-1 bg-transparent text-[11px] outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {(() => {
+                      const q = attrSearch.trim().toLowerCase();
+                      const matches = attr.values.filter(
+                        (v) =>
+                          v.shortForm.toLowerCase().includes(q) ||
+                          (v.fullForm ?? '').toLowerCase().includes(q),
+                      );
+                      if (matches.length === 0) {
+                        return (
+                          <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                            No options found
+                          </div>
+                        );
+                      }
+                      return matches.map((v) => (
+                        <button
+                          key={v.shortForm}
+                          type="button"
+                          onClick={() => {
+                            handleSave(attr.field, v.shortForm);
+                            setAttrSearch('');
+                          }}
+                          className={cn(
+                            'flex w-full flex-col px-3 py-1.5 text-left text-[11px] hover:bg-accent hover:text-accent-foreground',
+                            v.shortForm === currentValue && 'bg-accent/60',
+                          )}
+                        >
+                          <span className="font-medium">{v.shortForm}</span>
+                          {v.fullForm && v.fullForm !== v.shortForm && (
+                            <span className="truncate text-[10px] text-muted-foreground">
+                              {v.fullForm}
+                            </span>
+                          )}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
             ) : (
               <span
                 className="flex items-center justify-end gap-1 text-right text-[11px]"
