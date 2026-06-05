@@ -8,7 +8,13 @@ type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Pr
  */
 export const asyncHandler = (fn: AsyncRouteHandler) =>
   (req: Request, res: Response, next: NextFunction): void => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve(fn(req, res, next)).catch((err) => {
+      // If the response was already committed (e.g. the timeout middleware fired first),
+      // swallow the error silently — calling next(err) would trigger errorHandler which
+      // would also try to write headers and produce a second ERR_HTTP_HEADERS_SENT crash.
+      if (res.headersSent) return;
+      next(err);
+    });
   };
 
 /**
