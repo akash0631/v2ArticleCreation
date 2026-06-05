@@ -36,19 +36,23 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
-        // Split heavy vendor libs into their own chunks. Each lib stays in
-        // ONE chunk regardless of import site — caches independently and
-        // dynamic imports get loaded on demand.
+        // Split ONLY React-free heavy libs into their own chunks (these are
+        // large and lazy-loaded for the export features). Everything that
+        // depends on React — including react/react-dom itself, Radix, router,
+        // react-query, recharts, motion, icons — MUST stay in ONE chunk.
+        //
+        // Why: isolating `react` into its own chunk while leaving React-consuming
+        // libraries in the catch-all `vendor` chunk caused a hard production
+        // crash — "Cannot read properties of undefined (reading 'createContext')"
+        // — because the vendor chunk evaluated `React.createContext` before its
+        // cross-chunk React reference had resolved. Co-locating React with its
+        // consumers makes that impossible.
         manualChunks: (id) => {
           if (!id.includes('node_modules')) return undefined;
+          // React-free, large, lazy-loaded → safe to isolate.
           if (id.includes('/exceljs/')) return 'vendor-exceljs';
           if (id.includes('/xlsx/')) return 'vendor-xlsx';
-          if (id.includes('/recharts/') || id.includes('/d3-')) return 'vendor-charts';
-          if (id.includes('/motion/') || id.includes('/framer-motion/')) return 'vendor-motion';
-          if (id.includes('/@radix-ui/')) return 'vendor-radix';
-          if (id.includes('/@sentry/')) return 'vendor-sentry';
-          if (id.includes('/lucide-react/')) return 'vendor-icons';
-          if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'vendor-react';
+          // React + every React-dependent library live together here.
           return 'vendor';
         },
       },
