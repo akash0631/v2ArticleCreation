@@ -108,6 +108,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks whether this is the first fetch so we honour the ?page= from the URL
   const isInitialFetch = useRef(true);
+  // Holds the latest data that handleCardClick needs, so the click handler can
+  // stay referentially STABLE (deps: [navigate]) — this keeps the memoized
+  // ArticleCards from re-rendering whenever filters/items change identity.
+  const cardClickDataRef = useRef<any>(null);
 
   const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
   const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
@@ -197,9 +201,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   // ─── Export ──────────────────────────────────────────────────────────────────
 
   const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
+    // The "Created Date" column must use the SAME field the backend filters on for
+    // this tab — updatedAt (creation/approval date) on the Created tab, createdAt
+    // (extraction date) everywhere else — so an export only contains the filtered range.
+    const dateSource: 'createdAt' | 'updatedAt' = pathType === 'created' ? 'updatedAt' : 'createdAt';
     return rows.map((row) => {
-      const createdAt = row.createdAt ? new Date(row.createdAt) : null;
-      const formattedDate = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleDateString('en-GB') : '';
+      const rawDate = row[dateSource];
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const formattedDate = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toLocaleDateString('en-GB') : '';
       return {
         'Article Number': row.articleNumber || '', Division: row.division || '',
         'Sub Division': row.subDivision || '', 'Major Category': row.majorCategory || '',
@@ -242,7 +251,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         'Created Date': formattedDate,
       } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
     });
-  }, []);
+  }, [pathType]);
 
   const handleExportAll = useCallback(async () => {
     setExportingAll(true);
@@ -294,32 +303,42 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
   // ─── Card click ───────────────────────────────────────────────────────────────
 
+  // Keep the ref pointed at the latest values every render (cheap, render-safe).
+  cardClickDataRef.current = {
+    items, currentPage, totalCount, statusFilter, divisionFilter, subDivisionFilter,
+    majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType,
+  };
+
+  // Stable handler (deps: [navigate]) so memoized ArticleCards never re-render
+  // just because this callback's identity changed.
   const handleCardClick = useCallback((item: ApproverItem, index: number) => {
+    const d = cardClickDataRef.current;
     const effectiveStatus =
-      pathType === 'new' ? 'PENDING' : pathType === 'rejected' ? 'REJECTED'
-      : pathType === 'created' ? 'APPROVED' : statusFilter;
+      d.pathType === 'new' ? 'PENDING' : d.pathType === 'rejected' ? 'REJECTED'
+      : d.pathType === 'created' ? 'APPROVED' : d.statusFilter;
     const filters: DetailFilters = {
       status: effectiveStatus,
-      division: divisionFilter,
-      subDivision: subDivisionFilter,
-      majorCategory: majorCategoryFilter,
-      source: sourceFilter,
-      search: searchText,
-      startDate: dateRangeFilter?.[0]?.toISOString(),
-      endDate: dateRangeFilter?.[1]?.toISOString(),
-      pathType,
+      division: d.divisionFilter,
+      subDivision: d.subDivisionFilter,
+      majorCategory: d.majorCategoryFilter,
+      source: d.sourceFilter,
+      search: d.searchText,
+      startDate: d.dateRangeFilter?.[0]?.toISOString(),
+      endDate: d.dateRangeFilter?.[1]?.toISOString(),
+      pathType: d.pathType,
     };
     const basePath =
-      pathType === 'old' ? '/approver/old-articles'
-      : pathType === 'rejected' ? '/approver/rejected'
-      : pathType === 'created' ? '/approver/created'
+      d.pathType === 'old' ? '/approver/old-articles'
+      : d.pathType === 'rejected' ? '/approver/rejected'
+      : d.pathType === 'created' ? '/approver/created'
       : '/approver';
     const state: DetailNavigationState = {
-      items, currentIndex: index, currentPage, totalCount, pathType, filters,
-      listPage: currentPage,
+      items: d.items, currentIndex: index, currentPage: d.currentPage,
+      totalCount: d.totalCount, pathType: d.pathType, filters,
+      listPage: d.currentPage,
     };
     navigate(`${basePath}/${item.id}`, { state });
-  }, [items, currentPage, totalCount, statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, navigate]);
+  }, [navigate]);
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -583,7 +602,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         <>
           <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {items.map((item, index) => (
-              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} />
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'updatedAt' : 'createdAt'} />
             ))}
           </div>
           {totalCount > PAGE_SIZE && (

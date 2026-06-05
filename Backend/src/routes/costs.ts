@@ -16,24 +16,27 @@ router.get('/summary', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     const isAdmin = (req as any).user?.role === 'ADMIN';
+    const where = isAdmin ? {} : { userId };
 
-    // Query flat table for aggregated cost data (cap at 5000 to avoid OOM)
-    const results = await prisma.extractionResultFlat.findMany({
-      where: isAdmin ? {} : { userId },
-      take: 5000,
-      orderBy: { createdAt: 'desc' },
-      select: {
+    // Aggregate in the database instead of fetching up to 5000 rows and summing
+    // in JS. This is far cheaper on Disk IO (no row materialisation) AND fixes a
+    // latent bug: the old 5000-row cap meant totals were under-counted once a
+    // user had more than 5000 extractions.
+    const agg = await prisma.extractionResultFlat.aggregate({
+      where,
+      _count: { _all: true },
+      _sum: {
         inputTokens: true,
         outputTokens: true,
         apiCost: true,
-      }
+      },
     });
 
-    const totalImages = results.length;
-    const totalInputTokens = results.reduce((sum, r) => sum + (r.inputTokens || 0), 0);
-    const totalOutputTokens = results.reduce((sum, r) => sum + (r.outputTokens || 0), 0);
+    const totalImages = agg._count._all;
+    const totalInputTokens = agg._sum.inputTokens || 0;
+    const totalOutputTokens = agg._sum.outputTokens || 0;
     const totalTokens = totalInputTokens + totalOutputTokens;
-    const totalCost = results.reduce((sum, r) => sum + Number(r.apiCost || 0), 0);
+    const totalCost = Number(agg._sum.apiCost || 0);
 
     const summary = {
       totalImages,

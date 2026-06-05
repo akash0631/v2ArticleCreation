@@ -345,6 +345,11 @@ model ExtractionResultFlat {
   source       String? @db.VarChar(20) // 'MANUAL' | 'WATCHER'
   imageUncPath String? @unique @map("image_unc_path")
 
+  // Persistent "old article" flag, maintained by the DB trigger trg_set_is_old_article.
+  // True when image_unc_path matches an old-path marker, OR (PENDING + 10-digit numeric
+  // article/image name). Replaces the old runtime ILIKE+regex+giant IN/NOT IN lists.
+  isOldArticle Boolean @default(false) @map("is_old_article")
+
   // Variant fields
   isGeneric        Boolean @default(true) @map("is_generic")
   genericArticleId String? @map("generic_article_id")
@@ -384,6 +389,7 @@ model ExtractionResultFlat {
   @@index([pptNumber])
   @@index([referenceArticleNumber])
   @@index([isGeneric, approvalStatus, division])
+  @@index([isOldArticle, approvalStatus])
   @@map("extraction_results_flat")
   @@schema("public")
 }
