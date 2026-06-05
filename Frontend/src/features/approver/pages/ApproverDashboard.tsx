@@ -201,9 +201,14 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   // ─── Export ──────────────────────────────────────────────────────────────────
 
   const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
+    // The "Created Date" column must use the SAME field the backend filters on for
+    // this tab — updatedAt (creation/approval date) on the Created tab, createdAt
+    // (extraction date) everywhere else — so an export only contains the filtered range.
+    const dateSource: 'createdAt' | 'updatedAt' = pathType === 'created' ? 'updatedAt' : 'createdAt';
     return rows.map((row) => {
-      const createdAt = row.createdAt ? new Date(row.createdAt) : null;
-      const formattedDate = createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt.toLocaleDateString('en-GB') : '';
+      const rawDate = row[dateSource];
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const formattedDate = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toLocaleDateString('en-GB') : '';
       return {
         'Article Number': row.articleNumber || '', Division: row.division || '',
         'Sub Division': row.subDivision || '', 'Major Category': row.majorCategory || '',
@@ -246,7 +251,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         'Created Date': formattedDate,
       } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
     });
-  }, []);
+  }, [pathType]);
 
   const handleExportAll = useCallback(async () => {
     setExportingAll(true);
@@ -597,7 +602,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         <>
           <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {items.map((item, index) => (
-              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} />
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'updatedAt' : 'createdAt'} />
             ))}
           </div>
           {totalCount > PAGE_SIZE && (

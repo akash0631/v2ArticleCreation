@@ -13,6 +13,13 @@ export interface ArticleCardProps {
   item: ApproverItem;
   index: number;
   onClick: (item: ApproverItem, index: number) => void;
+  /**
+   * Which date to show in the "Date" row. The Created tab shows the
+   * creation/approval date (updatedAt); every other tab shows the extraction
+   * date (createdAt). Kept in sync with the backend date filter so the date
+   * shown always matches the date being filtered/exported. Defaults to createdAt.
+   */
+  dateField?: 'createdAt' | 'updatedAt';
 }
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -29,7 +36,7 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-function ArticleCardComponent({ item, index, onClick }: ArticleCardProps) {
+function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt' }: ArticleCardProps) {
   const statusKey = (item.approvalStatus ?? 'PENDING') as string;
   const s = STATUS_STYLES[statusKey] ?? STATUS_STYLES.PENDING;
 
@@ -116,7 +123,7 @@ function ArticleCardComponent({ item, index, onClick }: ArticleCardProps) {
           <FieldRow label="Design" value={item.designNumber || '—'} />
           <FieldRow label="Vendor" value={item.vendorName || '—'} />
           <FieldRow label="Code"   value={item.vendorCode   || '—'} />
-          <FieldRow label="Date"   value={formatDate(item.createdAt)} />
+          <FieldRow label="Date"   value={formatDate(dateField === 'updatedAt' ? item.updatedAt : item.createdAt)} />
         </div>
 
         {/* Rate / MRP */}

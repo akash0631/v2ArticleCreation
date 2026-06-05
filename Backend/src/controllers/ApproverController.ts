@@ -681,8 +681,11 @@ export class ApproverController {
             }
 
             // Date Range Filtering
-            // Created Articles page filters by updatedAt (when article was approved/modified);
-            // New Articles page filters by createdAt (when article was first extracted).
+            // Created Articles tab filters by updatedAt (when the article was created/approved);
+            // every other tab filters by createdAt (when the article was first extracted).
+            // IMPORTANT: the displayed "Created Date" must use the SAME field — the frontend
+            // shows updatedAt on the Created tab and createdAt elsewhere — so the filtered
+            // date always matches the date shown in the cards and the Excel export.
             if (startDate && endDate) {
                 const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
                 (where as any)[dateField] = {
@@ -992,7 +995,8 @@ export class ApproverController {
                 }
             }
 
-            // Date range — mirror getItems() logic: Created page uses updatedAt, New page uses createdAt
+            // Date range — mirror getItems(): Created tab filters by updatedAt, every other
+            // tab by createdAt. The export's date column uses the matching field per tab.
             if (startDate && endDate) {
                 const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
                 (where as any)[dateField] = {
@@ -1106,6 +1110,7 @@ export class ApproverController {
                     articleType: true,
                     userName: true,
                     createdAt: true,
+                    updatedAt: true,
                     sapSyncStatus: true,
                     // BOM
                     impAtrbt2: true,
