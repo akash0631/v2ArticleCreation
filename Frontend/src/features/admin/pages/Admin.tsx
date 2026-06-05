@@ -43,28 +43,6 @@ import { APP_CONFIG } from '../../../constants/app/config';
 
 const api = new BackendApiService();
 
-interface SrmSyncResult {
-  inserted: number;
-  skipped: number;
-  errors: number;
-  total: number;
-  staged?: number; // rows staged to raw_articles (new pipeline, after 26 May 2026)
-  completedAt?: string;
-  ranAt?: string;
-}
-
-interface SrmStatus {
-  totalInDb: number;
-  lastSyncAt: string | null;
-  pendingEnrichment: number;
-  hiddenFromApprovers: number;
-  divisionBreakdown: { division: string; count: number }[];
-  statusBreakdown: { status: string; count: number }[];
-  nextScheduledSyncs: { istTime: string; utc: string }[];
-  schedule: string;
-  lastSyncResult?: SrmSyncResult | null;
-}
-
 interface VendorMasterStatus {
   count: number;
   lastSyncedAt: string | null;
@@ -131,15 +109,6 @@ interface TestApiResult {
   message?: string;
 }
 
-interface PptSingleResult {
-  refNo: string;
-  imageCount: number;
-  inserted: number;
-  skipped: number;
-  errors: number;
-  vlmQueued: number;
-}
-
 const RAW_ARTICLES_MIN_DATE = dayjs('2026-05-27');
 
 export default function Admin() {
@@ -148,23 +117,6 @@ export default function Admin() {
   const [imageData, setImageData] = useState<any>(null);
   const [detailedExpenses, setDetailedExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [backfillLoading, setBackfillLoading] = useState(false);
-
-  // SRM
-  const srmPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [srmStatus, setSrmStatus] = useState<SrmStatus | null>(null);
-  const [srmStatusLoading, setSrmStatusLoading] = useState(false);
-  const [srmSyncing, setSrmSyncing] = useState(false);
-  const [srmEnriching, setSrmEnriching] = useState(false);
-  const [srmLastResult, setSrmLastResult] = useState<SrmSyncResult | null>(null);
-  const [srmEnrichMessage, setSrmEnrichMessage] = useState<string | null>(null);
-
-  // Single PPT fetch (08ac07b)
-  const [pptRefNo, setPptRefNo] = useState('');
-  const [pptSyncing, setPptSyncing] = useState(false);
-  const [pptResult, setPptResult] = useState<PptSingleResult | null>(null);
-  const [pptError, setPptError] = useState<string | null>(null);
-
   // Vendor
   const [vendorStatus, setVendorStatus] = useState<VendorMasterStatus | null>(null);
   const [vendorStatusLoading, setVendorStatusLoading] = useState(false);
@@ -205,126 +157,6 @@ export default function Admin() {
   const [hierarchyResult, setHierarchyResult] = useState<HierarchyUploadResult | null>(null);
   const [hierarchyPendingFile, setHierarchyPendingFile] = useState<File | null>(null);
   const hierarchyFileRef = useRef<HTMLInputElement | null>(null);
-
-  // ─────────────────────────────── SRM ───────────────────────────────
-  const loadSrmStatus = useCallback(async (stopPollOnResult = false) => {
-    setSrmStatusLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/status`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load SRM status');
-      setSrmStatus(data.data);
-      if (data.data?.lastSyncResult) {
-        setSrmLastResult(data.data.lastSyncResult);
-        if (stopPollOnResult && srmPollRef.current) {
-          clearInterval(srmPollRef.current);
-          srmPollRef.current = null;
-        }
-      }
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to load SRM status');
-    } finally {
-      setSrmStatusLoading(false);
-    }
-  }, []);
-
-  const runSrmEnrich = async () => {
-    setSrmEnriching(true);
-    setSrmEnrichMessage(null);
-    try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/enrich`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Enrichment trigger failed');
-      setSrmEnrichMessage(data.message);
-      message.success(data.message);
-      await loadSrmStatus();
-    } catch (err: any) {
-      message.error(err?.message || 'Enrichment trigger failed');
-    } finally {
-      setSrmEnriching(false);
-    }
-  };
-
-  const runSrmSyncByRef = async () => {
-    const ref = pptRefNo.trim().toUpperCase();
-    if (!ref) {
-      message.warning('Enter a PPT number first (e.g. PRES-00721)');
-      return;
-    }
-    setPptSyncing(true);
-    setPptResult(null);
-    setPptError(null);
-    try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/sync-by-ref`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ refNo: ref }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch presentation');
-      setPptResult(data.data);
-      message.success(`Fetched ${data.data.imageCount} images for ${ref}`);
-    } catch (err: any) {
-      setPptError(err?.message || 'Failed to fetch presentation');
-      message.error(err?.message || 'Failed to fetch presentation');
-    } finally {
-      setPptSyncing(false);
-    }
-  };
-
-  const runSrmSync = async () => {
-    setSrmSyncing(true);
-    setSrmLastResult(null);
-    try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/srm/sync`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'SRM sync failed');
-
-      if (res.status === 202) {
-        message.info('Sync started in background. Results will appear here once complete (~1-2 min).');
-        let attempts = 0;
-        if (srmPollRef.current) clearInterval(srmPollRef.current);
-        srmPollRef.current = setInterval(async () => {
-          attempts++;
-          await loadSrmStatus(true);
-          if (attempts >= 12 && srmPollRef.current) {
-            clearInterval(srmPollRef.current);
-            srmPollRef.current = null;
-          }
-        }, 15000);
-      } else {
-        setSrmLastResult({
-          inserted: data.inserted,
-          skipped: data.skipped,
-          errors: data.errors,
-          total: data.total,
-          staged: data.staged ?? 0,
-        });
-        const stagedMsg = (data.staged ?? 0) > 0 ? `, ${data.staged} staged to raw_articles` : '';
-        message.success(`SRM sync complete — ${data.inserted} inserted${stagedMsg}, ${data.skipped} skipped`);
-        await loadSrmStatus();
-      }
-    } catch (err: any) {
-      message.error(err?.message || 'SRM sync failed');
-    } finally {
-      setSrmSyncing(false);
-    }
-  };
 
   // ─────────────────────────────── Vendor ───────────────────────────────
   const loadVendorStatus = useCallback(async () => {
@@ -671,20 +503,13 @@ export default function Admin() {
   // ─────────────────────────────── Boot ───────────────────────────────
   useEffect(() => {
     loadData();
-    loadSrmStatus();
     loadVendorStatus();
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
     loadHierarchyExcelStatus();
     loadPipelineStatus();
-    return () => {
-      if (srmPollRef.current) {
-        clearInterval(srmPollRef.current);
-        srmPollRef.current = null;
-      }
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadSrmStatus, loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
+  }, [loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -704,25 +529,6 @@ export default function Admin() {
       console.error('Error loading admin data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const runDescriptionBackfill = async () => {
-    setBackfillLoading(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      const baseURL = APP_CONFIG.api.baseURL;
-      const res = await fetch(
-        `${baseURL}/approver/backfill-descriptions?fromDate=2026-04-10&toDate=${new Date().toISOString().slice(0, 10)}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` } },
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Backfill failed');
-      message.success(`Backfill complete — ${data.updated} article description(s) updated.`);
-    } catch (err: any) {
-      message.error(err?.message || 'Backfill failed');
-    } finally {
-      setBackfillLoading(false);
     }
   };
 
@@ -861,293 +667,6 @@ export default function Admin() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Backfill Tools */}
-        <Card className="mb-6 glass rounded-2xl border border-white/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              Data Maintenance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex-1">
-                <strong>Backfill Article Descriptions</strong>
-                <div className="mt-0.5 text-[13px] text-muted-foreground">
-                  Re-compute article descriptions for all articles created from <strong>10 Apr 2026</strong> to today using the current formula (YARN‑WEAVE‑MVGR‑LYCRA‑NECK‑SLEEVE…, max 40 chars).
-                </div>
-              </div>
-              <Popconfirm
-                title="Run description backfill?"
-                description="This will overwrite existing article descriptions for articles from 10 Apr 2026 to today. Continue?"
-                onConfirm={runDescriptionBackfill}
-                okText="Yes, run it"
-                cancelText="Cancel"
-              >
-                <Button disabled={backfillLoading}>
-                  <FileText />
-                  Run Backfill
-                </Button>
-              </Popconfirm>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SRM Sync */}
-        <Card className="mb-6 glass rounded-2xl border border-white/60">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <RefreshCw className="h-4 w-4" />
-              SRM Presentation Sync
-            </CardTitle>
-            <Button size="sm" variant="outline" onClick={() => loadSrmStatus()} disabled={srmStatusLoading}>
-              <RotateCw className={srmStatusLoading ? 'animate-spin' : ''} />
-              Refresh Status
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Spinner spinning={srmStatusLoading}>
-              {srmStatus ? (
-                <>
-                  <Descriptions bordered className="mb-4">
-                    <Descriptions.Item label="Records in DB">
-                      <strong className="text-lg">{srmStatus.totalInDb}</strong>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Last Sync">
-                      {srmStatus.lastSyncAt
-                        ? new Date(srmStatus.lastSyncAt).toLocaleString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          }) + ' IST'
-                        : <span className="text-muted-foreground">Never</span>}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Schedule">{srmStatus.schedule}</Descriptions.Item>
-                    <Descriptions.Item label="Division Breakdown">
-                      <div className="flex flex-wrap gap-2">
-                        {srmStatus.divisionBreakdown.map((d) => (
-                          <Badge key={d.division} variant="info">{d.division}: {d.count}</Badge>
-                        ))}
-                      </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Approval Status">
-                      <div className="flex flex-wrap gap-2">
-                        {srmStatus.statusBreakdown.map((s) => (
-                          <Badge
-                            key={s.status}
-                            variant={s.status === 'APPROVED' ? 'success' : s.status === 'REJECTED' ? 'destructive' : 'warning'}
-                          >
-                            {s.status}: {s.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Pending VLM Extraction">
-                      {srmStatus.pendingEnrichment > 0 ? (
-                        <Badge variant="destructive">{srmStatus.pendingEnrichment} records need extraction</Badge>
-                      ) : (
-                        <Badge variant="success">All records extracted</Badge>
-                      )}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Hidden from Approvers">
-                      {srmStatus.hiddenFromApprovers > 0 ? (
-                        <Badge variant="warning">{srmStatus.hiddenFromApprovers} extracting now</Badge>
-                      ) : (
-                        <Badge variant="success">None</Badge>
-                      )}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Next Syncs">
-                      <div className="flex flex-wrap gap-3">
-                        {srmStatus.nextScheduledSyncs.map((s) => (
-                          <span key={s.istTime} className="inline-flex items-center gap-1">
-                            <Badge variant="info">{s.istTime} IST</Badge>
-                            <span className="text-xs text-muted-foreground">
-                              ({new Date(s.utc).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', timeStyle: 'short' })} IST)
-                            </span>
-                          </span>
-                        ))}
-                      </div>
-                    </Descriptions.Item>
-                  </Descriptions>
-
-                  {srmLastResult && (srmLastResult.total > 0 || srmLastResult.inserted > 0) && (
-                    <Alert
-                      type={srmLastResult.errors > 0 ? 'warning' : 'success'}
-                      showIcon
-                      className="mb-3"
-                      message={
-                        <span>
-                          Last Sync Result
-                          {srmLastResult.completedAt && (
-                            <span className="ml-2 text-xs font-normal text-muted-foreground">
-                              · {new Date(srmLastResult.completedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
-                            </span>
-                          )}
-                        </span>
-                      }
-                      description={
-                        <span>
-                          <strong className="text-emerald-600">{srmLastResult.inserted}</strong> records inserted (old pipeline) &nbsp;·&nbsp;
-                          {(srmLastResult.staged ?? 0) > 0 && (
-                            <>
-                              <strong className="text-[#FF6F61]">{srmLastResult.staged}</strong> staged to raw_articles (new pipeline) &nbsp;·&nbsp;
-                            </>
-                          )}
-                          <strong>{srmLastResult.skipped}</strong> already existed (skipped) &nbsp;·&nbsp;
-                          <strong className={srmLastResult.errors > 0 ? 'text-rose-600' : ''}>{srmLastResult.errors}</strong> errors &nbsp;·&nbsp;
-                          <strong>{srmLastResult.total}</strong> total from SRM API
-                        </span>
-                      }
-                    />
-                  )}
-
-                  {srmEnrichMessage && (
-                    <Alert
-                      type="info"
-                      showIcon
-                      className="mb-3"
-                      message="VLM Extraction Started"
-                      description={srmEnrichMessage}
-                    />
-                  )}
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="card-3d rounded-xl border border-white/60 bg-white/50 p-4 backdrop-blur-sm">
-                      <div className="mb-1 font-semibold">Sync Presentations</div>
-                      <div className="mb-2.5 text-xs text-muted-foreground">
-                        Fetches all presentations from the SRM API and inserts any new records. Already-imported records are skipped.
-                      </div>
-                      <Popconfirm
-                        title="Trigger SRM Sync?"
-                        description="Fetch all presentations from the SRM API and insert new ones. VLM extraction will run after sync."
-                        onConfirm={runSrmSync}
-                        okText="Yes, sync now"
-                        cancelText="Cancel"
-                      >
-                        <Button disabled={srmSyncing} className="w-full">
-                          <RefreshCw className={srmSyncing ? 'animate-spin' : ''} />
-                          {srmSyncing ? 'Syncing...' : 'Sync Now'}
-                        </Button>
-                      </Popconfirm>
-                    </div>
-                    <div className="rounded-md border border-border p-4">
-                      <div className="mb-1 flex items-center gap-2 font-semibold">
-                        Run VLM Extraction
-                        {srmStatus.pendingEnrichment > 0 && (
-                          <Badge variant="destructive">{srmStatus.pendingEnrichment} pending</Badge>
-                        )}
-                      </div>
-                      <div className="mb-2.5 text-xs text-muted-foreground">
-                        Runs AI attribute extraction on SRM records that have an image but haven't been extracted yet. Processes sequentially (~2s per record).
-                      </div>
-                      <Popconfirm
-                        title="Run VLM extraction on SRM records?"
-                        description={`This will extract attributes for ${srmStatus.pendingEnrichment} records. Runs in the background — may take several minutes.`}
-                        onConfirm={runSrmEnrich}
-                        okText="Yes, start extraction"
-                        cancelText="Cancel"
-                        disabled={srmStatus.pendingEnrichment === 0}
-                      >
-                        <Button
-                          variant="outline"
-                          disabled={srmEnriching || srmStatus.pendingEnrichment === 0}
-                          className="w-full"
-                        >
-                          <RefreshCw className={srmEnriching ? 'animate-spin' : ''} />
-                          {srmEnriching
-                            ? 'Starting...'
-                            : srmStatus.pendingEnrichment === 0
-                            ? 'All Extracted'
-                            : 'Extract Attributes'}
-                        </Button>
-                      </Popconfirm>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <Empty description="Could not load SRM sync status" />
-              )}
-            </Spinner>
-          </CardContent>
-        </Card>
-
-        {/* Fetch by PPT No (single presentation, ported from 08ac07b) */}
-        <Card className="mb-6 glass rounded-2xl border border-white/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Search className="h-4 w-4" />
-              Fetch Presentation by PPT No
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-3 text-[13px] text-muted-foreground">
-              Fetch a single SRM presentation by its reference number, insert all its images into the DB, and run Gemini VLM extraction automatically.
-            </div>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Input
-                placeholder="e.g. PRES-00721"
-                value={pptRefNo}
-                onChange={(e) => {
-                  setPptRefNo(e.target.value.toUpperCase());
-                  setPptResult(null);
-                  setPptError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') runSrmSyncByRef();
-                }}
-                className="max-w-[220px] font-mono font-semibold"
-                disabled={pptSyncing}
-              />
-              <Button onClick={runSrmSyncByRef} disabled={pptSyncing || !pptRefNo.trim()}>
-                <RefreshCw className={pptSyncing ? 'animate-spin' : ''} />
-                {pptSyncing ? 'Fetching...' : 'Fetch & Extract'}
-              </Button>
-            </div>
-
-            {pptError && (
-              <Alert type="error" showIcon className="mb-3" message="Error" description={pptError} />
-            )}
-
-            {pptResult && (
-              <Alert
-                type={pptResult.errors > 0 ? 'warning' : 'success'}
-                showIcon
-                message={
-                  <span>
-                    <strong>{pptResult.refNo}</strong>
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      {pptResult.imageCount} image{pptResult.imageCount !== 1 ? 's' : ''} in presentation
-                    </span>
-                  </span>
-                }
-                description={
-                  <div className="mt-1 flex flex-wrap gap-3">
-                    <span>
-                      <strong className="text-emerald-600">{pptResult.inserted}</strong> new inserted
-                    </span>
-                    <span className="text-muted-foreground">·</span>
-                    <span>
-                      <strong>{pptResult.skipped}</strong> already existed (skipped)
-                    </span>
-                    <span className="text-muted-foreground">·</span>
-                    <span>
-                      <strong className={pptResult.errors > 0 ? 'text-rose-600' : ''}>{pptResult.errors}</strong> errors
-                    </span>
-                    {pptResult.vlmQueued > 0 && (
-                      <>
-                        <span className="text-muted-foreground">·</span>
-                        <span>
-                          <strong className="text-[#FF6F61]">{pptResult.vlmQueued}</strong> queued for VLM extraction
-                        </span>
-                      </>
-                    )}
-                  </div>
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
 
         {/* raw_articles Pipeline (test API — date/PPT fetch + pipeline status + run extraction) */}
         <Card className="mb-6 glass rounded-2xl border border-amber-300/60">
