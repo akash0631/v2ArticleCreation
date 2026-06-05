@@ -95,7 +95,7 @@ export const SAP_NAME_TO_SCHEMA_KEY: Record<string, string> = {
   M_FINISH:            'finish',
   M_GSM:               'gsm',
   M_OUNZ:              'f_ounce',
-  M_WIDTH:             'f_width',
+  M_WIDTH:             'f_width',                           
   M_FAB_DIV:           'fab_div',
   M_UOM:               'f_uom',
   // Collar / Neck — new SAP codes + legacy aliases
