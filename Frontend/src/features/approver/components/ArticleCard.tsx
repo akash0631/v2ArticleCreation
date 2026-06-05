@@ -20,6 +20,13 @@ export interface ArticleCardProps {
    * shown always matches the date being filtered/exported. Defaults to createdAt.
    */
   dateField?: 'createdAt' | 'updatedAt';
+  /** Whether this card is currently checked for selective export. */
+  selected?: boolean;
+  /**
+   * Toggle this card's selection. When provided, a checkbox is rendered.
+   * Must be referentially STABLE (useCallback) so the memo isn't defeated.
+   */
+  onToggleSelect?: (item: ApproverItem) => void;
 }
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -36,7 +43,7 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt' }: ArticleCardProps) {
+function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt', selected = false, onToggleSelect }: ArticleCardProps) {
   const statusKey = (item.approvalStatus ?? 'PENDING') as string;
   const s = STATUS_STYLES[statusKey] ?? STATUS_STYLES.PENDING;
 
@@ -53,13 +60,30 @@ function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt' }:
     <>
       <div
         onClick={() => onClick(item, index)}
-        className="group flex cursor-pointer flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+        className={`group flex cursor-pointer flex-col gap-2 rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md ${
+          selected ? 'border-primary ring-2 ring-primary/50' : 'border-border'
+        }`}
       >
         {/* Status + SAP tag */}
         <div className="flex items-center justify-between">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.bg} ${s.text}`}>
-            {statusKey}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect(item);
+                }}
+                aria-label="Select article for export"
+                className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-primary"
+              />
+            )}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${s.bg} ${s.text}`}>
+              {statusKey}
+            </span>
+          </div>
           {item.sapSyncStatus === 'SYNCED' && (
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">SAP ✓</span>
           )}

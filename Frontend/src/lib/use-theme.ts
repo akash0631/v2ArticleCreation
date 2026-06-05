@@ -19,7 +19,7 @@ const getStoredTheme = (): Theme => {
   } catch {
     /* SSR / disabled storage */
   }
-  return 'system';
+  return 'light';
 };
 
 const resolveActual = (mode: Theme): 'light' | 'dark' => {
@@ -80,7 +80,7 @@ export function useThemeMode(): [Theme, (next: Theme) => void] {
   const mode = useSyncExternalStore(
     subscribe,
     () => getStoredTheme(),
-    () => 'system' as Theme,
+    () => 'light' as Theme,
   );
 
   const setMode = useCallback((next: Theme) => {

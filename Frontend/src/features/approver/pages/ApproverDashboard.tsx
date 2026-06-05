@@ -98,6 +98,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
+  // IDs of cards checked for selective export. Scoped to the current page only:
+  // cleared on every fetch (pagination / filter change) so it never holds ids
+  // that aren't currently rendered.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Combobox open/search state for the two searchable filter dropdowns
   const [subDivOpen, setSubDivOpen] = useState(false);
@@ -139,6 +143,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     async (page = 1) => {
       setLoading(true);
       setCurrentPage(page);
+      // Selection is current-page-only: drop any checked cards when (re)fetching.
+      setSelectedIds(new Set());
       try {
         const token = localStorage.getItem('authToken');
         const params = new URLSearchParams();
@@ -301,6 +307,43 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     }
   }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
 
+  // ─── Selective export ─────────────────────────────────────────────────────────
+
+  // Stable (empty deps, functional update) so memoized ArticleCards don't
+  // re-render just because this handler's identity changed.
+  const toggleSelect = useCallback((item: ApproverItem) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+  }, []);
+
+  const allOnPageSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
+
+  const toggleSelectAllOnPage = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allSelected = items.length > 0 && items.every((i) => prev.has(i.id));
+      return allSelected ? new Set() : new Set(items.map((i) => i.id));
+    });
+  }, [items]);
+
+  const handleExportSelected = useCallback(async () => {
+    const rows = items.filter((i) => selectedIds.has(i.id));
+    if (rows.length === 0) {
+      message.warning('No cards selected');
+      return;
+    }
+    const exportData = buildApproverExportData(rows);
+    const fileName =
+      pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+      : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
+    const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
+    await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel} - Selected`);
+    message.success(`Exported ${rows.length} selected records`);
+  }, [items, selectedIds, buildApproverExportData, pathType, divisionFilter]);
+
   // ─── Card click ───────────────────────────────────────────────────────────────
 
   // Keep the ref pointed at the latest values every render (cheap, render-safe).
@@ -375,6 +418,21 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
               )}
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="rounded-md bg-[#FF6F61]/90 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                    {selectedIds.size} selected
+                  </span>
+                  <Button size="sm" variant="outline" onClick={handleExportSelected}
+                    className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                    <Download /> Export Selected
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}
+                    className="h-7 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                    Clear
+                  </Button>
+                </>
+              )}
               <Button size="sm" variant="outline" onClick={() => fetchItems(currentPage)}
                 className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
                 <RotateCw /> Refresh
@@ -581,6 +639,17 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 onChange={setDateRangeFilter}
                 placeholder={pathType === 'created' ? ['Updated From', 'Updated To'] : ['Created From', 'Created To']}
               />
+              {items.length > 0 && (
+                <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-input bg-background px-2 text-[12px] text-muted-foreground hover:border-ring">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAllOnPage}
+                    className="h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                  Select page
+                </label>
+              )}
             </div>
           </div>
         </div>
@@ -602,7 +671,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         <>
           <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {items.map((item, index) => (
-              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'updatedAt' : 'createdAt'} />
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'updatedAt' : 'createdAt'} selected={selectedIds.has(item.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
           {totalCount > PAGE_SIZE && (
