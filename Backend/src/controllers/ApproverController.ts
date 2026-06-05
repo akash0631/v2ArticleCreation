@@ -22,17 +22,9 @@ export class ApproverController {
     private static readonly STARTUP_BACKFILLS_ENABLED = String(process.env.STARTUP_BACKFILLS_ENABLED ?? 'true').toLowerCase() !== 'false';
     private static readonly STARTUP_BACKFILLS_IN_DEV = String(process.env.STARTUP_BACKFILLS_IN_DEV ?? 'false').toLowerCase() === 'true';
     private static readonly APPROVER_ATTRIBUTES_CACHE_TTL_MS = parseInt(process.env.APPROVER_ATTRIBUTES_CACHE_TTL_MS || '300000', 10);
-    private static readonly NUMERIC_OLD_ARTICLES_CACHE_TTL_MS = parseInt(process.env.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS || '1800000', 10); // 30 min default
     private static startupBackfillRunning = false;
     private static attributesCache: { data: any[]; expiresAt: number } | null = null;
     private static pendingAttributesLoad: Promise<any[]> | null = null;
-    private static numericOldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
-    private static pendingNumericOldArticleIdsLoad: Promise<string[]> | null = null;
-    // Combined cache: all "old" article IDs (path-marker based + numeric name based).
-    // ids === null means the last query failed — callers fall back to direct ILIKE.
-    // A failed entry has a 2-minute TTL so the DB isn't hammered on every request.
-    private static oldArticleIdsCache: { ids: string[] | null; expiresAt: number } | null = null;
-    private static pendingOldArticleIdsLoad: Promise<string[] | null> | null = null;
     // Short-lived cache for getItems responses (8s TTL). Eliminates redundant DB hits
     // when multiple users load the same page simultaneously or filters haven't changed.
     private static readonly ITEMS_CACHE_TTL_MS = 8_000;
@@ -551,135 +543,18 @@ export class ApproverController {
                 ApproverController.startupBackfillRunning = false;
             }
         };
-        // Warm caches early (5s after start) so the first real request hits a warm cache.
-        setTimeout(() => {
-            void ApproverController.getOldArticleIds().catch(() => {});
-        }, 5_000);
-
         // Delay heavier startup backfills so the first page load is not competing for DB sessions.
         setTimeout(() => { void run(); }, ApproverController.STARTUP_BACKFILL_DELAY_MS);
     }
 
     // Get items for approver dashboard
     // Filters: approvalStatus (default: PENDING), division, date range, search
-    // Unique folder-name markers that identify "OLD ARTICLES" paths.
-    // Using contains (no backslashes) instead of startsWith to avoid PostgreSQL LIKE escape issues.
-    private static readonly OLD_PATH_MARKERS = [
-        'PIC-LADIES-LESS THAN 180',
-        'PIC-KIDS-LESS THAN 180',
-        'PIC-MENS-LESS THAN 180',
-    ];
-
-    /**
-     * Returns IDs of articles whose articleNumber OR imageName is a 10-digit numeric string
-     * (e.g. "1130153330" or "1130153330.jpg"). These are treated as OLD articles regardless
-     * of their imageUncPath, because they already have a pre-existing SAP article number.
-     */
-    private static async getNumericOldArticleIds(): Promise<string[]> {
-        const cached = ApproverController.numericOldArticleIdsCache;
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.ids;
-        }
-
-        if (ApproverController.pendingNumericOldArticleIdsLoad) {
-            return ApproverController.pendingNumericOldArticleIdsLoad;
-        }
-
-        // Only PENDING articles with 10-digit numeric names are routed to Old Articles.
-        // NOTE: Do NOT wrap in prisma.$transaction — SET LOCAL does not persist across statements
-        // in PgBouncer transaction mode (each statement may hit a different backend connection).
-        // Use a plain $queryRaw so the Prisma transaction timeout cannot block concurrent requests.
-        const loadPromise = prisma.$queryRaw<{ id: string }[]>`
-            SELECT id FROM extraction_results_flat
-            WHERE approval_status = 'PENDING'
-              AND (
-                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
-                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
-              )
-        `.then((rows) => {
-            const ids = rows.map(r => r.id);
-            ApproverController.numericOldArticleIdsCache = {
-                ids,
-                expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
-            };
-            return ids;
-        }).catch((err) => {
-            // On timeout/error, return empty array so the main query still runs.
-            // The ILIKE-based old-path detection still works; only numeric IDs are missed temporarily.
-            console.error('[ApproverController] getNumericOldArticleIds failed, using empty fallback:', err?.message);
-            return [] as string[];
-        }).finally(() => {
-            ApproverController.pendingNumericOldArticleIdsLoad = null;
-        });
-
-        ApproverController.pendingNumericOldArticleIdsLoad = loadPromise;
-        return loadPromise;
-    }
-
-    /**
-     * Returns ALL "old" article IDs: those whose imageUncPath contains an old-path marker,
-     * PLUS those with a 10-digit numeric article/image name.
-     *
-     * Cached for 30 minutes. On error, returns [] so the caller degrades gracefully.
-     *
-     * This cache is the key optimisation: by resolving "old vs new" to a set of IDs once,
-     * the main getItems query can use  WHERE id IN (...)  or  WHERE id NOT IN (...)
-     * instead of  ILIKE '%marker%'  on every request, avoiding full table scans.
-     */
-    private static async getOldArticleIds(): Promise<string[] | null> {
-        const cached = ApproverController.oldArticleIdsCache;
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.ids; // may be null (failed) or string[] (success / real empty)
-        }
-
-        if (ApproverController.pendingOldArticleIdsLoad) {
-            return ApproverController.pendingOldArticleIdsLoad;
-        }
-
-        const markers = ApproverController.OLD_PATH_MARKERS;
-
-        // Build the ILIKE conditions as a raw SQL OR chain.
-        // Also include numeric-name articles (PENDING only, using index on approval_status).
-        // NOTE: ILIKE '%pattern%' requires a pg_trgm GIN index on image_unc_path to be fast.
-        //       Run this once in the Supabase SQL editor if the index is missing:
-        //       CREATE EXTENSION IF NOT EXISTS pg_trgm;
-        //       CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_erf_image_unc_path_trgm
-        //         ON extraction_results_flat USING gin(image_unc_path gin_trgm_ops);
-        const loadPromise = prisma.$queryRaw<{ id: string }[]>`
-            SELECT id FROM extraction_results_flat
-            WHERE image_unc_path ILIKE ${'%' + markers[0] + '%'}
-               OR image_unc_path ILIKE ${'%' + markers[1] + '%'}
-               OR image_unc_path ILIKE ${'%' + markers[2] + '%'}
-            UNION
-            SELECT id FROM extraction_results_flat
-            WHERE approval_status = 'PENDING'
-              AND (
-                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
-                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
-              )
-        `.then((rows) => {
-            const ids = rows.map(r => r.id);
-            ApproverController.oldArticleIdsCache = {
-                ids,
-                expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
-            };
-            return ids as string[] | null;
-        }).catch((err) => {
-            console.error('[ApproverController] getOldArticleIds failed — using ILIKE fallback for this request:', err?.message);
-            // Cache the failure for 2 minutes so we don't hammer the DB on every request.
-            // Callers that receive null fall back to direct Prisma ILIKE conditions.
-            ApproverController.oldArticleIdsCache = {
-                ids: null,
-                expiresAt: Date.now() + 2 * 60 * 1000, // 2-minute retry backoff
-            };
-            return null as string[] | null;
-        }).finally(() => {
-            ApproverController.pendingOldArticleIdsLoad = null;
-        });
-
-        ApproverController.pendingOldArticleIdsLoad = loadPromise;
-        return loadPromise;
-    }
+    //
+    // "Old article" classification (old-path folder markers + 10-digit numeric SAP ids,
+    // PENDING-gated) is now persisted in the `is_old_article` column and maintained by the
+    // DB trigger trg_set_is_old_article. The old runtime ILIKE+regex scan and the cached
+    // ID-set helpers (getOldArticleIds / getNumericOldArticleIds) have been removed — the
+    // queries below just filter on `isOldArticle`.
 
     static async getItems(req: Request, res: Response) {
         try {
@@ -749,72 +624,23 @@ export class ApproverController {
                 }
             }
 
-            // Path-type filter — NON-BLOCKING.
-            // getOldArticleIds returns null on DB error; callers fall back to Prisma ILIKE conditions
-            // which are fast once the pg_trgm GIN index on image_unc_path exists.
-            if (pathType === 'old' || pathType === 'new') {
-                const oldIds = await ApproverController.getOldArticleIds();
-
-                where.AND = where.AND || [];
-                if (pathType === 'old') {
-                    if (oldIds !== null) {
-                        // Fast path: id IN (...cached IDs...)
-                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
-                    } else {
-                        // Fallback: ILIKE — fast with pg_trgm index, safe without it
-                        where.AND.push({
-                            OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                imageUncPath: { contains: m, mode: 'insensitive' as const }
-                            }))
-                        });
-                    }
-                } else {
-                    // 'new' — only PENDING articles, excluding old-path articles
-                    // Set at TOP LEVEL (not just AND) so search can never bypass it
-                    where.approvalStatus = ApprovalStatus.PENDING;
-                    if (oldIds !== null) {
-                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
-                    } else {
-                        // Fallback: exclude via ILIKE; include null/empty imageUncPath (they are new)
-                        where.AND.push({
-                            OR: [
-                                { imageUncPath: null },
-                                { imageUncPath: '' },
-                                {
-                                    NOT: {
-                                        OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                            imageUncPath: { contains: m, mode: 'insensitive' as const }
-                                        }))
-                                    }
-                                }
-                            ]
-                        });
-                    }
-                }
+            // Path-type filter — backed by the persistent `is_old_article` column
+            // (maintained by the DB trigger trg_set_is_old_article). This replaces the
+            // old runtime ILIKE+regex scan and the ~25k-row IN/NOT IN list that was
+            // shipped to Postgres on every request — the root cause of Disk IO blowout.
+            // The column's value is computed by the SAME formula as the legacy
+            // getOldArticleIds, so the old/new/created tab contents are unchanged.
+            if (pathType === 'old') {
+                where.isOldArticle = true;
+            } else if (pathType === 'new') {
+                // Only PENDING articles, excluding old-path articles.
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.isOldArticle = false;
             } else if (pathType === 'rejected') {
                 where.approvalStatus = ApprovalStatus.REJECTED;
             } else if (pathType === 'created') {
-                const oldIds = await ApproverController.getOldArticleIds();
-                where.AND = where.AND || [];
                 where.approvalStatus = ApprovalStatus.APPROVED;
-                if (oldIds !== null) {
-                    if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
-                } else {
-                    // Fallback: exclude via ILIKE
-                    where.AND.push({
-                        OR: [
-                            { imageUncPath: null },
-                            { imageUncPath: '' },
-                            {
-                                NOT: {
-                                    OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                        imageUncPath: { contains: m, mode: 'insensitive' as const }
-                                    }))
-                                }
-                            }
-                        ]
-                    });
-                }
+                where.isOldArticle = false;
             }
 
             // Status Filtering (Multi-select support)
@@ -1121,64 +947,17 @@ export class ApproverController {
                 }
             }
 
-            // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
-            // null means cache-load failed; fall back to Prisma ILIKE (fast with pg_trgm index).
+            // Path-type filter — backed by the persistent `is_old_article` column
+            // (see getItems for rationale). No ILIKE scan, no giant IN/NOT IN list.
             console.log(`[ApproverController] exportAll pathType=${pathType ?? 'none'}`);
-            if (pathType === 'old' || pathType === 'new') {
-                const oldIds = await ApproverController.getOldArticleIds();
-
-                where.AND = where.AND || [];
-                if (pathType === 'old') {
-                    if (oldIds !== null) {
-                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
-                    } else {
-                        where.AND.push({
-                            OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                imageUncPath: { contains: m, mode: 'insensitive' as const }
-                            }))
-                        });
-                    }
-                } else {
-                    where.AND.push({ approvalStatus: ApprovalStatus.PENDING });
-                    if (oldIds !== null) {
-                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
-                    } else {
-                        where.AND.push({
-                            OR: [
-                                { imageUncPath: null },
-                                { imageUncPath: '' },
-                                {
-                                    NOT: {
-                                        OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                            imageUncPath: { contains: m, mode: 'insensitive' as const }
-                                        }))
-                                    }
-                                }
-                            ]
-                        });
-                    }
-                }
+            if (pathType === 'old') {
+                where.isOldArticle = true;
+            } else if (pathType === 'new') {
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.isOldArticle = false;
             } else if (pathType === 'created') {
-                const oldIds = await ApproverController.getOldArticleIds();
-                where.AND = where.AND || [];
-                where.AND.push({ approvalStatus: ApprovalStatus.APPROVED });
-                if (oldIds !== null) {
-                    if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
-                } else {
-                    where.AND.push({
-                        OR: [
-                            { imageUncPath: null },
-                            { imageUncPath: '' },
-                            {
-                                NOT: {
-                                    OR: ApproverController.OLD_PATH_MARKERS.map(m => ({
-                                        imageUncPath: { contains: m, mode: 'insensitive' as const }
-                                    }))
-                                }
-                            }
-                        ]
-                    });
-                }
+                where.approvalStatus = ApprovalStatus.APPROVED;
+                where.isOldArticle = false;
             }
 
             // Status filter

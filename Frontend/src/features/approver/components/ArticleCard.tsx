@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Minus, Plus, RotateCw, ZoomIn } from 'lucide-react';
 import {
   Button,
@@ -29,7 +29,7 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-export function ArticleCard({ item, index, onClick }: ArticleCardProps) {
+function ArticleCardComponent({ item, index, onClick }: ArticleCardProps) {
   const statusKey = (item.approvalStatus ?? 'PENDING') as string;
   const s = STATUS_STYLES[statusKey] ?? STATUS_STYLES.PENDING;
 
@@ -75,6 +75,8 @@ export function ArticleCard({ item, index, onClick }: ArticleCardProps) {
               <img
                 src={item.imageUrl}
                 alt="article"
+                loading="lazy"
+                decoding="async"
                 className="h-14 w-14 rounded-lg border border-border object-cover transition-opacity group-hover:opacity-90"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
@@ -216,6 +218,14 @@ export function ArticleCard({ item, index, onClick }: ArticleCardProps) {
     </>
   );
 }
+
+/**
+ * Memoized so a parent re-render (filter change, pagination, sibling card's
+ * modal opening) does NOT re-render every card in the grid. Only re-renders
+ * when this card's own `item`/`index`/`onClick` props actually change.
+ * NOTE: requires the parent to pass a STABLE `onClick` (useCallback).
+ */
+export const ArticleCard = memo(ArticleCardComponent);
 
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (

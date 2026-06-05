@@ -230,6 +230,11 @@ export default function Products() {
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  // Debounced copy of `search`. Typing updates `search` instantly (so the input
+  // stays responsive) but the expensive `filteredRows` re-computation — which
+  // scans/maps every row — only re-runs 250ms after the user stops typing,
+  // instead of on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
   const [detailsRow, setDetailsRow] = useState<ProductRow | null>(null);
   const [editingRow, setEditingRow] = useState<ProductRow | null>(null);
@@ -675,6 +680,11 @@ export default function Products() {
     }
   }, [subDivisionFilter, subDivisionOptions]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const filteredRows = useMemo(
     () =>
       rows
@@ -682,7 +692,7 @@ export default function Products() {
           if (divisionFilter !== 'ALL' && normalizeDivision(String(row.flatData?.division || '').toUpperCase()) !== divisionFilter) return false;
           if (subDivisionFilter !== 'ALL' && String(row.flatData?.subDivision || '').toUpperCase() !== subDivisionFilter) return false;
           const haystack = `${row.name} ${row.productType} ${row.vendor} ${row.userName || ''} ${row.userEmail || ''}`.toLowerCase();
-          return haystack.includes(search.toLowerCase());
+          return haystack.includes(debouncedSearch.toLowerCase());
         })
         // Pre-compute the "Extracted Data" preview once per row so the column
         // render is a cheap string lookup instead of filter+slice+map on every
@@ -702,7 +712,7 @@ export default function Products() {
           (row as any).__extractedPreview = items.length > 0 ? items.join(', ') : '';
           return row;
         }),
-    [rows, divisionFilter, subDivisionFilter, search],
+    [rows, divisionFilter, subDivisionFilter, debouncedSearch],
   );
 
   const toggleExpand = (key: string) => {

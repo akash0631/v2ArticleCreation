@@ -14002,6 +14002,7 @@ export namespace Prisma {
     approvedAt: Date | null
     source: string | null
     imageUncPath: string | null
+    isOldArticle: boolean | null
     isGeneric: boolean | null
     genericArticleId: string | null
     variantSize: string | null
@@ -14127,6 +14128,7 @@ export namespace Prisma {
     approvedAt: Date | null
     source: string | null
     imageUncPath: string | null
+    isOldArticle: boolean | null
     isGeneric: boolean | null
     genericArticleId: string | null
     variantSize: string | null
@@ -14252,6 +14254,7 @@ export namespace Prisma {
     approvedAt: number
     source: number
     imageUncPath: number
+    isOldArticle: number
     isGeneric: number
     genericArticleId: number
     variantSize: number
@@ -14409,6 +14412,7 @@ export namespace Prisma {
     approvedAt?: true
     source?: true
     imageUncPath?: true
+    isOldArticle?: true
     isGeneric?: true
     genericArticleId?: true
     variantSize?: true
@@ -14534,6 +14538,7 @@ export namespace Prisma {
     approvedAt?: true
     source?: true
     imageUncPath?: true
+    isOldArticle?: true
     isGeneric?: true
     genericArticleId?: true
     variantSize?: true
@@ -14659,6 +14664,7 @@ export namespace Prisma {
     approvedAt?: true
     source?: true
     imageUncPath?: true
+    isOldArticle?: true
     isGeneric?: true
     genericArticleId?: true
     variantSize?: true
@@ -14871,6 +14877,7 @@ export namespace Prisma {
     approvedAt: Date | null
     source: string | null
     imageUncPath: string | null
+    isOldArticle: boolean
     isGeneric: boolean
     genericArticleId: string | null
     variantSize: string | null
@@ -15015,6 +15022,7 @@ export namespace Prisma {
     approvedAt?: boolean
     source?: boolean
     imageUncPath?: boolean
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: boolean
     variantSize?: boolean
@@ -15144,6 +15152,7 @@ export namespace Prisma {
     approvedAt?: boolean
     source?: boolean
     imageUncPath?: boolean
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: boolean
     variantSize?: boolean
@@ -15271,6 +15280,7 @@ export namespace Prisma {
     approvedAt?: boolean
     source?: boolean
     imageUncPath?: boolean
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: boolean
     variantSize?: boolean
@@ -15398,6 +15408,7 @@ export namespace Prisma {
     approvedAt?: boolean
     source?: boolean
     imageUncPath?: boolean
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: boolean
     variantSize?: boolean
@@ -15409,7 +15420,7 @@ export namespace Prisma {
     srmUniqueId?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isOldArticle" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
@@ -15546,6 +15557,7 @@ export namespace Prisma {
       approvedAt: Date | null
       source: string | null
       imageUncPath: string | null
+      isOldArticle: boolean
       isGeneric: boolean
       genericArticleId: string | null
       variantSize: string | null
@@ -16094,6 +16106,7 @@ export namespace Prisma {
     readonly approvedAt: FieldRef<"ExtractionResultFlat", 'DateTime'>
     readonly source: FieldRef<"ExtractionResultFlat", 'String'>
     readonly imageUncPath: FieldRef<"ExtractionResultFlat", 'String'>
+    readonly isOldArticle: FieldRef<"ExtractionResultFlat", 'Boolean'>
     readonly isGeneric: FieldRef<"ExtractionResultFlat", 'Boolean'>
     readonly genericArticleId: FieldRef<"ExtractionResultFlat", 'String'>
     readonly variantSize: FieldRef<"ExtractionResultFlat", 'String'>
@@ -39983,6 +39996,7 @@ export namespace Prisma {
     approvedAt: 'approvedAt',
     source: 'source',
     imageUncPath: 'imageUncPath',
+    isOldArticle: 'isOldArticle',
     isGeneric: 'isGeneric',
     genericArticleId: 'genericArticleId',
     variantSize: 'variantSize',
@@ -42130,6 +42144,7 @@ export namespace Prisma {
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageUncPath?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    isOldArticle?: BoolFilter<"ExtractionResultFlat"> | boolean
     isGeneric?: BoolFilter<"ExtractionResultFlat"> | boolean
     genericArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     variantSize?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -42258,6 +42273,7 @@ export namespace Prisma {
     approvedAt?: SortOrderInput | SortOrder
     source?: SortOrderInput | SortOrder
     imageUncPath?: SortOrderInput | SortOrder
+    isOldArticle?: SortOrder
     isGeneric?: SortOrder
     genericArticleId?: SortOrderInput | SortOrder
     variantSize?: SortOrderInput | SortOrder
@@ -42390,6 +42406,7 @@ export namespace Prisma {
     approvedBy?: IntNullableFilter<"ExtractionResultFlat"> | number | null
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    isOldArticle?: BoolFilter<"ExtractionResultFlat"> | boolean
     isGeneric?: BoolFilter<"ExtractionResultFlat"> | boolean
     genericArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     variantSize?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -42518,6 +42535,7 @@ export namespace Prisma {
     approvedAt?: SortOrderInput | SortOrder
     source?: SortOrderInput | SortOrder
     imageUncPath?: SortOrderInput | SortOrder
+    isOldArticle?: SortOrder
     isGeneric?: SortOrder
     genericArticleId?: SortOrderInput | SortOrder
     variantSize?: SortOrderInput | SortOrder
@@ -42651,6 +42669,7 @@ export namespace Prisma {
     approvedAt?: DateTimeNullableWithAggregatesFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     imageUncPath?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
+    isOldArticle?: BoolWithAggregatesFilter<"ExtractionResultFlat"> | boolean
     isGeneric?: BoolWithAggregatesFilter<"ExtractionResultFlat"> | boolean
     genericArticleId?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     variantSize?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
@@ -45795,6 +45814,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -45923,6 +45943,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -46047,6 +46068,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46175,6 +46197,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46301,6 +46324,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -46424,6 +46448,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46549,6 +46574,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -50188,6 +50214,7 @@ export namespace Prisma {
     approvedAt?: SortOrder
     source?: SortOrder
     imageUncPath?: SortOrder
+    isOldArticle?: SortOrder
     isGeneric?: SortOrder
     genericArticleId?: SortOrder
     variantSize?: SortOrder
@@ -50328,6 +50355,7 @@ export namespace Prisma {
     approvedAt?: SortOrder
     source?: SortOrder
     imageUncPath?: SortOrder
+    isOldArticle?: SortOrder
     isGeneric?: SortOrder
     genericArticleId?: SortOrder
     variantSize?: SortOrder
@@ -50453,6 +50481,7 @@ export namespace Prisma {
     approvedAt?: SortOrder
     source?: SortOrder
     imageUncPath?: SortOrder
+    isOldArticle?: SortOrder
     isGeneric?: SortOrder
     genericArticleId?: SortOrder
     variantSize?: SortOrder
@@ -55005,6 +55034,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -55131,6 +55161,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -55379,6 +55410,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -55505,6 +55537,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -56467,6 +56500,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -56593,6 +56627,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -56849,6 +56884,7 @@ export namespace Prisma {
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageUncPath?: StringNullableFilter<"ExtractionResultFlat"> | string | null
+    isOldArticle?: BoolFilter<"ExtractionResultFlat"> | boolean
     isGeneric?: BoolFilter<"ExtractionResultFlat"> | boolean
     genericArticleId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     variantSize?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -58387,6 +58423,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -58514,6 +58551,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -58690,6 +58728,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -58817,6 +58856,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59565,6 +59605,7 @@ export namespace Prisma {
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
+    isOldArticle?: boolean
     isGeneric?: boolean
     genericArticleId?: string | null
     variantSize?: string | null
@@ -59850,6 +59891,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59976,6 +60018,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60101,6 +60144,7 @@ export namespace Prisma {
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
+    isOldArticle?: BoolFieldUpdateOperationsInput | boolean
     isGeneric?: BoolFieldUpdateOperationsInput | boolean
     genericArticleId?: NullableStringFieldUpdateOperationsInput | string | null
     variantSize?: NullableStringFieldUpdateOperationsInput | string | null

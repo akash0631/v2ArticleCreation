@@ -365,6 +365,7 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   approvedAt: 'approvedAt',
   source: 'source',
   imageUncPath: 'imageUncPath',
+  isOldArticle: 'isOldArticle',
   isGeneric: 'isGeneric',
   genericArticleId: 'genericArticleId',
   variantSize: 'variantSize',
