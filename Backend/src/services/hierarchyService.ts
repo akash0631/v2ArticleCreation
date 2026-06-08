@@ -176,6 +176,82 @@ class HierarchyService {
     this.set(cacheKey, result);
     return result;
   }
+
+  /**
+   * The set of `master_attributes.key` values that are governed by the grid
+   * (i.e. have a non-null `grid_attribute_name`). These are the garment
+   * attributes whose values must come from the per-category grid whitelist.
+   *
+   * Attributes NOT in this set (e.g. design_number, rate, vendor_name,
+   * major_category, division, size) are metadata/identity fields and are
+   * never grid-constrained.
+   */
+  async getGridGovernedKeys(): Promise<Set<string>> {
+    const cached = this.get<string[]>('gridGovernedKeys');
+    if (cached) return new Set(cached);
+
+    const rows = await prisma.$queryRaw<{ key: string }[]>`
+      SELECT key
+      FROM master_attributes
+      WHERE grid_attribute_name IS NOT NULL
+        AND TRIM(grid_attribute_name) <> ''
+        AND is_active = true
+    `;
+    const keys = rows.map(r => r.key).filter(Boolean);
+    this.set('gridGovernedKeys', keys);
+    return new Set(keys);
+  }
+
+  /**
+   * Per-major-category allowed values from `maj_cat_grid_values`.
+   *
+   * Joins the grid table to `master_attributes` via the canonical
+   * `grid_attribute_name` column, returning a map of
+   *   schemaKey (master_attributes.key) → allowed shortForm values[]
+   * for the given major category.
+   *
+   * STRICT scoping: this is the per-category whitelist. There is NO fallback
+   * to the global `attribute_allowed_values`. If the category has no grid rows,
+   * the returned map is empty (caller must treat that as "extract nothing").
+   */
+  async getCategoryGridValues(majorCategory: string): Promise<Map<string, string[]>> {
+    const code = String(majorCategory || '').trim();
+    if (!code) return new Map();
+
+    const cacheKey = `grid:${code.toUpperCase()}`;
+    const cached = this.get<Record<string, string[]>>(cacheKey);
+    if (cached) return new Map(Object.entries(cached));
+
+    const rows = await prisma.$queryRaw<
+      { schema_key: string; value: string }[]
+    >`
+      SELECT m.key AS schema_key, g.value AS value
+      FROM maj_cat_grid_values g
+      JOIN master_attributes m
+        ON m.grid_attribute_name = g.attribute_name
+       AND m.is_active = true
+      WHERE UPPER(TRIM(g.major_category)) = ${code.toUpperCase()}
+        AND g.value IS NOT NULL
+        AND TRIM(g.value) <> ''
+    `;
+
+    const map = new Map<string, string[]>();
+    for (const row of rows) {
+      const key = row.schema_key;
+      const val = String(row.value).trim();
+      // Skip empty and pure-dash placeholders ("-", "--") — these are
+      // "no value" markers in the grid, not real allowed choices.
+      if (!val || /^-+$/.test(val)) continue;
+      if (!map.has(key)) map.set(key, []);
+      const list = map.get(key)!;
+      if (!list.includes(val)) list.push(val);
+    }
+
+    // Cache as plain object (Map isn't required to be serializable, but keeps
+    // the cache shape consistent with the rest of this service).
+    this.set(cacheKey, Object.fromEntries(map));
+    return map;
+  }
 }
 
 export const hierarchyService = new HierarchyService();

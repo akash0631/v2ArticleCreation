@@ -14,15 +14,42 @@
 import { Request, Response, NextFunction } from 'express';
 import { VLMService } from '../services/vlm/vlmService';
 import { ImageProcessor } from '../utils/imageProcessor';
-import { SIMPLIFIED_ATTRIBUTES, getSimplifiedSchema, filterByConfidence, applyGarmentTypeRules } from '../config/simplifiedAttributes';
+import { getSimplifiedSchema, filterByConfidence, applyGarmentTypeRules } from '../config/simplifiedAttributes';
 import { SimplifiedPromptService } from '../services/simplifiedPromptService';
 import { getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { hierarchyService } from '../services/hierarchyService';
 import type { FashionExtractionRequest } from '../types/vlm';
 
+interface BaseSchemaItem {
+  key: string;
+  label: string;
+  type: any;
+  required: boolean;
+  confidenceThreshold?: number;
+}
+
 export class SimplifiedExtractionController {
   private vlmService = new VLMService();
   private promptService = new SimplifiedPromptService();
+
+  /**
+   * Restrict an extraction schema to the per-major-category grid whitelist.
+   *
+   * STRICT scoping (per product requirement):
+   *  - Only attributes that have grid values for this major category are kept.
+   *  - Each kept attribute gets `allowedValues` = that category's grid values,
+   *    so the VLM must pick the nearest of those values.
+   *  - Attributes with NO grid value for this category are DROPPED entirely
+   *    (no global-allowed-value fallback → nothing extracted/stored for them).
+   */
+  private applyGridConstraint(
+    baseSchema: BaseSchemaItem[],
+    gridValues: Map<string, string[]>
+  ): Array<BaseSchemaItem & { allowedValues: string[] }> {
+    return baseSchema
+      .filter(a => gridValues.has(a.key) && gridValues.get(a.key)!.length > 0)
+      .map(a => ({ ...a, allowedValues: gridValues.get(a.key)! }));
+  }
 
   /**
    * Simplified extraction from uploaded image
@@ -65,16 +92,60 @@ export class SimplifiedExtractionController {
       // Convert image to base64
       const base64Image = await ImageProcessor.processImageToBase64(req.file);
 
-      const attrCount = dbCategory ? dbCategory.attributes.length : SIMPLIFIED_ATTRIBUTES.length;
+      // Per-major-category allowed values (strict whitelist, no global fallback).
+      const gridValues = await hierarchyService.getCategoryGridValues(normalizedMajorCategory);
+
+      // STRICT: a category with no grid values stores nothing during extraction.
+      if (gridValues.size === 0) {
+        console.log(`⏭️  No grid values for major category "${majorCategory}" — nothing extracted/stored.`);
+        res.json({
+          success: true,
+          data: { attributes: {}, confidence: 0, processingTime: 0 },
+          metadata: {
+            simplifiedMode: true,
+            dbDriven: !!dbCategory,
+            gridConstrained: true,
+            totalAttributes: 0,
+            highConfidenceCount: 0,
+            confidenceThreshold: 65,
+            note: 'No grid values configured for this major category'
+          },
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      // Base schema (DB attributes if available, else hardcoded fallback),
+      // then narrowed to the per-category grid whitelist.
+      const baseSchema: BaseSchemaItem[] = dbCategory
+        ? dbCategory.attributes.map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false, confidenceThreshold: a.confidenceThreshold }))
+        : getSimplifiedSchema().map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false }));
+      const schema = this.applyGridConstraint(baseSchema, gridValues);
+      const attrCount = schema.length;
+
       console.log(`🚀 Simplified Extraction Started`);
       console.log(`   Department: ${department}`);
       console.log(`   Major Category: ${majorCategory}`);
-      console.log(`   Attributes: ${attrCount} (${dbCategory ? 'DB-driven' : 'hardcoded fallback'})`);
+      console.log(`   Attributes: ${attrCount} grid-constrained (${dbCategory ? 'DB-driven' : 'hardcoded fallback'})`);
 
-      // Use DB attributes if available, else fall back to hardcoded
-      const schema = dbCategory
-        ? dbCategory.attributes.map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false, confidenceThreshold: a.confidenceThreshold }))
-        : getSimplifiedSchema();
+      // No grid-constrained attributes intersect the schema → nothing to store.
+      if (attrCount === 0) {
+        console.log(`⏭️  Grid has values, but none match this category's schema — nothing stored.`);
+        res.json({
+          success: true,
+          data: { attributes: {}, confidence: 0, processingTime: 0 },
+          metadata: {
+            simplifiedMode: true,
+            dbDriven: !!dbCategory,
+            gridConstrained: true,
+            totalAttributes: 0,
+            highConfidenceCount: 0,
+            confidenceThreshold: 65
+          },
+          timestamp: Date.now()
+        });
+        return;
+      }
 
       // Generate simplified prompt
       const customPrompt = this.promptService.generateSimplifiedPrompt(department, majorCategory);
@@ -140,12 +211,53 @@ export class SimplifiedExtractionController {
         return;
       }
 
-      const attrCount = dbCategory ? dbCategory.attributes.length : SIMPLIFIED_ATTRIBUTES.length;
-      console.log(`🚀 Simplified Base64 Extraction Started — ${department} / ${majorCategory} (${attrCount} attrs)`);
+      // Per-major-category allowed values (strict whitelist, no global fallback).
+      const gridValues = await hierarchyService.getCategoryGridValues(normalizedMajorCategory);
 
-      const schema = dbCategory
+      // STRICT: a category with no grid values stores nothing during extraction.
+      if (gridValues.size === 0) {
+        console.log(`⏭️  No grid values for major category "${majorCategory}" — nothing extracted/stored.`);
+        res.json({
+          success: true,
+          data: { attributes: {}, confidence: 0, processingTime: 0 },
+          metadata: {
+            simplifiedMode: true,
+            dbDriven: !!dbCategory,
+            gridConstrained: true,
+            totalAttributes: 0,
+            highConfidenceCount: 0,
+            confidenceThreshold: 65,
+            note: 'No grid values configured for this major category'
+          },
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      const baseSchema: BaseSchemaItem[] = dbCategory
         ? dbCategory.attributes.map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false, confidenceThreshold: a.confidenceThreshold }))
-        : getSimplifiedSchema();
+        : getSimplifiedSchema().map(a => ({ key: a.key, label: a.label, type: a.type as any, required: false }));
+      const schema = this.applyGridConstraint(baseSchema, gridValues);
+      const attrCount = schema.length;
+      console.log(`🚀 Simplified Base64 Extraction Started — ${department} / ${majorCategory} (${attrCount} grid-constrained attrs)`);
+
+      if (attrCount === 0) {
+        console.log(`⏭️  Grid has values, but none match this category's schema — nothing stored.`);
+        res.json({
+          success: true,
+          data: { attributes: {}, confidence: 0, processingTime: 0 },
+          metadata: {
+            simplifiedMode: true,
+            dbDriven: !!dbCategory,
+            gridConstrained: true,
+            totalAttributes: 0,
+            highConfidenceCount: 0,
+            confidenceThreshold: 65
+          },
+          timestamp: Date.now()
+        });
+        return;
+      }
 
       // Generate simplified prompt
       const customPrompt = this.promptService.generateSimplifiedPrompt(department, majorCategory);

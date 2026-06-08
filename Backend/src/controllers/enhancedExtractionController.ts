@@ -16,6 +16,8 @@ import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { duplicateForKidsDivision } from '../services/kidsDivisionDuplicationService';
 import { createVariantsForGeneric } from '../services/variantCreationService';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
+import { hierarchyService } from '../services/hierarchyService';
+import { snapValueToGrid } from '../utils/gridSnap';
 
 export class EnhancedExtractionController {
   private vlmService = new VLMService();
@@ -205,6 +207,46 @@ export class EnhancedExtractionController {
         }
       });
 
+      // STRICT per-major-category grid enforcement (garment attributes only).
+      //
+      // On the main extraction page the major category is NOT chosen up front —
+      // the VLM/OCR classifies it during extraction — so we cannot pre-constrain
+      // the schema like the auto-pipeline does. Instead we enforce the grid
+      // whitelist here, after extraction, once the major category is known:
+      //   • GRID-GOVERNED garment attributes (master_attributes.grid_attribute_name
+      //     is set) are snapped to the nearest grid value; if this category has no
+      //     grid values for that attribute (or no grid resolves at all) the value
+      //     is dropped (strict whitelist).
+      //   • Metadata/identity attributes (major_category, vendor_name/code,
+      //     design_number, rate, mrp, size, division, gsm, weight, …) are NOT
+      //     grid-governed and pass through unchanged so the article stays usable.
+      //
+      // The major category is read from extracted metadata first, then from the
+      // extracted `major_category` attribute (the OCR'd whiteboard code, e.g.
+      // "MW_TEES_FS"), so the grid resolves on the normal extraction path.
+      const majorFromAttrs = (() => {
+        const a = (result.attributes as any)?.major_category
+          ?? (result.attributes as any)?.majorCategory
+          ?? null;
+        const v = a ? (a.schemaValue ?? a.rawValue ?? null) : null;
+        return v != null && String(v).trim() !== '' ? String(v).trim() : null;
+      })();
+      const majorMetaValue = (result.extractedMetadata as any)?.majorCategory
+        ?? (result.extractedMetadata as any)?.major_category
+        ?? majorFromAttrs
+        ?? null;
+      const gridValues = majorMetaValue
+        ? await hierarchyService.getCategoryGridValues(String(majorMetaValue).trim())
+        : new Map<string, string[]>();
+      const gridGovernedKeys = await hierarchyService.getGridGovernedKeys();
+      const keyByAttributeId = new Map<number, string>(
+        attributes.map(a => [a.id, a.key] as [number, string])
+      );
+      const gridReady = gridValues.size > 0;
+      if (!gridReady) {
+        console.log(`[Enhanced] No grid values for major category "${majorMetaValue ?? '(none)'}" — grid-governed garment attributes not stored (strict).`);
+      }
+
       const attributeEntries = Object.entries(result.attributes || {})
         .filter(([_, v]) => {
           const value = v as any;
@@ -214,6 +256,32 @@ export class EnhancedExtractionController {
           const token = normalizeToken(key);
           const attributeId = attributeIdByKey.get(token);
           if (!attributeId) return null;
+
+          const masterKey = keyByAttributeId.get(attributeId);
+          const isGridGoverned = masterKey ? gridGovernedKeys.has(masterKey) : false;
+
+          if (isGridGoverned) {
+            // STRICT grid scoping: drop the garment attribute when no grid is
+            // resolvable, or this attribute has no grid values for the category.
+            const allowed = (gridReady && masterKey) ? gridValues.get(masterKey) : undefined;
+            if (!allowed || allowed.length === 0) return null;
+
+            const extracted = v.schemaValue ?? v.rawValue ?? null;
+            // Snap to the nearest grid value; null when there is no reasonable match.
+            const snapped = extracted != null ? snapValueToGrid(String(extracted), allowed) : null;
+            // Keep rawValue aligned with finalValue so the downstream flattener
+            // (which falls back to rawValue when finalValue is null) cannot
+            // resurrect an off-grid value.
+            return {
+              attributeId,
+              rawValue: snapped,
+              finalValue: snapped,
+              confidence: v.visualConfidence ?? null,
+              extractionMethod: 'VLM',
+            };
+          }
+
+          // Non-grid metadata/identity attribute: store as extracted.
           const schemaValue = v.schemaValue ?? v.rawValue ?? null;
           const finalValue = schemaValue !== null && schemaValue !== undefined ? String(schemaValue) : null;
           return {
@@ -226,9 +294,6 @@ export class EnhancedExtractionController {
         })
         .filter(Boolean) as Array<{ attributeId: number; rawValue: string | null; finalValue: string | null; confidence: number | null; extractionMethod: string; }>;
 
-      const majorMetaValue = (result.extractedMetadata as any)?.majorCategory
-        ?? (result.extractedMetadata as any)?.major_category
-        ?? null;
       if (majorMetaValue) {
         const majorToken = normalizeToken('major_category');
         const majorAltToken = normalizeToken('major category');
