@@ -31,6 +31,8 @@ import { VLMService } from './vlm/vlmService';
 import { mvgrMappingService } from './mvgrMappingService';
 import { storageService } from './storageService';
 import { upsertRawArticleFromSrm, RAW_PIPELINE_CUTOFF } from './rawArticleExtractionService';
+import { hierarchyService } from './hierarchyService';
+import { snapValueToGrid } from '../utils/gridSnap';
 
 const SRM_API_BASE = 'https://pymdqnnwwxrgeolvgvgv.supabase.co/functions/v1/srm-presentation-images-api';
 const SRM_API_KEY = process.env.SRM_API_KEY || 'v2@123';
@@ -416,13 +418,39 @@ async function enrichSrmRowWithVlm(
   const schema = await getEnrichSchema();
   console.log(`[SRM VLM] ✓ Schema loaded — ${schema.length} attributes`);
 
+  // ── Step 2b: constrain schema to the per-major-category grid whitelist ────
+  // STRICT (matches the manual extraction page): the grid is the whitelist.
+  //  - Only attributes that have grid values for this category are kept.
+  //  - Each kept attribute is given allowedValues = that category's grid values,
+  //    so the VLM must pick the nearest of those (e.g. M_WASH → RINSE_WSH, not RINSE).
+  //  - NO fallback to the global attribute_allowed_values list.
+  //  - A category with no grid (or a null category) stores nothing: we mark the
+  //    record COMPLETED with zero attributes so it isn't reprocessed forever.
+  const gridValues = majorCategory
+    ? await hierarchyService.getCategoryGridValues(majorCategory)
+    : new Map<string, string[]>();
+
+  const constrainedSchema = schema
+    .filter(s => gridValues.has(s.key) && gridValues.get(s.key)!.length > 0)
+    .map(s => ({ ...s, allowedValues: gridValues.get(s.key)! }));
+
+  if (constrainedSchema.length === 0) {
+    console.log(`[SRM VLM] No grid values for category "${majorCategory}" — marking COMPLETED with no attributes (nothing stored).`);
+    await prisma.extractionResultFlat.update({
+      where: { id: flatId },
+      data: { extractionStatus: 'COMPLETED', avgConfidence: 0, aiModel: 'grid-skip' },
+    });
+    return true;
+  }
+  console.log(`[SRM VLM] ✓ Grid-constrained schema — ${constrainedSchema.length}/${schema.length} attributes for "${majorCategory}"`);
+
   // ── Step 3: VLM call with up to VLM_MAX_ATTEMPTS attempts ─────────────────
   for (let attempt = 1; attempt <= VLM_MAX_ATTEMPTS; attempt++) {
     const attemptTag = attempt > 1 ? ` [retry ${attempt - 1}/${VLM_MAX_ATTEMPTS - 1}]` : '';
     try {
       const result = await vlmService.extractFashionAttributes({
         image: base64Image,
-        schema,
+        schema: constrainedSchema,
         categoryName: majorCategory || undefined,
         discoveryMode: false,
       });
@@ -442,7 +470,20 @@ async function enrichSrmRowWithVlm(
           // Skip empty strings AND dash-only values — VLM uses "-" to mean
           // "not visible / not applicable". Storing it causes "----TOP-RINSE" style
           // article descriptions and pollutes DB fields that should stay null.
-          if (s !== '' && !/^-+$/.test(s)) return s;
+          if (s === '' || /^-+$/.test(s)) continue;
+          // Snap to the per-category grid whitelist. The schema is already
+          // grid-constrained (Step 2b), so any key present here is grid-governed
+          // and `gridValues` holds its allowed tokens. The VLM may still return
+          // a semantically-correct but off-grid token (e.g. "RINSE" instead of
+          // "RINSE_WSH"); snap it back to the canonical grid value, or drop it
+          // (continue to next key) if no reasonable match exists.
+          const allowed = gridValues.get(key);
+          if (allowed && allowed.length > 0) {
+            const snapped = snapValueToGrid(s, allowed);
+            if (snapped) return snapped;
+            continue;
+          }
+          return s;
         }
         return null;
       };
