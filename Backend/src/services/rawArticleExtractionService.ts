@@ -74,7 +74,13 @@ export async function runRawArticleExtraction(
         FROM   "public"."raw_articles"
         WHERE  status IN (
                  'PENDING'::"RawArticleStatus",
-                 'FAILED'::"RawArticleStatus"
+                 'FAILED'::"RawArticleStatus",
+                 -- Re-claim rows orphaned in PROCESSING (worker crashed/redeployed
+                 -- mid-batch). The locked_until guard below means only rows whose
+                 -- lock has EXPIRED are picked up, so actively-processing rows are
+                 -- never stolen. Without this, a row left in PROCESSING is never
+                 -- advanced again — it stays stuck forever.
+                 'PROCESSING'::"RawArticleStatus"
                )
           AND  retry_count < ${MAX_RETRIES}
           AND  (locked_until IS NULL OR locked_until < NOW())
