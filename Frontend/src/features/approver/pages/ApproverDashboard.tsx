@@ -208,11 +208,11 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
   const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
     // The "Created Date" column must use the SAME field the backend filters on for
-    // this tab — updatedAt (creation/approval date) on the Created tab, createdAt
+    // this tab — approvedAt (when the article was approved) on the Created tab, createdAt
     // (extraction date) everywhere else — so an export only contains the filtered range.
-    const dateSource: 'createdAt' | 'updatedAt' = pathType === 'created' ? 'updatedAt' : 'createdAt';
+    const dateSource: 'createdAt' | 'approvedAt' = pathType === 'created' ? 'approvedAt' : 'createdAt';
     return rows.map((row) => {
-      const rawDate = row[dateSource];
+      const rawDate = (row as any)[dateSource];
       const parsedDate = rawDate ? new Date(rawDate) : null;
       const formattedDate = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toLocaleDateString('en-GB') : '';
       return {
@@ -671,7 +671,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         <>
           <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {items.map((item, index) => (
-              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'updatedAt' : 'createdAt'} selected={selectedIds.has(item.id)} onToggleSelect={toggleSelect} />
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'approvedAt' : 'createdAt'} selected={selectedIds.has(item.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
           {totalCount > PAGE_SIZE && (

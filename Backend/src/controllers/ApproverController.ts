@@ -722,13 +722,10 @@ export class ApproverController {
             }
 
             // Date Range Filtering
-            // Created Articles tab filters by updatedAt (when the article was created/approved);
+            // Created Articles tab filters by approvedAt (when the article was actually approved);
             // every other tab filters by createdAt (when the article was first extracted).
-            // IMPORTANT: the displayed "Created Date" must use the SAME field — the frontend
-            // shows updatedAt on the Created tab and createdAt elsewhere — so the filtered
-            // date always matches the date shown in the cards and the Excel export.
             if (startDate && endDate) {
-                const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
+                const dateField = pathType === 'created' ? 'approvedAt' : 'createdAt';
                 (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
@@ -808,6 +805,7 @@ export class ApproverController {
                     referenceArticleNumber: true,
                     referenceArticleDescription: true,
                     approvalStatus: true,
+                    approvedAt: true,
                     sapSyncStatus: true,
                     sapSyncMessage: true,
                     sapArticleId: true,
@@ -1036,10 +1034,10 @@ export class ApproverController {
                 }
             }
 
-            // Date range — mirror getItems(): Created tab filters by updatedAt, every other
+            // Date range — mirror getItems(): Created tab filters by approvedAt, every other
             // tab by createdAt. The export's date column uses the matching field per tab.
             if (startDate && endDate) {
-                const dateField = pathType === 'created' ? 'updatedAt' : 'createdAt';
+                const dateField = pathType === 'created' ? 'approvedAt' : 'createdAt';
                 (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
@@ -1152,6 +1150,7 @@ export class ApproverController {
                     userName: true,
                     createdAt: true,
                     updatedAt: true,
+                    approvedAt: true,
                     sapSyncStatus: true,
                     // BOM
                     impAtrbt2: true,
