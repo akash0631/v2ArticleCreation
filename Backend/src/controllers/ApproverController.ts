@@ -6,7 +6,9 @@ import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMap
 import { parseNumericValue } from '../utils/mrpCalculator';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
-import { syncArticlesToSapViaRfc } from '../services/zmmArtCreationService';
+import { syncArticlesToSapViaRfc, buildModifyChangesPayload } from '../services/zmmArtCreationService';
+import { patchArticleAttributes } from '../services/sapModifyService';
+import { FLAT_TO_RFC } from '../data/flatToRfcMap';
 import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
 import { storageService, type WatermarkLabel } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
@@ -15,6 +17,45 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
+
+// Fields a client is allowed to update / modify on an article. Shared by
+// updateItem (PUT) and modifyItem (SAP patch-bulk). Anything not in this list
+// (ids, status, timestamps, SAP metadata) is never client-writable.
+const ITEM_UPDATE_ALLOWED_FIELDS = [
+    'articleNumber', 'division', 'subDivision', 'majorCategory', 'vendorName', 'designNumber',
+    'pptNumber', 'rate', 'size', 'yarn1', 'yarn2', 'fabricMainMvgr', 'weave',
+    'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra', 'neck', 'neckDetails',
+    // Body fields (full set)
+    'collar', 'collarStyle', 'placket', 'sleeve', 'sleeveFold', 'bottomFold',
+    'frontOpenStyle', 'noOfPocket', 'pocketType', 'extraPocket',
+    'fit', 'pattern', 'length', 'colour', 'fatherBelt', 'childBelt',
+    // Fabric detail fields
+    'fCount', 'fConstruction', 'fOunce', 'fWidth', 'fabDiv', 'fabVdr',
+    // VA Accessories
+    'drawcord', 'dcShape', 'button', 'btnColour', 'zipper', 'zipColour',
+    'patches', 'patchesType',
+    // VA Accessories — new
+    'htrfType', 'htrfStyle',
+    // VA Processing
+    'printType', 'printStyle', 'printPlacement',
+    'embroidery', 'embroideryType', 'embPlacement', 'wash',
+    // Business
+    'ageGroup', 'articleFashionType', 'articleDimension',
+    'referenceArticleNumber', 'referenceArticleDescription',
+    'impAtrbt2',
+    // Business / SAP fields
+    'macroMvgr', 'mainMvgr', 'mFab2',
+    'vendorCode', 'mrp', 'mcCode', 'segment', 'season',
+    'hsnTaxCode', 'articleDescription', 'fashionGrid', 'year', 'articleType',
+    // Card footer fields (fabric/body article builder)
+    'fabricArticleNumber', 'fabricArticleDescription',
+    'bodyArticle', 'bodyArticleDescription',
+    'attrArticleNums',
+    // Brand vendor MVGR
+    'mvgrBrandVendor',
+    // Variant-specific fields
+    'variantColor', 'variantSize',
+];
 
 export class ApproverController {
     private static readonly STARTUP_BACKFILL_BATCH_SIZE = parseInt(process.env.STARTUP_BACKFILL_BATCH_SIZE || '250', 10);
@@ -1268,46 +1309,10 @@ export class ApproverController {
             const rawData = req.body;
 
             // Whitelist allowed fields to prevent overwriting metadata
-            // and sanitize types
-            const allowedFields = [
-                'articleNumber', 'division', 'subDivision', 'majorCategory', 'vendorName', 'designNumber',
-                'pptNumber', 'rate', 'size', 'yarn1', 'yarn2', 'fabricMainMvgr', 'weave',
-                'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra', 'neck', 'neckDetails',
-                // Body fields (full set)
-                'collar', 'collarStyle', 'placket', 'sleeve', 'sleeveFold', 'bottomFold',
-                'frontOpenStyle', 'noOfPocket', 'pocketType', 'extraPocket',
-                'fit', 'pattern', 'length', 'colour', 'fatherBelt', 'childBelt',
-                // Fabric detail fields
-                'fCount', 'fConstruction', 'fOunce', 'fWidth', 'fabDiv', 'fabVdr',
-                // VA Accessories
-                'drawcord', 'dcShape', 'button', 'btnColour', 'zipper', 'zipColour',
-                'patches', 'patchesType',
-                // VA Accessories — new
-                'htrfType', 'htrfStyle',
-                // VA Processing
-                'printType', 'printStyle', 'printPlacement',
-                'embroidery', 'embroideryType', 'embPlacement', 'wash',
-                // Business
-                'ageGroup', 'articleFashionType', 'articleDimension',
-                'referenceArticleNumber', 'referenceArticleDescription',
-                'impAtrbt2',
-                // Business / SAP fields
-                'macroMvgr', 'mainMvgr', 'mFab2',
-                'vendorCode', 'mrp', 'mcCode', 'segment', 'season',
-                'hsnTaxCode', 'articleDescription', 'fashionGrid', 'year', 'articleType',
-                // Card footer fields (fabric/body article builder)
-                'fabricArticleNumber', 'fabricArticleDescription',
-                'bodyArticle', 'bodyArticleDescription',
-                'attrArticleNums',
-                // Brand vendor MVGR
-                'mvgrBrandVendor',
-                // Variant-specific fields
-                'variantColor', 'variantSize'
-            ];
-
+            // and sanitize types (shared with modifyItem via ITEM_UPDATE_ALLOWED_FIELDS)
             const data: any = {};
 
-            for (const field of allowedFields) {
+            for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
                 if (rawData[field] !== undefined) {
                     let value = rawData[field];
 
@@ -1554,6 +1559,145 @@ export class ApproverController {
         } catch (error) {
             console.error('Error updating item:', error);
             return res.status(500).json({ error: 'Failed to update item' });
+        }
+    }
+
+    // Modify an already-created (SAP-synced) article.
+    //
+    // Flow: build the SAP `Changes` payload from the edited fields → call the
+    // SAP patch-bulk API → ONLY if SAP applies them successfully, persist the
+    // same fields to our local DB. If SAP rejects, the DB is left untouched and
+    // the SAP error is returned so the user can fix the value and retry.
+    //
+    // Unlike updateItem, this is allowed on APPROVED articles (that is the whole
+    // point — Created Articles are APPROVED + SAP-synced).
+    static async modifyItem(req: Request, res: Response) {
+        ApproverController.itemsCache.clear();
+        ApproverController.countCache.clear();
+        try {
+            const { id } = req.params;
+            const changes = req.body?.changes;
+
+            if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
+                return res.status(400).json({ error: 'No changes provided' });
+            }
+
+            // Whitelist + coerce the incoming fields (mirrors updateItem).
+            const data: any = {};
+            for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
+                if (changes[field] === undefined) continue;
+                let value = changes[field];
+                if (field === 'rate' || field === 'mrp') {
+                    value = value === '' || value === null || value === undefined ? null : parseNumericValue(value);
+                } else if (field === 'weight') {
+                    value = ApproverController.extractNumericWeight(value);
+                } else if (field === 'vendorCode') {
+                    if (!hasVendorCode(value) || !isValidVendorCode(value)) {
+                        return res.status(400).json({ error: 'Vendor Code is required and must be exactly 6 digits.' });
+                    }
+                    value = normalizeVendorCode(value);
+                } else if (value === '') {
+                    value = null;
+                }
+                data[field] = value;
+            }
+
+            if (Object.keys(data).length === 0) {
+                return res.status(400).json({ error: 'No valid fields to modify' });
+            }
+
+            // Load the FULL article record: every SAP-mapped field is needed so
+            // the modify payload can carry all of them (not just the diff), plus
+            // the description-source fields and a few control fields.
+            const existingItem = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: {
+                    id: true,
+                    sapArticleId: true,
+                    approvalStatus: true,
+                    division: true,
+                    subDivision: true,
+                    majorCategory: true,
+                    mrp: true,
+                    isGeneric: true,
+                    ...Object.fromEntries(FLAT_TO_RFC.map((m) => [m.flat, true])),
+                    ...Object.fromEntries(ARTICLE_DESCRIPTION_SOURCE_FIELDS.map((f) => [f, true])),
+                } as any,
+            });
+
+            if (!existingItem) {
+                return res.status(404).json({ error: 'Item not found' });
+            }
+
+            // RBAC: same division / sub-division scoping as updateItem.
+            const role = String(req.user?.role || '');
+            if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
+                const existingDivision = ApproverController.normalizeText((existingItem as any).division);
+                const existingSubDivision = ApproverController.normalizeText((existingItem as any).subDivision);
+                const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
+                const userSubDivisionVariants = ApproverController.getSubDivisionVariants(req.user?.subDivision);
+                if (userDivisionVariants.length > 0 && !userDivisionVariants.includes(existingDivision)) {
+                    return res.status(403).json({ error: 'Access denied: Division mismatch' });
+                }
+                if ((role === 'APPROVER' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
+                    return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
+                }
+            }
+
+            const matnr = (existingItem as any).sapArticleId ? String((existingItem as any).sapArticleId).trim() : '';
+            if (!matnr) {
+                return res.status(400).json({ error: 'This article has no SAP article number yet, so it cannot be modified in SAP.' });
+            }
+
+            // Recalculate segment when MRP or majorCategory changes (mirrors updateItem).
+            // Done BEFORE building the payload so the recalculated segment is sent to SAP.
+            const finalMajorCategory = (data.majorCategory !== undefined ? data.majorCategory : (existingItem as any).majorCategory) as string | null;
+            const finalMrp = data.mrp !== undefined ? data.mrp : (existingItem as any).mrp;
+            if (finalMajorCategory && finalMrp !== null && finalMrp !== undefined) {
+                const segment = getSegmentByCategoryAndMrp(finalMajorCategory, finalMrp);
+                if (segment) data.segment = segment;
+            }
+
+            // ── Build the FULL Changes payload from the merged record. ──
+            // The user's edits (`data`) are merged over the current DB record, then
+            // buildModifyChangesPayload emits EVERY field applicable to this article
+            // (all identity/price/business fields + the garment characteristics valid
+            // for its major category), including empties. So changing one field still
+            // sends the complete attribute set to SAP.
+            const mergedItem = { ...(existingItem as any), ...data };
+            const sapChanges = await buildModifyChangesPayload(mergedItem);
+
+            // ── Call SAP FIRST. Only persist locally on success. ──
+            const result = await patchArticleAttributes(matnr, sapChanges);
+            if (!result.ok) {
+                return res.status(502).json({ error: result.message || 'SAP modification failed', sap: result.raw });
+            }
+            const sapResult: { applied: number; message: string } = { applied: result.applied, message: result.message };
+
+            // Rebuild article description from the merged attribute values.
+            const descriptionSource: any = {};
+            for (const field of ARTICLE_DESCRIPTION_SOURCE_FIELDS) {
+                descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
+            }
+            const majCatForDescCheck = data.majorCategory ?? (existingItem as any).majorCategory;
+            data.articleDescription = buildArticleDescription(descriptionSource, 40, {
+                excludeFields: await getExcludedDescriptionFields(majCatForDescCheck) as any,
+            });
+
+            const updated = await prisma.extractionResultFlat.update({ where: { id }, data });
+
+            // Mirror to 360article.article_360_flat (fire-and-forget)
+            void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] modify update failed:', err?.message));
+
+            // Keep variants in sync for generic articles (fire-and-forget)
+            if ((existingItem as any).isGeneric) {
+                void syncGenericToVariants((existingItem as any).id, data).catch((err: any) => console.error('[syncGenericToVariants] modify failed:', err?.message));
+            }
+
+            return res.json({ ...updated, sapModify: sapResult });
+        } catch (error) {
+            console.error('Error modifying item:', error);
+            return res.status(500).json({ error: 'Failed to modify item' });
         }
     }
 

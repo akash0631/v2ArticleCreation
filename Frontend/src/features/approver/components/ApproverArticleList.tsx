@@ -65,12 +65,12 @@ import {
   preloadCategoryAttributes,
   getCachedCategoryAttributes,
   invalidateValuesCache,
-  preloadMajCatGrid,
-  isMajCatGridLoaded,
+  preloadMajCatGridFor,
+  isMajCatGridLoadedFor,
   getMajCatGridEntry,
   isMajCatInGrid,
-  preloadMandatoryGrid,
-  isMandatoryGridLoaded,
+  preloadMandatoryGridFor,
+  isMandatoryGridLoadedFor,
   isMandatoryGridFieldActive,
   isMajCatInMandatoryGrid,
 } from '../../../services/articleConfigService';
@@ -117,6 +117,14 @@ const BOM_ONLY_SCHEMA_KEYS = new Set([
   'macro_mvgr', // IMP_ATBT-1 / macroMvgr  → BOM field
   // imp_atrbt2 used to live here but main moved it to the BUSINESS group
   // (4ec4bac "fields added"). Keeping it out so it renders in BUSINESS.
+]);
+
+// Schema keys hidden from the article card entirely (display-only — the values
+// are still extracted, stored, and sent to SAP). Shade & Weight were removed
+// from the card on all approver pages by request.
+const HIDDEN_CARD_SCHEMA_KEYS = new Set([
+  'shade',
+  'weight',
 ]);
 
 const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string; schemaKey: string; freeText?: boolean }[] }[] = [
@@ -258,6 +266,7 @@ function buildCardGroups(entries: { key: string; type: string; group: string }[]
   const map = new Map<string, CardGroup['fields']>();
   for (const e of entries) {
     if (BOM_ONLY_SCHEMA_KEYS.has(e.key)) continue; // belongs to BOM, not attribute groups
+    if (HIDDEN_CARD_SCHEMA_KEYS.has(e.key)) continue; // hidden from card (e.g. shade, weight)
     const dbField = SCHEMA_KEY_TO_DB_FIELD[e.key];
     if (!dbField) continue;
     if (!map.has(e.group)) map.set(e.group, []);
@@ -295,6 +304,13 @@ export interface ApproverArticleListProps {
   onCreateBodyArticle: (item: ApproverItem) => void;
   onProceedFGArticle: (item: ApproverItem) => void;
   onDuplicate: (item: ApproverItem) => Promise<void>;
+  /**
+   * Modify an already-created (SAP-synced) article. Receives only the changed
+   * fields. Used by the "Modify" button on the Created Articles page; pushes to
+   * SAP first and persists locally only on success. Optional — pages that don't
+   * support modify (new/old/rejected) simply omit it and the button is hidden.
+   */
+  onModify?: (item: ApproverItem, changes: Record<string, unknown>) => Promise<void>;
   attributes: MasterAttribute[];
   onRefresh: () => void;
   pathType?: 'old' | 'new' | 'rejected' | 'created';
@@ -325,6 +341,7 @@ const ArticleCard = React.memo(
     onCreateBodyArticle,
     onProceedFGArticle,
     onDuplicate,
+    onModify,
     attributes,
     onRefresh,
     cardGroups,
@@ -338,6 +355,7 @@ const ArticleCard = React.memo(
     onCreateBodyArticle: (item: ApproverItem) => void;
     onProceedFGArticle: (item: ApproverItem) => void;
     onDuplicate: (item: ApproverItem) => Promise<void>;
+    onModify?: (item: ApproverItem, changes: Record<string, unknown>) => Promise<void>;
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
@@ -357,6 +375,14 @@ const ArticleCard = React.memo(
     // Search term for the attribute-value dropdown. A single shared term is
     // enough because only one attribute (editingField) is open at a time.
     const [attrSearch, setAttrSearch] = useState('');
+
+    // ── Created-page "Modify" flow ──────────────────────────────────────────
+    // On the Created page, articles are already APPROVED + SAP-synced. We keep
+    // them editable, but stage edits as `pendingChanges` instead of auto-saving;
+    // the user then clicks "Modify" to push the diff to SAP (and only then the DB).
+    const isModifyMode = pathType === 'created' && !!onModify;
+    const [pendingChanges, setPendingChanges] = useState<Record<string, string | null>>({});
+    const [modifying, setModifying] = useState(false);
 
     const resetImageView = useCallback(() => {
       setImgZoom(1);
@@ -418,10 +444,10 @@ const ArticleCard = React.memo(
 
     const [cacheReady, setCacheReady] = useState(false);
     const [catConfigReady, setCatConfigReady] = useState(false);
-    // Tracks when the major-category grid JSON (uploaded Excel) has loaded
-    const [gridReady, setGridReady] = useState(() => isMajCatGridLoaded());
-    // Tracks when the mandatory grid (visibility config) has loaded
-    const [mandatoryGridReady, setMandatoryGridReady] = useState(() => isMandatoryGridLoaded());
+    // Tracks when the major-category grid JSON (for THIS article's category) has loaded
+    const [gridReady, setGridReady] = useState(() => isMajCatGridLoadedFor(effectiveMajCat));
+    // Tracks when the mandatory grid (for THIS article's category) has loaded
+    const [mandatoryGridReady, setMandatoryGridReady] = useState(() => isMandatoryGridLoadedFor(effectiveMajCat));
 
     const attributeFields = useMemo(
       () =>
@@ -471,6 +497,8 @@ const ArticleCard = React.memo(
       for (const af of attributeFields) {
         // BOM-only fields never appear in attribute groups
         if (BOM_ONLY_SCHEMA_KEYS.has(af.schemaKey)) continue;
+        // Fields explicitly hidden from the card (shade, weight)
+        if (HIDDEN_CARD_SCHEMA_KEYS.has(af.schemaKey)) continue;
 
         // freeText fields (shade, weight, segment…) are always visible.
         // They CAN be mandatory if the mandatory grid marks them as active — check the grid.
@@ -595,29 +623,33 @@ const ArticleCard = React.memo(
         .catch(() => setCatConfigReady(true));
     }, [effectiveMajCat]);
 
-    // Preload major-category grid (dropdown values Excel) once per session
+    // Preload the major-category grid (dropdown values) for THIS article's
+    // category only — not the entire grid. Re-runs if the category changes.
     useEffect(() => {
-      if (isMajCatGridLoaded()) {
+      if (!effectiveMajCat) return;
+      if (isMajCatGridLoadedFor(effectiveMajCat)) {
         setGridReady(true);
         return;
       }
-      preloadMajCatGrid()
+      setGridReady(false);
+      preloadMajCatGridFor(effectiveMajCat)
         .then(() => setGridReady(true))
         .catch(() => setGridReady(true));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [effectiveMajCat]);
 
-    // Preload mandatory grid (field visibility Excel) once per session
+    // Preload the mandatory grid (field visibility / required) for THIS
+    // article's category only — not the entire grid. Re-runs on category change.
     useEffect(() => {
-      if (isMandatoryGridLoaded()) {
+      if (!effectiveMajCat) return;
+      if (isMandatoryGridLoadedFor(effectiveMajCat)) {
         setMandatoryGridReady(true);
         return;
       }
-      preloadMandatoryGrid()
+      setMandatoryGridReady(false);
+      preloadMandatoryGridFor(effectiveMajCat)
         .then(() => setMandatoryGridReady(true))
         .catch(() => setMandatoryGridReady(true));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [effectiveMajCat]);
 
     useEffect(() => {
       if (!effectiveMajCat) return;
@@ -645,6 +677,10 @@ const ArticleCard = React.memo(
       const updated = { ...attrArticleNums, [field]: val };
       setAttrArticleNums(updated);
       const attrUpdates = { attrArticleNums: JSON.stringify(updated) };
+      if (isModifyMode) {
+        setPendingChanges((prev) => ({ ...prev, ...attrUpdates }));
+        return;
+      }
       onSave({ ...item, ...attrUpdates } as any, attrUpdates);
     };
 
@@ -691,7 +727,10 @@ const ArticleCard = React.memo(
       });
     }, [item, FAB_FIELDS, BODY_FIELDS]);
 
-    const isLocked = item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED';
+    // APPROVED/REJECTED articles are normally read-only. EXCEPTION: on the
+    // Created page (modify mode) we keep them editable so the user can stage
+    // changes and push them to SAP via the "Modify" button.
+    const isLocked = (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') && !isModifyMode;
     const status = getDisplayStatus(item);
 
     // Division is non-editable for APPROVER/CATEGORY_HEAD users locked to a specific division
@@ -822,7 +861,26 @@ const ArticleCard = React.memo(
       }
       setLocalValues((prev) => ({ ...prev, ...updates }));
       setEditingField(null);
+      if (isModifyMode) {
+        // Stage the edit; it is pushed to SAP + DB only when the user clicks "Modify".
+        setPendingChanges((prev) => ({ ...prev, ...updates }));
+        return;
+      }
       onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+    };
+
+    const handleModify = async () => {
+      if (!onModify || Object.keys(pendingChanges).length === 0) return;
+      setModifying(true);
+      try {
+        await onModify(item, pendingChanges as Record<string, unknown>);
+        // Parent refreshes the item on success; clear the staged diff.
+        setPendingChanges({});
+      } catch {
+        // Parent surfaces the error toast; keep pendingChanges so the user can retry.
+      } finally {
+        setModifying(false);
+      }
     };
 
     const borderColor =
@@ -1024,10 +1082,14 @@ const ArticleCard = React.memo(
                     const updates: Record<string, string | null> = { vendorName: cleanName };
                     if ((option as any).vendorCode) updates.vendorCode = (option as any).vendorCode;
                     setLocalValues((prev) => ({ ...prev, ...updates }));
-                    onSave(
-                      { ...item, ...updates } as ApproverItem,
-                      updates as Record<string, unknown>,
-                    );
+                    if (isModifyMode) {
+                      setPendingChanges((prev) => ({ ...prev, ...updates }));
+                    } else {
+                      onSave(
+                        { ...item, ...updates } as ApproverItem,
+                        updates as Record<string, unknown>,
+                      );
+                    }
                     setEditingField(null);
                     setVendorOptions([]);
                     setVendorQuery('');
@@ -1323,7 +1385,11 @@ const ArticleCard = React.memo(
                       const updates = { division: val || null, subDivision: null as string | null };
                       setLocalValues((prev) => ({ ...prev, ...updates }));
                       setEditingField(null);
-                      onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+                      if (isModifyMode) {
+                        setPendingChanges((prev) => ({ ...prev, ...updates }));
+                      } else {
+                        onSave({ ...item, ...updates } as ApproverItem, updates as Record<string, unknown>);
+                      }
                     }}
                   >
                     <SelectTrigger className="h-6 w-28 border-white/30 bg-white/10 text-[11px] text-white">
@@ -1435,6 +1501,22 @@ const ArticleCard = React.memo(
             <div className="flex shrink-0 items-center gap-2">
               {item.pptNumber && (
                 <Badge className="bg-amber-300 text-amber-950">PPT: {item.pptNumber}</Badge>
+              )}
+              {isModifyMode && (
+                <Button
+                  size="sm"
+                  onClick={handleModify}
+                  disabled={Object.keys(pendingChanges).length === 0 || modifying}
+                  className="h-8 border-none bg-[#FF6F61] px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-[#ff5b4d] disabled:bg-white/20 disabled:text-white/50"
+                >
+                  {modifying ? <Spinner size="sm" /> : <Wand2 />}
+                  {modifying ? 'Modifying…' : 'Modify'}
+                  {Object.keys(pendingChanges).length > 0 && !modifying && (
+                    <span className="ml-1 rounded-full bg-white/25 px-1.5 text-[10px] tabular-nums">
+                      {Object.keys(pendingChanges).length}
+                    </span>
+                  )}
+                </Button>
               )}
               {pathType === 'new' &&
                 item.approvalStatus === 'PENDING' &&
@@ -2024,7 +2106,9 @@ const ArticleCard = React.memo(
           <div className="flex shrink-0 items-center gap-1.5 border-t border-border bg-slate-50/70 px-3 py-1 text-[10.5px] text-slate-500">
             <Info className="h-3 w-3 text-amber-500" />
             <span>
-              Click any value to edit — all changes are saved automatically. Use ◀ / ▶ to move between articles.
+              {isModifyMode
+                ? 'Click any value to edit, then press “Modify” to push your changes to SAP. Use ◀ / ▶ to move between articles.'
+                : 'Click any value to edit — all changes are saved automatically. Use ◀ / ▶ to move between articles.'}
             </span>
           </div>
         </div>
@@ -2150,6 +2234,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
   onCreateFabricArticle,
   onCreateBodyArticle,
   onProceedFGArticle,
+  onModify,
   attributes,
   onRefresh,
   pathType,
@@ -2230,6 +2315,7 @@ export const ApproverArticleList: React.FC<ApproverArticleListProps> = ({
           onCreateBodyArticle={onCreateBodyArticle}
           onProceedFGArticle={onProceedFGArticle}
           onDuplicate={handleDuplicate}
+          onModify={onModify}
           attributes={attributes}
           onRefresh={onRefresh}
           cardGroups={cardGroups}
