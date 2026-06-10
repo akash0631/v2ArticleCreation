@@ -1,7 +1,9 @@
 /**
  * Article Description Builder
  *
- * Field order defined by user-confirmed sequence (47 fields).
+ * Field order (user-confirmed sequence):
+ *   fabDiv → yarn1 → fabricMainMvgr → weave → mFab2 → neckDetails →
+ *   collarStyle → fatherBelt → fit → pattern
  * Joined with '-', sliced to 40 chars from the front.
  * BODY STYLE is mapped to the `pattern` column in ExtractionResultFlat.
  *
@@ -13,23 +15,14 @@
 type ArticleDescriptionSource = {
   fabDiv?: unknown;          // M_FAB_DIV
   yarn1?: unknown;           // M_YARN
-  fabricMainMvgr?: unknown;  // FAB-MAIN-MVGR-2
-  weave?: unknown;           // WEAVE 01
-  mFab2?: unknown;           // WEAVE 02
-  lycra?: unknown;           // M_LYCRA
-  neck?: unknown;            // M_NECK_TYPE
-  collar?: unknown;          // M_COLLAR_TYPE  (conditionally included — see excludeFields)
-  sleeve?: unknown;          // M_SLEEVES_MAIN_STYLE
-  sleeveFold?: unknown;      // M_SLEEVE_FOLD
-  pocketType?: unknown;      // M_POCKET
-  childBelt?: unknown;       // M_BLT_STYLE
-  length?: unknown;          // M_LENGTH
+  fabricMainMvgr?: unknown;  // M_FAB_MAIN_MVGR_2
+  weave?: unknown;           // M_WEAVE_01
+  mFab2?: unknown;           // M_WEAVE_02
+  neckDetails?: unknown;     // M_NECK_STYLE
+  collarStyle?: unknown;     // M_COLLAR_STYLE
+  fatherBelt?: unknown;      // M_BLT_TYPE
   fit?: unknown;             // M_FIT
-  pattern?: unknown;         // BODY STYLE
-  printType?: unknown;       // M_PRINT_TYPE
-  embroidery?: unknown;      // M_EMB_TYPE
-  embroideryType?: unknown;  // M_EMBROIDERY_STYLE
-  wash?: unknown;            // M_WASH
+  pattern?: unknown;         // M_BODY_STYLE
 };
 
 export type ArticleDescriptionOptions = {
@@ -40,25 +33,16 @@ export type ArticleDescriptionOptions = {
 const ARTICLE_DESCRIPTION_MAX_LENGTH = 40;
 
 const ARTICLE_DESCRIPTION_FIELDS: Array<keyof ArticleDescriptionSource> = [
-  'fabDiv',
-  'yarn1',
-  'fabricMainMvgr',
-  'weave',
-  'mFab2',
-  'lycra',
-  'neck',
-  'collar',
-  'sleeve',
-  'sleeveFold',
-  'pocketType',
-  'childBelt',
-  'length',
-  'fit',
-  'pattern',
-  'printType',
-  'embroidery',
-  'embroideryType',
-  'wash',
+  'fabDiv',         // M_FAB_DIV
+  'yarn1',          // M_YARN
+  'fabricMainMvgr', // M_FAB_MAIN_MVGR_2
+  'weave',          // M_WEAVE_01
+  'mFab2',          // M_WEAVE_02
+  'neckDetails',    // M_NECK_STYLE
+  'collarStyle',    // M_COLLAR_STYLE
+  'fatherBelt',     // M_BLT_TYPE
+  'fit',            // M_FIT
+  'pattern',        // M_BODY_STYLE
 ];
 
 const toShortToken = (value: unknown): string | null => {
