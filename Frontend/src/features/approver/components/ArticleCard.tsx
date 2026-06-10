@@ -15,11 +15,11 @@ export interface ArticleCardProps {
   onClick: (item: ApproverItem, index: number) => void;
   /**
    * Which date to show in the "Date" row. The Created tab shows the
-   * creation/approval date (updatedAt); every other tab shows the extraction
+   * approval date (approvedAt); every other tab shows the extraction
    * date (createdAt). Kept in sync with the backend date filter so the date
    * shown always matches the date being filtered/exported. Defaults to createdAt.
    */
-  dateField?: 'createdAt' | 'updatedAt';
+  dateField?: 'createdAt' | 'approvedAt';
   /** Whether this card is currently checked for selective export. */
   selected?: boolean;
   /**
@@ -147,7 +147,7 @@ function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt', s
           <FieldRow label="Design" value={item.designNumber || '—'} />
           <FieldRow label="Vendor" value={item.vendorName || '—'} />
           <FieldRow label="Code"   value={item.vendorCode   || '—'} />
-          <FieldRow label="Date"   value={formatDate(dateField === 'updatedAt' ? item.updatedAt : item.createdAt)} />
+          <FieldRow label="Date"   value={formatDate(dateField === 'approvedAt' ? (item as any).approvedAt : item.createdAt)} />
         </div>
 
         {/* Rate / MRP */}
