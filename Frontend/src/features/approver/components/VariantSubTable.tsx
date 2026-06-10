@@ -440,6 +440,8 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           value={selectedColors}
           onChange={setSelectedColors}
           placeholder="Select colors…"
+          searchable
+          searchPlaceholder="Search colors…"
         />
 
         {variantPreview && (

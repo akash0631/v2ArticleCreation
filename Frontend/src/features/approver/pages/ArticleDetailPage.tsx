@@ -753,6 +753,35 @@ export default function ArticleDetailPage() {
           onCreateBodyArticle={item => setConfirmDialog({ kind: 'createBody', item })}
           onProceedFGArticle={item => setConfirmDialog({ kind: 'proceedFG', item })}
           onDuplicate={async () => {}}
+          onModify={async (row, changes) => {
+            if (!changes || Object.keys(changes).length === 0) return;
+            const token = localStorage.getItem('authToken');
+            try {
+              const r = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}/modify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ changes }),
+              });
+              if (!r.ok) {
+                let errMsg = 'Failed to modify article in SAP';
+                try { const p = await r.json(); if (p?.error) errMsg = p.error; } catch { /* skip */ }
+                message.error(errMsg);
+                throw new Error(errMsg);
+              }
+              const saved = await r.json();
+              setItems(prev => {
+                const idx = prev.findIndex(i => i.id === saved.id);
+                if (idx === -1) return prev;
+                const copy = [...prev];
+                copy[idx] = { ...copy[idx], ...saved, mcCode: saved.mcCode || inferMcCode(saved.majorCategory) || copy[idx].mcCode || '' };
+                return copy;
+              });
+              message.success(saved?.sapModify?.message || 'Article modified in SAP');
+            } catch (err) {
+              // Re-throw so the card keeps the staged changes for a retry.
+              throw err instanceof Error ? err : new Error('Failed to modify');
+            }
+          }}
           attributes={attributes}
           onRefresh={refetchCurrentItem}
           pathType={pathType}

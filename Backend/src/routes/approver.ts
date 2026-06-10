@@ -29,6 +29,10 @@ router.all('/items/:id', h(async (req, res, next) => {
   return;
 }));
 
+// Modify an already-created (SAP-synced) article: pushes attribute changes to
+// SAP via patch-bulk, then persists locally only on success.
+router.post('/items/:id/modify', requireApprovalRights, h(ApproverController.modifyItem));
+
 // Approve selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
 router.post('/approve', requireApprovalRights, h(ApproverController.approveItems));
 

@@ -2375,13 +2375,25 @@ export const getMajCatGridStatus = async (_req: Request, res: Response): Promise
  * Reads all rows from Supabase and returns grouped JSON for frontend caching.
  * Format: { [majorCategory]: { [attributeName]: string[] } }
  */
-export const getMajCatGridValues = async (_req: Request, res: Response): Promise<void> => {
+export const getMajCatGridValues = async (req: Request, res: Response): Promise<void> => {
   try {
-    const rows = await prisma.$queryRaw<{ major_category: string; attribute_name: string; value: string }[]>`
-      SELECT major_category, attribute_name, value
-      FROM maj_cat_grid_values
-      ORDER BY major_category, attribute_name, value
-    `;
+    // Optional ?majorCategory=XYZ — return grid values for ONLY that major
+    // category (used by the article card so it doesn't pull the entire grid).
+    // No param → full grid (used by admin pages, back-compat).
+    const majorCategory = ((req.query.majorCategory as string) || '').trim();
+
+    const rows = majorCategory
+      ? await prisma.$queryRaw<{ major_category: string; attribute_name: string; value: string }[]>`
+          SELECT major_category, attribute_name, value
+          FROM maj_cat_grid_values
+          WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()}
+          ORDER BY attribute_name, value
+        `
+      : await prisma.$queryRaw<{ major_category: string; attribute_name: string; value: string }[]>`
+          SELECT major_category, attribute_name, value
+          FROM maj_cat_grid_values
+          ORDER BY major_category, attribute_name, value
+        `;
 
     // Group into nested object
     const grouped: Record<string, Record<string, string[]>> = {};
@@ -2557,13 +2569,25 @@ export const getMandatoryGridStatus = async (_req: Request, res: Response): Prom
  * GET /api/admin/mandatory-grid/values
  * Returns: { [majorCategory]: { sapKey: boolean } }
  */
-export const getMandatoryGridValues = async (_req: Request, res: Response): Promise<void> => {
+export const getMandatoryGridValues = async (req: Request, res: Response): Promise<void> => {
   try {
-    const rows = await prisma.$queryRaw<{ major_category: string; sap_key: string; label: string | null; is_active: boolean }[]>`
-      SELECT major_category, sap_key, label, is_active
-      FROM maj_cat_mandatory_grid
-      ORDER BY major_category, sap_key
-    `;
+    // Optional ?majorCategory=XYZ — return mandatory-grid rows for ONLY that
+    // major category (used by the article card so it doesn't pull the whole
+    // table). No param → full grid (admin pages, back-compat).
+    const majorCategory = ((req.query.majorCategory as string) || '').trim();
+
+    const rows = majorCategory
+      ? await prisma.$queryRaw<{ major_category: string; sap_key: string; label: string | null; is_active: boolean }[]>`
+          SELECT major_category, sap_key, label, is_active
+          FROM maj_cat_mandatory_grid
+          WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()}
+          ORDER BY sap_key
+        `
+      : await prisma.$queryRaw<{ major_category: string; sap_key: string; label: string | null; is_active: boolean }[]>`
+          SELECT major_category, sap_key, label, is_active
+          FROM maj_cat_mandatory_grid
+          ORDER BY major_category, sap_key
+        `;
 
     const grouped: Record<string, Record<string, { isActive: boolean; label: string | null }>> = {};
     for (const row of rows) {

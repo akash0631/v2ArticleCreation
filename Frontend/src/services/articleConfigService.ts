@@ -217,31 +217,85 @@ export function invalidateCategoryAttributeCache(categoryCode?: string) {
 
 type MajCatGrid = Record<string, Record<string, string[]>>;
 
-let majCatGrid: MajCatGrid | null = null;
+// Merged store of grid values, populated either fully (preloadMajCatGrid) or
+// one major category at a time (preloadMajCatGridFor). Starts as an empty
+// object so synchronous lookups never crash.
+const majCatGrid: MajCatGrid = {};
+let fullGridLoaded = false;
 let majCatGridPromise: Promise<MajCatGrid> | null = null;
 
+// Per-major-category load tracking, so the article card only pulls the grid for
+// the category it is showing (not the entire maj_cat_grid_values table).
+const loadedCats = new Set<string>();                 // UPPER(category) → loaded
+const inflightCats = new Map<string, Promise<void>>(); // UPPER(category) → in-flight fetch
+
+const catKey = (c: string) => (c || '').trim().toUpperCase();
+
+function gridBaseURL(): string {
+  return import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
+}
+function authHeader(): Record<string, string> {
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
- * Fetch the full major-category grid from the backend (once per session).
- * Returns an empty object if not yet uploaded.
+ * Fetch the grid for a SINGLE major category and merge it into the store.
+ * This is what the article card uses — it avoids downloading the whole grid.
+ * Safe to call repeatedly: cached per category + de-duped while in flight.
+ */
+export async function preloadMajCatGridFor(majorCategory: string): Promise<void> {
+  const cat = (majorCategory || '').trim();
+  if (!cat) return;
+  const key = catKey(cat);
+  if (fullGridLoaded || loadedCats.has(key)) return;
+  const existing = inflightCats.get(key);
+  if (existing) return existing;
+
+  const p = fetch(`${gridBaseURL()}/article-config/majcat-grid?majorCategory=${encodeURIComponent(cat)}`, {
+    headers: authHeader(),
+  })
+    .then(r => (r.ok ? r.json() : { data: {} }))
+    .then(json => {
+      const data = (json?.data as MajCatGrid) ?? {};
+      // Merge this category's entry (data is keyed by the actual major_category).
+      Object.assign(majCatGrid, data);
+      loadedCats.add(key); // mark loaded even if empty, so we don't refetch
+    })
+    .catch(() => {
+      loadedCats.add(key); // treat failure as "no grid" — don't loop
+    })
+    .finally(() => { inflightCats.delete(key); });
+
+  inflightCats.set(key, p);
+  return p;
+}
+
+/** True once the grid for this specific major category has been loaded. */
+export function isMajCatGridLoadedFor(majorCategory: string): boolean {
+  return fullGridLoaded || loadedCats.has(catKey(majorCategory));
+}
+
+/**
+ * Fetch the FULL major-category grid (all categories) — used by admin pages.
+ * The article card should use preloadMajCatGridFor() instead.
  */
 export async function preloadMajCatGrid(): Promise<MajCatGrid> {
-  if (majCatGrid !== null) return majCatGrid;
+  if (fullGridLoaded) return majCatGrid;
   if (majCatGridPromise) return majCatGridPromise;
 
-  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
-  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-
-  majCatGridPromise = fetch(`${baseURL}/article-config/majcat-grid`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  majCatGridPromise = fetch(`${gridBaseURL()}/article-config/majcat-grid`, {
+    headers: authHeader(),
   })
-    .then(r => r.ok ? r.json() : { data: {} })
+    .then(r => (r.ok ? r.json() : { data: {} }))
     .then(json => {
-      majCatGrid = (json?.data as MajCatGrid) ?? {};
+      Object.assign(majCatGrid, (json?.data as MajCatGrid) ?? {});
+      fullGridLoaded = true;
       return majCatGrid;
     })
     .catch(() => {
-      majCatGrid = {};
-      return majCatGrid as MajCatGrid;
+      fullGridLoaded = true;
+      return majCatGrid;
     })
     .finally(() => { majCatGridPromise = null; });
 
@@ -250,29 +304,31 @@ export async function preloadMajCatGrid(): Promise<MajCatGrid> {
 
 /**
  * Synchronous lookup — returns allowed values for a major category + Excel attribute name.
- * Returns null if grid not loaded or no entry found.
- * Call preloadMajCatGrid() first.
+ * Returns null if that category's grid isn't loaded or no entry found.
+ * Call preloadMajCatGridFor(majorCategory) first.
  */
 export function getMajCatGridEntry(majorCategory: string, excelAttrName: string): string[] | null {
-  if (!majCatGrid) return null;
   const catData = majCatGrid[majorCategory];
   if (!catData) return null;
   return catData[excelAttrName] ?? null;
 }
 
+/** True once the FULL grid has been loaded (admin use). */
 export function isMajCatGridLoaded(): boolean {
-  return majCatGrid !== null;
+  return fullGridLoaded;
 }
 
-/** Returns true if the major category has ANY rows in the uploaded maj-cat grid. */
+/** Returns true if the major category has ANY rows in the loaded maj-cat grid. */
 export function isMajCatInGrid(majorCategory: string): boolean {
-  if (!majCatGrid) return false;
   return majorCategory in majCatGrid;
 }
 
 export function invalidateMajCatGrid(): void {
-  majCatGrid = null;
+  for (const k of Object.keys(majCatGrid)) delete majCatGrid[k];
+  fullGridLoaded = false;
   majCatGridPromise = null;
+  loadedCats.clear();
+  inflightCats.clear();
 }
 
 // ─── Mandatory Grid (from uploaded mandatory Excel) ────────────────────────────
@@ -282,30 +338,65 @@ export function invalidateMajCatGrid(): void {
 type MandatoryGridEntry = { isActive: boolean; label: string | null };
 type MandatoryGrid = Record<string, Record<string, MandatoryGridEntry>>;
 
-let mandatoryGrid: MandatoryGrid | null = null;
+// Merged store, populated either fully or one major category at a time.
+const mandatoryGrid: MandatoryGrid = {};
+let fullMandatoryLoaded = false;
 let mandatoryGridPromise: Promise<MandatoryGrid> | null = null;
+const loadedMandatoryCats = new Set<string>();
+const inflightMandatoryCats = new Map<string, Promise<void>>();
 
 /**
- * Fetch the full mandatory grid from the backend (once per session).
+ * Fetch the mandatory grid for a SINGLE major category and merge it in.
+ * Used by the article card so it doesn't pull the whole maj_cat_mandatory_grid.
+ * Cached per category + de-duped while in flight.
+ */
+export async function preloadMandatoryGridFor(majorCategory: string): Promise<void> {
+  const cat = (majorCategory || '').trim();
+  if (!cat) return;
+  const key = catKey(cat);
+  if (fullMandatoryLoaded || loadedMandatoryCats.has(key)) return;
+  const existing = inflightMandatoryCats.get(key);
+  if (existing) return existing;
+
+  const p = fetch(`${gridBaseURL()}/article-config/mandatory-grid?majorCategory=${encodeURIComponent(cat)}`, {
+    headers: authHeader(),
+  })
+    .then(r => (r.ok ? r.json() : { data: {} }))
+    .then(json => {
+      Object.assign(mandatoryGrid, (json?.data as MandatoryGrid) ?? {});
+      loadedMandatoryCats.add(key);
+    })
+    .catch(() => { loadedMandatoryCats.add(key); })
+    .finally(() => { inflightMandatoryCats.delete(key); });
+
+  inflightMandatoryCats.set(key, p);
+  return p;
+}
+
+/** True once the mandatory grid for this specific major category has loaded. */
+export function isMandatoryGridLoadedFor(majorCategory: string): boolean {
+  return fullMandatoryLoaded || loadedMandatoryCats.has(catKey(majorCategory));
+}
+
+/**
+ * Fetch the FULL mandatory grid (all categories) — admin use / back-compat.
  */
 export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
-  if (mandatoryGrid !== null) return mandatoryGrid;
+  if (fullMandatoryLoaded) return mandatoryGrid;
   if (mandatoryGridPromise) return mandatoryGridPromise;
 
-  const baseURL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
-  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-
-  mandatoryGridPromise = fetch(`${baseURL}/article-config/mandatory-grid`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  mandatoryGridPromise = fetch(`${gridBaseURL()}/article-config/mandatory-grid`, {
+    headers: authHeader(),
   })
-    .then(r => r.ok ? r.json() : { data: {} })
+    .then(r => (r.ok ? r.json() : { data: {} }))
     .then(json => {
-      mandatoryGrid = (json?.data as MandatoryGrid) ?? {};
+      Object.assign(mandatoryGrid, (json?.data as MandatoryGrid) ?? {});
+      fullMandatoryLoaded = true;
       return mandatoryGrid;
     })
     .catch(() => {
-      mandatoryGrid = {};
-      return mandatoryGrid as MandatoryGrid;
+      fullMandatoryLoaded = true;
+      return mandatoryGrid;
     })
     .finally(() => { mandatoryGridPromise = null; });
 
@@ -324,7 +415,6 @@ export async function preloadMandatoryGrid(): Promise<MandatoryGrid> {
  *     'M_EMBROIDERY_STYLE' now correctly finds the entry via its label.
  */
 export function isMandatoryGridFieldActive(majorCategory: string, sapKey: string): boolean | null {
-  if (!mandatoryGrid) return null;
   const catData = mandatoryGrid[majorCategory];
   if (!catData) return null;
 
@@ -345,7 +435,6 @@ export function isMandatoryGridFieldActive(majorCategory: string, sapKey: string
  * The label is the same across all major categories — we just pick the first one found.
  */
 export function getMandatoryGridFieldLabel(sapKey: string): string | null {
-  if (!mandatoryGrid) return null;
   for (const catData of Object.values(mandatoryGrid)) {
     const entry = catData[sapKey];
     if (entry?.label) return entry.label;
@@ -353,17 +442,20 @@ export function getMandatoryGridFieldLabel(sapKey: string): string | null {
   return null;
 }
 
+/** True once the FULL mandatory grid has been loaded (admin use). */
 export function isMandatoryGridLoaded(): boolean {
-  return mandatoryGrid !== null;
+  return fullMandatoryLoaded;
 }
 
-/** Returns true if the major category has ANY rows in the uploaded mandatory grid. */
+/** Returns true if the major category has ANY rows in the loaded mandatory grid. */
 export function isMajCatInMandatoryGrid(majorCategory: string): boolean {
-  if (!mandatoryGrid) return false;
   return majorCategory in mandatoryGrid;
 }
 
 export function invalidateMandatoryGrid(): void {
-  mandatoryGrid = null;
+  for (const k of Object.keys(mandatoryGrid)) delete mandatoryGrid[k];
+  fullMandatoryLoaded = false;
   mandatoryGridPromise = null;
+  loadedMandatoryCats.clear();
+  inflightMandatoryCats.clear();
 }

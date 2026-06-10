@@ -304,9 +304,27 @@ async function findExisting(presentationNo: string, srmDesignNumber: string): Pr
   return prisma.extractionResultFlat.findFirst({
     where: {
       pptNumber: presentationNo,
-      srmOriginalDesignNumber: srmDesignNumber,
       source: 'SRM',
+      // Match on the immutable key OR the visible design number.
+      //
+      // Why the fallback: rows imported before srm_original_design_number was
+      // populated have it NULL, and rows whose design number was edited have it
+      // diverged. Matching ONLY on srmOriginalDesignNumber misses those rows, so
+      // a re-import (admin "Sync by PPT" / SRM webhook) treated them as new and
+      // inserted DUPLICATES (this is the PRES-00513 bug). Falling back to
+      // designNumber lets us find and patch the existing row instead.
+      //
+      // This also dedups WITHIN a single batch: each insert is committed before
+      // the next image is processed, so a repeated design number in the same
+      // payload now matches the row we just created.
+      OR: [
+        { srmOriginalDesignNumber: srmDesignNumber },
+        { designNumber: srmDesignNumber },
+      ],
     },
+    // Prefer an already-enriched row (COMPLETED < SRM_IMPORT alphabetically) over
+    // an un-enriched stub when both exist for the same design number.
+    orderBy: { extractionStatus: 'asc' },
     select: { id: true, imageUrl: true, vendorCode: true, vendorName: true },
   });
 }
@@ -1290,9 +1308,36 @@ export async function processSrmWebhookBatch(
 ): Promise<void> {
   console.log(`[SRM Hook] Batch started — presentation: ${req.presentation_no} | images: ${req.images.length}`);
 
+  // ── Audit trail ───────────────────────────────────────────────────────────
+  // The webhook is otherwise invisible (it's excluded from audit_logs), which is
+  // why the 8-June duplication was hard to trace. Record a persistent run +
+  // per-image item rows in the SAME tables the cron sync uses (srm_sync_runs /
+  // srm_sync_run_items), with triggeredBy='WEBHOOK'. All logging is best-effort:
+  // a logging failure must never break extraction.
+  let runId: string | null = null;
+  try {
+    const run = await prisma.srmSyncRun.create({
+      data: {
+        triggeredBy: 'WEBHOOK',
+        total:       req.images.length,
+        notes:       `webhook batch — presentation: ${req.presentation_no} | images: ${req.images.length}`,
+      },
+    });
+    runId = run.id;
+    console.log(`[SRM Hook] Run ID: ${runId}`);
+  } catch (e: any) {
+    console.error('[SRM Hook] Failed to create sync-run record (continuing):', e?.message);
+  }
+
+  const itemLogs: Array<{ runId: string; pptNumber: string | null; srmDesignNumber: string | null; flatId: string | null; action: string; errorMessage: string | null }> = [];
+  const counts = { inserted: 0, skipped: 0, errors: 0 };
+
   for (let i = 0; i < req.images.length; i++) {
     const img = req.images[i];
     const designNumber = (img.design_number || `img-${i + 1}`).trim();
+    let action = 'SKIPPED';
+    let itemFlatId: string | null = null;
+    let itemError: string | null = null;
 
     try {
       // Build SrmRow compatible with insertRow()
@@ -1319,6 +1364,7 @@ export async function processSrmWebhookBatch(
       if (existing) {
         flatId   = existing.id;
         imageUrl = existing.imageUrl;
+        action   = 'SKIPPED';
 
         // If this call now provides an image URL we didn't have before — mirror it
         if (img.image_url && !existing.imageUrl) {
@@ -1327,43 +1373,54 @@ export async function processSrmWebhookBatch(
             imageUrl = r2Url;
             await prisma.extractionResultFlat.update({ where: { id: flatId }, data: { imageUrl: r2Url } });
             void mirror360FlatUpdate(flatId, { imageUrl: r2Url });
+            action = 'PATCHED';
           }
         }
-        console.log(`[SRM Hook] Existing record for ${designNumber} — id: ${flatId}`);
+        console.log(`[SRM Hook] Existing record for ${designNumber} — id: ${flatId} (dedup matched — no duplicate created)`);
       } else {
         const flat = await insertRow(row);
         if (!flat) throw new Error('insertRow returned null');
         flatId   = flat.id;
         imageUrl = flat.imageUrl;
+        action   = 'INSERTED';
         console.log(`[SRM Hook] Inserted new record for ${designNumber} — id: ${flatId}`);
       }
+      itemFlatId = flatId;
 
       // ── 2. VLM Extraction ────────────────────────────────────────────────
       if (!imageUrl) {
         console.warn(`[SRM Hook] No image URL for ${designNumber} — skipping VLM`);
         onProgress({ designNumber, id: flatId, success: false, extractionStatus: 'SRM_IMPORT', error: 'No image URL' });
-        continue;
+      } else {
+        const success = await enrichSrmRowWithVlm(flatId, imageUrl, req.major_category);
+
+        // ── 3. Fetch final DB state for the progress report ──────────────────
+        const final = await prisma.extractionResultFlat.findUnique({
+          where:  { id: flatId },
+          select: { extractionStatus: true, articleDescription: true },
+        });
+
+        onProgress({
+          designNumber,
+          id:                 flatId,
+          success,
+          extractionStatus:   final?.extractionStatus   ?? (success ? 'COMPLETED' : 'SRM_IMPORT'),
+          articleDescription: final?.articleDescription  ?? undefined,
+        });
       }
 
-      const success = await enrichSrmRowWithVlm(flatId, imageUrl, req.major_category);
-
-      // ── 3. Fetch final DB state for the progress report ──────────────────
-      const final = await prisma.extractionResultFlat.findUnique({
-        where:  { id: flatId },
-        select: { extractionStatus: true, articleDescription: true },
-      });
-
-      onProgress({
-        designNumber,
-        id:                 flatId,
-        success,
-        extractionStatus:   final?.extractionStatus   ?? (success ? 'COMPLETED' : 'SRM_IMPORT'),
-        articleDescription: final?.articleDescription  ?? undefined,
-      });
+      if (action === 'INSERTED') counts.inserted++; else counts.skipped++;
 
     } catch (err: any) {
+      action = 'ERROR';
+      itemError = err?.message ? String(err.message).slice(0, 500) : 'Unknown error';
+      counts.errors++;
       console.error(`[SRM Hook] Error for ${designNumber}:`, err.message);
       onProgress({ designNumber, success: false, error: err.message });
+    }
+
+    if (runId) {
+      itemLogs.push({ runId, pptNumber: req.presentation_no, srmDesignNumber: designNumber, flatId: itemFlatId, action, errorMessage: itemError });
     }
 
     // Rate-limit gap between consecutive Gemini calls (skip after last image)
@@ -1372,7 +1429,27 @@ export async function processSrmWebhookBatch(
     }
   }
 
-  console.log(`[SRM Hook] Batch complete — presentation: ${req.presentation_no}`);
+  // ── Finalize the audit record (best-effort) ─────────────────────────────────
+  if (runId) {
+    try {
+      if (itemLogs.length > 0) {
+        await prisma.srmSyncRunItem.createMany({ data: itemLogs });
+      }
+      await prisma.srmSyncRun.update({
+        where: { id: runId },
+        data: {
+          completedAt: new Date(),
+          inserted:    counts.inserted,
+          skipped:     counts.skipped,
+          errors:      counts.errors,
+        },
+      });
+    } catch (e: any) {
+      console.error('[SRM Hook] Failed to finalize sync-run record:', e?.message);
+    }
+  }
+
+  console.log(`[SRM Hook] Batch complete — presentation: ${req.presentation_no} | inserted:${counts.inserted} skipped:${counts.skipped} errors:${counts.errors}`);
 }
 
 // ─── Retry: Re-run VLM on already-inserted records ─────────────────────────

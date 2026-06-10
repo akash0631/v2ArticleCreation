@@ -11,6 +11,7 @@
 import { SapSyncItemResult } from './sapSyncService';
 import { getMcCodeByMajorCategory, getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { PrismaClient } from '../generated/prisma';
+import { FLAT_TO_RFC } from '../data/flatToRfcMap';
 
 const prisma = new PrismaClient();
 
@@ -215,84 +216,8 @@ type RfcResponse = {
 
 // ─── Field Mapping: extractionResultFlat (camelCase) → RFC JSON key ──────────
 //
-// Order matches the RFC IM_DATA structure from the provided curl reference.
-// RFC keys that have no DB equivalent are sent as "" so SAP sees a valid field.
-
-const FLAT_TO_RFC: Array<{ rfc: string; flat: string }> = [
-    // Header / identity
-    { rfc: 'HSN_CODE',              flat: 'hsnTaxCode' },
-    { rfc: 'SUB_DIV',               flat: 'subDivision' },       // MS-U / MS-L / LS-U etc.
-    { rfc: 'MC_CD',                 flat: 'mcCode' },
-    { rfc: 'VENDOR',                flat: 'vendorCode' },
-    { rfc: 'DSG_NO',                flat: 'designNumber' },
-    { rfc: 'MRP',                   flat: 'mrp' },
-    { rfc: 'PURCH_PRICE',          flat: 'rate' },
-    { rfc: 'SEASON',                flat: 'season' },
-    { rfc: 'ARTICLE_DES1',          flat: 'articleDescription' },
-    { rfc: 'PRICE_BAND_CATEGORY',   flat: 'segment' },
-
-    // Fabric – macro / main MVGR
-    { rfc: 'M_IMP_ATBT',            flat: 'impAtrbt2' },         // IMPORTANT ATTRIBUTE
-    { rfc: 'M_WEAVE_01',            flat: 'weave' },             // F_WEAVE_01
-    { rfc: 'M_WEAVE_02',            flat: 'mFab2' },             // F_WEAVE_02
-    { rfc: 'M_YARN',                flat: 'yarn1' },             // F_YARN
-    { rfc: 'M_FAB_MAIN_MVGR_1',    flat: 'mainMvgr' },          // FAB_MAIN_MVGR-1
-    { rfc: 'M_FAB_MAIN_MVGR_2',    flat: 'fabricMainMvgr' },    // F_FABRIC MAIN MVGR-02
-    { rfc: 'M_COMPOSITION',         flat: 'composition' },
-    { rfc: 'M_FINISH',              flat: 'finish' },
-    { rfc: 'M_CONSTRUCTION',        flat: 'fConstruction' },
-    { rfc: 'M_SHADE',               flat: 'shade' },
-    { rfc: 'M_LYCRA',               flat: 'lycra' },
-    { rfc: 'M_GSM',                 flat: 'gsm' },
-    { rfc: 'M_COUNT',               flat: 'fCount' },
-    { rfc: 'M_OUNZ',                flat: 'fOunce' },
-    { rfc: 'M_WIDTH',               flat: 'fWidth' },
-    { rfc: 'M_FAB_DIV',             flat: 'fabDiv' },
-    { rfc: 'M_FAB_VDR',             flat: 'fabVdr' },
-
-    // Body
-    { rfc: 'M_COLLAR_TYPE',         flat: 'collar' },
-    { rfc: 'M_COLLAR_STYLE',        flat: 'collarStyle' },
-    { rfc: 'M_NECK_TYPE',           flat: 'neck' },
-    { rfc: 'M_NECK_STYLE',          flat: 'neckDetails' },
-    { rfc: 'M_PLACKET',             flat: 'placket' },
-    { rfc: 'M_BLT_TYPE',            flat: 'fatherBelt' },
-    { rfc: 'M_BLT_STYLE',           flat: 'childBelt' },
-    { rfc: 'M_SLEEVES_MAIN_STYLE',  flat: 'sleeve' },
-    { rfc: 'M_SLEEVE_FOLD',         flat: 'sleeveFold' },
-    { rfc: 'M_BTM_FOLD',            flat: 'bottomFold' },
-    { rfc: 'M_NO_OF_POCKET',        flat: 'noOfPocket' },
-    { rfc: 'M_POCKET',              flat: 'pocketType' },
-    { rfc: 'M_EXTRA_POCKET',        flat: 'extraPocket' },
-    { rfc: 'M_FIT',                 flat: 'fit' },
-    { rfc: 'M_BODY_STYLE',          flat: 'pattern' },
-    { rfc: 'M_LENGTH',              flat: 'length' },
-
-    // VA Accessories
-    { rfc: 'M_DC_STYLE',            flat: 'drawcord' },
-    { rfc: 'M_DC_SHAPE',            flat: 'dcShape' },
-    { rfc: 'M_BTN_TYPE',            flat: 'button' },
-    { rfc: 'M_BTN_CLR',             flat: 'btnColour' },
-    { rfc: 'M_ZIP_TYPE',            flat: 'zipper' },
-    { rfc: 'M_ZIP_COL',             flat: 'zipColour' },
-    { rfc: 'M_PATCHE_TYPE',         flat: 'patches' },
-    { rfc: 'M_PATCH_STYLE',         flat: 'patchesType' },
-    { rfc: 'M_HTRF_TYPE',           flat: 'htrfType' },
-    { rfc: 'M_HTRF_STYLE',          flat: 'htrfStyle' },
-
-    // VA Processing
-    { rfc: 'M_PRINT_TYPE',          flat: 'printType' },
-    { rfc: 'M_PRINT_PLACEMENT',     flat: 'printPlacement' },
-    { rfc: 'M_PRINT_STYLE',         flat: 'printStyle' },
-    { rfc: 'M_EMB_TYPE',            flat: 'embroidery' },
-    { rfc: 'M_EMBROIDERY_STYLE',    flat: 'embroideryType' },
-    { rfc: 'M_EMB_PLACEMENT',       flat: 'embPlacement' },
-    { rfc: 'M_WASH',                flat: 'wash' },
-
-    // Business / segment
-    { rfc: 'M_AGE_GROUP',           flat: 'ageGroup' },
-    { rfc: 'NET_WEIGHT',            flat: 'weight' },         // renamed from G_WEIGHT in new API
-];
+// FLAT_TO_RFC is now imported from the shared module (see top of file) so the
+// MODIFY path (patch-bulk) sends identical SAP key names.
 
 // RFC fields that should always be present (even as empty string) per the RFC contract
 const RFC_ALWAYS_INCLUDE = new Set([
@@ -488,6 +413,49 @@ function buildRfcPayload(
         if (freshHsn) {
             payload['HSN_CODE'] = freshHsn;
         }
+    }
+
+    return payload;
+}
+
+/**
+ * Build the patch-bulk `Changes` payload for a MODIFY operation.
+ *
+ * Differs from buildRfcPayload (creation) in two ways:
+ *   1. Sends EVERY applicable field on every modify (not just the diff), and
+ *      includes EMPTY values ("") so a blanked field is cleared in SAP.
+ *   2. "Applicable" = all identity/price/business fields (RFC_ALWAYS_INCLUDE ∪
+ *      RFC_ALWAYS_SEND_IF_PRESENT) PLUS the garment characteristics that are
+ *      VALID for this major category (mandatory ∪ maj_cat grid). Characteristics
+ *      outside the article's class (Tier-3) are skipped, so one class-invalid
+ *      field can't make SAP reject the whole modify.
+ *
+ * `item` should already have the user's edits merged in.
+ */
+export async function buildModifyChangesPayload(item: FlatItem): Promise<Record<string, string>> {
+    const mandatoryGrid = await loadMandatoryGridForRfc();
+    const majCatVisible = await loadMajCatVisibleFieldsForRfc();
+
+    const majorCategory = toStr(item.majorCategory);
+    const mandatoryKeys = mandatoryGrid.active.get(majorCategory) ?? new Set<string>();
+    const optionalKeys = majCatVisible.get(majorCategory) ?? new Set<string>();
+    const visibleKeys = new Set<string>([...mandatoryKeys, ...optionalKeys]);
+
+    const payload: Record<string, string> = {};
+    for (const { rfc, flat } of FLAT_TO_RFC) {
+        const include =
+            RFC_ALWAYS_INCLUDE.has(rfc) ||
+            RFC_ALWAYS_SEND_IF_PRESENT.has(rfc) ||
+            visibleKeys.has(rfc);
+        if (include) payload[rfc] = toStr(item[flat]); // empties intentionally included
+    }
+
+    // Re-derive MC_CD / HSN_CODE from the major category (DB values can be stale).
+    const freshMcCode = getMcCodeByMajorCategory(item.majorCategory as string | null);
+    if (freshMcCode) {
+        payload['MC_CD'] = freshMcCode;
+        const freshHsn = getHsnCodeByMcCode(freshMcCode);
+        if (freshHsn) payload['HSN_CODE'] = freshHsn;
     }
 
     return payload;
