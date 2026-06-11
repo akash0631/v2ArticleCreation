@@ -43,6 +43,14 @@ import type {
 import type { SelectedCategory } from './HierarchyTreeEditor';
 
 const GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+// Friendly section titles — mirror the New Articles "GARMENT ATTRIBUTES" card groups.
+const GROUP_LABELS: Record<string, string> = {
+  FAB: 'Construction & Fabric',
+  BODY: 'Body & Construction',
+  'VA ACC.': 'Trims & Accessories',
+  'VA PRCS': 'Finishing & Process',
+  BUSINESS: 'Business & Misc',
+};
 const GROUP_COLORS: Record<string, string> = {
   FAB: '#e6f4ff',
   BODY: '#f6ffed',
@@ -280,7 +288,9 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
       {/* Grouped attribute sections */}
       <div className="flex-1 overflow-auto">
         <Spinner spinning={isLoading}>
-          <Accordion type="multiple" defaultValue={GROUP_ORDER}>
+          {/* Single-open accordion, all sections closed by default — opening one
+              closes the others. Mirrors the New Articles attribute card groups. */}
+          <Accordion type="single" collapsible>
             {GROUP_ORDER.map((groupName) => {
               const groupRows = groupedRows.groups[groupName] || [];
               const enabledInGroup = groupRows.filter((r) => r.isEnabled).length;
@@ -299,7 +309,7 @@ const AttributeTable: React.FC<{ category: SelectedCategory }> = ({ category }) 
                         style={{ background: GROUP_TEXT[groupName] }}
                       />
                       <strong className="text-[13px]" style={{ color: GROUP_TEXT[groupName] }}>
-                        {groupName}
+                        {GROUP_LABELS[groupName] ?? groupName}
                       </strong>
                       <Badge style={{ background: enabledInGroup > 0 ? GROUP_TEXT[groupName] : '#d9d9d9' }}>
                         {enabledInGroup}/{groupRows.length}

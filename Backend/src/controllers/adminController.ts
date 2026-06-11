@@ -2908,6 +2908,244 @@ export const uploadColorMaster = async (req: Request, res: Response): Promise<vo
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GRID VALUES EDITOR (maj_cat_grid_values)
+// Browse Group → Attribute → Major Category, then view / add / delete the allowed
+// values for that (attribute, major category) pair. Used by the admin "Grid Values" tab.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const GRID_GROUP_ORDER = ['FAB', 'BODY', 'VA ACC.', 'VA PRCS', 'BUSINESS'];
+const GRID_GROUP_LABELS: Record<string, string> = {
+  FAB: 'Construction & Fabric',
+  BODY: 'Body & Construction',
+  'VA ACC.': 'Trims & Accessories',
+  'VA PRCS': 'Finishing & Process',
+  BUSINESS: 'Business & Misc',
+};
+
+/**
+ * GET /api/admin/grid-values/attributes
+ * Returns the 5 New-Articles groups → their attributes (grid key + label),
+ * sourced from master_attributes (group + grid_attribute_name).
+ */
+export const getGridValueAttributes = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ grp: string; grid_key: string; label: string }[]>`
+      SELECT "group" AS grp, grid_attribute_name AS grid_key, label
+      FROM master_attributes
+      WHERE "group" IS NOT NULL AND grid_attribute_name IS NOT NULL
+      ORDER BY "group", display_order NULLS LAST, label
+    `;
+    const byGroup = new Map<string, { gridKey: string; label: string }[]>();
+    for (const r of rows) {
+      if (!byGroup.has(r.grp)) byGroup.set(r.grp, []);
+      // de-dupe by grid key within a group
+      if (!byGroup.get(r.grp)!.some((a) => a.gridKey === r.grid_key)) {
+        byGroup.get(r.grp)!.push({ gridKey: r.grid_key, label: r.label });
+      }
+    }
+    const data = GRID_GROUP_ORDER
+      .filter((g) => byGroup.has(g))
+      .map((g) => ({ group: g, label: GRID_GROUP_LABELS[g] ?? g, attributes: byGroup.get(g)! }));
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('[GridValues] attributes error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/grid-values/categories?attribute=M_FAB_DIV
+ * Distinct major categories that have grid rows for the attribute (+ value count).
+ */
+export const getGridValueCategories = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const attribute = String(req.query.attribute || '').trim();
+    if (!attribute) {
+      res.status(400).json({ success: false, error: 'attribute query param is required' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{ major_category: string; n: bigint }[]>`
+      SELECT major_category, COUNT(*)::bigint AS n
+      FROM maj_cat_grid_values
+      WHERE attribute_name = ${attribute}
+      GROUP BY major_category
+      ORDER BY major_category
+    `;
+    res.json({
+      success: true,
+      data: rows.map((r) => ({ majorCategory: r.major_category, count: Number(r.n) })),
+    });
+  } catch (error: any) {
+    console.error('[GridValues] categories error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/grid-values/values?attribute=M_FAB_DIV&majorCategory=MW_TEES_FS
+ * All allowed values for that (attribute, major category) pair.
+ */
+export const getGridValues = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const attribute = String(req.query.attribute || '').trim();
+    const majorCategory = String(req.query.majorCategory || '').trim();
+    if (!attribute || !majorCategory) {
+      res.status(400).json({ success: false, error: 'attribute and majorCategory query params are required' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{ id: bigint; value: string }[]>`
+      SELECT id, value
+      FROM maj_cat_grid_values
+      WHERE attribute_name = ${attribute} AND major_category = ${majorCategory}
+      ORDER BY value
+    `;
+    res.json({
+      success: true,
+      data: rows.map((r) => ({ id: Number(r.id), value: r.value })),
+    });
+  } catch (error: any) {
+    console.error('[GridValues] values error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/** Write one row to the grid_value_audit log. Never throws — auditing must not block the edit. */
+async function writeGridValueAudit(
+  req: Request,
+  action: 'ADD' | 'DELETE',
+  attribute: string,
+  majorCategory: string,
+  value: string,
+  remarks: string,
+): Promise<void> {
+  try {
+    const u = (req as any).user;
+    await prisma.$executeRaw`
+      INSERT INTO grid_value_audit
+        (attribute_name, major_category, value, action, remarks, performed_by_id, performed_by_name, performed_by_email, performed_at)
+      VALUES
+        (${attribute}, ${majorCategory}, ${value}, ${action}, ${remarks},
+         ${u?.id ?? null}, ${u?.name ?? null}, ${u?.email ?? null}, NOW())
+    `;
+  } catch (e: any) {
+    console.error('[GridValues] audit write failed:', e?.message);
+  }
+}
+
+/**
+ * POST /api/admin/grid-values/add   body: { attribute, majorCategory, value, remarks }
+ * Adds a value (case-insensitive de-dupe). Remarks are required and audited.
+ */
+export const addGridValue = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const attribute = String(req.body?.attribute || '').trim();
+    const majorCategory = String(req.body?.majorCategory || '').trim();
+    const value = String(req.body?.value || '').trim();
+    const remarks = String(req.body?.remarks || '').trim();
+    if (!attribute || !majorCategory || !value) {
+      res.status(400).json({ success: false, error: 'attribute, majorCategory and value are required' });
+      return;
+    }
+    if (!remarks) {
+      res.status(400).json({ success: false, error: 'A remark/reason is required to add a value.' });
+      return;
+    }
+    const inserted = await prisma.$executeRaw`
+      INSERT INTO maj_cat_grid_values (major_category, attribute_name, value, uploaded_at)
+      SELECT ${majorCategory}, ${attribute}, ${value}, NOW()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM maj_cat_grid_values
+        WHERE major_category = ${majorCategory}
+          AND attribute_name = ${attribute}
+          AND UPPER(TRIM(value)) = UPPER(TRIM(${value}))
+      )
+    `;
+    if (inserted === 0) {
+      res.status(409).json({ success: false, error: `"${value}" already exists for ${attribute} / ${majorCategory}.` });
+      return;
+    }
+    await writeGridValueAudit(req, 'ADD', attribute, majorCategory, value, remarks);
+    res.json({ success: true, message: `Added "${value}".` });
+  } catch (error: any) {
+    console.error('[GridValues] add error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/grid-values/delete   body: { id, remarks }
+ * Deletes a single grid value by its row id. Remarks are required and audited.
+ */
+export const deleteGridValue = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.body?.id);
+    const remarks = String(req.body?.remarks || '').trim();
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ success: false, error: 'A valid numeric id is required' });
+      return;
+    }
+    if (!remarks) {
+      res.status(400).json({ success: false, error: 'A remark/reason is required to delete a value.' });
+      return;
+    }
+    // Fetch the row first so the audit log captures what was deleted.
+    const rows = await prisma.$queryRaw<{ attribute_name: string; major_category: string; value: string }[]>`
+      SELECT attribute_name, major_category, value FROM maj_cat_grid_values WHERE id = ${id}
+    `;
+    if (rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Value not found (already deleted?).' });
+      return;
+    }
+    const { attribute_name, major_category, value } = rows[0];
+    await prisma.$executeRaw`DELETE FROM maj_cat_grid_values WHERE id = ${id}`;
+    await writeGridValueAudit(req, 'DELETE', attribute_name, major_category, value, remarks);
+    res.json({ success: true, message: 'Value deleted.' });
+  } catch (error: any) {
+    console.error('[GridValues] delete error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/grid-values/audit?attribute=&majorCategory=
+ * Audit history (most recent first) for a (attribute, major category) pair.
+ */
+export const getGridValueAudit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const attribute = String(req.query.attribute || '').trim();
+    const majorCategory = String(req.query.majorCategory || '').trim();
+    if (!attribute || !majorCategory) {
+      res.status(400).json({ success: false, error: 'attribute and majorCategory query params are required' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{
+      id: bigint; value: string; action: string; remarks: string | null;
+      performed_by_name: string | null; performed_by_email: string | null; performed_at: Date;
+    }[]>`
+      SELECT id, value, action, remarks, performed_by_name, performed_by_email, performed_at
+      FROM grid_value_audit
+      WHERE attribute_name = ${attribute} AND major_category = ${majorCategory}
+      ORDER BY performed_at DESC
+      LIMIT 200
+    `;
+    res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: Number(r.id),
+        value: r.value,
+        action: r.action,
+        remarks: r.remarks,
+        by: r.performed_by_name || r.performed_by_email || 'Unknown',
+        at: r.performed_at,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[GridValues] audit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MANDATORY GRID (maj_cat_mandatory_grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 

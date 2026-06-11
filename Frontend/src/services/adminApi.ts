@@ -417,6 +417,50 @@ export const exportHierarchy = async (): Promise<Blob> => {
 };
 
 // ═══════════════════════════════════════════════════════
+// GRID VALUES EDITOR (maj_cat_grid_values)
+// ═══════════════════════════════════════════════════════
+export interface GridValueAttribute { gridKey: string; label: string }
+export interface GridValueGroup { group: string; label: string; attributes: GridValueAttribute[] }
+export interface GridValueCategory { majorCategory: string; count: number }
+export interface GridValueItem { id: number; value: string }
+export interface GridValueAuditEntry {
+  id: number;
+  value: string;
+  action: 'ADD' | 'DELETE';
+  remarks: string | null;
+  by: string;
+  at: string;
+}
+
+export const getGridValueAttributes = async (): Promise<GridValueGroup[]> => {
+  const { data } = await adminApi.get('/grid-values/attributes');
+  return data.data ?? [];
+};
+
+export const getGridValueCategories = async (attribute: string): Promise<GridValueCategory[]> => {
+  const { data } = await adminApi.get('/grid-values/categories', { params: { attribute } });
+  return data.data ?? [];
+};
+
+export const getGridValues = async (attribute: string, majorCategory: string): Promise<GridValueItem[]> => {
+  const { data } = await adminApi.get('/grid-values/values', { params: { attribute, majorCategory } });
+  return data.data ?? [];
+};
+
+export const addGridValue = async (attribute: string, majorCategory: string, value: string, remarks: string): Promise<void> => {
+  await adminApi.post('/grid-values/add', { attribute, majorCategory, value, remarks });
+};
+
+export const deleteGridValue = async (id: number, remarks: string): Promise<void> => {
+  await adminApi.post('/grid-values/delete', { id, remarks });
+};
+
+export const getGridValueAudit = async (attribute: string, majorCategory: string): Promise<GridValueAuditEntry[]> => {
+  const { data } = await adminApi.get('/grid-values/audit', { params: { attribute, majorCategory } });
+  return data.data ?? [];
+};
+
+// ═══════════════════════════════════════════════════════
 // USERS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
 
