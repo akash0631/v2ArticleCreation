@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { RotateCw, Download, Sparkles, Search, ChevronDown } from 'lucide-react';
 import type { Dayjs } from 'dayjs';
 import {
@@ -78,7 +79,14 @@ interface ApproverDashboardProps {
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // When returning from the detail page via its Back button, the filters that
+  // were active when the card was opened are passed back in navigation state.
+  // We seed the filter useStates from this so the list stays filtered (e.g. a
+  // "MIX VENDOR" search) instead of resetting on Back.
+  const restoredFilters = (location.state as { restoreFilters?: DetailFilters } | null)?.restoreFilters;
 
   const [items, setItems] = useState<ApproverItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,13 +98,23 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   const [totalCount, setTotalCount] = useState(0);
   const [user, setUser] = useState<any>(null);
 
+  // Filters are seeded from the URL query string first (so browser back/forward,
+  // hard refresh and shared links keep the filters), then from the detail page's
+  // Back-button navigation state, then defaults.
+  const seed = (key: keyof DetailFilters, fallback: string) =>
+    searchParams.get(key) ?? restoredFilters?.[key] ?? fallback;
+
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [searchText, setSearchText] = useState('');
-  const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
-  const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
-  const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>('');
-  const [sourceFilter, setSourceFilter] = useState<string>('ALL');
-  const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [searchText, setSearchText] = useState(() => seed('search', ''));
+  const [divisionFilter, setDivisionFilter] = useState<string>(() => seed('division', 'ALL'));
+  const [subDivisionFilter, setSubDivisionFilter] = useState<string>(() => seed('subDivision', 'ALL'));
+  const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>(() => seed('majorCategory', ''));
+  const [sourceFilter, setSourceFilter] = useState<string>(() => seed('source', 'ALL'));
+  const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(() => {
+    const start = searchParams.get('startDate') ?? restoredFilters?.startDate;
+    const end = searchParams.get('endDate') ?? restoredFilters?.endDate;
+    return start || end ? [start ? dayjs(start) : null, end ? dayjs(end) : null] : null;
+  });
   const [exportingAll, setExportingAll] = useState(false);
   // IDs of cards checked for selective export. Scoped to the current page only:
   // cleared on every fetch (pagination / filter change) so it never holds ids
@@ -197,12 +215,27 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchItems]);
 
-  // Sync currentPage → ?page=N in the URL (separate from fetching so the two don't interfere)
+  // Sync page + active filters → URL query string (separate from fetching so the
+  // two don't interfere). Keeps browser back/forward, hard refresh and shared
+  // links in step with the on-screen filters.
   useEffect(() => {
-    setSearchParams(p => { p.set('page', String(currentPage)); return p; }, { replace: true });
-  // setSearchParams is stable; currentPage drives the sync
+    setSearchParams(p => {
+      const setOrDel = (key: string, val: string | null | undefined) => {
+        if (val) p.set(key, val); else p.delete(key);
+      };
+      p.set('page', String(currentPage));
+      setOrDel('search', searchText);
+      setOrDel('division', divisionFilter !== 'ALL' ? divisionFilter : '');
+      setOrDel('subDivision', subDivisionFilter !== 'ALL' ? subDivisionFilter : '');
+      setOrDel('majorCategory', majorCategoryFilter);
+      setOrDel('source', sourceFilter !== 'ALL' ? sourceFilter : '');
+      setOrDel('startDate', dateRangeFilter?.[0]?.toISOString());
+      setOrDel('endDate', dateRangeFilter?.[1]?.toISOString());
+      return p;
+    }, { replace: true });
+  // setSearchParams is stable; these drive the sync
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]);
+  }, [currentPage, searchText, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, dateRangeFilter]);
 
   // ─── Export ──────────────────────────────────────────────────────────────────
 
@@ -449,6 +482,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
             <div className="flex flex-wrap items-center gap-1.5">
               <Input
                 placeholder="Search article, vendor, design, PPT no..."
+                defaultValue={searchText}
                 onChange={handleSearchChange}
                 allowClear
                 onClear={() => setSearchText('')}
