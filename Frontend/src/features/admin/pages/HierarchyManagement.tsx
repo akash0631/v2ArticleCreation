@@ -6,7 +6,7 @@
  * Tab 4: Overview — stats
  */
 import { useState } from 'react';
-import { LayoutDashboard, Network, Palette, Download, Link2 } from 'lucide-react';
+import { LayoutDashboard, Network, Palette, Download, Link2, ListTree } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -23,10 +23,11 @@ import { HierarchyTree } from '../components/HierarchyTree';
 import { AttributeManager } from '../components/AttributeManager';
 import { HierarchyTreeEditor } from '../components/HierarchyTreeEditor';
 import { CategoryAttributeMapper } from '../components/CategoryAttributeMapper';
+import { GridValuesEditor } from '../components/GridValuesEditor';
 import type { SelectedCategory } from '../components/HierarchyTreeEditor';
 import VLMStatusPanel from '../../../components/vlm/VLMStatusPanel';
 
-type TabType = 'mappings' | 'hierarchy' | 'attributes' | 'overview';
+type TabType = 'mappings' | 'grid-values' | 'hierarchy' | 'attributes' | 'overview';
 
 export default function HierarchyManagement() {
   const [activeTab, setActiveTab] = useState<TabType>('mappings');
@@ -91,6 +92,10 @@ export default function HierarchyManagement() {
                     <Link2 className="mr-1 h-4 w-4" />
                     Attribute Mapping
                   </TabsTrigger>
+                  <TabsTrigger value="grid-values">
+                    <ListTree className="mr-1 h-4 w-4" />
+                    Grid Values
+                  </TabsTrigger>
                   <TabsTrigger value="hierarchy">
                     <Network className="mr-1 h-4 w-4" />
                     Hierarchy
@@ -112,6 +117,14 @@ export default function HierarchyManagement() {
                   Changes are saved per-category — click <strong>Save Changes</strong> after toggling.
                 </p>
                 <CategoryAttributeMapper initialCategory={jumpCategory} />
+              </TabsContent>
+
+              <TabsContent value="grid-values" className="m-0 px-6 py-4">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Browse the allowed grid values by <strong>group → attribute → major category</strong>.
+                  Click a major category to view, add, or delete the values for that attribute.
+                </p>
+                <GridValuesEditor />
               </TabsContent>
 
               <TabsContent value="hierarchy" className="m-0 px-6 py-4">

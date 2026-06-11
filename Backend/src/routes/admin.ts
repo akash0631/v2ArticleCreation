@@ -168,6 +168,25 @@ router.get('/size-master/template', h(adminController.downloadSizeMasterTemplate
 router.post('/size-master/upload', excelUpload.single('file'), h(adminController.uploadSizeMaster));
 
 // ═══════════════════════════════════════════════════════
+// COLOR MASTER (ADMIN) — color_master
+// ═══════════════════════════════════════════════════════
+router.get('/color-master/status', h(adminController.getColorMasterStatus));
+router.get('/color-master/template', h(adminController.downloadColorMasterTemplate));
+router.post('/color-master/upload', excelUpload.single('file'), h(adminController.uploadColorMaster));
+
+// ═══════════════════════════════════════════════════════
+// GRID VALUES EDITOR (ADMIN) — maj_cat_grid_values
+// Group → Attribute → Major Category browser + per-value add/delete.
+// POST used for mutations to avoid the Express 5 DELETE registration quirk.
+// ═══════════════════════════════════════════════════════
+router.get('/grid-values/attributes', h(adminController.getGridValueAttributes));
+router.get('/grid-values/categories', h(adminController.getGridValueCategories));
+router.get('/grid-values/values', h(adminController.getGridValues));
+router.get('/grid-values/audit', h(adminController.getGridValueAudit));
+router.post('/grid-values/add', h(adminController.addGridValue));
+router.post('/grid-values/delete', h(adminController.deleteGridValue));
+
+// ═══════════════════════════════════════════════════════
 // HIERARCHY EXCEL UPLOAD (ADMIN)
 // Upserts Department / SubDepartment / Category from
 // DIV / SUB-DIV / MAJOR_CATEGORY columns of the Mandatory Grid Excel.
