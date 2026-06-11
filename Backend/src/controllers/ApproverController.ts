@@ -1530,15 +1530,12 @@ export class ApproverController {
             // Mirror to 360article.article_360_flat (fire-and-forget)
             void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] update failed:', err?.message));
 
-            // Only sync mcCode/hsnTaxCode across rows when majorCategory actually changed.
-            if (data.majorCategory !== undefined && data.majorCategory !== existingItem.majorCategory && updated.majorCategory) {
-                const expectedMcCode = getMcCodeByMajorCategory(updated.majorCategory) || null;
-                const expectedHsnCode = getHsnCodeByMcCode(expectedMcCode) || null;
-                void prisma.extractionResultFlat.updateMany({
-                    where: { majorCategory: updated.majorCategory },
-                    data: { mcCode: expectedMcCode, hsnTaxCode: expectedHsnCode }
-                }).catch((err: any) => console.error('[mcCode sync] updateMany failed:', err?.message));
-            }
+            // NOTE: We intentionally update ONLY this edited row. The correct
+            // mcCode/hsnTaxCode for the new majorCategory are already applied to
+            // this row above (data.mcCode / data.hsnTaxCode) and saved via the
+            // single-row update. We do NOT propagate to every other article in
+            // the category — that previously re-stamped the whole category (incl.
+            // approved/SAP-synced rows) and bumped their updated_at en masse.
 
             // If variantColor was updated on a non-generic, sync colour field too
             if (!existingItem.isGeneric && data.variantColor !== undefined) {
