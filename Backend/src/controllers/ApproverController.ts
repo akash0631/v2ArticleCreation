@@ -784,11 +784,19 @@ export class ApproverController {
             const cachedCount = ApproverController.countCache.get(whereKey);
             let total: number;
 
+            // Created tab is ordered by approvedAt (most-recently-approved first) so a
+            // freshly-created SAP article appears at the top — consistent with the
+            // Created tab's approvedAt date filter/export/card date. NULLs (older
+            // approvals without a timestamp) sort last. Every other tab uses createdAt.
+            const orderBy = pathType === 'created'
+                ? ({ approvedAt: { sort: 'desc', nulls: 'last' } } as const)
+                : ({ createdAt: 'desc' } as const);
+
             const findManyArgs = {
                 where,
                 skip,
                 take: Number(limit),
-                orderBy: { createdAt: 'desc' as const },
+                orderBy,
                 select: {
                     id: true,
                     imageName: true,
@@ -1084,7 +1092,9 @@ export class ApproverController {
             // under the heap limit (vs. fetching all 100+ columns which caused OOM).
             const items = await prisma.extractionResultFlat.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy: pathType === 'created'
+                    ? ({ approvedAt: { sort: 'desc', nulls: 'last' } } as const)
+                    : ({ createdAt: 'desc' } as const),
                 select: {
                     id: true,
                     articleNumber: true,

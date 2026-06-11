@@ -45,6 +45,7 @@ import {
 } from '../../../data/majCatAttributeMap';
 import {
   preloadAttributeValues,
+  preloadMandatoryGridFor,
   isMandatoryGridFieldActive,
   getMandatoryGridFieldLabel,
 } from '../../../services/articleConfigService';
@@ -205,6 +206,10 @@ export default function ArticleDetailPage() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
   const [infoDialog, setInfoDialog] = useState<InfoDialog>(null);
   const [approving, setApproving] = useState(false);
+  // Bumped once the per-category mandatory grid finishes loading, so the
+  // Save & Submit gate recomputes against real grid data (fixes the hard-refresh
+  // race where the gate ran before the grid cache was populated).
+  const [gridVersion, setGridVersion] = useState(0);
 
   // Edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -251,6 +256,19 @@ export default function ArticleDetailPage() {
     if (editingItem?.division) preloadAttributeValues(editingItem.division).catch(() => {});
   }, [editingItem?.division]);
 
+  // Ensure the mandatory grid for every loaded article's major category is cached,
+  // then bump gridVersion so the Save & Submit gate recomputes with real data.
+  // Without this, a hard refresh runs the gate against an empty grid (every field
+  // reads as "not mandatory") and the button stays enabled despite empty Required fields.
+  useEffect(() => {
+    const cats = Array.from(
+      new Set(items.map(i => (i.majorCategory || '').trim()).filter(Boolean)),
+    );
+    if (cats.length === 0) return;
+    Promise.all(cats.map(c => preloadMandatoryGridFor(c).catch(() => {})))
+      .then(() => setGridVersion(v => v + 1));
+  }, [items]);
+
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
   const currentItem = items[currentIndex] ?? null;
@@ -265,6 +283,24 @@ export default function ArticleDetailPage() {
     if (pathType === 'rejected') return '/approver/rejected';
     if (pathType === 'created') return '/approver/created';
     return '/approver';
+  }
+
+  // Rebuild the list URL with the same filters that were active when the card was
+  // opened, so Back returns to an identically-filtered (and identically-paged) list.
+  function buildBackUrl() {
+    const f = navState?.filters;
+    const p = new URLSearchParams();
+    p.set('page', String(navState?.listPage ?? 1));
+    if (f) {
+      if (f.search) p.set('search', f.search);
+      if (f.division && f.division !== 'ALL') p.set('division', f.division);
+      if (f.subDivision && f.subDivision !== 'ALL') p.set('subDivision', f.subDivision);
+      if (f.majorCategory) p.set('majorCategory', f.majorCategory);
+      if (f.source && f.source !== 'ALL') p.set('source', f.source);
+      if (f.startDate) p.set('startDate', f.startDate);
+      if (f.endDate) p.set('endDate', f.endDate);
+    }
+    return `${getBasePath()}?${p.toString()}`;
   }
 
   const goPrev = useCallback(() => {
@@ -319,7 +355,8 @@ export default function ArticleDetailPage() {
       if (missing.length > 0) acc.push({ articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id, missing });
       return acc;
     }, []);
-  }, [pendingSelectedKeys, items]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSelectedKeys, items, gridVersion]);
 
   const handleApproveClick = () => {
     if (pendingSelectedKeys.length === 0) return;
@@ -648,7 +685,9 @@ export default function ArticleDetailPage() {
             style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}>
             <div className="flex min-w-0 items-center gap-2.5">
               {/* Back button */}
-              <Button size="sm" variant="ghost" onClick={() => navigate(`${getBasePath()}?page=${navState?.listPage ?? 1}`)}
+              <Button size="sm" variant="ghost" onClick={() => navigate(buildBackUrl(), {
+                  state: navState?.filters ? { restoreFilters: navState.filters } : undefined,
+                })}
                 className="h-7 px-1.5 text-white hover:bg-white/15 hover:text-white">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
