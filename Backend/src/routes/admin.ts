@@ -168,6 +168,13 @@ router.get('/size-master/template', h(adminController.downloadSizeMasterTemplate
 router.post('/size-master/upload', excelUpload.single('file'), h(adminController.uploadSizeMaster));
 
 // ═══════════════════════════════════════════════════════
+// COLOR MASTER (ADMIN) — color_master
+// ═══════════════════════════════════════════════════════
+router.get('/color-master/status', h(adminController.getColorMasterStatus));
+router.get('/color-master/template', h(adminController.downloadColorMasterTemplate));
+router.post('/color-master/upload', excelUpload.single('file'), h(adminController.uploadColorMaster));
+
+// ═══════════════════════════════════════════════════════
 // HIERARCHY EXCEL UPLOAD (ADMIN)
 // Upserts Department / SubDepartment / Category from
 // DIV / SUB-DIV / MAJOR_CATEGORY columns of the Mandatory Grid Excel.

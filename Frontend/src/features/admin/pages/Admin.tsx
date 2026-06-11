@@ -80,6 +80,15 @@ interface SizeMasterMeta {
   skipped?: number;
 }
 
+interface ColorMasterMeta {
+  uploadedAt?: string;
+  fileName?: string;
+  total?: number;
+  fathers?: number;
+  codes?: number;
+  skipped?: number;
+}
+
 interface HierarchyExcelStatus {
   departments: number;
   subDepartments: number;
@@ -163,6 +172,13 @@ export default function Admin() {
   const [sizeMasterUploading, setSizeMasterUploading] = useState(false);
   const [sizeMasterProgress, setSizeMasterProgress] = useState<number>(0);
   const sizeFileRef = useRef<HTMLInputElement | null>(null);
+
+  // Color Master (color_master)
+  const [colorMasterMeta, setColorMasterMeta] = useState<ColorMasterMeta | null>(null);
+  const [colorMasterStatusLoading, setColorMasterStatusLoading] = useState(false);
+  const [colorMasterUploading, setColorMasterUploading] = useState(false);
+  const [colorMasterProgress, setColorMasterProgress] = useState<number>(0);
+  const colorFileRef = useRef<HTMLInputElement | null>(null);
 
   // Hierarchy Excel Upload (two-step)
   const [hierarchyExcelStatus, setHierarchyExcelStatus] = useState<HierarchyExcelStatus | null>(null);
@@ -494,6 +510,68 @@ export default function Admin() {
     }
   };
 
+  // ─────────────────────────────── Color Master ───────────────────────────────
+  const loadColorMasterStatus = useCallback(async () => {
+    setColorMasterStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/color-master/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load color master status');
+      setColorMasterMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load color master status');
+    } finally {
+      setColorMasterStatusLoading(false);
+    }
+  }, []);
+
+  const downloadColorMasterTemplate = () => {
+    const token = localStorage.getItem('authToken');
+    const url = `${APP_CONFIG.api.baseURL}/admin/color-master/template`;
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'COLOR_MASTER_TEMPLATE.xlsx';
+        a.click();
+      })
+      .catch(() => message.error('Failed to download template'));
+  };
+
+  const handleColorMasterUpload = async (file: File) => {
+    setColorMasterUploading(true);
+    setColorMasterProgress(0);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+      const progressInterval = setInterval(() => {
+        setColorMasterProgress((prev) => Math.min(prev + 5, 90));
+      }, 500);
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/color-master/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setColorMasterProgress(100);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      message.success(data.message);
+      setColorMasterMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Upload failed');
+    } finally {
+      setColorMasterUploading(false);
+      setTimeout(() => setColorMasterProgress(0), 1500);
+      if (colorFileRef.current) colorFileRef.current.value = '';
+    }
+  };
+
   // ─────────────────────────────── Hierarchy Excel ───────────────────────────────
   const loadHierarchyExcelStatus = useCallback(async () => {
     setHierarchyExcelStatusLoading(true);
@@ -585,10 +663,11 @@ export default function Admin() {
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
     loadSizeMasterStatus();
+    loadColorMasterStatus();
     loadHierarchyExcelStatus();
     loadPipelineStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadSizeMasterStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
+  }, [loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadSizeMasterStatus, loadColorMasterStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1213,6 +1292,116 @@ export default function Admin() {
                       <button
                         type="button"
                         onClick={() => sizeFileRef.current?.click()}
+                        className="flex w-full flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 transition-colors hover:border-[#FF6F61] hover:bg-[#FF6F61]/5"
+                      >
+                        <Inbox className="mb-2 h-8 w-8 text-[#FF6F61]" />
+                        <p className="text-[13px]">
+                          Click to upload <strong>.xlsx</strong> file
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">Only Excel files. Max 50 MB.</p>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Spinner>
+          </CardContent>
+        </Card>
+
+        {/* Color Master Upload (father/child colours → color_master) */}
+        <Card className="mb-6 glass rounded-2xl border border-white/60">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TableIcon className="h-4 w-4" />
+              Color Master (Father / Child Colours)
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={downloadColorMasterTemplate}>
+                <Download />
+                Download Template
+              </Button>
+              <Button size="sm" variant="outline" onClick={loadColorMasterStatus} disabled={colorMasterStatusLoading}>
+                <RotateCw className={colorMasterStatusLoading ? 'animate-spin' : ''} />
+                Refresh Status
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Spinner spinning={colorMasterStatusLoading}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+                {/* Status panel */}
+                <div className="md:col-span-7">
+                  {colorMasterMeta && (colorMasterMeta.total ?? 0) > 0 ? (
+                    <Descriptions bordered>
+                      {colorMasterMeta.uploadedAt && (
+                        <Descriptions.Item label="Last Upload">
+                          {new Date(colorMasterMeta.uploadedAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+                          }) + ' IST'}
+                        </Descriptions.Item>
+                      )}
+                      {colorMasterMeta.fileName && (
+                        <Descriptions.Item label="File">
+                          <span className="font-mono text-xs">{colorMasterMeta.fileName}</span>
+                        </Descriptions.Item>
+                      )}
+                      <Descriptions.Item label="Father Colours">
+                        <Badge variant="info">{(colorMasterMeta.fathers ?? 0).toLocaleString()}</Badge>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Total Colours">
+                        <Badge variant="secondary">{(colorMasterMeta.total ?? 0).toLocaleString()}</Badge>
+                      </Descriptions.Item>
+                      {colorMasterMeta.skipped != null && (
+                        <Descriptions.Item label="Rows Skipped">
+                          <Badge variant={(colorMasterMeta.skipped ?? 0) > 0 ? 'warning' : 'secondary'}>
+                            {(colorMasterMeta.skipped ?? 0).toLocaleString()}
+                          </Badge>
+                        </Descriptions.Item>
+                      )}
+                    </Descriptions>
+                  ) : (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="No color master uploaded yet"
+                      description="Upload the COLOR CHART MASTER Excel (columns FATHER COLOR, CHILD COLOR, SAP CREATE OLD) to populate the Add Color dropdown."
+                    />
+                  )}
+                </div>
+
+                {/* Upload panel */}
+                <div className="md:col-span-5">
+                  <div className="rounded-md border border-border p-4">
+                    <div className="mb-1 font-semibold">Upload Color Master Excel</div>
+                    <div className="mb-3 text-xs text-muted-foreground">
+                      Columns <strong>FATHER COLOR</strong>, <strong>CHILD COLOR</strong> and
+                      {' '}<strong>SAP CREATE OLD</strong> (matched by header name; other columns ignored).
+                      Replaces the entire table. Duplicate SAP codes are skipped.
+                    </div>
+
+                    <input
+                      ref={colorFileRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleColorMasterUpload(file);
+                      }}
+                    />
+
+                    {colorMasterUploading ? (
+                      <div>
+                        <div className="mb-2 text-[13px] text-[#FF6F61]">
+                          <RefreshCw className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin" />
+                          Parsing Excel & replacing table...
+                        </div>
+                        <Progress value={colorMasterProgress} />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => colorFileRef.current?.click()}
                         className="flex w-full flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 transition-colors hover:border-[#FF6F61] hover:bg-[#FF6F61]/5"
                       >
                         <Inbox className="mb-2 h-8 w-8 text-[#FF6F61]" />

@@ -2708,6 +2708,206 @@ export const uploadSizeMaster = async (req: Request, res: Response): Promise<voi
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COLOR MASTER (color_master)  — father/child colour list for the Add Color dropdown
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/color-master/status
+ * Returns row / father-group / distinct-SAP-code counts for color_master.
+ */
+export const getColorMasterStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ total: bigint; fathers: bigint; codes: bigint }[]>`
+      SELECT COUNT(*)::bigint                          AS total,
+             COUNT(DISTINCT father_color)::bigint      AS fathers,
+             COUNT(DISTINCT sap_create_old)::bigint    AS codes
+      FROM color_master
+    `;
+    const r = rows[0] ?? { total: 0n, fathers: 0n, codes: 0n };
+    res.json({
+      success: true,
+      data: { total: Number(r.total), fathers: Number(r.fathers), codes: Number(r.codes) },
+    });
+  } catch (error: any) {
+    console.error('[ColorMaster] Status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/color-master/template
+ * Returns a blank .xlsx matching the COLOR CHART MASTER layout:
+ *   title row 1, headers row 3, data from row 4.
+ * Only FATHER COLOR, CHILD COLOR and SAP CREATE OLD are imported; the other
+ * columns are included for familiarity and ignored on upload.
+ */
+export const downloadColorMasterTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('COLOR CHART MASTER');
+
+    // Row 1 — title (merged A1:I1)
+    ws.mergeCells('A1:I1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'NATIONAL COLOR CHART';
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center' };
+    ws.getRow(1).height = 22;
+
+    // Row 2 — empty
+    ws.addRow([]);
+
+    // Row 3 — headers (FATHER COLOR, CHILD COLOR, SAP CREATE OLD are the imported ones)
+    const headers = ['S. NO', 'FATHER COLOR', 'FATHER_COLOR__SHORT_FORM', 'CHILD COLOR', 'SAP CREATE OLD', 'SUGGESTED TCX', 'MATCH TYPE', 'HEX CODE', 'CORRECT VISUAL SHADE'];
+    const headerRow = ws.addRow(headers);
+    headerRow.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 4+ — sample data
+    ws.addRow([1, 'BEIGE', 'BEG', 'CARAMEL BEIGE', 'CRM_BEG', '15-1040 TCX', 'NEAREST', '#E5AA70', 'E5AA70']);
+    ws.addRow([2, 'BEIGE', 'BEG', 'ALMOND BEIGE', 'ALM_BEG', '14-1118 TCX', 'NEAREST', '#EDC9AF', 'EDC9AF']);
+    ws.addRow([3, 'BLACK', 'BLK', 'JET BLACK', 'JET_BLK', '19-0303 TCX', 'NEAREST', '#000000', '000000']);
+
+    ws.columns = [
+      { width: 8 }, { width: 16 }, { width: 22 }, { width: 20 }, { width: 16 },
+      { width: 14 }, { width: 12 }, { width: 12 }, { width: 18 },
+    ];
+
+    // Note
+    ws.addRow([]);
+    const noteRow = ws.addRow(['⚠ NOTE: Headers in Row 3, data from Row 4. Only FATHER COLOR, CHILD COLOR and SAP CREATE OLD are imported (matched by header name). SAP CREATE OLD must be unique.']);
+    ws.mergeCells(`A${noteRow.number}:I${noteRow.number}`);
+    noteRow.getCell(1).font = { italic: true, size: 10 };
+    noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="COLOR_MASTER_TEMPLATE.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[ColorMaster] Template error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/color-master/upload
+ * Accepts a multipart Excel. Locates the header row (within the first ~15 rows)
+ * and maps the FATHER COLOR / CHILD COLOR / SAP CREATE OLD columns by name, so
+ * both our template and the original COLOR CHART MASTER file work. Replaces the
+ * color_master table. Duplicate SAP codes are skipped (first wins).
+ */
+export const uploadColorMaster = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Send a .xlsx file as "file" field.' });
+      return;
+    }
+
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await wb.xlsx.load(req.file.buffer as any);
+
+    const ws = wb.getWorksheet('COLOR CHART MASTER') ?? wb.worksheets[0];
+    if (!ws) {
+      res.status(400).json({ success: false, error: 'No worksheets found in the uploaded Excel file.' });
+      return;
+    }
+
+    const cellStr = (row: any, c: number): string => {
+      let v = row.getCell(c).value;
+      if (v && typeof v === 'object' && 'result' in v) v = (v as any).result;
+      if (v && typeof v === 'object' && 'text' in v) v = (v as any).text;
+      return v == null ? '' : String(v).trim();
+    };
+    const norm = (s: string) => s.replace(/[\s_]+/g, ' ').trim().toUpperCase();
+
+    // ── Locate the header row + the three columns we care about ──
+    let headerRowNum = -1;
+    let cFather = -1, cChild = -1, cSap = -1;
+    const maxScan = Math.min(ws.rowCount, 15);
+    for (let r = 1; r <= maxScan; r++) {
+      const row = ws.getRow(r);
+      let father = -1, child = -1, sap = -1;
+      for (let c = 1; c <= ws.columnCount; c++) {
+        const h = norm(cellStr(row, c));
+        if (h === 'FATHER COLOR') father = c;
+        else if (h === 'CHILD COLOR') child = c;
+        else if (h === 'SAP CREATE OLD') sap = c;
+      }
+      if (father > 0 && child > 0 && sap > 0) {
+        headerRowNum = r; cFather = father; cChild = child; cSap = sap;
+        break;
+      }
+    }
+
+    if (headerRowNum === -1) {
+      res.status(400).json({
+        success: false,
+        error: 'Could not find the header row. The sheet must contain columns named "FATHER COLOR", "CHILD COLOR" and "SAP CREATE OLD".',
+      });
+      return;
+    }
+
+    type ColorRow = { father_color: string; child_color: string; sap_create_old: string };
+    const rows: ColorRow[] = [];
+    const seen = new Set<string>();
+    let skipped = 0;
+
+    for (let r = headerRowNum + 1; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const father = cellStr(row, cFather);
+      const child  = cellStr(row, cChild);
+      const sap    = cellStr(row, cSap);
+
+      if (!father && !child && !sap) { skipped++; continue; }      // blank row
+      if (!child || !sap) { skipped++; continue; }                 // need child + SAP code
+
+      const key = sap.toUpperCase();
+      if (seen.has(key)) { skipped++; continue; }                  // duplicate SAP code
+      seen.add(key);
+
+      rows.push({ father_color: father, child_color: child, sap_create_old: sap });
+    }
+
+    const total = rows.length;
+    const fathers = new Set(rows.map(r => r.father_color)).size;
+
+    console.log(`[ColorMaster] Replacing color_master — ${total} rows...`);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`TRUNCATE TABLE color_master RESTART IDENTITY`;
+      const BATCH = 5000;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        await tx.$executeRaw`
+          INSERT INTO color_master (father_color, child_color, sap_create_old)
+          SELECT v.father_color, v.child_color, v.sap_create_old
+          FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
+            AS v(father_color text, child_color text, sap_create_old text)
+        `;
+      }
+    }, { timeout: 5 * 60 * 1000 });
+
+    console.log(`[ColorMaster] Done — ${total} rows across ${fathers} father colours; ${skipped} rows skipped.`);
+
+    res.json({
+      success: true,
+      message: `Color master uploaded. Inserted ${total} colours across ${fathers} father colours.`,
+      data: { uploadedAt: new Date().toISOString(), fileName: req.file.originalname, total, fathers, skipped },
+    });
+  } catch (error: any) {
+    console.error('[ColorMaster] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MANDATORY GRID (maj_cat_mandatory_grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 
