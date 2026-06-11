@@ -1530,15 +1530,12 @@ export class ApproverController {
             // Mirror to 360article.article_360_flat (fire-and-forget)
             void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] update failed:', err?.message));
 
-            // Only sync mcCode/hsnTaxCode across rows when majorCategory actually changed.
-            if (data.majorCategory !== undefined && data.majorCategory !== existingItem.majorCategory && updated.majorCategory) {
-                const expectedMcCode = getMcCodeByMajorCategory(updated.majorCategory) || null;
-                const expectedHsnCode = getHsnCodeByMcCode(expectedMcCode) || null;
-                void prisma.extractionResultFlat.updateMany({
-                    where: { majorCategory: updated.majorCategory },
-                    data: { mcCode: expectedMcCode, hsnTaxCode: expectedHsnCode }
-                }).catch((err: any) => console.error('[mcCode sync] updateMany failed:', err?.message));
-            }
+            // NOTE: We intentionally update ONLY this edited row. The correct
+            // mcCode/hsnTaxCode for the new majorCategory are already applied to
+            // this row above (data.mcCode / data.hsnTaxCode) and saved via the
+            // single-row update. We do NOT propagate to every other article in
+            // the category — that previously re-stamped the whole category (incl.
+            // approved/SAP-synced rows) and bumped their updated_at en masse.
 
             // If variantColor was updated on a non-generic, sync colour field too
             if (!existingItem.isGeneric && data.variantColor !== undefined) {
@@ -2374,6 +2371,32 @@ export class ApproverController {
         const { majCat } = req.params;
         const sizes = await getSizesForMajCat(majCat || '');
         return res.json({ majCat, sizes, count: sizes.length });
+    }
+
+    // GET /api/approver/colors
+    // Color list for the "Add Color Variants" dropdown, from the color_master table.
+    //   code   = sap_create_old (stored on the variant as its colour)
+    //   name   = child_color (display name)
+    //   father = father_color (family, for optional grouping)
+    static async getColorMaster(_req: Request, res: Response) {
+        try {
+            const rows = await prisma.$queryRaw<{ code: string; name: string; father: string | null }[]>`
+                SELECT sap_create_old AS code, child_color AS name, father_color AS father
+                FROM color_master
+                WHERE sap_create_old IS NOT NULL AND TRIM(sap_create_old) <> ''
+                  AND child_color    IS NOT NULL AND TRIM(child_color)    <> ''
+                ORDER BY father_color, child_color
+            `;
+            const colors = rows.map(r => ({
+                code: String(r.code).trim(),
+                name: String(r.name).trim(),
+                father: r.father ? String(r.father).trim() : null,
+            }));
+            return res.json({ colors, count: colors.length });
+        } catch (error) {
+            console.error('Error fetching color master:', error);
+            return res.status(500).json({ error: 'Failed to fetch colors' });
+        }
     }
 
     // GET /api/approver/bom-art-numbers/:majCat

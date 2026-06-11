@@ -361,9 +361,18 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
 }) => {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [masterColors, setMasterColors] = useState<{ code: string; name: string }[]>([]);
 
   useEffect(() => {
-    if (!open) setSelectedColors([]);
+    if (!open) { setSelectedColors([]); return; }
+    // Load colors from the color_master table when the modal opens.
+    const token = localStorage.getItem('authToken');
+    fetch(`${APP_CONFIG.api.baseURL}/approver/colors`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => (r.ok ? r.json() : { colors: [] }))
+      .then((d) => setMasterColors(Array.isArray(d?.colors) ? d.colors : []))
+      .catch(() => setMasterColors([]));
   }, [open]);
 
   const handleOk = async () => {
@@ -405,18 +414,26 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
       a.label.toUpperCase() === 'COLOR' ||
       a.label.toUpperCase() === 'COLOUR',
   );
-  const colorList =
-    colorAttr && colorAttr.allowedValues.length > 0
-      ? colorAttr.allowedValues.map((v) => ({ code: v.shortForm, label: v.fullForm }))
-      : FALLBACK_COLORS.map((c) => ({ code: c, label: c }));
-
-  const options = colorList.map(({ code, label }) => ({
-    value: code,
-    label: label !== code ? `${code} — ${label}` : code,
-    disabled: existingColors.some(
-      (ec) => ec.toUpperCase() === code.toUpperCase() || ec.toUpperCase() === label.toUpperCase(),
-    ),
-  }));
+  // Colors come from the color_master table (child_color + sap_create_old).
+  // value  = sap_create_old (stored on the variant), label = "CHILD COLOR - SAP_CODE".
+  // Falls back to the COLOR attribute / hardcoded list only if color_master is unavailable.
+  const options =
+    masterColors.length > 0
+      ? masterColors.map((c) => ({
+          value: c.code,
+          label: `${c.name} - ${c.code}`,
+          disabled: existingColors.some((ec) => ec.toUpperCase() === c.code.toUpperCase()),
+        }))
+      : (colorAttr && colorAttr.allowedValues.length > 0
+          ? colorAttr.allowedValues.map((v) => ({ code: v.shortForm, label: v.fullForm }))
+          : FALLBACK_COLORS.map((c) => ({ code: c, label: c }))
+        ).map(({ code, label }) => ({
+          value: code,
+          label: label !== code ? `${code} — ${label}` : code,
+          disabled: existingColors.some(
+            (ec) => ec.toUpperCase() === code.toUpperCase() || ec.toUpperCase() === label.toUpperCase(),
+          ),
+        }));
 
   const variantPreview =
     selectedColors.length > 0 && sizeCount > 0

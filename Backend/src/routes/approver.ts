@@ -52,8 +52,11 @@ router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
 // Vendor name search — returns up to 15 matching vendors from master_vendor_details
 router.get('/vendor-search', h(ApproverController.vendorSearch));
 
-// Sizes for a given major category (from ACTIVE SIZE.xlsx)
+// Sizes for a given major category (from maj_cat_sizes table)
 router.get('/sizes-for-majcat/:majCat', h(ApproverController.getSizesForMajCat));
+
+// Color master list for the Add Color Variants dropdown (from color_master table)
+router.get('/colors', h(ApproverController.getColorMaster));
 
 // BOM grid Art # lookup — returns { attrName: { mvgrValue: sapCd } } for a major category
 router.get('/bom-art-numbers/:majCat', h(ApproverController.getBomArtNumbers));
