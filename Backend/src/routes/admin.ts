@@ -161,6 +161,13 @@ router.get('/mandatory-grid/template', h(adminController.downloadMandatoryGridTe
 router.post('/mandatory-grid/upload', excelUpload.single('file'), h(adminController.uploadMandatoryGrid));
 
 // ═══════════════════════════════════════════════════════
+// SIZE MASTER (ADMIN) — maj_cat_sizes
+// ═══════════════════════════════════════════════════════
+router.get('/size-master/status', h(adminController.getSizeMasterStatus));
+router.get('/size-master/template', h(adminController.downloadSizeMasterTemplate));
+router.post('/size-master/upload', excelUpload.single('file'), h(adminController.uploadSizeMaster));
+
+// ═══════════════════════════════════════════════════════
 // HIERARCHY EXCEL UPLOAD (ADMIN)
 // Upserts Department / SubDepartment / Category from
 // DIV / SUB-DIV / MAJOR_CATEGORY columns of the Mandatory Grid Excel.

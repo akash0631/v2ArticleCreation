@@ -1,64 +1,39 @@
 /**
  * Variant Creation Service
  *
- * After a generic ExtractionResultFlat is created, this service reads
- * variant-sizes-mapping.xlsx to find all sizes for the MAJ_CAT and
- * creates size variant copies of the generic article.
+ * After a generic ExtractionResultFlat is created, this service reads the
+ * active sizes for the MAJ_CAT from the `maj_cat_sizes` table (status='ACT')
+ * and creates size variant copies of the generic article.
  */
-import path from 'path';
-import fs from 'fs';
-import * as XLSX from 'xlsx';
 import { randomUUID } from 'crypto';
 import { prismaClient as prisma } from '../utils/prisma';
 import { upsert360ArticleFlatRow, mirror360FlatUpdate } from '../utils/mirror360Flat';
 
-type ActiveSizeMappingRow = Record<string, unknown>;
+/**
+ * Active sizes for a major category, read from the `maj_cat_sizes` table
+ * (status = 'ACT'). Replaces the old active-size-mapping.xlsx source.
+ * Order is preserved by row id (the order the size master was uploaded in).
+ */
+export async function getSizesForMajCat(majCat: string): Promise<string[]> {
+  const upper = (majCat || '').trim().toUpperCase();
+  if (!upper) return [];
 
-let cachedActiveSizeMappings: ActiveSizeMappingRow[] | null = null;
+  const rows = await prisma.$queryRaw<{ size: string }[]>`
+    SELECT size
+    FROM maj_cat_sizes
+    WHERE UPPER(TRIM(major_category)) = ${upper}
+      AND UPPER(TRIM(status)) = 'ACT'
+      AND size IS NOT NULL AND TRIM(size) <> ''
+    ORDER BY id
+  `;
 
-function loadActiveSizeMappings(): ActiveSizeMappingRow[] {
-  if (cachedActiveSizeMappings) return cachedActiveSizeMappings;
-  const excelPath = path.resolve(__dirname, '../data/active-size-mapping.xlsx');
-  if (!fs.existsSync(excelPath)) {
-    console.warn('[VariantCreation] active-size-mapping.xlsx not found at', excelPath);
-    cachedActiveSizeMappings = [];
-    return cachedActiveSizeMappings;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of rows) {
+    const s = String(r.size).trim();
+    if (s && !seen.has(s)) { seen.add(s); out.push(s); }
   }
-  try {
-    const wb = XLSX.readFile(excelPath);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    // range:2 skips the title row and blank row; row 3 (index 2) has the real headers: DIV, MAJCAT, SIZE
-    cachedActiveSizeMappings = XLSX.utils.sheet_to_json<ActiveSizeMappingRow>(ws, { range: 2 });
-    console.log(`[VariantCreation] Loaded ${cachedActiveSizeMappings.length} active size mapping rows`);
-    return cachedActiveSizeMappings;
-  } catch (err) {
-    console.error('[VariantCreation] Failed to load active-size-mapping.xlsx:', err);
-    cachedActiveSizeMappings = [];
-    return cachedActiveSizeMappings;
-  }
-}
-
-// Extract MAJ_CAT value — column is named MAJCAT in active-size-mapping.xlsx
-function getMajCatFromRow(row: ActiveSizeMappingRow): string {
-  const val = row['MAJCAT'] ?? row['MAJ_CAT'] ?? row['MajCat'];
-  return String(val ?? '').trim().toUpperCase();
-}
-
-// Extract size value — column is named SIZE in active-size-mapping.xlsx
-function getSizeFromRow(row: ActiveSizeMappingRow): string {
-  const val = row['SIZE'] ?? row['SZ'] ?? row['Size'];
-  return String(val ?? '').trim();
-}
-
-export function getSizesForMajCat(majCat: string): string[] {
-  const upper = majCat.trim().toUpperCase();
-  const activeMappings = loadActiveSizeMappings();
-  return Array.from(new Set(
-    activeMappings
-      .filter(r => getMajCatFromRow(r) === upper)
-      .map(r => getSizeFromRow(r))
-      .filter(Boolean)
-  ));
+  return out;
 }
 
 // Fields that should NOT be synced from generic to variants (variant-specific)
@@ -70,7 +45,7 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
     if (!generic || !generic.majorCategory) return;
     if (!generic.isGeneric) return;
 
-    const sizes = getSizesForMajCat(generic.majorCategory);
+    const sizes = await getSizesForMajCat(generic.majorCategory);
     if (sizes.length === 0) {
       console.log(`[VariantCreation] No sizes found for ${generic.majorCategory}`);
       return;
@@ -154,8 +129,8 @@ export async function addColorVariants(genericId: string, color: string): Promis
   if (!generic) return 0;
 
   if (!generic.majorCategory) throw new Error('No Major Category found on this article — cannot create variants.');
-  const sizes = getSizesForMajCat(generic.majorCategory);
-  if (sizes.length === 0) throw new Error(`No sizes are defined for Major Category "${generic.majorCategory}" in the active size mapping. Please update the active-size-mapping.xlsx file.`);
+  const sizes = await getSizesForMajCat(generic.majorCategory);
+  if (sizes.length === 0) throw new Error(`No active sizes are defined for Major Category "${generic.majorCategory}". Please upload them via the Size Master in the Admin page.`);
 
   const originalJob = await prisma.extractionJob.findUnique({
     where: { id: generic.jobId },

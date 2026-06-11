@@ -2522,6 +2522,192 @@ export const uploadMajCatGrid = async (req: Request, res: Response): Promise<voi
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SIZE MASTER (maj_cat_sizes)  — major-category-wise active/inactive sizes
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/size-master/status
+ * Returns row/category counts for the maj_cat_sizes table.
+ */
+export const getSizeMasterStatus = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ total: bigint; categories: bigint; active: bigint }[]>`
+      SELECT COUNT(*)::bigint                                               AS total,
+             COUNT(DISTINCT major_category)::bigint                         AS categories,
+             COUNT(*) FILTER (WHERE UPPER(TRIM(status)) = 'ACT')::bigint    AS active
+      FROM maj_cat_sizes
+    `;
+    const r = rows[0] ?? { total: 0n, categories: 0n, active: 0n };
+    res.json({
+      success: true,
+      data: { total: Number(r.total), categories: Number(r.categories), active: Number(r.active) },
+    });
+  } catch (error: any) {
+    console.error('[SizeMaster] Status error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/admin/size-master/template
+ * Returns a blank .xlsx in the exact shape the uploader expects:
+ *   sheet "COMPILE", title row 1, headers row 3, data from row 5.
+ */
+export const downloadSizeMasterTemplate = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('COMPILE');
+
+    // Row 1 — title (merged A1:F1)
+    ws.mergeCells('A1:F1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'CENTRAL ACT/IN-ACT SIZE STATUS';
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center' };
+    ws.getRow(1).height = 22;
+
+    // Row 2 — empty
+    ws.addRow([]);
+
+    // Row 3 — headers
+    const headers = ['DIV', 'SUB-DIV', 'MC_CD', 'MC_DESC', 'SIZE', 'SIZE ST'];
+    const headerRow = ws.addRow(headers);
+    headerRow.eachCell((cell: any) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      cell.alignment = { horizontal: 'center' };
+    });
+
+    // Row 4 — empty
+    ws.addRow([]);
+
+    // Row 5+ — sample data
+    ws.addRow(['MENS', 'MW', '115080101', 'M_BLAZER', '38', 'ACT']);
+    ws.addRow(['MENS', 'MW', '115080101', 'M_BLAZER', '40', 'ACT']);
+    ws.addRow(['MENS', 'MS-IW', '116010201', 'M_BOXER', 'L', 'ACT']);
+    ws.addRow(['MENS', 'MS-IW', '116010201', 'M_BOXER', 'XXL', 'IN-ACT']);
+
+    // Column widths
+    ws.columns = [
+      { width: 12 }, { width: 12 }, { width: 16 }, { width: 22 }, { width: 12 }, { width: 12 },
+    ];
+
+    // Note
+    ws.addRow([]);
+    const noteRow = ws.addRow(['⚠ NOTE: Headers in Row 3, data from Row 5. SIZE ST = ACT or IN-ACT. SIZE may be numeric (38) or text (L, XXL).']);
+    ws.mergeCells(`A${noteRow.number}:F${noteRow.number}`);
+    noteRow.getCell(1).font = { italic: true, size: 10 };
+    noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="SIZE_MASTER_TEMPLATE.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    console.error('[SizeMaster] Template error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * POST /api/admin/size-master/upload
+ * Accepts a multipart Excel (sheet "COMPILE", headers in row 3, data from row 5):
+ *   A=DIV  B=SUB-DIV  C=MC_CD  D=MC_DESC  E=SIZE  F=SIZE ST
+ * Replaces the maj_cat_sizes table with all rows (ACT and IN-ACT both kept).
+ */
+export const uploadSizeMaster = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Send a .xlsx file as "file" field.' });
+      return;
+    }
+
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await wb.xlsx.load(req.file.buffer as any);
+
+    const ws = wb.getWorksheet('COMPILE') ?? wb.worksheets[0];
+    if (!ws) {
+      res.status(400).json({ success: false, error: 'No worksheets found in the uploaded Excel file.' });
+      return;
+    }
+
+    const C_DIV = 1, C_SUB = 2, C_MC = 3, C_DESC = 4, C_SIZE = 5, C_STATUS = 6;
+    const cell = (row: any, c: number): string => {
+      let v = row.getCell(c).value;
+      if (v && typeof v === 'object' && 'result' in v) v = (v as any).result;
+      if (v && typeof v === 'object' && 'text' in v) v = (v as any).text;
+      return v == null ? '' : String(v).trim();
+    };
+
+    type SizeRow = { division: string; sub_division: string; mc_code: string; major_category: string; size: string; status: string };
+    const rows: SizeRow[] = [];
+    const seen = new Set<string>();
+    let skipped = 0;
+
+    for (let r = 5; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const division = cell(row, C_DIV);
+      const sub      = cell(row, C_SUB);
+      const mc       = cell(row, C_MC);
+      const desc     = cell(row, C_DESC);
+      const size     = cell(row, C_SIZE);
+      const status   = cell(row, C_STATUS);
+
+      // Skip fully-blank rows and rows missing the essentials.
+      if (!division && !sub && !mc && !desc && !size && !status) { skipped++; continue; }
+      if (!mc || !desc || !size) { skipped++; continue; }
+
+      const key = `${division}||${sub}||${mc}||${desc}||${size}||${status}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      rows.push({
+        division: division,
+        sub_division: sub,
+        mc_code: mc,
+        major_category: desc,
+        size: size,
+        status: (status || 'ACT').toUpperCase(),
+      });
+    }
+
+    const total = rows.length;
+    const categories = new Set(rows.map(r => r.major_category)).size;
+    const active = rows.filter(r => r.status === 'ACT').length;
+
+    const BATCH = 5000;
+    console.log(`[SizeMaster] Replacing maj_cat_sizes — ${total} rows in batches of ${BATCH}...`);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`TRUNCATE TABLE maj_cat_sizes RESTART IDENTITY`;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        await tx.$executeRaw`
+          INSERT INTO maj_cat_sizes (division, sub_division, mc_code, major_category, size, status, created_at)
+          SELECT v.division, v.sub_division, v.mc_code, v.major_category, v.size, v.status, NOW()
+          FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb)
+            AS v(division text, sub_division text, mc_code text, major_category text, size text, status text)
+        `;
+      }
+    }, { timeout: 5 * 60 * 1000 });
+
+    console.log(`[SizeMaster] Done — ${total} rows (${active} ACT) across ${categories} major categories; ${skipped} rows skipped.`);
+
+    res.json({
+      success: true,
+      message: `Size master uploaded. Inserted ${total} rows (${active} ACT) across ${categories} major categories.`,
+      data: { uploadedAt: new Date().toISOString(), fileName: req.file.originalname, total, active, categories, skipped },
+    });
+  } catch (error: any) {
+    console.error('[SizeMaster] Upload error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MANDATORY GRID (maj_cat_mandatory_grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 
