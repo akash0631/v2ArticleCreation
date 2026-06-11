@@ -2369,10 +2369,10 @@ export class ApproverController {
     }
 
     // GET /api/approver/sizes-for-majcat/:majCat
-    // Returns sizes array for the given major category (from active-size-mapping.xlsx)
+    // Returns active sizes array for the given major category (from maj_cat_sizes table)
     static async getSizesForMajCat(req: Request, res: Response) {
         const { majCat } = req.params;
-        const sizes = getSizesForMajCat(majCat || '');
+        const sizes = await getSizesForMajCat(majCat || '');
         return res.json({ majCat, sizes, count: sizes.length });
     }
 

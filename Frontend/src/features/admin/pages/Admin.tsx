@@ -71,6 +71,15 @@ interface MandatoryGridMeta {
   totalValues?: number;
 }
 
+interface SizeMasterMeta {
+  uploadedAt?: string;
+  fileName?: string;
+  total?: number;
+  active?: number;
+  categories?: number;
+  skipped?: number;
+}
+
 interface HierarchyExcelStatus {
   departments: number;
   subDepartments: number;
@@ -147,6 +156,13 @@ export default function Admin() {
   const [mandatoryGridUploading, setMandatoryGridUploading] = useState(false);
   const [mandatoryGridProgress, setMandatoryGridProgress] = useState<number>(0);
   const mandatoryFileRef = useRef<HTMLInputElement | null>(null);
+
+  // Size Master (maj_cat_sizes)
+  const [sizeMasterMeta, setSizeMasterMeta] = useState<SizeMasterMeta | null>(null);
+  const [sizeMasterStatusLoading, setSizeMasterStatusLoading] = useState(false);
+  const [sizeMasterUploading, setSizeMasterUploading] = useState(false);
+  const [sizeMasterProgress, setSizeMasterProgress] = useState<number>(0);
+  const sizeFileRef = useRef<HTMLInputElement | null>(null);
 
   // Hierarchy Excel Upload (two-step)
   const [hierarchyExcelStatus, setHierarchyExcelStatus] = useState<HierarchyExcelStatus | null>(null);
@@ -416,6 +432,68 @@ export default function Admin() {
     }
   };
 
+  // ─────────────────────────────── Size Master ───────────────────────────────
+  const loadSizeMasterStatus = useCallback(async () => {
+    setSizeMasterStatusLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/size-master/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load size master status');
+      setSizeMasterMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Failed to load size master status');
+    } finally {
+      setSizeMasterStatusLoading(false);
+    }
+  }, []);
+
+  const downloadSizeMasterTemplate = () => {
+    const token = localStorage.getItem('authToken');
+    const url = `${APP_CONFIG.api.baseURL}/admin/size-master/template`;
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'SIZE_MASTER_TEMPLATE.xlsx';
+        a.click();
+      })
+      .catch(() => message.error('Failed to download template'));
+  };
+
+  const handleSizeMasterUpload = async (file: File) => {
+    setSizeMasterUploading(true);
+    setSizeMasterProgress(0);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+      const progressInterval = setInterval(() => {
+        setSizeMasterProgress((prev) => Math.min(prev + 5, 90));
+      }, 500);
+      const res = await fetch(`${APP_CONFIG.api.baseURL}/admin/size-master/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      clearInterval(progressInterval);
+      setSizeMasterProgress(100);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      message.success(data.message);
+      setSizeMasterMeta(data.data);
+    } catch (err: any) {
+      message.error(err?.message || 'Upload failed');
+    } finally {
+      setSizeMasterUploading(false);
+      setTimeout(() => setSizeMasterProgress(0), 1500);
+      if (sizeFileRef.current) sizeFileRef.current.value = '';
+    }
+  };
+
   // ─────────────────────────────── Hierarchy Excel ───────────────────────────────
   const loadHierarchyExcelStatus = useCallback(async () => {
     setHierarchyExcelStatusLoading(true);
@@ -506,10 +584,11 @@ export default function Admin() {
     loadVendorStatus();
     loadMajCatGridStatus();
     loadMandatoryGridStatus();
+    loadSizeMasterStatus();
     loadHierarchyExcelStatus();
     loadPipelineStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
+  }, [loadVendorStatus, loadMajCatGridStatus, loadMandatoryGridStatus, loadSizeMasterStatus, loadHierarchyExcelStatus, loadPipelineStatus]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1022,6 +1101,118 @@ export default function Admin() {
                       <button
                         type="button"
                         onClick={() => majCatFileRef.current?.click()}
+                        className="flex w-full flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 transition-colors hover:border-[#FF6F61] hover:bg-[#FF6F61]/5"
+                      >
+                        <Inbox className="mb-2 h-8 w-8 text-[#FF6F61]" />
+                        <p className="text-[13px]">
+                          Click to upload <strong>.xlsx</strong> file
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">Only Excel files. Max 50 MB.</p>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Spinner>
+          </CardContent>
+        </Card>
+
+        {/* Size Master Upload (major-category-wise sizes → maj_cat_sizes) */}
+        <Card className="mb-6 glass rounded-2xl border border-white/60">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TableIcon className="h-4 w-4" />
+              Size Master (Sizes per Major Category)
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={downloadSizeMasterTemplate}>
+                <Download />
+                Download Template
+              </Button>
+              <Button size="sm" variant="outline" onClick={loadSizeMasterStatus} disabled={sizeMasterStatusLoading}>
+                <RotateCw className={sizeMasterStatusLoading ? 'animate-spin' : ''} />
+                Refresh Status
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Spinner spinning={sizeMasterStatusLoading}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+                {/* Status panel */}
+                <div className="md:col-span-7">
+                  {sizeMasterMeta && (sizeMasterMeta.total ?? 0) > 0 ? (
+                    <Descriptions bordered>
+                      {sizeMasterMeta.uploadedAt && (
+                        <Descriptions.Item label="Last Upload">
+                          {new Date(sizeMasterMeta.uploadedAt).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short',
+                          }) + ' IST'}
+                        </Descriptions.Item>
+                      )}
+                      {sizeMasterMeta.fileName && (
+                        <Descriptions.Item label="File">
+                          <span className="font-mono text-xs">{sizeMasterMeta.fileName}</span>
+                        </Descriptions.Item>
+                      )}
+                      <Descriptions.Item label="Major Categories">
+                        <Badge variant="info">{(sizeMasterMeta.categories ?? 0).toLocaleString()}</Badge>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Total Rows">
+                        <Badge variant="secondary">{(sizeMasterMeta.total ?? 0).toLocaleString()}</Badge>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Active (ACT)">
+                        <Badge variant="success">{(sizeMasterMeta.active ?? 0).toLocaleString()}</Badge>
+                      </Descriptions.Item>
+                      {sizeMasterMeta.skipped != null && (
+                        <Descriptions.Item label="Rows Skipped">
+                          <Badge variant={(sizeMasterMeta.skipped ?? 0) > 0 ? 'warning' : 'secondary'}>
+                            {(sizeMasterMeta.skipped ?? 0).toLocaleString()}
+                          </Badge>
+                        </Descriptions.Item>
+                      )}
+                    </Descriptions>
+                  ) : (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="No size master uploaded yet"
+                      description="Upload the SIZE MASTER Excel (sheet COMPILE, columns: DIV, SUB-DIV, MC_CD, MC_DESC, SIZE, SIZE ST) to populate major-category-wise sizes."
+                    />
+                  )}
+                </div>
+
+                {/* Upload panel */}
+                <div className="md:col-span-5">
+                  <div className="rounded-md border border-border p-4">
+                    <div className="mb-1 font-semibold">Upload Size Master Excel</div>
+                    <div className="mb-3 text-xs text-muted-foreground">
+                      Sheet <strong>COMPILE</strong>, headers in row 3, data from row 5 — columns
+                      A (DIV), B (SUB-DIV), C (MC_CD), D (MC_DESC), E (SIZE), F (SIZE ST). Replaces the entire table.
+                    </div>
+
+                    <input
+                      ref={sizeFileRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleSizeMasterUpload(file);
+                      }}
+                    />
+
+                    {sizeMasterUploading ? (
+                      <div>
+                        <div className="mb-2 text-[13px] text-[#FF6F61]">
+                          <RefreshCw className="mr-1.5 inline-block h-3.5 w-3.5 animate-spin" />
+                          Parsing Excel & replacing table...
+                        </div>
+                        <Progress value={sizeMasterProgress} />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => sizeFileRef.current?.click()}
                         className="flex w-full flex-col items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-6 transition-colors hover:border-[#FF6F61] hover:bg-[#FF6F61]/5"
                       >
                         <Inbox className="mb-2 h-8 w-8 text-[#FF6F61]" />
