@@ -2373,6 +2373,32 @@ export class ApproverController {
         return res.json({ majCat, sizes, count: sizes.length });
     }
 
+    // GET /api/approver/colors
+    // Color list for the "Add Color Variants" dropdown, from the color_master table.
+    //   code   = sap_create_old (stored on the variant as its colour)
+    //   name   = child_color (display name)
+    //   father = father_color (family, for optional grouping)
+    static async getColorMaster(_req: Request, res: Response) {
+        try {
+            const rows = await prisma.$queryRaw<{ code: string; name: string; father: string | null }[]>`
+                SELECT sap_create_old AS code, child_color AS name, father_color AS father
+                FROM color_master
+                WHERE sap_create_old IS NOT NULL AND TRIM(sap_create_old) <> ''
+                  AND child_color    IS NOT NULL AND TRIM(child_color)    <> ''
+                ORDER BY father_color, child_color
+            `;
+            const colors = rows.map(r => ({
+                code: String(r.code).trim(),
+                name: String(r.name).trim(),
+                father: r.father ? String(r.father).trim() : null,
+            }));
+            return res.json({ colors, count: colors.length });
+        } catch (error) {
+            console.error('Error fetching color master:', error);
+            return res.status(500).json({ error: 'Failed to fetch colors' });
+        }
+    }
+
     // GET /api/approver/bom-art-numbers/:majCat
     // Returns { [excelAttrName]: { [mvgrValue]: sapCd } } for the given major category
     static async getBomArtNumbers(req: Request, res: Response) {
