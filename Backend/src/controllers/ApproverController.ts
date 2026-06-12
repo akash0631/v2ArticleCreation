@@ -605,11 +605,13 @@ export class ApproverController {
             // Key includes all query params + user scope so different users/filters
             // never share a cached response.
             const role = String(req.user?.role || '');
+            // ADMIN and PO_COMMITTEE are unscoped — they see/act across all divisions.
+            const isUnscoped = role === 'ADMIN' || role === 'PO_COMMITTEE';
             const cacheKey = JSON.stringify({
                 role,
-                userId: role !== 'ADMIN' ? req.user?.id : undefined,
-                userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
-                userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
+                userId: !isUnscoped ? req.user?.id : undefined,
+                userDiv: !isUnscoped ? req.user?.division : undefined,
+                userSubDiv: !isUnscoped ? req.user?.subDivision : undefined,
                 status, division, subDivision, majorCategory, startDate, endDate, search, page, limit, pathType, source,
             });
             const cached = ApproverController.itemsCache.get(cacheKey);
@@ -630,9 +632,9 @@ export class ApproverController {
 
             // RBAC: Enforce scope by role
             if (!bypassScope) {
-                if (role === 'ADMIN') {
-                    // Admins can filter freely — use case-insensitive variant matching
-                    // so "MEN" matches both "MEN" and "MENS" stored values.
+                if (isUnscoped) {
+                    // ADMIN / PO_COMMITTEE can filter freely — use case-insensitive variant
+                    // matching so "MEN" matches both "MEN" and "MENS" stored values.
                     if (division && division !== 'ALL') {
                         const divVariants = ApproverController.getDivisionVariants(division as string);
                         if (divVariants.length > 0) {
@@ -966,9 +968,9 @@ export class ApproverController {
 
             const where: any = {};
 
-            // RBAC
+            // RBAC — ADMIN and PO_COMMITTEE are unscoped (all divisions).
             const role = String(req.user?.role || '');
-            if (role === 'ADMIN') {
+            if (role === 'ADMIN' || role === 'PO_COMMITTEE') {
                 if (division && division !== 'ALL') {
                     const divVariants = ApproverController.getDivisionVariants(division as string);
                     if (divVariants.length > 0) {

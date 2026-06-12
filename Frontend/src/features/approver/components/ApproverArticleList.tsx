@@ -49,7 +49,6 @@ import { message } from '@/lib/message';
 import { cn } from '@/lib/utils';
 import type { ApproverItem, MasterAttribute } from './ApproverTable';
 import {
-  getMajCatAllowedValues,
   SCHEMA_KEY_TO_EXCEL_ATTR,
   SCHEMA_KEY_TO_DB_FIELD,
   SAP_NAME_TO_SCHEMA_KEY,
@@ -523,9 +522,13 @@ const ArticleCard = React.memo(
           continue;
         }
 
-        // Dropdown values always come from Maj-Cat Grid
-        const values: AttrValue[] =
-          getMajCatAllowedValues(effectiveMajCat, af.schemaKey, item.division || undefined) ?? [];
+        // Dropdown values come STRICTLY from the Maj-Cat Grid (maj_cat_grid_values).
+        // No global / division-level (attribute_allowed_values) fallback — if the
+        // grid has no values for this category+attribute the dropdown stays empty
+        // (and the field is hidden unless the mandatory grid forces it).
+        const gridExcelAttr = SCHEMA_KEY_TO_EXCEL_ATTR[af.schemaKey];
+        const gridOnlyVals = gridExcelAttr ? getMajCatGridEntry(effectiveMajCat, gridExcelAttr) : null;
+        const values: AttrValue[] = (gridOnlyVals ?? []).map((v) => ({ shortForm: v, fullForm: v }));
 
         if (gridsReady && catHasAnyGridData) {
           // ── Grids loaded AND category is configured: apply 3-tier filtering ──
