@@ -41,7 +41,7 @@ export class SchemaService {
       label: ca.attribute.label,
       type: ca.attribute.type.toLowerCase() as 'text' | 'select' | 'number' | 'boolean',
       allowedValues: ca.attribute.allowedValues.map(av => av.shortForm),
-      
+
       // Extended info for frontend/analytics
       _metadata: {
         attributeId: ca.attribute.id,
