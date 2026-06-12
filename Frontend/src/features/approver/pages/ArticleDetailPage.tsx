@@ -219,7 +219,7 @@ export default function ArticleDetailPage() {
   const [editActiveTab, setEditActiveTab] = useState<'core' | 'attributes' | 'business'>('core');
   const modalDivision = editForm.watch('division');
 
-  const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD';
+  const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD' || user?.role === 'PO_COMMITTEE';
 
   // ─── Init ───────────────────────────────────────────────────────────────────
 
