@@ -343,6 +343,7 @@ const EditVariantModal: React.FC<EditVariantModalProps> = ({ open, variant, attr
 interface AddColorModalProps {
   open: boolean;
   genericId: string;
+  majorCategory: string;
   existingColors: string[];
   sizeCount: number;
   attributes: MasterAttribute[];
@@ -353,51 +354,69 @@ interface AddColorModalProps {
 const AddColorModal: React.FC<AddColorModalProps> = ({
   open,
   genericId,
+  majorCategory,
   existingColors,
   sizeCount,
   attributes,
   onClose,
   onAdded,
 }) => {
+  const [mode, setMode] = useState<'auto' | 'manual'>('auto');
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [mcSizes, setMcSizes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [masterColors, setMasterColors] = useState<{ code: string; name: string }[]>([]);
 
   useEffect(() => {
-    if (!open) { setSelectedColors([]); return; }
-    // Load colors from the color_master table when the modal opens.
+    if (!open) { setSelectedColors([]); setSelectedSizes([]); setMode('auto'); return; }
     const token = localStorage.getItem('authToken');
+    // Colors from the color_master table.
     fetch(`${APP_CONFIG.api.baseURL}/approver/colors`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then((r) => (r.ok ? r.json() : { colors: [] }))
       .then((d) => setMasterColors(Array.isArray(d?.colors) ? d.colors : []))
       .catch(() => setMasterColors([]));
-  }, [open]);
+    // Active sizes for this Major Category (manual-mode dropdown).
+    if (majorCategory) {
+      fetch(`${APP_CONFIG.api.baseURL}/approver/sizes-for-majcat/${encodeURIComponent(majorCategory)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+        .then((r) => (r.ok ? r.json() : { sizes: [] }))
+        .then((d) => setMcSizes(Array.isArray(d?.sizes) ? d.sizes : []))
+        .catch(() => setMcSizes([]));
+    } else {
+      setMcSizes([]);
+    }
+  }, [open, majorCategory]);
 
   const handleOk = async () => {
     if (selectedColors.length === 0) {
       message.warning('Please select at least one color');
       return;
     }
+    if (mode === 'manual' && selectedSizes.length === 0) {
+      message.warning('Please select at least one size');
+      return;
+    }
     setSaving(true);
     try {
       const token = localStorage.getItem('authToken');
+      const body = mode === 'manual'
+        ? { colors: selectedColors, sizes: selectedSizes }
+        : { colors: selectedColors };
       const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${genericId}/add-color`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ colors: selectedColors }),
+        body: JSON.stringify(body),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error || 'Failed to add color variants');
+        throw new Error(payload?.detail || payload?.error || 'Failed to add color variants');
       }
       const result = await response.json();
-      message.success(
-        `${result.count} variant${result.count !== 1 ? 's' : ''} created for ${selectedColors.length} color${
-          selectedColors.length !== 1 ? 's' : ''
-        }`,
-      );
+      message.success(`${result.count} variant${result.count !== 1 ? 's' : ''} created`);
       onAdded();
       onClose();
     } catch (err) {
@@ -435,12 +454,16 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           ),
         }));
 
+  const sizeOptions = mcSizes.map((s) => ({ value: s, label: s }));
+  const effectiveSizeCount = mode === 'manual' ? selectedSizes.length : sizeCount;
   const variantPreview =
-    selectedColors.length > 0 && sizeCount > 0
-      ? `${selectedColors.length} color${selectedColors.length > 1 ? 's' : ''} × ${sizeCount} sizes = ${
-          selectedColors.length * sizeCount
-        } variants`
+    selectedColors.length > 0 && effectiveSizeCount > 0
+      ? `${selectedColors.length} color${selectedColors.length > 1 ? 's' : ''} × ${effectiveSizeCount} size${
+          effectiveSizeCount > 1 ? 's' : ''
+        } = ${selectedColors.length * effectiveSizeCount} variants`
       : null;
+
+  const noSizesConfigured = !!majorCategory && mcSizes.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -448,10 +471,61 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
         <DialogHeader>
           <DialogTitle>Add Color Variants</DialogTitle>
         </DialogHeader>
+
+        {/* Mode selector */}
+        <div className="mb-3 inline-flex rounded-md border border-border p-0.5">
+          <button
+            type="button"
+            onClick={() => setMode('auto')}
+            className={
+              'rounded px-3 py-1 text-[13px] font-medium transition-colors ' +
+              (mode === 'auto' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')
+            }
+          >
+            Auto-generate
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('manual')}
+            className={
+              'rounded px-3 py-1 text-[13px] font-medium transition-colors ' +
+              (mode === 'manual' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')
+            }
+          >
+            Manual
+          </button>
+        </div>
+
         <p className="mb-3 text-sm text-muted-foreground">
-          Select one or more colors. One variant will be created per size for each color.
+          {mode === 'auto'
+            ? 'Select one or more colors. One variant will be created per size for each color.'
+            : 'Select specific size(s) and color(s). One variant is created for each size × color.'}
         </p>
 
+        {/* Manual mode: size picker (MC-filtered) */}
+        {mode === 'manual' && (
+          <div className="mb-3">
+            <span className="mb-1 block text-[12px] font-medium text-muted-foreground">Sizes</span>
+            {noSizesConfigured ? (
+              <div className="rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[13px] text-amber-700">
+                No sizes configured for this MC. Contact planning.
+              </div>
+            ) : (
+              <MultiSelect
+                options={sizeOptions}
+                value={selectedSizes}
+                onChange={setSelectedSizes}
+                placeholder="Select sizes…"
+                searchable
+                searchPlaceholder="Search sizes…"
+              />
+            )}
+          </div>
+        )}
+
+        {mode === 'manual' && (
+          <span className="mb-1 block text-[12px] font-medium text-muted-foreground">Colors</span>
+        )}
         <MultiSelect
           options={options}
           value={selectedColors}
@@ -484,8 +558,15 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleOk} disabled={saving || selectedColors.length === 0}>
-            {saving ? 'Adding…' : 'Add Colors'}
+          <Button
+            onClick={handleOk}
+            disabled={
+              saving ||
+              selectedColors.length === 0 ||
+              (mode === 'manual' && (selectedSizes.length === 0 || noSizesConfigured))
+            }
+          >
+            {saving ? 'Adding…' : mode === 'manual' ? 'Add Variants' : 'Add Colors'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -526,9 +607,12 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
     }
   }, [genericId]);
 
+  // Refetch on mount/genericId change, AND when the generic is approved/synced
+  // (Save & Submit flips approvalStatus → APPROVED and sets sapArticleId) so the
+  // variant rows refresh to show their updated status / SAP article numbers.
   useEffect(() => {
     fetchVariants();
-  }, [fetchVariants]);
+  }, [fetchVariants, genericRecord.approvalStatus, genericRecord.sapArticleId]);
 
   useEffect(() => {
     const majCat = genericRecord.majorCategory;
@@ -791,6 +875,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
       <AddColorModal
         open={addColorOpen}
         genericId={genericId}
+        majorCategory={genericRecord.majorCategory || ''}
         existingColors={existingColors}
         sizeCount={sizeCount}
         attributes={attributes}
