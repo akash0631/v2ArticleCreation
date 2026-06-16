@@ -1695,6 +1695,11 @@ export class ApproverController {
             const mergedItem = { ...(existingItem as any), ...data };
             const sapChanges = await buildModifyChangesPayload(mergedItem);
 
+            // Modify flow only: these keys must NOT be sent to SAP on modification.
+            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT']) {
+                delete (sapChanges as any)[k];
+            }
+
             // ── Call SAP FIRST. Only persist locally on success. ──
             const result = await patchArticleAttributes(matnr, sapChanges);
             if (!result.ok) {
