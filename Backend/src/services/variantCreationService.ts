@@ -36,6 +36,21 @@ export async function getSizesForMajCat(majCat: string): Promise<string[]> {
   return out;
 }
 
+/**
+ * Server-side size guard: is `size` allowed for `majorCategory`?
+ * Calls the Supabase RPC public.is_size_allowed via Prisma (no @supabase/supabase-js).
+ * Throws on DB error so callers can surface a 500.
+ */
+export async function isSizeAllowed(majorCategory: string, size: string): Promise<boolean> {
+  const mc = (majorCategory || '').trim();
+  const sz = (size || '').trim();
+  if (!mc || !sz) return false;
+  const rows = await prisma.$queryRaw<{ ok: boolean }[]>`
+    SELECT public.is_size_allowed(${mc}, ${sz}) AS ok
+  `;
+  return rows[0]?.ok === true;
+}
+
 // Fields that should NOT be synced from generic to variants (variant-specific)
 export const VARIANT_ONLY_FIELDS = ['variantSize', 'variantColor', 'size', 'colour'];
 
@@ -124,13 +139,21 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
   }
 }
 
-export async function addColorVariants(genericId: string, color: string): Promise<number> {
+export async function addColorVariants(genericId: string, color: string, sizesOverride?: string[]): Promise<number> {
   const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
   if (!generic) return 0;
 
   if (!generic.majorCategory) throw new Error('No Major Category found on this article — cannot create variants.');
-  const sizes = await getSizesForMajCat(generic.majorCategory);
-  if (sizes.length === 0) throw new Error(`No active sizes are defined for Major Category "${generic.majorCategory}". Please upload them via the Size Master in the Admin page.`);
+  const allowedSizes = await getSizesForMajCat(generic.majorCategory);
+  if (allowedSizes.length === 0) throw new Error(`No active sizes are defined for Major Category "${generic.majorCategory}". Please upload them via the Size Master in the Admin page.`);
+
+  // Manual mode: restrict to the requested sizes, keeping only those actually
+  // allowed for this Major Category (the dropdown is MC-filtered, but this also
+  // guards against tampering). Auto mode (no override) uses all allowed sizes.
+  const sizes = sizesOverride && sizesOverride.length > 0
+    ? allowedSizes.filter((s) => sizesOverride.some((o) => o.trim().toUpperCase() === s.trim().toUpperCase()))
+    : allowedSizes;
+  if (sizes.length === 0) throw new Error('None of the selected sizes are valid for this Major Category.');
 
   const originalJob = await prisma.extractionJob.findUnique({
     where: { id: generic.jobId },

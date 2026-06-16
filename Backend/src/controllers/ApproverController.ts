@@ -14,7 +14,7 @@ import { storageService, type WatermarkLabel } from '../services/storageService'
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
 import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { prismaClient as prisma } from '../utils/prisma';
-import { syncGenericToVariants, addColorVariants, getSizesForMajCat } from '../services/variantCreationService';
+import { syncGenericToVariants, addColorVariants, getSizesForMajCat, isSizeAllowed } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
 import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 
@@ -1497,6 +1497,26 @@ export class ApproverController {
             const finalMajorCategory = (data.majorCategory !== undefined ? data.majorCategory : existingItem.majorCategory) as string | null;
             const finalMrp = data.mrp !== undefined ? data.mrp : existingItem.mrp;
 
+            // PR1 size guard: when a variant's size is edited, the new size must be
+            // valid for its Major Category (server-side backstop behind the UI dropdown).
+            if (!existingItem.isGeneric && (data.variantSize !== undefined || data.size !== undefined)) {
+                const newSize = String((data.variantSize ?? data.size) ?? '').trim();
+                if (newSize && finalMajorCategory) {
+                    let sizeOk: boolean;
+                    try {
+                        sizeOk = await isSizeAllowed(finalMajorCategory, newSize);
+                    } catch (err: any) {
+                        return res.status(500).json({ error: err?.message || 'Size validation failed' });
+                    }
+                    if (!sizeOk) {
+                        return res.status(422).json({
+                            error: 'INVALID_SIZE_FOR_CATEGORY',
+                            detail: `Size '${newSize}' is not allowed for category '${finalMajorCategory}'.`,
+                        });
+                    }
+                }
+            }
+
             // Recalculate segment whenever MRP or majorCategory changes.
             // MRP is manually editable, so never hard-block the save — just set segment to null if out of range.
             const mrpActuallyChanged = data.mrp !== undefined && toComparableNumber(data.mrp) !== toComparableNumber(existingItem.mrp);
@@ -2338,11 +2358,13 @@ export class ApproverController {
         }
     }
 
-    // Add color variants to an existing generic article
+    // Add color variants to an existing generic article.
+    // Body: { colors|color, sizes? } — when `sizes` is provided (manual mode) only
+    // those sizes are created; otherwise all of the MC's active sizes (auto mode).
     static async addColor(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const { color, colors } = req.body; 
+            const { color, colors, sizes } = req.body;
             // Accept either colors[] (new) or color string (legacy)
             const colorList: string[] = Array.isArray(colors)
                 ? colors.map((c: string) => c.trim().toUpperCase()).filter(Boolean)
@@ -2352,9 +2374,30 @@ export class ApproverController {
 
             if (colorList.length === 0) return res.status(400).json({ error: 'At least one color is required' });
 
+            // Manual mode: validate requested sizes against the Major Category's
+            // allowed sizes (maj_cat_sizes). Reject the whole request on any invalid size.
+            let sizesOverride: string[] | undefined;
+            if (Array.isArray(sizes) && sizes.length > 0) {
+                const generic = await prisma.extractionResultFlat.findUnique({
+                    where: { id }, select: { majorCategory: true },
+                });
+                const allowed = await getSizesForMajCat(generic?.majorCategory || '');
+                const allowedUpper = new Set(allowed.map((s) => s.trim().toUpperCase()));
+                const invalid = sizes
+                    .map((s: string) => String(s).trim())
+                    .filter((s: string) => s && !allowedUpper.has(s.toUpperCase()));
+                if (invalid.length > 0) {
+                    return res.status(422).json({
+                        error: 'INVALID_SIZE_FOR_CATEGORY',
+                        detail: `Size(s) not allowed for category '${generic?.majorCategory ?? ''}': ${invalid.join(', ')}.`,
+                    });
+                }
+                sizesOverride = sizes.map((s: string) => String(s).trim()).filter(Boolean);
+            }
+
             let totalCreated = 0;
             for (const c of colorList) {
-                totalCreated += await addColorVariants(id, c);
+                totalCreated += await addColorVariants(id, c, sizesOverride);
             }
             return res.json({ message: `Created ${totalCreated} color variants`, count: totalCreated });
         } catch (err: any) {
