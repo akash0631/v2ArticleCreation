@@ -312,7 +312,7 @@ export interface ApproverArticleListProps {
   onModify?: (item: ApproverItem, changes: Record<string, unknown>) => Promise<void>;
   attributes: MasterAttribute[];
   onRefresh: () => void;
-  pathType?: 'old' | 'new' | 'rejected' | 'created';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
   serverPagination: {
     total: number;
     current: number;
@@ -358,7 +358,7 @@ const ArticleCard = React.memo(
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
-    pathType?: 'old' | 'new' | 'rejected' | 'created';
+    pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
   }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
