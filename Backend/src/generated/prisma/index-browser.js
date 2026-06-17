@@ -361,6 +361,7 @@ exports.Prisma.ExtractionResultFlatScalarFieldEnum = {
   year: 'year',
   articleType: 'articleType',
   approvalStatus: 'approvalStatus',
+  pdStatus: 'pdStatus',
   approvedBy: 'approvedBy',
   approvedAt: 'approvedAt',
   source: 'source',
@@ -1208,6 +1209,11 @@ exports.ApprovalStatus = exports.$Enums.ApprovalStatus = {
   REJECTED: 'REJECTED'
 };
 
+exports.PdStatus = exports.$Enums.PdStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED'
+};
+
 exports.SapSyncStatus = exports.$Enums.SapSyncStatus = {
   NOT_SYNCED: 'NOT_SYNCED',
   PENDING: 'PENDING',
@@ -1223,7 +1229,8 @@ exports.UserRole = exports.$Enums.UserRole = {
   APPROVER: 'APPROVER',
   CATEGORY_HEAD: 'CATEGORY_HEAD',
   SUB_DIVISION_HEAD: 'SUB_DIVISION_HEAD',
-  PD_DESIGNER: 'PD_DESIGNER'
+  PD_DESIGNER: 'PD_DESIGNER',
+  PD: 'PD'
 };
 
 exports.ChangeAction = exports.$Enums.ChangeAction = {

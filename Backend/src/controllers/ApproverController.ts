@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ApprovalStatus, SapSyncStatus } from '../generated/prisma';
+import { ApprovalStatus, SapSyncStatus, PdStatus } from '../generated/prisma';
 import fs from 'fs';
 import path from 'path';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
@@ -605,8 +605,8 @@ export class ApproverController {
             // Key includes all query params + user scope so different users/filters
             // never share a cached response.
             const role = String(req.user?.role || '');
-            // ADMIN and PO_COMMITTEE are unscoped — they see/act across all divisions.
-            const isUnscoped = role === 'ADMIN' || role === 'PO_COMMITTEE';
+            // ADMIN, PO_COMMITTEE and PD are unscoped — they see/act across all divisions.
+            const isUnscoped = role === 'ADMIN' || role === 'PO_COMMITTEE' || role === 'PD';
             const cacheKey = JSON.stringify({
                 role,
                 userId: !isUnscoped ? req.user?.id : undefined,
@@ -676,8 +676,15 @@ export class ApproverController {
             if (pathType === 'old') {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
-                // Only PENDING articles, excluding old-path articles.
+                // Approver queue: PENDING articles not yet sent to PD, excluding old-path.
                 where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.PENDING;
+                where.isOldArticle = false;
+            } else if (pathType === 'pd') {
+                // PD queue: approver has sent it (pdStatus=COMPLETED) but it's not yet
+                // approved/created in SAP. Admin + PD only (route-guarded on the frontend).
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'rejected') {
                 where.approvalStatus = ApprovalStatus.REJECTED;
@@ -968,9 +975,9 @@ export class ApproverController {
 
             const where: any = {};
 
-            // RBAC — ADMIN and PO_COMMITTEE are unscoped (all divisions).
+            // RBAC — ADMIN, PO_COMMITTEE and PD are unscoped (all divisions).
             const role = String(req.user?.role || '');
-            if (role === 'ADMIN' || role === 'PO_COMMITTEE') {
+            if (role === 'ADMIN' || role === 'PO_COMMITTEE' || role === 'PD') {
                 if (division && division !== 'ALL') {
                     const divVariants = ApproverController.getDivisionVariants(division as string);
                     if (divVariants.length > 0) {
@@ -1006,6 +1013,11 @@ export class ApproverController {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
                 where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.PENDING;
+                where.isOldArticle = false;
+            } else if (pathType === 'pd') {
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
@@ -1454,7 +1466,8 @@ export class ApproverController {
                     vendorCode: true,
                     season: true,
                     year: true,
-                    isGeneric: true
+                    isGeneric: true,
+                    pdStatus: true
                 }
             });
 
@@ -1468,6 +1481,12 @@ export class ApproverController {
             }
 
             const role = String(req.user?.role || '');
+
+            // Once sent to PD (pdStatus=COMPLETED) the article is locked for the
+            // approver — only PD / ADMIN may edit it from the PD page.
+            if ((existingItem as any).pdStatus === 'COMPLETED' && role !== 'PD' && role !== 'ADMIN') {
+                return res.status(403).json({ error: 'This article has been sent to PD. Only PD or Admin can edit it.' });
+            }
             if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
@@ -1735,6 +1754,32 @@ export class ApproverController {
     }
 
     // Approve items
+    // Approver "Save & Submit": hand articles off to PD. Sets pdStatus=COMPLETED
+    // for PENDING, not-yet-sent items. No SAP call — SAP creation happens when
+    // PD/ADMIN approves from the PD page (approveItems).
+    static async sendToPd(req: Request, res: Response) {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ error: 'No items selected' });
+            }
+            const result = await prisma.extractionResultFlat.updateMany({
+                where: {
+                    id: { in: ids },
+                    approvalStatus: ApprovalStatus.PENDING,
+                    pdStatus: PdStatus.PENDING,
+                },
+                data: { pdStatus: PdStatus.COMPLETED },
+            });
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            return res.json({ success: true, sentToPd: result.count });
+        } catch (err: any) {
+            console.error('[sendToPd] Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
     static async approveItems(req: Request, res: Response) {
         ApproverController.itemsCache.clear();
         ApproverController.countCache.clear();

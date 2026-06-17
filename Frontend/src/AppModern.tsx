@@ -78,12 +78,26 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   if (user) {
     const userData = JSON.parse(user);
-    // Allow ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, CREATOR or PO_COMMITTEE (read-only)
-    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'SUB_DIVISION_HEAD' && userData.role !== 'ADMIN' && userData.role !== 'CREATOR' && userData.role !== 'PO_COMMITTEE') {
+    // Allow ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, CREATOR, PO_COMMITTEE or PD
+    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'SUB_DIVISION_HEAD' && userData.role !== 'ADMIN' && userData.role !== 'CREATOR' && userData.role !== 'PO_COMMITTEE' && userData.role !== 'PD') {
       return <Navigate to="/dashboard" replace />;
     }
   }
 
+  return <>{children}</>;
+};
+
+// PD page guard — only ADMIN and PD may view/submit on the PD approval queue.
+const PdRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user = localStorage.getItem('user');
+  if (!token) return <Navigate to="/login" replace />;
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role !== 'ADMIN' && userData.role !== 'PD') {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
   return <>{children}</>;
 };
 
@@ -100,6 +114,10 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // APPROVER and CATEGORY_HEAD cannot access creator pages; SUB_DIVISION_HEAD can
     if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
+    }
+    // PD is an approval-only role → send to the PD queue
+    if (userData.role === 'PD') {
+      return <Navigate to="/approver/pd" replace />;
     }
     // PD_DESIGNER only has access to model-generation
     if (userData.role === 'PD_DESIGNER') {
@@ -364,6 +382,28 @@ const App: React.FC = () => {
                       <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
+                }
+              />
+
+              {/* PD Approval — Admin + PD only */}
+              <Route
+                path="/approver/pd"
+                element={
+                  <PdRoute>
+                    <MainLayout>
+                      <ApproverDashboard key="pd-approval" pathType="pd" />
+                    </MainLayout>
+                  </PdRoute>
+                }
+              />
+              <Route
+                path="/approver/pd/:id"
+                element={
+                  <PdRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </PdRoute>
                 }
               />
 

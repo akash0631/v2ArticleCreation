@@ -289,7 +289,7 @@ export const requireUser = (
 
   // CREATOR, PO_COMMITTEE, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, PD_DESIGNER and ADMIN roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'PD_DESIGNER') {
+  if (role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'PD_DESIGNER' && role !== 'PD') {
     res.status(403).json({
       success: false,
       error: 'User access required. Invalid role.',
@@ -323,7 +323,7 @@ export const requireApprover = (
 
   // APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, ADMIN, CREATOR and PO_COMMITTEE (read-only) roles are allowed
   const role = String(req.user.role || '');
-  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'CREATOR' && role !== 'PO_COMMITTEE') {
+  if (role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'ADMIN' && role !== 'CREATOR' && role !== 'PO_COMMITTEE' && role !== 'PD') {
     res.status(403).json({
       success: false,
       error: 'Approver access required. You do not have permission to access this resource.',
@@ -351,10 +351,37 @@ export const requireApprovalRights = (
     return;
   }
   const role = String(req.user.role || '');
-  if (role !== 'ADMIN' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'PO_COMMITTEE') {
+  if (role !== 'ADMIN' && role !== 'APPROVER' && role !== 'CATEGORY_HEAD' && role !== 'SUB_DIVISION_HEAD' && role !== 'PO_COMMITTEE' && role !== 'PD') {
     res.status(403).json({
       success: false,
       error: 'You do not have permission to approve or reject articles.',
+      code: 'INSUFFICIENT_PERMISSIONS',
+      userRole: role
+    });
+    return;
+  }
+  next();
+};
+
+/**
+ * Require PD or ADMIN — the only roles allowed to do the FINAL submit that
+ * creates the article in SAP. Approvers hand off to PD via /send-to-pd.
+ * Must be used after authenticate middleware.
+ */
+export const requirePd = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: 'Authentication required.', code: 'NOT_AUTHENTICATED' });
+    return;
+  }
+  const role = String(req.user.role || '');
+  if (role !== 'ADMIN' && role !== 'PD') {
+    res.status(403).json({
+      success: false,
+      error: 'Only PD or Admin can submit articles to SAP.',
       code: 'INSUFFICIENT_PERMISSIONS',
       userRole: role
     });

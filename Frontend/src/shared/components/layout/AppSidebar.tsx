@@ -113,6 +113,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
 
   // PD_DESIGNER is a single-purpose role — only Model Generation, no other nav.
   const isPdDesigner = role === 'PD_DESIGNER';
+  // PD is an approval-only role: article queues + PD Approval, no extraction/admin.
+  const isPd = role === 'PD';
 
   const items: NavItem[] = isPdDesigner
     ? [{ key: '/model-generation', Icon: Camera, label: 'Model Generation' }]
@@ -123,8 +125,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
       items.push({ key: '/products', Icon: ShoppingBag, label: 'Products' });
     }
     // Extraction is available to creator-side roles and to APPROVER.
-    // (CATEGORY_HEAD remains approver-only and does not get it.)
-    if (!isApproverSide || role === 'APPROVER') {
+    // (CATEGORY_HEAD and PD remain approval-only and do not get it.)
+    if ((!isApproverSide && !isPd) || role === 'APPROVER') {
       items.push({ key: '/extraction', Icon: FileSearch, label: 'Extraction' });
     }
     // Model Generation — ADMIN only on this branch (PD_DESIGNER already has it via the items init above).
@@ -140,7 +142,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
       role === 'SUB_DIVISION_HEAD' ||
       isAdmin ||
       role === 'CREATOR' ||
-      role === 'PO_COMMITTEE')
+      role === 'PO_COMMITTEE' ||
+      isPd)
   ) {
     items.push({
       key: '/approver-group',
@@ -153,6 +156,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/approver/created', Icon: CheckCircle2, label: 'Created' },
       ],
     });
+  }
+
+  // PD Approval queue — Admin + PD only.
+  if (!isPdDesigner && (isAdmin || isPd)) {
+    items.push({ key: '/approver/pd', Icon: CheckCircle2, label: 'PD Approval' });
   }
 
   if (!isPdDesigner && (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin)) {

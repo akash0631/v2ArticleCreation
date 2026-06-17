@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ApproverController } from '../controllers/ApproverController';
-import { authenticate, requireApprover, requireApprovalRights } from '../middleware/auth';
+import { authenticate, requireApprover, requireApprovalRights, requirePd } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
@@ -33,10 +33,14 @@ router.all('/items/:id', h(async (req, res, next) => {
 // SAP via patch-bulk, then persists locally only on success.
 router.post('/items/:id/modify', requireApprovalRights, h(ApproverController.modifyItem));
 
-// Approve selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
-router.post('/approve', requireApprovalRights, h(ApproverController.approveItems));
+// Approver "Save & Submit": hand the article off to PD (sets pdStatus=COMPLETED).
+// Does NOT create in SAP — that now happens at the PD stage via /approve.
+router.post('/send-to-pd', requireApprovalRights, h(ApproverController.sendToPd));
 
-// Reject selected items — requires ADMIN, CATEGORY_HEAD or SUB_DIVISION_HEAD
+// FINAL submit — creates the article in SAP. PD or ADMIN only.
+router.post('/approve', requirePd, h(ApproverController.approveItems));
+
+// Reject selected items — approver roles + PD + ADMIN
 router.post('/reject', requireApprovalRights, h(ApproverController.rejectItems));
 
 // Refresh image URL (fixes expired signed URLs)

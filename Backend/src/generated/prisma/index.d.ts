@@ -199,7 +199,8 @@ export const UserRole: {
   APPROVER: 'APPROVER',
   CATEGORY_HEAD: 'CATEGORY_HEAD',
   SUB_DIVISION_HEAD: 'SUB_DIVISION_HEAD',
-  PD_DESIGNER: 'PD_DESIGNER'
+  PD_DESIGNER: 'PD_DESIGNER',
+  PD: 'PD'
 };
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole]
@@ -221,6 +222,14 @@ export const ApprovalStatus: {
 };
 
 export type ApprovalStatus = (typeof ApprovalStatus)[keyof typeof ApprovalStatus]
+
+
+export const PdStatus: {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED'
+};
+
+export type PdStatus = (typeof PdStatus)[keyof typeof PdStatus]
 
 
 export const SapSyncStatus: {
@@ -268,6 +277,10 @@ export const GarmentType: typeof $Enums.GarmentType
 export type ApprovalStatus = $Enums.ApprovalStatus
 
 export const ApprovalStatus: typeof $Enums.ApprovalStatus
+
+export type PdStatus = $Enums.PdStatus
+
+export const PdStatus: typeof $Enums.PdStatus
 
 export type SapSyncStatus = $Enums.SapSyncStatus
 
@@ -13998,6 +14011,7 @@ export namespace Prisma {
     year: string | null
     articleType: string | null
     approvalStatus: $Enums.ApprovalStatus | null
+    pdStatus: $Enums.PdStatus | null
     approvedBy: number | null
     approvedAt: Date | null
     source: string | null
@@ -14124,6 +14138,7 @@ export namespace Prisma {
     year: string | null
     articleType: string | null
     approvalStatus: $Enums.ApprovalStatus | null
+    pdStatus: $Enums.PdStatus | null
     approvedBy: number | null
     approvedAt: Date | null
     source: string | null
@@ -14250,6 +14265,7 @@ export namespace Prisma {
     year: number
     articleType: number
     approvalStatus: number
+    pdStatus: number
     approvedBy: number
     approvedAt: number
     source: number
@@ -14408,6 +14424,7 @@ export namespace Prisma {
     year?: true
     articleType?: true
     approvalStatus?: true
+    pdStatus?: true
     approvedBy?: true
     approvedAt?: true
     source?: true
@@ -14534,6 +14551,7 @@ export namespace Prisma {
     year?: true
     articleType?: true
     approvalStatus?: true
+    pdStatus?: true
     approvedBy?: true
     approvedAt?: true
     source?: true
@@ -14660,6 +14678,7 @@ export namespace Prisma {
     year?: true
     articleType?: true
     approvalStatus?: true
+    pdStatus?: true
     approvedBy?: true
     approvedAt?: true
     source?: true
@@ -14873,6 +14892,7 @@ export namespace Prisma {
     year: string | null
     articleType: string | null
     approvalStatus: $Enums.ApprovalStatus
+    pdStatus: $Enums.PdStatus
     approvedBy: number | null
     approvedAt: Date | null
     source: string | null
@@ -15018,6 +15038,7 @@ export namespace Prisma {
     year?: boolean
     articleType?: boolean
     approvalStatus?: boolean
+    pdStatus?: boolean
     approvedBy?: boolean
     approvedAt?: boolean
     source?: boolean
@@ -15148,6 +15169,7 @@ export namespace Prisma {
     year?: boolean
     articleType?: boolean
     approvalStatus?: boolean
+    pdStatus?: boolean
     approvedBy?: boolean
     approvedAt?: boolean
     source?: boolean
@@ -15276,6 +15298,7 @@ export namespace Prisma {
     year?: boolean
     articleType?: boolean
     approvalStatus?: boolean
+    pdStatus?: boolean
     approvedBy?: boolean
     approvedAt?: boolean
     source?: boolean
@@ -15404,6 +15427,7 @@ export namespace Prisma {
     year?: boolean
     articleType?: boolean
     approvalStatus?: boolean
+    pdStatus?: boolean
     approvedBy?: boolean
     approvedAt?: boolean
     source?: boolean
@@ -15420,7 +15444,7 @@ export namespace Prisma {
     srmUniqueId?: boolean
   }
 
-  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isOldArticle" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
+  export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "pdStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isOldArticle" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
     job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
@@ -15553,6 +15577,7 @@ export namespace Prisma {
       year: string | null
       articleType: string | null
       approvalStatus: $Enums.ApprovalStatus
+      pdStatus: $Enums.PdStatus
       approvedBy: number | null
       approvedAt: Date | null
       source: string | null
@@ -16102,6 +16127,7 @@ export namespace Prisma {
     readonly year: FieldRef<"ExtractionResultFlat", 'String'>
     readonly articleType: FieldRef<"ExtractionResultFlat", 'String'>
     readonly approvalStatus: FieldRef<"ExtractionResultFlat", 'ApprovalStatus'>
+    readonly pdStatus: FieldRef<"ExtractionResultFlat", 'PdStatus'>
     readonly approvedBy: FieldRef<"ExtractionResultFlat", 'Int'>
     readonly approvedAt: FieldRef<"ExtractionResultFlat", 'DateTime'>
     readonly source: FieldRef<"ExtractionResultFlat", 'String'>
@@ -39992,6 +40018,7 @@ export namespace Prisma {
     year: 'year',
     articleType: 'articleType',
     approvalStatus: 'approvalStatus',
+    pdStatus: 'pdStatus',
     approvedBy: 'approvedBy',
     approvedAt: 'approvedAt',
     source: 'source',
@@ -41114,6 +41141,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'PdStatus'
+   */
+  export type EnumPdStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PdStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'PdStatus[]'
+   */
+  export type ListEnumPdStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PdStatus[]'>
+    
+
+
+  /**
    * Reference to a field of type 'SapSyncStatus'
    */
   export type EnumSapSyncStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SapSyncStatus'>
@@ -42140,6 +42181,7 @@ export namespace Prisma {
     year?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     articleType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approvalStatus?: EnumApprovalStatusFilter<"ExtractionResultFlat"> | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFilter<"ExtractionResultFlat"> | $Enums.PdStatus
     approvedBy?: IntNullableFilter<"ExtractionResultFlat"> | number | null
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -42269,6 +42311,7 @@ export namespace Prisma {
     year?: SortOrderInput | SortOrder
     articleType?: SortOrderInput | SortOrder
     approvalStatus?: SortOrder
+    pdStatus?: SortOrder
     approvedBy?: SortOrderInput | SortOrder
     approvedAt?: SortOrderInput | SortOrder
     source?: SortOrderInput | SortOrder
@@ -42403,6 +42446,7 @@ export namespace Prisma {
     year?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     articleType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approvalStatus?: EnumApprovalStatusFilter<"ExtractionResultFlat"> | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFilter<"ExtractionResultFlat"> | $Enums.PdStatus
     approvedBy?: IntNullableFilter<"ExtractionResultFlat"> | number | null
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -42531,6 +42575,7 @@ export namespace Prisma {
     year?: SortOrderInput | SortOrder
     articleType?: SortOrderInput | SortOrder
     approvalStatus?: SortOrder
+    pdStatus?: SortOrder
     approvedBy?: SortOrderInput | SortOrder
     approvedAt?: SortOrderInput | SortOrder
     source?: SortOrderInput | SortOrder
@@ -42665,6 +42710,7 @@ export namespace Prisma {
     year?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     articleType?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     approvalStatus?: EnumApprovalStatusWithAggregatesFilter<"ExtractionResultFlat"> | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusWithAggregatesFilter<"ExtractionResultFlat"> | $Enums.PdStatus
     approvedBy?: IntNullableWithAggregatesFilter<"ExtractionResultFlat"> | number | null
     approvedAt?: DateTimeNullableWithAggregatesFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
@@ -45811,6 +45857,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -45939,6 +45986,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedBy?: number | null
     approvedAt?: Date | string | null
     source?: string | null
@@ -46065,6 +46113,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46193,6 +46242,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedBy?: NullableIntFieldUpdateOperationsInput | number | null
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46320,6 +46370,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedBy?: number | null
     approvedAt?: Date | string | null
     source?: string | null
@@ -46445,6 +46496,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46570,6 +46622,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedBy?: NullableIntFieldUpdateOperationsInput | number | null
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
@@ -50077,6 +50130,13 @@ export namespace Prisma {
     not?: NestedEnumApprovalStatusFilter<$PrismaModel> | $Enums.ApprovalStatus
   }
 
+  export type EnumPdStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.PdStatus | EnumPdStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPdStatusFilter<$PrismaModel> | $Enums.PdStatus
+  }
+
   export type EnumSapSyncStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.SapSyncStatus | EnumSapSyncStatusFieldRefInput<$PrismaModel>
     in?: $Enums.SapSyncStatus[] | ListEnumSapSyncStatusFieldRefInput<$PrismaModel>
@@ -50210,6 +50270,7 @@ export namespace Prisma {
     year?: SortOrder
     articleType?: SortOrder
     approvalStatus?: SortOrder
+    pdStatus?: SortOrder
     approvedBy?: SortOrder
     approvedAt?: SortOrder
     source?: SortOrder
@@ -50351,6 +50412,7 @@ export namespace Prisma {
     year?: SortOrder
     articleType?: SortOrder
     approvalStatus?: SortOrder
+    pdStatus?: SortOrder
     approvedBy?: SortOrder
     approvedAt?: SortOrder
     source?: SortOrder
@@ -50477,6 +50539,7 @@ export namespace Prisma {
     year?: SortOrder
     articleType?: SortOrder
     approvalStatus?: SortOrder
+    pdStatus?: SortOrder
     approvedBy?: SortOrder
     approvedAt?: SortOrder
     source?: SortOrder
@@ -50516,6 +50579,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumApprovalStatusFilter<$PrismaModel>
     _max?: NestedEnumApprovalStatusFilter<$PrismaModel>
+  }
+
+  export type EnumPdStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PdStatus | EnumPdStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPdStatusWithAggregatesFilter<$PrismaModel> | $Enums.PdStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPdStatusFilter<$PrismaModel>
+    _max?: NestedEnumPdStatusFilter<$PrismaModel>
   }
 
   export type EnumSapSyncStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -52708,6 +52781,10 @@ export namespace Prisma {
     set?: $Enums.ApprovalStatus
   }
 
+  export type EnumPdStatusFieldUpdateOperationsInput = {
+    set?: $Enums.PdStatus
+  }
+
   export type EnumSapSyncStatusFieldUpdateOperationsInput = {
     set?: $Enums.SapSyncStatus
   }
@@ -53698,6 +53775,13 @@ export namespace Prisma {
     not?: NestedEnumApprovalStatusFilter<$PrismaModel> | $Enums.ApprovalStatus
   }
 
+  export type NestedEnumPdStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.PdStatus | EnumPdStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPdStatusFilter<$PrismaModel> | $Enums.PdStatus
+  }
+
   export type NestedEnumSapSyncStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.SapSyncStatus | EnumSapSyncStatusFieldRefInput<$PrismaModel>
     in?: $Enums.SapSyncStatus[] | ListEnumSapSyncStatusFieldRefInput<$PrismaModel>
@@ -53713,6 +53797,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumApprovalStatusFilter<$PrismaModel>
     _max?: NestedEnumApprovalStatusFilter<$PrismaModel>
+  }
+
+  export type NestedEnumPdStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PdStatus | EnumPdStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PdStatus[] | ListEnumPdStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPdStatusWithAggregatesFilter<$PrismaModel> | $Enums.PdStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPdStatusFilter<$PrismaModel>
+    _max?: NestedEnumPdStatusFilter<$PrismaModel>
   }
 
   export type NestedEnumSapSyncStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -55031,6 +55125,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -55157,6 +55252,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedBy?: number | null
     approvedAt?: Date | string | null
     source?: string | null
@@ -55407,6 +55503,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -55533,6 +55630,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedBy?: NullableIntFieldUpdateOperationsInput | number | null
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
@@ -56497,6 +56595,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -56624,6 +56723,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -56880,6 +56980,7 @@ export namespace Prisma {
     year?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     articleType?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approvalStatus?: EnumApprovalStatusFilter<"ExtractionResultFlat"> | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFilter<"ExtractionResultFlat"> | $Enums.PdStatus
     approvedBy?: IntNullableFilter<"ExtractionResultFlat"> | number | null
     approvedAt?: DateTimeNullableFilter<"ExtractionResultFlat"> | Date | string | null
     source?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -58420,6 +58521,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -58547,6 +58649,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedBy?: number | null
     approvedAt?: Date | string | null
     source?: string | null
@@ -58725,6 +58828,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -58852,6 +58956,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedBy?: NullableIntFieldUpdateOperationsInput | number | null
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59602,6 +59707,7 @@ export namespace Prisma {
     year?: string | null
     articleType?: string | null
     approvalStatus?: $Enums.ApprovalStatus
+    pdStatus?: $Enums.PdStatus
     approvedAt?: Date | string | null
     source?: string | null
     imageUncPath?: string | null
@@ -59888,6 +59994,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60015,6 +60122,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60141,6 +60249,7 @@ export namespace Prisma {
     year?: NullableStringFieldUpdateOperationsInput | string | null
     articleType?: NullableStringFieldUpdateOperationsInput | string | null
     approvalStatus?: EnumApprovalStatusFieldUpdateOperationsInput | $Enums.ApprovalStatus
+    pdStatus?: EnumPdStatusFieldUpdateOperationsInput | $Enums.PdStatus
     approvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     source?: NullableStringFieldUpdateOperationsInput | string | null
     imageUncPath?: NullableStringFieldUpdateOperationsInput | string | null
