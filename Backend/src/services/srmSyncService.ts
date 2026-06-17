@@ -16,7 +16,7 @@
  *   major_category    → majorCategory
  *   design_number     → designNumber
  *   fabric            → macroMvgr (closest match)
- *   no_of_colors      → stored in impAtrbt2 as "Colors: N"
+ *   no_of_colors      → NOT mapped (impAtrbt2 is left null, filled manually)
  *   price             → rate
  *   image_url         → imageUrl
  */
@@ -692,8 +692,9 @@ async function insertRow(row: SrmRow, rawArticleId?: string): Promise<{ id: stri
   const rate       = row.price > 0 ? row.price : null;
   const segment    = getSegmentByCategoryAndMrp(row.major_category, rate ? rate as any : null) || null;
 
-  // Store no_of_colors in impAtrbt2 if set
-  const impAtrbt2 = row.no_of_colors ? `Colors: ${row.no_of_colors}` : null;
+  // no_of_colors is intentionally NOT mapped into impAtrbt2 — leave it null
+  // (impAtrbt2 / IMP ATBT is filled manually by the approver later).
+  const impAtrbt2: string | null = null;
 
   // Create ExtractionResultFlat directly — no flattening from AI results needed
   const flat = await prisma.extractionResultFlat.create({
