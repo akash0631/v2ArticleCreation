@@ -308,9 +308,21 @@ const CategoryList: React.FC<{
     : (cats ?? []);
 
   if (filtered.length === 0) {
+    const candidate = filter.trim().toUpperCase();
     return (
-      <div className="px-3 py-2 text-xs text-muted-foreground">
-        {lower ? `No major categories match “${filter.trim()}”.` : 'No major categories with grid data.'}
+      <div className="px-3 py-2">
+        <div className="text-xs text-muted-foreground">
+          {lower ? `No major categories match “${filter.trim()}”.` : 'No major categories with grid data.'}
+        </div>
+        {lower && candidate && (
+          <button
+            type="button"
+            onClick={() => onPick(candidate)}
+            className="mt-2 inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/5 px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add <span className="font-mono">“{candidate}”</span>
+          </button>
+        )}
       </div>
     );
   }
