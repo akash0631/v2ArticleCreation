@@ -40,7 +40,7 @@ interface VariantSubTableProps {
   genericRecord: ApproverItem;
   onRefresh: () => void;
   attributes: MasterAttribute[];
-  pathType?: 'old' | 'new' | 'rejected' | 'created';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
 }
 
 // ── Edit variant modal ────────────────────────────────────────────────────────

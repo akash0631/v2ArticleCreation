@@ -419,11 +419,21 @@ app.use(errorHandler);
         .catch(err => console.error('[RawExtract Cron] ❌ Unhandled error:', err?.message));
     };
 
-    // Fire immediately on startup (catches any rows that were PENDING before restart)
-    setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
+    // The 10-min raw-extraction cron is gated by ENABLE_CRON so it does not run
+    // in local development. Explicit ENABLE_CRON=true/false wins; otherwise it
+    // defaults to ON in production and OFF everywhere else.
+    const cronEnabled = process.env.ENABLE_CRON !== undefined
+      ? process.env.ENABLE_CRON === 'true'
+      : process.env.NODE_ENV === 'production';
 
-    // Then repeat every 10 minutes
-    setInterval(rawExtractTick, 10 * 60_000);
+    if (cronEnabled) {
+      // Fire immediately on startup (catches any rows that were PENDING before restart)
+      setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
+      // Then repeat every 10 minutes
+      setInterval(rawExtractTick, 10 * 60_000);
+    } else {
+      console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 10-min raw-extraction cron.');
+    }
 
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
