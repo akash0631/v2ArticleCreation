@@ -74,7 +74,7 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-  pathType?: 'old' | 'new' | 'rejected' | 'created';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
@@ -137,8 +137,10 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
 
   const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
   const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
-  const showDivisionFilter = user?.role !== 'ADMIN' && userAssignedDivisions.length > 1;
-  const showSubDivisionFilter = user?.role !== 'ADMIN' && userAssignedSubDivisions.length > 1;
+  // Unscoped roles (ADMIN, PD, PO_COMMITTEE) see all divisions → full division/sub-division filters.
+  const isUnscoped = user?.role === 'ADMIN' || user?.role === 'PD' || user?.role === 'PO_COMMITTEE';
+  const showDivisionFilter = !isUnscoped && userAssignedDivisions.length > 1;
+  const showSubDivisionFilter = !isUnscoped && userAssignedSubDivisions.length > 1;
 
   useEffect(() => {
     const str = localStorage.getItem('user');
@@ -407,6 +409,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       d.pathType === 'old' ? '/approver/old-articles'
       : d.pathType === 'rejected' ? '/approver/rejected'
       : d.pathType === 'created' ? '/approver/created'
+      : d.pathType === 'pd' ? '/approver/pd'
       : '/approver';
     const state: DetailNavigationState = {
       items: d.items, currentIndex: index, currentPage: d.currentPage,
@@ -436,7 +439,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                 <div className="font-display truncate text-[13px] font-semibold leading-tight tracking-tight">
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
-                    : pathType === 'created' ? 'Created Articles' : 'Approver Dashboard'}
+                    : pathType === 'created' ? 'Created Articles'
+                    : pathType === 'pd' ? 'PD Approval' : 'Approver Dashboard'}
                 </div>
                 {user?.division && (
                   <div className="truncate text-[10px] font-medium text-white/65">
@@ -499,12 +503,12 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   </SelectContent>
                 </Select>
               )}
-              {(showDivisionFilter || user?.role === 'ADMIN') && (
+              {(showDivisionFilter || isUnscoped) && (
                 <Select value={divisionFilter} onValueChange={(v) => { setDivisionFilter(v); setSubDivisionFilter('ALL'); }}>
                   <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue placeholder="Division" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Divisions</SelectItem>
-                    {user?.role === 'ADMIN' ? (
+                    {isUnscoped ? (
                       <>
                         <SelectItem value="MEN">MENS</SelectItem>
                         <SelectItem value="LADIES">LADIES</SelectItem>
@@ -516,7 +520,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   </SelectContent>
                 </Select>
               )}
-              {(showSubDivisionFilter || user?.role === 'ADMIN') && (
+              {(showSubDivisionFilter || isUnscoped) && (
                 <Popover
                   open={subDivOpen}
                   onOpenChange={(o) => { setSubDivOpen(o); if (!o) setSubDivSearch(''); }}
@@ -546,7 +550,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                     <div className="max-h-56 overflow-y-auto py-1">
                       {(['ALL'] as string[])
                         .concat(
-                          user?.role === 'ADMIN'
+                          isUnscoped
                             ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
                               ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
                               : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
@@ -573,7 +577,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                         ))}
                       {(['ALL'] as string[])
                         .concat(
-                          user?.role === 'ADMIN'
+                          isUnscoped
                             ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
                               ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
                               : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]

@@ -179,7 +179,7 @@ export interface DetailNavigationState {
   currentIndex: number;
   currentPage: number;
   totalCount: number;
-  pathType?: 'old' | 'new' | 'rejected' | 'created';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
   filters: DetailFilters;
   listPage?: number;
 }
@@ -191,7 +191,16 @@ export default function ArticleDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as DetailNavigationState | null;
-  const pathType = navState?.pathType;
+  // Prefer the nav-state pathType; fall back to the URL so a hard refresh of a
+  // detail page (esp. the PD page) keeps the correct flow (Save & Submit target).
+  const pathFromUrl: DetailNavigationState['pathType'] =
+    location.pathname.startsWith('/approver/old-articles') ? 'old'
+    : location.pathname.startsWith('/approver/rejected') ? 'rejected'
+    : location.pathname.startsWith('/approver/created') ? 'created'
+    : location.pathname.startsWith('/approver/pd') ? 'pd'
+    : location.pathname.startsWith('/approver') ? 'new'
+    : undefined;
+  const pathType = navState?.pathType ?? pathFromUrl;
 
   const [items, setItems] = useState<ApproverItem[]>(navState?.items ?? []);
   const [currentIndex, setCurrentIndex] = useState(navState?.currentIndex ?? 0);
@@ -219,7 +228,7 @@ export default function ArticleDetailPage() {
   const [editActiveTab, setEditActiveTab] = useState<'core' | 'attributes' | 'business'>('core');
   const modalDivision = editForm.watch('division');
 
-  const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD' || user?.role === 'PO_COMMITTEE';
+  const canApprove = user?.role === 'ADMIN' || user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD' || user?.role === 'SUB_DIVISION_HEAD' || user?.role === 'PO_COMMITTEE' || user?.role === 'PD';
 
   // ─── Init ───────────────────────────────────────────────────────────────────
 
@@ -282,6 +291,7 @@ export default function ArticleDetailPage() {
     if (pathType === 'old') return '/approver/old-articles';
     if (pathType === 'rejected') return '/approver/rejected';
     if (pathType === 'created') return '/approver/created';
+    if (pathType === 'pd') return '/approver/pd';
     return '/approver';
   }
 
@@ -365,18 +375,25 @@ export default function ArticleDetailPage() {
   };
 
   const doApprove = async () => {
+    // On the PD page the action is the FINAL SAP submit (/approve). On every
+    // other page (New Articles) Save & Submit hands the article off to PD
+    // (/send-to-pd) — no SAP call until PD approves.
+    const isPdSubmit = pathType === 'pd';
     setApproving(true);
     try {
       const token = localStorage.getItem('authToken');
-      const r = await fetch(`${APP_CONFIG.api.baseURL}/approver/approve`, {
+      const endpoint = isPdSubmit ? '/approver/approve' : '/approver/send-to-pd';
+      const r = await fetch(`${APP_CONFIG.api.baseURL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ids: pendingSelectedKeys }),
       });
-      if (!r.ok) throw new Error('Approval failed');
+      if (!r.ok) throw new Error(isPdSubmit ? 'Approval failed' : 'Send to PD failed');
       const payload = await r.json();
       setConfirmDialog(null);
-      if (payload?.sapSync) {
+      if (!isPdSubmit) {
+        message.success(`Sent ${payload?.sentToPd ?? pendingSelectedKeys.length} article(s) to PD for approval`);
+      } else if (payload?.sapSync) {
         const { synced, failed, failures } = payload.sapSync;
         if (failed === 0) { message.success(`Approved ${payload.count}. SAP sync: ${synced} synced successfully.`); }
         else if (synced === 0) { setInfoDialog({ kind: 'sapSyncFailed', failures: failures || [], total: failed }); }
@@ -387,7 +404,7 @@ export default function ArticleDetailPage() {
       } else { message.success('Items approved successfully'); }
       setSelectedRowKeys([]);
       await refetchCurrentItem();
-    } catch { setConfirmDialog(null); message.error('Failed to approve items'); }
+    } catch { setConfirmDialog(null); message.error(isPdSubmit ? 'Failed to approve items' : 'Failed to send to PD'); }
     finally { setApproving(false); }
   };
 
@@ -698,7 +715,8 @@ export default function ArticleDetailPage() {
                 <div className="font-display truncate text-[13px] font-semibold leading-tight tracking-tight">
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
-                    : pathType === 'created' ? 'Created Articles' : 'Article Detail'}
+                    : pathType === 'created' ? 'Created Articles'
+                    : pathType === 'pd' ? 'PD Approval' : 'Article Detail'}
                 </div>
                 {user?.division && (
                   <div className="truncate text-[10px] font-medium text-white/65">

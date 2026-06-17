@@ -337,6 +337,7 @@ model ExtractionResultFlat {
 
   // Approval Workflow
   approvalStatus              ApprovalStatus @default(PENDING) @map("approval_status")
+  pdStatus                    PdStatus       @default(PENDING) @map("pd_status")
   approvedBy                  Int?           @map("approved_by")
   approvedAt                  DateTime?      @map("approved_at")
   approver                    User?          @relation("ApproverRelation", fields: [approvedBy], references: [id])
@@ -390,6 +391,7 @@ model ExtractionResultFlat {
   @@index([referenceArticleNumber])
   @@index([isGeneric, approvalStatus, division])
   @@index([isOldArticle, approvalStatus])
+  @@index([approvalStatus, pdStatus], map: "idx_erf_approval_pd")
   @@map("extraction_results_flat")
   @@schema("public")
 }
@@ -576,6 +578,7 @@ enum UserRole {
   CATEGORY_HEAD
   SUB_DIVISION_HEAD
   PD_DESIGNER
+  PD
 
   @@map("user_role")
   @@schema("public")
@@ -596,6 +599,14 @@ enum ApprovalStatus {
   REJECTED
 
   @@map("approval_status")
+  @@schema("public")
+}
+
+enum PdStatus {
+  PENDING
+  COMPLETED
+
+  @@map("pd_status")
   @@schema("public")
 }
 
