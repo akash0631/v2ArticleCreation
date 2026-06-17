@@ -179,6 +179,12 @@ app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
 app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/model-generation/bulk/')) return next();
   if (req.path.startsWith('/admin/majcat-grid/upload')) return next();
+  // Variant SAP sync (retry-variants) and approval (approve) can create many SAP
+  // articles in one request via RFC (e.g. 20 size×colour variants), which easily
+  // exceeds 90s. Give them up to 15 minutes.
+  if (req.path.endsWith('/retry-variants') || req.path === '/approver/approve') {
+    return requestTimeout(15 * 60 * 1000)(req, res, next);
+  }
   return requestTimeout(90 * 1000)(req, res, next);
 });
 
