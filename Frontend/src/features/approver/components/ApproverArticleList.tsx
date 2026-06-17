@@ -2048,8 +2048,8 @@ const ArticleCard = React.memo(
                 </div>
               )}
 
-              {/* Proceed for FG Article Creation */}
-              {!item.articleNumber &&
+              {/* Proceed for FG Article Creation — hidden on New Articles + PD Approval */}
+              {!item.articleNumber && pathType !== 'new' && pathType !== 'pd' &&
                 (() => {
                   const effectiveVendorCode =
                     localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;
