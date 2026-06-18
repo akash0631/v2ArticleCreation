@@ -3,6 +3,44 @@ import { EnhancedExtractionResult, AttributeData } from '../../../types/extracti
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { FULL_WEAVE_CLASSIFICATION_GUIDANCE } from '../prompts/fabricWeaveGuidance';
 
+/**
+ * Multi-step JSON repair for malformed Gemini responses.
+ *
+ * Gemini occasionally returns JSON with:
+ *   1. Unquoted property names  →  { key: "val" }   instead of  { "key": "val" }
+ *   2. Trailing commas          →  { "a": 1, }
+ *   3. Truncated output         →  missing closing braces
+ *   4. Single-quoted strings    →  { 'key': 'val' }
+ *
+ * Each step is tried in order; we return as soon as JSON.parse succeeds.
+ * Throws if all repair attempts fail so the caller can bubble up the error.
+ */
+function repairAndParseJson(raw: string): any {
+  // Step 1 — remove trailing commas before } or ]
+  const step1 = raw.replace(/,(\s*[}\]])/g, '$1');
+  try { return JSON.parse(step1); } catch { /* continue */ }
+
+  // Step 2 — quote unquoted property names  (e.g.  key:  →  "key":  )
+  const step2 = step1.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3');
+  try { return JSON.parse(step2); } catch { /* continue */ }
+
+  // Step 3 — replace single-quoted string delimiters with double quotes
+  // (careful: only swap outermost quotes, not apostrophes inside values)
+  const step3 = step2.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '"$1"');
+  try { return JSON.parse(step3); } catch { /* continue */ }
+
+  // Step 4 — truncated output: close any unclosed braces/brackets
+  let step4 = step3;
+  step4 = step4.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, ''); // drop incomplete trailing token
+  const openBraces   = (step4.match(/\{/g) || []).length;
+  const closeBraces  = (step4.match(/\}/g) || []).length;
+  const openBrackets = (step4.match(/\[/g) || []).length;
+  const closeBrackets = (step4.match(/\]/g) || []).length;
+  for (let i = 0; i < openBrackets - closeBrackets; i++) step4 += ']';
+  for (let i = 0; i < openBraces - closeBraces; i++) step4 += '}';
+  return JSON.parse(step4); // throws if still invalid — caller handles it
+}
+
 export interface GoogleVisionConfig {
   model: string;
   maxTokens: number;
@@ -30,74 +68,38 @@ export class GoogleVisionProvider implements VLMProvider {
     const apiKey = process.env.GOOGLE_API_KEY;
     if (apiKey) {
       this.client = new GoogleGenerativeAI(apiKey);
-      console.log('✅ Google Vision provider initialized successfully');
     } else {
-      console.log('⚠️ Google Vision provider: API key not configured');
+      console.warn('Google Vision provider: GOOGLE_API_KEY not configured');
     }
   }
 
   async extractAttributes(request: FashionExtractionRequest): Promise<EnhancedExtractionResult> {
     const startTime = Date.now();
-    console.log(`🔍 [Google ${this.config.model}] Starting extraction with ${request.schema.length} attributes`);
 
     if (!this.client) {
       throw new Error('Google Vision API client not initialized. Please set GOOGLE_API_KEY');
     }
 
     try {
-      let ocrMetadata: Record<string, any> | null = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const ocrPrompt = this.buildOcrPrompt(request);
-          const ocrResponse = await this.callGeminiVision(request.image, ocrPrompt);
-          ocrMetadata = this.parseOcrResponse(ocrResponse.content);
-          if (ocrMetadata) {
-            console.log(`🧾 [OCR] Pre-pass metadata extracted: colour="${ocrMetadata.colour}", size="${ocrMetadata.size}", gsm="${ocrMetadata.gsm}"`);
-          }
-          break; // success
-        } catch (ocrError: any) {
-          console.warn(`⚠️ [OCR] Pre-pass attempt ${attempt}/3 failed: ${ocrError?.message}`);
-          if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
-        }
-      }
-
-      const prompt = this.buildPrompt(request, ocrMetadata || undefined);
+      const imageData = await this.resolveImageToBase64(request.image);
+      const prompt = this.buildPrompt(request);
       let response: Awaited<ReturnType<typeof this.callGeminiVision>> | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          response = await this.callGeminiVision(request.image, prompt);
+          response = await this.callGeminiVision(imageData, prompt);
           break;
         } catch (err: any) {
-          console.warn(`⚠️ [Main] Extraction attempt ${attempt}/3 failed: ${err?.message}`);
+          console.warn(`Gemini extraction attempt ${attempt}/3 failed: ${err?.message}`);
           if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * attempt));
           else throw err;
         }
       }
 
-      const { attributes, extractedMetadata } = await this.parseResponse(response!.content, request.schema, ocrMetadata || undefined);
-
-      // Simple direct fallback: if colour is still null but OCR extracted it, use it directly
-      if (!attributes['colour'] && ocrMetadata?.colour) {
-        const colourVal = String(ocrMetadata.colour).trim();
-        console.log(`🎨 [Colour Fallback] Using OCR board colour directly: "${colourVal}"`);
-        attributes['colour'] = {
-          rawValue: colourVal,
-          schemaValue: colourVal,
-          visualConfidence: 90,
-          isNewDiscovery: false,
-          mappingConfidence: 90,
-          reasoning: 'Colour read directly from board/tag OCR'
-        };
-      }
+      const { attributes, extractedMetadata } = await this.parseResponse(response!.content, request.schema);
 
       const confidence = this.calculateConfidence(attributes);
 
       const processingTime = Date.now() - startTime;
-      const extractedCount = Object.values(attributes).filter(attr => attr !== null).length;
-
-      console.log(`✅ [Google Vision] Extraction complete: ${extractedCount}/${Object.keys(attributes).length} attributes, ${processingTime}ms`);
-      console.log(`📊 [Google Vision] Performance: Confidence=${confidence}%, Tokens=${response!.tokensUsed}`);
-
       return {
         attributes,
         confidence,
@@ -131,7 +133,21 @@ export class GoogleVisionProvider implements VLMProvider {
     this.initializeClient();
   }
 
-  private buildPrompt(request: FashionExtractionRequest, ocrHint?: Record<string, any>): string {
+  private async resolveImageToBase64(imageData: string): Promise<string> {
+    if (!imageData.startsWith('http://') && !imageData.startsWith('https://')) {
+      return imageData; // already base64 — pass through unchanged
+    }
+    const response = await fetch(imageData);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image from URL ${imageData}: ${response.status} ${response.statusText}`);
+    }
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const mimeType = contentType.split(';')[0].trim();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  }
+
+  private buildPrompt(request: FashionExtractionRequest): string {
     const { schema, categoryName, department, subDepartment } = request;
 
     const categoryContext = categoryName
@@ -148,18 +164,6 @@ export class GoogleVisionProvider implements VLMProvider {
         : '';
       return `${item.key}${allowedValues}`;
     }).join('\n');
-
-    const ocrHintBlock = ocrHint ? `
-
-OCR_HINTS (from dedicated OCR pre-pass — use ONLY for OCR-ONLY fields):
-${Object.entries(ocrHint)
-        .filter(([_, v]) => v !== null && v !== undefined && v !== '')
-        .map(([k, v]) => `• ${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-        .join('\n')}
-Rules for OCR_HINTS:
-• Use OCR_HINTS ONLY for: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, g_weight/weight/wt/fabric_weight/garment_weight, yarn_01, yarn_02, fabric_main_mvgr, colour
-• If OCR_HINTS are unclear or conflict with your own OCR read, return null for that field (do not guess)
-` : '';
 
     return `YOU ARE A FASHION ATTRIBUTE DATABASE LOOKUP SYSTEM.
 
@@ -312,7 +316,6 @@ NOT IN DATASET → RETURN NULL (do not use): BK LESS, MUFFLER, SHRUG/SHRUGS, WIT
 
 📋 ALLOWED VALUES (key [val1|val2|...] — use ONLY these exact values, NULL if not present):
 ${schemaDefinition}
-${ocrHintBlock}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔬 MANDATORY ANALYSIS PROTOCOL (FOLLOW EXACTLY):
@@ -583,7 +586,7 @@ COLOR OCR (SPECIAL RULE):
 • PRIORITY 2: If no colour on board, look at the garment/fabric itself and extract its colour
 • Return the colour value exactly as written on the board — do NOT require database validation, do NOT return null just because a value is not in an allowed list
 • Only return null if there is genuinely no colour information anywhere in the image (board or garment)
-• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, ppt_number, rate, size, major_category, gsm, weight, yarn_01, yarn_02, fabric_main_mvgr
+• Do NOT use OCR for any other attribute except: division, vendor_name, design_number, rate, size, major_category, gsm, weight, yarn_01, yarn_02, fabric_main_mvgr
 • Size must be returned exactly as written (e.g., "S-XXL", "30-36"), no normalization
 
 LYCRA / NON-LYCRA (STRICT):
@@ -913,66 +916,6 @@ TOPWEAR EXAMPLE (SHIRT):
 GOAL: Achieve 90%+ accuracy. Take your time. Be thorough. Be precise.`;
   }
 
-  private buildOcrPrompt(request: FashionExtractionRequest): string {
-    return `YOU ARE A DOCUMENT OCR SCANNER.
-
-TASK: Read ONLY the WHITE BOARD/TAG text in the image. Ignore the garment.
-
-OCR RULES:
-• Read text TOP-TO-BOTTOM, LEFT-TO-RIGHT
-• Preserve punctuation, dots, slashes, hyphens, and spacing exactly
-• Do NOT infer or fix spelling
-• If any character in a field is unclear, set the entire field to null
-• If multiple boards/tags exist, use the clearest/closest board only
-
-Return JSON only (no markdown):
-{
-  "ocr": {
-    "rawLines": ["line1", "line2"],
-    "division": "string or null",
-    "vendor_code": "string or null",
-    "vendor_name": "string or null",
-    "design_number": "string or null",
-    "ppt_number": "string or null",
-    "rate": "string or null",
-    "size": "string or null",
-    "major_category": "string or null",
-    "gsm": "string or null",
-    "g_weight": "numeric string only or null",
-    "fab_line": "string or null",
-    "colour": "string or null"
-  }
-}
-
-IMPORTANT:
-• For size, return EXACTLY what is written on the board (e.g., "S-XXL", "30-36", "L/XL", "M", "FREE SIZE"). Do NOT normalize or change it.
-• For major_category, return exact text/punctuation (e.g., "M.JEANS")
-• For g_weight/weight/Numeric/G, return only the numeric value (no unit like G, GSM, gm)
-• If a FAB/FABRIC line exists, copy the full line into fab_line (do NOT parse)
-
-COLOUR EXTRACTION (READ CAREFULLY):
-• STEP 1 — Look for a field explicitly labeled CLR, COLOR, COLOUR, CLR:, COLOR:, COL: on the board → copy its value exactly
-• STEP 2 — If no labeled colour field, scan ALL lines of board text for a standalone token that looks like a colour code (e.g., "L_BL", "ECRU", "WHT", "NVY", "D_BL", "M_GRY", "BLK", "RED", "GRN", "OFW"). These codes typically appear on their own line or after a slash/dash.
-• STEP 3 — If still not found, look at the fabric/garment itself and describe the colour as a short code (e.g., "WHT" for white, "BLK" for black, "NVY" for navy blue)
-• Return whatever is found — do NOT return null just because it is not labeled. If you see a colour code anywhere, put it in the colour field.
-• If truly no colour information anywhere → return null
-
-• If no board/tag visible, return all fields as null
-`;
-  }
-
-  private parseOcrResponse(content: string): Record<string, any> | null {
-    try {
-      const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
-      const parsed = JSON.parse(cleanContent);
-      const ocr = parsed?.ocr;
-      if (!ocr || typeof ocr !== 'object') return null;
-      return ocr;
-    } catch {
-      return null;
-    }
-  }
-
   private async callGeminiVision(imageData: string, prompt: string): Promise<{
     content: string;
     tokensUsed: number;
@@ -1031,12 +974,13 @@ COLOUR EXTRACTION (READ CAREFULLY):
     if (usage) {
       // Use actual token counts from API response
       inputTokens = usage.promptTokenCount || 0;
-      // candidatesTokenCount may be 0 for thinking models (2.5-pro); fall back to totalTokenCount - promptTokenCount
-      outputTokens = usage.candidatesTokenCount
-        || ((usage as any).thoughtsTokenCount ? ((usage as any).thoughtsTokenCount + (usage.candidatesTokenCount || 0)) : 0)
+      // For thinking models (gemini-2.5-pro), thinking tokens are billed as output tokens.
+      // Always include thoughtsTokenCount in the output count so cost is accurate.
+      const thinkingTokens = (usage as any).thoughtsTokenCount || 0;
+      const candidateTokens = usage.candidatesTokenCount || 0;
+      outputTokens = thinkingTokens + candidateTokens
         || Math.max(0, (usage.totalTokenCount || 0) - inputTokens);
       tokensUsed = usage.totalTokenCount || (inputTokens + outputTokens);
-      console.log(`📊 [Gemini] Token Usage: Input=${inputTokens}, Output=${outputTokens}, Total=${tokensUsed}`);
     } else {
       // Fallback to estimation if usage data not available
       // Image tokens: ~258 tokens per image (Gemini's average)
@@ -1047,7 +991,6 @@ COLOUR EXTRACTION (READ CAREFULLY):
       inputTokens = imageTokens + promptTokens;
       outputTokens = outputTokensEst;
       tokensUsed = inputTokens + outputTokens;
-      console.log(`📊 [Gemini] Estimated Tokens: Input=${inputTokens}, Output=${outputTokens}, Total=${tokensUsed}`);
     }
 
     // Calculate API cost
@@ -1063,7 +1006,7 @@ COLOUR EXTRACTION (READ CAREFULLY):
     };
   }
 
-  private async parseResponse(content: string, schema: any[], ocrHint?: Record<string, any>): Promise<{ attributes: AttributeData; extractedMetadata?: any }> {
+  private async parseResponse(content: string, schema: any[]): Promise<{ attributes: AttributeData; extractedMetadata?: any }> {
     try {
       const cleanContent = (content || '').replace(/```json\n?|\n?```/g, '').trim();
       if (!cleanContent) {
@@ -1074,15 +1017,9 @@ COLOUR EXTRACTION (READ CAREFULLY):
       try {
         parsed = JSON.parse(cleanContent);
       } catch {
-        // Truncated JSON — try to recover by closing open braces
-        let repaired = cleanContent;
-        // Count open vs closed braces to determine how many to append
-        const opens = (repaired.match(/\{/g) || []).length;
-        const closes = (repaired.match(/\}/g) || []).length;
-        // Remove trailing incomplete string/value before closing
-        repaired = repaired.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, '');
-        for (let i = 0; i < opens - closes; i++) repaired += '}';
-        parsed = JSON.parse(repaired);
+        // Gemini occasionally returns malformed JSON. Apply a multi-step repair
+        // pipeline before giving up, then re-throw if all attempts fail.
+        parsed = repairAndParseJson(cleanContent);
       }
 
       const extractedMetadata = parsed.metadata || null;
@@ -1110,19 +1047,8 @@ COLOUR EXTRACTION (READ CAREFULLY):
         'g wt': 'weight'
       };
 
-      const mergeNonNull = (base: Record<string, any>, incoming?: Record<string, any> | null) => {
-        if (!incoming) return base;
-        const merged = { ...base };
-        for (const [k, v] of Object.entries(incoming)) {
-          if (v !== null && v !== undefined && v !== '') {
-            merged[k] = v;
-          }
-        }
-        return merged;
-      };
-
       const metadataObj = extractedMetadata && typeof extractedMetadata === 'object' ? extractedMetadata : null;
-      const mergedMetadata = mergeNonNull(metadataObj ? { ...metadataObj } : {}, ocrHint);
+      const mergedMetadata = metadataObj ? { ...metadataObj } : {};
 
       const metadataLower = mergedMetadata
         ? Object.fromEntries(Object.entries(mergedMetadata).map(([k, v]) => [String(k).toLowerCase(), v]))
@@ -1573,17 +1499,13 @@ COLOUR EXTRACTION (READ CAREFULLY):
     }
 
     if (matchedValue) {
-      console.log(`✅ [Validation] Matched "${valueStr}" to allowed value "${matchedValue}"`);
       return matchedValue;
     }
 
     if (schemaItem.key === 'major_category') {
-      console.log(`✅ [Validation] Accepting OCR major_category value "${valueStr}" (not in allowed list)`);
       return valueStr;
     }
 
-    // Value not in allowed list - reject it
-    console.warn(`⚠️ [Validation] REJECTED "${valueStr}" for ${schemaItem.key} - not in allowed values list`);
     return null;
   }
 

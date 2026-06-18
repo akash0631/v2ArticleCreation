@@ -1,41 +1,72 @@
 import { Router } from 'express';
 import { ApproverController } from '../controllers/ApproverController';
-import { authenticate, requireApprover } from '../middleware/auth';
+import { authenticate, requireApprover, requireApprovalRights, requirePd } from '../middleware/auth';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
+const h = asyncHandler; // shorthand — wraps every handler so unhandled errors become 500s
 
 // Apply middleware to all routes
 router.use(authenticate);
 router.use(requireApprover);
 
 // Get attributes for dropdowns
-router.get('/attributes', ApproverController.getAttributes);
+router.get('/attributes', h(ApproverController.getAttributes));
 
 // Get items for dashboard
-router.get('/items', ApproverController.getItems);
+router.get('/items', h(ApproverController.getItems));
 
-// Export ALL items matching current filters (no pagination)
-router.get('/items/export-all', ApproverController.exportAll);
+// Export ALL items matching current filters (capped at 10k rows)
+router.get('/items/export-all', h(ApproverController.exportAll));
 
-// Update specific item (edit extracted data)
-router.put('/items/:id', ApproverController.updateItem);
+// Get / Update / Delete a specific item
+// router.all used because Express 5 DELETE registration has a matching quirk in this setup
+router.all('/items/:id', h(async (req, res, next) => {
+  if (req.method === 'GET')    return ApproverController.getById(req, res);
+  if (req.method === 'PUT')    return ApproverController.updateItem(req, res);
+  if (req.method === 'DELETE') return ApproverController.deleteItem(req, res);
+  next();
+  return;
+}));
 
-// Approve selected items
-router.post('/approve', ApproverController.approveItems);
+// Modify an already-created (SAP-synced) article: pushes attribute changes to
+// SAP via patch-bulk, then persists locally only on success.
+router.post('/items/:id/modify', requireApprovalRights, h(ApproverController.modifyItem));
 
-// Reject selected items
-router.post('/reject', ApproverController.rejectItems);
+// Approver "Save & Submit": hand the article off to PD (sets pdStatus=COMPLETED).
+// Does NOT create in SAP — that now happens at the PD stage via /approve.
+router.post('/send-to-pd', requireApprovalRights, h(ApproverController.sendToPd));
+
+// FINAL submit — creates the article in SAP. PD or ADMIN only.
+router.post('/approve', requirePd, h(ApproverController.approveItems));
+
+// Reject selected items — approver roles + PD + ADMIN
+router.post('/reject', requireApprovalRights, h(ApproverController.rejectItems));
 
 // Refresh image URL (fixes expired signed URLs)
-router.get('/image/:id', ApproverController.getImageUrl);
+router.get('/image/:id', h(ApproverController.getImageUrl));
 
 // Variant routes
-router.get('/items/:id/variants', ApproverController.getVariants);
-router.post('/items/:id/add-color', ApproverController.addColor);
-router.post('/items/:id/sync-color', ApproverController.syncColorToVariants);
+router.get('/items/:id/variants', h(ApproverController.getVariants));
+router.post('/items/:id/add-color', h(ApproverController.addColor));
+router.post('/items/:id/duplicate', h(ApproverController.duplicateItem));
+router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
+router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
+
+// Vendor name search — returns up to 15 matching vendors from master_vendor_details
+router.get('/vendor-search', h(ApproverController.vendorSearch));
+
+// Sizes for a given major category (from maj_cat_sizes table)
+router.get('/sizes-for-majcat/:majCat', h(ApproverController.getSizesForMajCat));
+
+// Color master list for the Add Color Variants dropdown (from color_master table)
+router.get('/colors', h(ApproverController.getColorMaster));
+
+// BOM grid Art # lookup — returns { attrName: { mvgrValue: sapCd } } for a major category
+router.get('/bom-art-numbers/:majCat', h(ApproverController.getBomArtNumbers));
 
 // Admin: backfill article descriptions for a date range
 // POST /api/approver/backfill-descriptions?fromDate=2026-04-10&toDate=2026-04-16
-router.post('/backfill-descriptions', ApproverController.backfillDescriptions);
+router.post('/backfill-descriptions', h(ApproverController.backfillDescriptions));
 
 export default router;

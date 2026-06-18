@@ -172,8 +172,7 @@ JSON RESPONSE FORMAT:
   "metadata": {
     "vendorName": "from tag" or null,
     "designNumber": "from tag" or null,
-    "price": "from tag" or null,
-    "pptNumber": "from tag" or null
+    "price": "from tag" or null
   },
   "attributes": {
     "color": {"rawValue": "White", "schemaValue": "White", "visualConfidence": 95, "reasoning": "clearly visible"},
@@ -230,7 +229,7 @@ ${promptContext.attributeInstructions}
 ${schemaDefinition}
 
 STEP 1: READ TAG/BOARD (if visible)
-Extract metadata: Vendor Name, Design Number, Rate/Price, PPT Number, GSM
+Extract metadata: Vendor Name, Design Number, Rate/Price, GSM
 
 STEP 2: ANALYZE GARMENT
 Focus areas: ${promptContext.focusAreas.join(', ')}
@@ -247,7 +246,6 @@ CRITICAL: Return valid JSON only:
     "vendorName": "from tag" or null,
     "designNumber": "from tag" or null,
     "rate": "from tag" or null,
-    "pptNumber": "from tag" or null,
     "gsm": "from tag" or null
   },
   "attributes": {

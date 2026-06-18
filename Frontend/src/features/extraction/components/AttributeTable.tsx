@@ -1,24 +1,36 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Image, Tag, Button, Tooltip, Space, Dropdown } from 'antd';
-import { ReloadOutlined, EyeOutlined, MoreOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import { RotateCw, Eye, MoreHorizontal, Zap, AlertTriangle } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  DataTable,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Tag,
+  Tooltip,
+  type DataTableColumn,
+} from '@/shared/components/ui-tw';
+import { cn } from '@/lib/utils';
 import type { ExtractedRow, SchemaItem } from '../../../shared/types/extraction/ExtractionTypes';
 import { StatusBadge } from '../../../shared/components/ui/StatusBadge';
 import { AttributeCell } from './AttributeCell';
 import { formatDuration, formatFileSize } from '../../../shared/utils/common/helpers';
 
 interface AttributeTableProps {
-  extractedRows: ExtractedRow[]; // 📸 Your uploaded images with data
-  schema: SchemaItem[]; // 📋 List of attributes for current category
-  selectedRowKeys: React.Key[]; // ✅ Which rows are selected (checkboxes)
-  onSelectionChange: (selectedRowKeys: React.Key[]) => void; // When user selects rows
-  onAttributeChange: (rowId: string, attributeKey: string, value: string | number | null) => void; // When user edits attribute
-  onDeleteRow: (rowId: string) => void; // When user deletes a row
-  onImageClick: (imageUrl: string, imageName?: string) => void; // When user clicks image to view
-  onReExtract: (rowId: string, forceRefresh?: boolean) => void; // When user wants to re-run AI extraction (forceRefresh=true to bypass cache)
-  onAddToSchema?: (attributeKey: string, value: string) => void; // When user adds new value to schema
-  isExtracting?: boolean; // Whether AI is currently working
-  disableEditing?: boolean; // Disable editing even after extraction
+  extractedRows: ExtractedRow[];
+  schema: SchemaItem[];
+  selectedRowKeys: React.Key[];
+  onSelectionChange: (selectedRowKeys: React.Key[]) => void;
+  onAttributeChange: (rowId: string, attributeKey: string, value: string | number | null) => void;
+  onDeleteRow: (rowId: string) => void;
+  onImageClick: (imageUrl: string, imageName?: string) => void;
+  onReExtract: (rowId: string, forceRefresh?: boolean) => void;
+  onAddToSchema?: (attributeKey: string, value: string) => void;
+  isExtracting?: boolean;
+  disableEditing?: boolean;
 }
 
 export const AttributeTable: React.FC<AttributeTableProps> = ({
@@ -31,77 +43,88 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
   onImageClick,
   onReExtract,
   onAddToSchema,
-  disableEditing = false
+  disableEditing = false,
 }) => {
-  // focusedCellKey format: `${rowId}::${schemaKey}`
   const [focusedCellKey, setFocusedCellKey] = useState<string | null>(null);
 
-  // 🏗️ BUILD TABLE COLUMNS DYNAMICALLY
-  const columns: ColumnsType<ExtractedRow> = useMemo(() => {
-    // 1️⃣ FIXED COLUMNS (always show these)
-    const baseColumns: ColumnsType<ExtractedRow> = [
-      // 🔢 PICTURE NUMBER COLUMN (original filename, for creator reference only)
+  const selectedSet = useMemo(() => new Set(selectedRowKeys.map(String)), [selectedRowKeys]);
+
+  const toggleRow = (id: string, disabled: boolean) => {
+    if (disabled) return;
+    const next = new Set(selectedSet);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onSelectionChange(Array.from(next));
+  };
+
+  const selectableRows = extractedRows.filter((r) => r.status !== 'Extracting');
+  const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedSet.has(r.id));
+  const someSelected = selectableRows.some((r) => selectedSet.has(r.id));
+
+  const columns = useMemo<DataTableColumn<ExtractedRow>[]>(() => {
+    const baseColumns: DataTableColumn<ExtractedRow>[] = [
+      {
+        title: (
+          <Checkbox
+            checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+            onCheckedChange={() => {
+              if (allSelected) onSelectionChange([]);
+              else onSelectionChange(selectableRows.map((r) => r.id));
+            }}
+          />
+        ),
+        key: '__select__',
+        width: 44,
+        render: (_v, record) => (
+          <Checkbox
+            checked={selectedSet.has(record.id)}
+            disabled={record.status === 'Extracting'}
+            onCheckedChange={() => toggleRow(record.id, record.status === 'Extracting')}
+          />
+        ),
+      },
       {
         title: 'Picture No.',
         key: 'pictureNumber',
         width: 130,
-        fixed: 'left',
-        render: (_, record) => (
-          <div style={{ fontSize: 11, wordBreak: 'break-all', color: '#595959' }}>
-            {record.originalFileName}
-          </div>
+        render: (_v, record) => (
+          <div className="break-all text-[11px] text-muted-foreground">{record.originalFileName}</div>
         ),
       },
-
-      // 📸 IMAGE COLUMN
       {
         title: 'Image',
         key: 'image',
         width: 80,
-        fixed: 'left', // Always visible on left
-        render: (_, record) => (
-          <div style={{ textAlign: 'center' }}>
-            {/* Show thumbnail image */}
-            <Image
-              src={record.imagePreviewUrl || "/placeholder.svg"}
+        align: 'center',
+        render: (_v, record) => (
+          <div className="text-center">
+            <img
+              src={record.imagePreviewUrl || '/placeholder.svg'}
               alt={record.originalFileName}
               width={50}
               height={50}
-              style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
+              className="cursor-pointer rounded object-cover"
               onClick={() => onImageClick(record.imagePreviewUrl, record.originalFileName)}
-              preview={false}
             />
-            {/* Show file size below image */}
-            <div style={{ fontSize: 9, color: '#666', marginTop: 2 }}>
-              {formatFileSize(record.file.size)}
-            </div>
+            <div className="mt-0.5 text-[9px] text-muted-foreground">{formatFileSize(record.file.size)}</div>
           </div>
         ),
       },
-      
-      // 🔄 STATUS COLUMN
       {
         title: 'Status',
         key: 'status',
         width: 100,
-        fixed: 'left', // Always visible on left
-        render: (_, record) => (
+        render: (_v, record) => (
           <div>
-            {/* Show status badge (Pending/Done/Error/Extracting) */}
             <StatusBadge status={record.status} />
-            
-            {/* Show how long extraction took */}
             {record.extractionTime && (
-              <div style={{ fontSize: 9, color: '#666', marginTop: 2 }}>
-                {formatDuration(record.extractionTime)}
-              </div>
+              <div className="mt-0.5 text-[9px] text-muted-foreground">{formatDuration(record.extractionTime)}</div>
             )}
-            
-            {/* Show error message if extraction failed */}
             {record.error && (
-              <Tooltip title={record.error} trigger="hover">
-                <div style={{ fontSize: 9, color: '#f5222d', marginTop: 2, cursor: 'help' }}>
-                  ⚠️ Error
+              <Tooltip title={record.error}>
+                <div className="mt-0.5 flex cursor-help items-center gap-0.5 text-[9px] text-red-500">
+                  <AlertTriangle className="h-2.5 w-2.5" />
+                  Error
                 </div>
               </Tooltip>
             )}
@@ -110,42 +133,26 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
       },
     ];
 
-    // 2️⃣ DYNAMIC ATTRIBUTE COLUMNS (changes based on category)
-    // For each attribute in the schema, create a column
-    const attributeColumns: ColumnsType<ExtractedRow> = schema.map((schemaItem, schemaIndex) => ({
+    const attributeColumns: DataTableColumn<ExtractedRow>[] = schema.map((schemaItem, schemaIndex) => ({
       title: (
         <div>
-          {/* Column header shows attribute name */}
-          <div style={{ fontSize: 12 }}>{schemaItem.label}</div>
-          {/* Show "Required" tag if mandatory */}
-          {schemaItem.required && <Tag color="red" style={{ fontSize: 10, padding: '0 4px', marginTop: 2 }}>Required</Tag>}
+          <div className="text-xs">{schemaItem.label}</div>
+          {schemaItem.required && <Tag className="mt-0.5 bg-red-50 px-1 text-[10px] text-red-700">Required</Tag>}
         </div>
       ),
       key: schemaItem.key,
       width: 150,
-      render: (_, record) => {
-        if (schemaItem.key === 'fab_yarn-01' || schemaItem.key === 'fab_yarn-02' || schemaItem.key === 'fab_weave-02') {
-          console.log(`[AttributeTable] Rendering ${schemaItem.key}:`, {
-            schemaItemKey: schemaItem.key,
-            attributeKeys: Object.keys(record.attributes || {}),
-            attributeValue: record.attributes[schemaItem.key],
-            hasAttribute: !!record.attributes[schemaItem.key]
-          });
-        }
-
+      render: (_v, record) => {
         const cellKey = `${record.id}::${schemaItem.key}`;
-        // Multi-article: Enter moves DOWN to same attribute on next row.
-        // Single article: Enter moves RIGHT to next attribute on same row.
         let nextCellKey: string | null = null;
         if (extractedRows.length === 1) {
           const nextSchemaItem = schema[schemaIndex + 1];
           nextCellKey = nextSchemaItem ? `${record.id}::${nextSchemaItem.key}` : null;
         } else {
-          const currentRowIndex = extractedRows.findIndex(r => r.id === record.id);
+          const currentRowIndex = extractedRows.findIndex((r) => r.id === record.id);
           const nextRow = extractedRows[currentRowIndex + 1];
           nextCellKey = nextRow ? `${nextRow.id}::${schemaItem.key}` : null;
         }
-
         return (
           <AttributeCell
             attribute={record.attributes[schemaItem.key]}
@@ -158,172 +165,141 @@ export const AttributeTable: React.FC<AttributeTableProps> = ({
             onSaveAndNext={nextCellKey ? () => setFocusedCellKey(nextCellKey) : undefined}
           />
         );
-      }
+      },
     }));
 
-    // 3️⃣ ACTIONS COLUMN (always on the right)
-    const actionsColumn: ColumnsType<ExtractedRow> = [
+    // Markdown column injected after mrp column (if both rate and mrp present)
+    const hasMrp = schema.some((s) => s.key === 'mrp');
+    const hasRate = schema.some((s) => s.key === 'rate');
+    if (hasMrp && hasRate) {
+      const markdownColumn: DataTableColumn<ExtractedRow> = {
+        title: <div className="text-xs">Markdown</div>,
+        key: '__markdown__',
+        width: 110,
+        render: (_v, record) => {
+          const mrpAttr = record.attributes?.['mrp'];
+          const rateAttr = record.attributes?.['rate'];
+          const mrp = parseFloat(String(mrpAttr?.schemaValue ?? mrpAttr?.rawValue ?? ''));
+          const rate = parseFloat(String(rateAttr?.schemaValue ?? rateAttr?.rawValue ?? ''));
+          if (!isFinite(mrp) || !isFinite(rate) || mrp === 0)
+            return <span className="text-muted-foreground">—</span>;
+          const md = (((mrp - rate) / mrp) * 100).toFixed(1);
+          return <span className="font-semibold text-blue-600">{md}%</span>;
+        },
+      };
+      const mrpIdx = attributeColumns.findIndex((c) => c.key === 'mrp');
+      if (mrpIdx >= 0) attributeColumns.splice(mrpIdx + 1, 0, markdownColumn);
+    }
+
+    const actionsColumn: DataTableColumn<ExtractedRow>[] = [
       {
         title: 'Actions',
         key: 'actions',
         width: 100,
-        fixed: 'right', // Always visible on right
-        render: (_, record) => (
-          <Space direction="horizontal" size={2}>
-            {/* 👁️ View Image Button */}
+        render: (_v, record) => (
+          <div className="flex items-center gap-0.5">
             <Tooltip title="View Image">
               <Button
-                type="text"
-                icon={<EyeOutlined />}
-                size="small"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => onImageClick(record.imagePreviewUrl, record.originalFileName)}
-              />
+              >
+                <Eye />
+              </Button>
             </Tooltip>
-            
-            {/* 🔄 Re-extract Button (uses cache if available) */}
             <Tooltip title="Re-extract">
               <Button
-                type="text"
-                icon={<ReloadOutlined />}
-                size="small"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => onReExtract(record.id, false)}
                 disabled={record.status === 'Extracting'}
-              />
+              >
+                <RotateCw />
+              </Button>
             </Tooltip>
-            
-            {/*  Force Re-extract Button (bypasses cache) */}
             <Tooltip title="Force fresh">
               <Button
-                type="text"
-                icon={<ThunderboltOutlined />}
-                size="small"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-amber-500"
                 onClick={() => onReExtract(record.id, true)}
                 disabled={record.status === 'Extracting'}
-                style={{ color: '#faad14' }}
-              />
+              >
+                <Zap />
+              </Button>
             </Tooltip>
-            
-            {/* 🗑️ Delete Button (in dropdown menu) */}
-            <Dropdown
-              menu={{
-                items: [{
-                  key: 'delete',
-                  label: 'Delete Row',
-                  danger: true,
-                  onClick: () => onDeleteRow(record.id)
-                }]
-              }}
-              trigger={['click']}
-            >
-              <Button type="text" icon={<MoreOutlined />} size="small" />
-            </Dropdown>
-          </Space>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7">
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="text-destructive" onClick={() => onDeleteRow(record.id)}>
+                  Delete Row
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         ),
       },
     ];
 
-    // Inject Markdown computed column right after MRP column (if schema has both rate and mrp)
-    const hasMrp = schema.some(s => s.key === 'mrp');
-    const hasRate = schema.some(s => s.key === 'rate');
-    const markdownColumn: ColumnsType<ExtractedRow> = (hasMrp && hasRate) ? [{
-      title: <div style={{ fontSize: 12 }}>Markdown</div>,
-      key: '__markdown__',
-      width: 110,
-      render: (_: unknown, record: ExtractedRow) => {
-        const mrp = parseFloat(String(record.attributes?.['mrp'] ?? ''));
-        const rate = parseFloat(String(record.attributes?.['rate'] ?? ''));
-        if (!isFinite(mrp) || !isFinite(rate) || mrp === 0) return <span style={{ color: '#bfbfbf' }}>—</span>;
-        const md = ((mrp - rate) / mrp * 100).toFixed(1);
-        return <span style={{ color: '#2f54eb', fontWeight: 600 }}>{md}%</span>;
-      }
-    }] : [];
-
-    // Insert markdown column right after mrp column in attributeColumns
-    const mrpIdx = attributeColumns.findIndex(c => (c as any).key === 'mrp');
-    if (mrpIdx >= 0 && markdownColumn.length > 0) {
-      attributeColumns.splice(mrpIdx + 1, 0, ...markdownColumn);
-    }
-
-    // 🔗 COMBINE ALL COLUMNS: Fixed Left + Dynamic Attributes + Fixed Right
     return [...baseColumns, ...attributeColumns, ...actionsColumn];
-  }, [schema, extractedRows, onAttributeChange, onAddToSchema, onDeleteRow, onImageClick, onReExtract, focusedCellKey]);
+  }, [
+    schema,
+    extractedRows,
+    onAttributeChange,
+    onAddToSchema,
+    onDeleteRow,
+    onImageClick,
+    onReExtract,
+    focusedCellKey,
+    selectedSet,
+    allSelected,
+    someSelected,
+    selectableRows,
+    onSelectionChange,
+    disableEditing,
+  ]);
 
-  // ✅ ROW SELECTION CONFIGURATION (checkboxes)
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: onSelectionChange,
-    getCheckboxProps: (record: ExtractedRow) => ({
-      disabled: record.status === 'Extracting', // Can't select if AI is working
-      name: record.originalFileName,
-    }),
+  const stats = {
+    total: extractedRows.length,
+    done: extractedRows.filter((r) => r.status === 'Done').length,
+    error: extractedRows.filter((r) => r.status === 'Error').length,
+    pending: extractedRows.filter((r) => r.status === 'Pending').length,
   };
 
-  // 🎨 RENDER THE TABLE
   return (
-    <Table<ExtractedRow>
-      columns={columns} // All our column definitions
-      dataSource={extractedRows} // The actual data (your images)
-      rowKey="id" // Unique identifier for each row
-      rowSelection={rowSelection} // Checkbox functionality
-      
-      // 📱 RESPONSIVE SCROLLING
-      scroll={{
-        x: 'max-content', // Horizontal scroll for many columns
-        y: 'calc(100vh - 320px)' // Increased from 280px to give more table space
-      }}
-      
-      // 📄 PAGINATION
-      pagination={{
-        pageSize: 100, // Show 100 rows per page for less scrolling
-        showSizeChanger: true, // Let user change page size
-        pageSizeOptions: ['50', '100', '200', '500'],
-        showQuickJumper: true, // Jump to specific page
-        showTotal: (total, range) => // Show "1-100 of 200 items"
-          `${range[0]}-${range[1]} of ${total} items`,
-      }}
-      
-      size="small" // Compact table for more data
-      bordered // Show borders around cells
-      
-      // 🎨 ROW STYLING based on status
-      rowClassName={(record) => {
-        if (record.status === 'Error') return 'table-row-error';
-        if (record.status === 'Done') return 'table-row-success';
-        if (record.status === 'Extracting') return 'table-row-processing';
-        return '';
-      }}
-      
-      // 📊 SUMMARY ROW at bottom showing stats
-      summary={(pageData) => {
-        const stats = {
-          total: pageData.length,
-          done: pageData.filter(row => row.status === 'Done').length,
-          error: pageData.filter(row => row.status === 'Error').length,
-          pending: pageData.filter(row => row.status === 'Pending').length,
-        };
-        
-        return (
-          <Table.Summary fixed>
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={2}>
-                <strong>Summary:</strong>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={1}>
-                <Tag color="success">Done: {stats.done}</Tag>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={2}>
-                <Tag color="error">Error: {stats.error}</Tag>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={3}>
-                <Tag color="processing">Pending: {stats.pending}</Tag>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={4}>
-                <Tag>Total: {stats.total}</Tag>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          </Table.Summary>
-        );
-      }}
-    />
+    <div className="flex flex-col">
+      <DataTable<ExtractedRow>
+        columns={columns}
+        dataSource={extractedRows}
+        rowKey="id"
+        size="small"
+        scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
+        pagination={{
+          pageSize: 100,
+          showSizeChanger: true,
+          pageSizeOptions: ['50', '100', '200', '500'],
+        }}
+        rowClassName={(record) =>
+          cn(
+            record.status === 'Error' && 'table-row-error',
+            record.status === 'Done' && 'table-row-success',
+            record.status === 'Extracting' && 'table-row-processing',
+          )
+        }
+      />
+      <div className="mt-2 flex items-center gap-2 rounded-md bg-muted/30 px-3 py-2">
+        <strong className="text-sm">Summary:</strong>
+        <Badge variant="success">Done: {stats.done}</Badge>
+        <Badge variant="destructive">Error: {stats.error}</Badge>
+        <Badge variant="info">Pending: {stats.pending}</Badge>
+        <Badge variant="secondary">Total: {stats.total}</Badge>
+      </div>
+    </div>
   );
 };

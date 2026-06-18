@@ -1,30 +1,27 @@
 import React from 'react';
-import { Card, Typography, Empty } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
-
-const { Title, Text } = Typography;
+import { FileText } from 'lucide-react';
+import { Card, CardContent, Empty } from '@/shared/components/ui-tw';
 
 const POPresentationPage: React.FC = () => {
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <FileTextOutlined style={{ marginRight: 10, color: '#1677ff' }} />
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="m-0 flex items-center gap-2.5 text-2xl font-semibold text-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#FF6F61] to-[#FFA62B] shadow-md">
+            <FileText className="h-4 w-4 text-white" />
+          </div>
           PO Presentation
-        </Title>
-        <Text type="secondary">Purchase Order Presentation</Text>
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Purchase Order Presentation</p>
       </div>
 
-      <Card>
-        <Empty
-          image={<FileTextOutlined style={{ fontSize: 64, color: '#bfbfbf' }} />}
-          imageStyle={{ height: 80 }}
-          description={
-            <span style={{ color: '#8c8c8c' }}>
-              PO Presentation content coming soon
-            </span>
-          }
-        />
+      <Card className="glass card-3d rounded-2xl border border-white/60">
+        <CardContent className="pt-6">
+          <Empty
+            icon={<FileText className="h-16 w-16 text-muted-foreground/40" />}
+            description="PO Presentation content coming soon"
+          />
+        </CardContent>
       </Card>
     </div>
   );

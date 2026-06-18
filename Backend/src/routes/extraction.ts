@@ -40,26 +40,11 @@ router.post('/extract/upload',
   vlmController.extractFromUploadVLM
 );
 
-// Legacy upload extraction (Old OpenAI only)
-router.post('/extract/upload/legacy', 
-  extractionLimiter,
-  upload.single('image'), 
-  validateRequest, 
-  extractionController.extractFromUpload
-);
-
 // Extract attributes from base64 image (Enhanced VLM Pipeline)
-router.post('/extract/base64', 
+router.post('/extract/base64',
   extractionLimiter,
-  validateRequest, 
+  validateRequest,
   vlmController.extractFromBase64VLM
-);
-
-// Legacy base64 extraction (Old OpenAI only)
-router.post('/extract/base64/legacy', 
-  extractionLimiter,
-  validateRequest, 
-  extractionController.extractFromBase64
 );
 
 // VLM Health Check Routes

@@ -17,8 +17,10 @@ export const parseNumericValue = (value: unknown): number | null => {
     return Number.isNaN(parsed) ? null : parsed;
 };
 
-// MRP is now manually entered — no auto-derivation formula.
-// Returns 1 as the default placeholder value when no explicit MRP is provided.
-export const calculateMrpFromRate = (_rateOrCost: unknown): number => {
-    return 1;
+// MRP = rate + 47%, rounded up to the nearest multiple of 25.
+export const calculateMrpFromRate = (rateOrCost: unknown): number => {
+    const rate = parseNumericValue(rateOrCost);
+    if (rate === null || rate <= 0) return 1;
+    const withMargin = rate * 1.47;
+    return Math.ceil(withMargin / 25) * 25;
 };

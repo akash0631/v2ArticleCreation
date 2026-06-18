@@ -3,6 +3,7 @@ import { prismaClient as prisma } from '../utils/prisma';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { parseNumericValue } from '../utils/mrpCalculator';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
+import { mirror360FlatUpdate } from '../utils/mirror360Flat';
 
 export class FlatExtractionController {
     private attributeKeyToFieldMap: Record<string, string> = {
@@ -53,6 +54,8 @@ export class FlatExtractionController {
         pocket_type: 'pocketType',
         fit: 'fit',
         pattern: 'pattern',
+        body_style: 'pattern',
+        bodystyle: 'pattern',
         length: 'length',
         colour: 'colour',
         color: 'colour',
@@ -87,7 +90,50 @@ export class FlatExtractionController {
         fashiongrid: 'fashionGrid',
         year: 'year',
         article_type: 'articleType',
-        articletype: 'articleType'
+        articletype: 'articleType',
+        imp_atrbt_2: 'impAtrbt2',
+        impatrbt2: 'impAtrbt2',
+        imp_atrbt2: 'impAtrbt2',
+        // Garment detail fields
+        collar_style: 'collarStyle',
+        collarstyle: 'collarStyle',
+        sleeve_fold: 'sleeveFold',
+        sleevefold: 'sleeveFold',
+        no_of_pocket: 'noOfPocket',
+        noofpocket: 'noOfPocket',
+        extra_pocket: 'extraPocket',
+        extrapocket: 'extraPocket',
+        dc_shape: 'dcShape',
+        dcshape: 'dcShape',
+        btn_colour: 'btnColour',
+        btncoulour: 'btnColour',
+        btncolour: 'btnColour',
+        // Fabric detail fields
+        f_count: 'fCount',
+        fcount: 'fCount',
+        f_construction: 'fConstruction',
+        fconstruction: 'fConstruction',
+        f_ounce: 'fOunce',
+        founce: 'fOunce',
+        f_width: 'fWidth',
+        fwidth: 'fWidth',
+        fab_div: 'fabDiv',
+        fabdiv: 'fabDiv',
+        // HTRF fields
+        htrf_type: 'htrfType',
+        htrftype: 'htrfType',
+        htrf_style: 'htrfStyle',
+        htrfstyle: 'htrfStyle',
+        // Embroidery placement
+        emb_placement: 'embPlacement',
+        embplacement: 'embPlacement',
+        // Business fields
+        age_group: 'ageGroup',
+        agegroup: 'ageGroup',
+        article_fashion_type: 'articleFashionType',
+        articlefashiontype: 'articleFashionType',
+        article_dimension: 'articleDimension',
+        articledimension: 'articleDimension',
     };
 
     private normalizeAttributeKey(key: string): string {
@@ -363,6 +409,9 @@ export class FlatExtractionController {
                 where: { id: existing.id },
                 data
             });
+
+            // Mirror to 360article.article_360_flat (fire-and-forget)
+            void mirror360FlatUpdate(existing.id, data);
 
             res.json({
                 success: true,

@@ -25,6 +25,8 @@ export type SapSyncItemResult = {
   statusCode?: number;
   sapArticleNumber?: string;
   attributePush?: AttributePushResult;
+  fabricArticleNumber?: string;
+  fabricArticleDescription?: string;
 };
 
 const SAP_SYNC_URL =
@@ -37,7 +39,7 @@ const SAP_SYNC_ENABLED =
 const SAP_RETRY_VENDOR_ONLY_ON_UNKNOWN_ELEMENT =
   (process.env.SAP_RETRY_VENDOR_ONLY_ON_UNKNOWN_ELEMENT || 'false').toLowerCase() === 'true';
 
-const SAP_MAP_PATH = path.resolve(__dirname, '../../../map.json');
+const SAP_MAP_PATH = path.resolve(__dirname, '../data/map.json');
 
 const toSapValue = (value: unknown): string | null => {
   if (value === null || value === undefined) return null;

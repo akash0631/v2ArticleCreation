@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { message } from "antd";
+import { message } from "@/lib/message";
 import { addNotification } from "../../services/notifications/notificationStore";
 import { BackendApiService } from "../../../services/api/backendApi";
 import { APP_CONFIG } from '../../../constants/app/config';
@@ -220,6 +220,9 @@ export const useImageExtraction = () => {
           });
         } else {
           // Fall back to legacy extraction without metadata
+          // Still pass department/subDepartment parsed from categoryCode so the backend
+          // (a) finds the correct DB category and (b) can override flat fields after flattening.
+          const legacyScope = parseSelectedScope(categoryCode, categoryName);
           console.log(`📦 Using legacy extraction without metadata`);
           result = await backendApi.extractFromBase64({
             image: base64Image,
@@ -227,7 +230,9 @@ export const useImageExtraction = () => {
             categoryName: categoryName ?? "",
             discoveryMode: discoveryEnabled === true, // Explicit boolean check
             fileName: row.originalFileName,
-            folderName
+            folderName,
+            ...(legacyScope.division    ? { department:     legacyScope.division    } : {}),
+            ...(legacyScope.subDivision ? { subDepartment:  legacyScope.subDivision } : {}),
           });
         }
 
@@ -332,7 +337,17 @@ export const useImageExtraction = () => {
           },
         ]);
 
-        message.error(`Extraction failed for ${row.originalFileName}: ${msg}`);
+        const isUploadFailure =
+          msg.toLowerCase().includes('upload') ||
+          msg.toLowerCase().includes('cloud storage');
+
+        if (isUploadFailure) {
+          message.error(
+            `Image Upload Failed — "${row.originalFileName}" could not be uploaded to cloud storage. The article was not created. Please check your connection and try again.`,
+          );
+        } else {
+          message.error(`Extraction failed for ${row.originalFileName}: ${msg}`);
+        }
 
         return row;
       }

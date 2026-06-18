@@ -1,0 +1,50 @@
+{
+  "main": {
+    "id": "main",
+    "type": "split",
+    "children": [
+      {
+        "id": "left",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "start",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "00 - Index.md",
+                "mode": "preview"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "left": {
+    "id": "left-sidebar",
+    "type": "split",
+    "children": [
+      {
+        "id": "file-explorer",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "file-explorer-leaf",
+            "type": "leaf",
+            "state": { "type": "file-explorer", "state": {} }
+          }
+        ]
+      }
+    ],
+    "width": 220
+  },
+  "right": {
+    "id": "right-sidebar",
+    "type": "split",
+    "children": [],
+    "width": 0,
+    "collapsed": true
+  }
+}

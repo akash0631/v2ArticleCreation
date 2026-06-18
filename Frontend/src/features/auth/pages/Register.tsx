@@ -1,73 +1,112 @@
 import { useState, useEffect } from 'react';
-import { Form, Input, Button, Card, Typography, message, Select } from 'antd';
-import { UserOutlined, LockOutlined, TeamOutlined, ShopOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { User, Lock, Users, Store, LayoutGrid, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  Button,
+  Card,
+  CardContent,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  InputPassword,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
 import { BackendApiService } from '../../../services/api/backendApi';
 import { getDepartments, getSubDepartments } from '../../../services/hierarchyService';
 import type { Department, SubDepartment } from '../../../services/hierarchyService';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
 const api = new BackendApiService();
+
+const registerSchema = z
+  .object({
+    email: z.string().email('Please enter a valid email!').min(1, 'Please input your email!'),
+    role: z.string().min(1, 'Please select a role!'),
+    departmentId: z.string().optional(),
+    subDivision: z.string().optional(),
+    password: z.string().min(6, 'Password must be at least 6 characters!'),
+    confirmPassword: z.string().min(1, 'Please confirm your password!'),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match!',
+    path: ['confirmPassword'],
+  });
+
+type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([]);
-  const [selectedRole, setSelectedRole] = useState<string>('CREATOR');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
 
   const navigate = useNavigate();
 
+  const form = useForm<RegisterValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: '',
+      role: 'CREATOR',
+      departmentId: '',
+      subDivision: '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
+  const selectedRole = form.watch('role');
+  const selectedDepartmentId = form.watch('departmentId');
+  const needsDivision = ['CREATOR', 'APPROVER', 'CATEGORY_HEAD'].includes(selectedRole);
+  const needsSubDivision = ['CREATOR', 'APPROVER'].includes(selectedRole);
+
   useEffect(() => {
-    loadDepartments();
+    (async () => {
+      try {
+        const data = await getDepartments();
+        setDepartments(data.filter((d) => d.isActive));
+      } catch (e) {
+        console.error('Failed to load departments', e);
+      }
+    })();
   }, []);
 
-  const loadDepartments = async () => {
-    try {
-      const data = await getDepartments();
-      setDepartments(data.filter(d => d.isActive));
-    } catch (error) {
-      console.error('Failed to load departments', error);
-    }
-  };
-
-  const handleDepartmentChange = async (deptId: number) => {
-    setSelectedDepartmentId(deptId);
-    try {
-      const data = await getSubDepartments(deptId);
-      setSubDepartments(data.filter(sd => sd.isActive));
-    } catch (error) {
-      console.error('Failed to load sub-departments', error);
-    }
-  };
-
-  const handleRoleChange = (role: string) => {
-    setSelectedRole(role);
-  };
-
-  const onFinish = async (values: any) => {
-    if (values.password !== values.confirmPassword) {
-      message.error('Passwords do not match!');
+  useEffect(() => {
+    if (!selectedDepartmentId) {
+      setSubDepartments([]);
       return;
     }
+    (async () => {
+      try {
+        const data = await getSubDepartments(Number(selectedDepartmentId));
+        setSubDepartments(data.filter((sd) => sd.isActive));
+      } catch (e) {
+        console.error('Failed to load sub-departments', e);
+      }
+    })();
+  }, [selectedDepartmentId]);
 
+  const onSubmit = async (values: RegisterValues) => {
     setLoading(true);
     try {
-      // Find department name from ID
-      const divisionName = departments.find(d => d.id === values.departmentId)?.name;
-
-      const registerData = {
-        email: values.email,
-        password: values.password,
-        name: values.email.split('@')[0], // Use email prefix as name for now
-        role: values.role,
-        division: divisionName,
-        subDivision: values.subDivision // This is the code
-      };
-
-      const result = await api.register(registerData.email, registerData.password, registerData.name, registerData.role, registerData.division, registerData.subDivision);
-
+      const divisionName = departments.find((d) => String(d.id) === values.departmentId)?.name;
+      const result = await api.register(
+        values.email,
+        values.password,
+        values.email.split('@')[0],
+        values.role,
+        divisionName,
+        values.subDivision,
+      );
       localStorage.setItem('authToken', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
       message.success('Registration successful!');
@@ -81,109 +120,161 @@ export default function Register() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #FF6F61 0%, #FFA62B 100%)'
-    }}>
-      <Card style={{ width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ color: '#FF6F61' }}>Join Us</Title>
-          <Text type="secondary">Create your AI Fashion Extractor account</Text>
-        </div>
+    <div
+      className="flex min-h-screen items-center justify-center p-5 relative overflow-hidden"
+    >
+      {/* Dynamic Background */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-primary/90 via-[#FFA62B]/80 to-primary/90"></div>
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-white/20 blur-3xl mix-blend-overlay"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-white/20 blur-3xl mix-blend-overlay"></div>
+      
+      <Card className="w-full max-w-[440px] shadow-2xl glass card-3d z-10 relative">
+        <CardContent className="p-8">
+          <div className="mb-6 text-center">
+            <h1 className="font-display mb-1 text-4xl font-semibold tracking-tight text-primary">Join Us</h1>
+            <p className="text-sm text-muted-foreground">Create your AI Fashion Extractor account</p>
+          </div>
 
-        <Form onFinish={onFinish} size="large">
-          <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: 'Please input your email!' },
-              { type: 'email', message: 'Please enter a valid email!' }
-            ]}
-          >
-            <Input prefix={<UserOutlined />} placeholder="Email" />
-          </Form.Item>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input prefix={<User className="h-4 w-4" />} placeholder="Email" className="h-11" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Form.Item name="role" initialValue="CREATOR" rules={[{ required: true }]}>
-            <Select
-              placeholder="Select Role"
-              onChange={handleRoleChange}
-              suffixIcon={<TeamOutlined />}
-            >
-              <Option value="CREATOR">Creator</Option>
-              <Option value="PO_COMMITTEE">PO Committee</Option>
-              <Option value="APPROVER">Approver</Option>
-              <Option value="CATEGORY_HEAD">Category Head</Option>
-              <Option value="ADMIN">Admin</Option>
-            </Select>
-          </Form.Item>
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="h-11">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder="Select Role" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CREATOR">Creator</SelectItem>
+                          <SelectItem value="PO_COMMITTEE">PO Committee</SelectItem>
+                          <SelectItem value="APPROVER">Approver</SelectItem>
+                          <SelectItem value="CATEGORY_HEAD">Category Head</SelectItem>
+                          <SelectItem value="ADMIN">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER' || selectedRole === 'CATEGORY_HEAD') && (
-            <>
-              <Form.Item
-                name="departmentId"
-                rules={[{ required: true, message: 'Please select a Division!' }]}
-              >
-                <Select
-                  placeholder="Select Division"
-                  onChange={handleDepartmentChange}
-                  suffixIcon={<ShopOutlined />}
-                  loading={departments.length === 0}
-                >
-                  {departments.map(dept => (
-                    <Option key={dept.id} value={dept.id}>{dept.name}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-
-              {(selectedRole === 'CREATOR' || selectedRole === 'APPROVER') && (
-                <Form.Item
-                  name="subDivision"
-                  rules={[{ required: true, message: 'Please select a Sub-Division!' }]}
-                >
-                  <Select
-                    placeholder="Select Sub-Division"
-                    suffixIcon={<AppstoreOutlined />}
-                    disabled={!selectedDepartmentId}
-                    loading={selectedDepartmentId !== null && subDepartments.length === 0}
-                  >
-                    {subDepartments.map(sub => (
-                      <Option key={sub.id} value={sub.code}>{sub.name} ({sub.code})</Option>
-                    ))}
-                  </Select>
-                </Form.Item>
+              {needsDivision && (
+                <FormField
+                  control={form.control}
+                  name="departmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="h-11">
+                            <div className="flex items-center gap-2">
+                              <Store className="h-4 w-4 text-muted-foreground" />
+                              <SelectValue placeholder="Select Division" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept.id} value={String(dept.id)}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            </>
-          )}
 
-          <Form.Item
-            name="password"
-            rules={[
-              { required: true, message: 'Please input your password!' },
-              { min: 6, message: 'Password must be at least 6 characters!' }
-            ]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-          </Form.Item>
+              {needsSubDivision && (
+                <FormField
+                  control={form.control}
+                  name="subDivision"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDepartmentId}>
+                          <SelectTrigger className="h-11">
+                            <div className="flex items-center gap-2">
+                              <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                              <SelectValue placeholder="Select Sub-Division" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subDepartments.map((sub) => (
+                              <SelectItem key={sub.id} value={sub.code}>
+                                {sub.name} ({sub.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-          <Form.Item
-            name="confirmPassword"
-            rules={[{ required: true, message: 'Please confirm your password!' }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="Confirm Password" />
-          </Form.Item>
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <InputPassword prefix={<Lock className="h-4 w-4" />} placeholder="Password" className="h-11" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
-              Sign Up
-            </Button>
-          </Form.Item>
-        </Form>
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <InputPassword prefix={<Lock className="h-4 w-4" />} placeholder="Confirm Password" className="h-11" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        <div style={{ textAlign: 'center' }}>
-          <Text>Already have an account? <Link to="/login">Sign in</Link></Text>
-        </div>
+              <Button type="submit" disabled={loading} className="w-full">
+                {loading && <Loader2 className="animate-spin" />}
+                Sign Up
+              </Button>
+            </form>
+          </Form>
+
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

@@ -1,3 +1,9 @@
+# Frontend build output (bundled into zip during CI, not committed)
+public/
+
+# Python deps bundled by CI for the watermark script (created during deploy, not committed)
+python_libs/
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -226,7 +232,8 @@ dev.json
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
-/src/generated/prisma
+# Prisma generated client is committed so all machines get it via git pull
+# (binaries are excluded via src/generated/prisma/.gitignore)
 
 
 *.md

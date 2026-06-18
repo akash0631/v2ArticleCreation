@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Statistic, Row, Col } from 'antd';
+import { Card, CardContent, CardHeader, CardTitle, Statistic } from '@/shared/components/ui-tw';
 
 interface StatItem {
   label: string;
@@ -9,37 +9,33 @@ interface StatItem {
 
 interface StatsCardProps {
   title: string;
-  stats: StatItem[]; 
+  stats: StatItem[];
 }
 
-export const StatsCard: React.FC<StatsCardProps> = ({ title, stats }) => {
-  const getValueStyle = (color?: string) => {
-    const colors = {
-      blue: '#FF6F61',
-      green: '#52c41a',
-      orange: '#fa8c16',
-      red: '#ff4d4f',
-      purple: '#722ed1'
-    };
-    
-    return { 
-      color: color ? colors[color as keyof typeof colors] : '#262626' 
-    };
-  };
+const colorMap: Record<string, string> = {
+  blue: '#FF6F61',
+  green: '#52c41a',
+  orange: '#fa8c16',
+  red: '#ff4d4f',
+  purple: '#722ed1',
+};
 
+export const StatsCard: React.FC<StatsCardProps> = ({ title, stats }) => {
   return (
-    <Card title={title} size="small">
-      <Row gutter={[8, 8]}>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
         {stats.map((stat, index) => (
-          <Col span={24} key={index}>
-            <Statistic
-              title={stat.label}
-              value={stat.value}
-              valueStyle={getValueStyle(stat.color)}
-            />
-          </Col>
+          <Statistic
+            key={index}
+            title={stat.label}
+            value={stat.value}
+            valueStyle={stat.color ? { color: colorMap[stat.color] } : { color: '#262626' }}
+          />
         ))}
-      </Row>
+      </CardContent>
     </Card>
   );
 };

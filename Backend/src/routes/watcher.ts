@@ -10,6 +10,7 @@ import os from 'os';
 import path from 'path';
 import { EnhancedExtractionController } from '../controllers/enhancedExtractionController';
 import { backfillWatcherSubDivisions } from '../controllers/adminController';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 const enhancedController = new EnhancedExtractionController();
@@ -56,10 +57,27 @@ const upload = multer({
  */
 router.post('/extract/upload',
   upload.single('image'),
-  enhancedController.extractFromUploadVLM
+  asyncHandler(enhancedController.extractFromUploadVLM)
 );
 
 // One-time backfill: fix subDivision for all watcher articles from their majorCategory
-router.post('/backfill-subdivisions', backfillWatcherSubDivisions);
+router.post('/backfill-subdivisions', asyncHandler(backfillWatcherSubDivisions));
+
+/**
+ * POST /api/watcher/sync-srm
+ *
+ * DISABLED — the scheduled SRM pull (watcher cron at 12pm/8pm) has been turned
+ * off. New SRM presentations are ingested via the SRM webhook
+ * (POST /api/srm-hook/trigger) + the raw-articles extraction cron instead.
+ *
+ * This endpoint is kept as a no-op (returns success with zero counts) so the
+ * watcher service's existing calls don't error while its cron is being removed.
+ * To re-enable, restore the syncFromSrm() call below.
+ * Manual admin sync remains available via POST /api/admin/srm/sync.
+ */
+router.post('/sync-srm', async (_req, res) => {
+  console.log('[Watcher] /sync-srm called but the scheduled SRM pull is DISABLED — no-op.');
+  res.json({ success: true, disabled: true, inserted: 0, skipped: 0, errors: 0, total: 0, staged: 0, note: 'Scheduled SRM pull is disabled. Ingestion runs via SRM webhook + raw-extraction cron.' });
+});
 
 export default router;

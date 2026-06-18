@@ -8,7 +8,7 @@ interface ModelPricing {
     outputCostPer1M: number; // Cost per 1M output tokens
 }
 
-// Pricing as of 2024 (update as needed)
+// Pricing as of May 2026 — verify at https://ai.google.dev/pricing
 const MODEL_PRICING: Record<string, ModelPricing> = {
     'gpt-4-vision-preview': {
         inputCostPer1M: 10.00,
@@ -42,13 +42,35 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
         inputCostPer1M: 0.00,  // Free tier
         outputCostPer1M: 0.00
     },
+    // Gemini 2.5 Pro: $1.25/$2.50 input (≤200K/>200K ctx), $10.00/$15.00 output
+    // Using the standard (≤200K) tier — most single-image extractions stay well under 200K
     'gemini-2.5-pro': {
-        inputCostPer1M: 1.25,  // Paid tier: $1.25 per 1M input tokens
-        outputCostPer1M: 5.00  // Paid tier: $5.00 per 1M output tokens
+        inputCostPer1M: 1.25,
+        outputCostPer1M: 10.00  // was 5.00 — corrected to actual Google pricing
+    },
+    // Gemini 2.5 Flash: $0.15 input, $3.50 output (non-thinking)
+    'gemini-2.5-flash': {
+        inputCostPer1M: 0.15,
+        outputCostPer1M: 3.50
+    },
+    // Gemini 2.0 Flash: $0.10 input, $0.40 output
+    'gemini-2.0-flash': {
+        inputCostPer1M: 0.10,
+        outputCostPer1M: 0.40
+    },
+    // Gemini 1.5 Pro: $1.25 input, $5.00 output (≤128K ctx)
+    'gemini-1.5-pro': {
+        inputCostPer1M: 1.25,
+        outputCostPer1M: 5.00
+    },
+    // Gemini 1.5 Flash: $0.075 input, $0.30 output (≤128K ctx)
+    'gemini-1.5-flash': {
+        inputCostPer1M: 0.075,
+        outputCostPer1M: 0.30
     },
     'google-gemini': {
-        inputCostPer1M: 1.25,  // Paid tier (same as gemini-2.5-pro)
-        outputCostPer1M: 5.00
+        inputCostPer1M: 1.25,  // alias — treated as gemini-2.5-pro
+        outputCostPer1M: 10.00
     }
 };
 

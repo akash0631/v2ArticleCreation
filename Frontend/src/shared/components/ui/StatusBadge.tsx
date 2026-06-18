@@ -1,12 +1,7 @@
 import React from 'react';
-import { Badge, Tag, Tooltip } from 'antd';
-import { 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
-  ExclamationCircleOutlined,
-  SyncOutlined 
-} from '@ant-design/icons';
-import type { ExtractedRow } from '../../types/extraction/ExtractionTypes';
+import { CheckCircle2, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Tag, Tooltip } from '@/shared/components/ui-tw';
+import type { ExtractedRow } from '../../../types/extraction/ExtractionTypes';
 
 interface StatusBadgeProps {
   status: ExtractedRow['status'];
@@ -14,57 +9,57 @@ interface StatusBadgeProps {
   size?: 'small' | 'default';
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ 
-  status, 
-  showText = true, 
-  size = 'default' 
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  showText = true,
+  size = 'default',
 }) => {
-  const getStatusConfig = (status: ExtractedRow['status']) => {
-    switch (status) {
+  const getStatusConfig = (s: ExtractedRow['status']) => {
+    switch (s) {
       case 'Done':
         return {
-          color: '#4fde07ff',
-          backgroundColor: '#77d11dff',
+          color: '#020301ff',
+          backgroundColor: '#77d11d',
           borderColor: '#020301ff',
-          icon: <CheckCircleOutlined />,
+          icon: <CheckCircle2 className="h-3 w-3" />,
           text: 'Completed',
-          tooltip: 'AI extraction completed successfully'
+          tooltip: 'AI extraction completed successfully',
         };
       case 'Pending':
         return {
-          color: '#FF6F61',
-          backgroundColor: '#3597d3ff',
+          color: '#070809ff',
+          backgroundColor: '#3597d3',
           borderColor: '#070809ff',
-          icon: <ClockCircleOutlined />,
+          icon: <Clock className="h-3 w-3" />,
           text: 'Pending',
-          tooltip: 'Waiting for AI analysis'
+          tooltip: 'Waiting for AI analysis',
         };
       case 'Error':
         return {
-          color: '#ff4d4f',
-          backgroundColor: '#f0381bff',
+          color: '#ffffff',
+          backgroundColor: '#f0381b',
           borderColor: '#ffadd2',
-          icon: <ExclamationCircleOutlined />,
+          icon: <AlertCircle className="h-3 w-3" />,
           text: 'Error',
-          tooltip: 'AI extraction failed - retry available'
+          tooltip: 'AI extraction failed - retry available',
         };
       case 'Extracting':
         return {
-          color: '#faad14',
-          backgroundColor: '#cfb019ff',
+          color: '#070809',
+          backgroundColor: '#cfb019',
           borderColor: '#ffe58f',
-          icon: <SyncOutlined spin />,
+          icon: <Loader2 className="h-3 w-3 animate-spin" />,
           text: 'Processing',
-          tooltip: 'AI is analyzing the image...'
+          tooltip: 'AI is analyzing the image...',
         };
       default:
         return {
-          color: '#8c8c8c',
-          backgroundColor: '#989393ff',
+          color: '#ffffff',
+          backgroundColor: '#989393',
           borderColor: '#d9d9d9',
-          icon: <ClockCircleOutlined />,
+          icon: <Clock className="h-3 w-3" />,
           text: 'Unknown',
-          tooltip: 'Status unknown'
+          tooltip: 'Status unknown',
         };
     }
   };
@@ -74,11 +69,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   if (!showText) {
     return (
       <Tooltip title={config.tooltip}>
-        <Badge 
-          color={config.color}
-          style={{ 
-            width: size === 'small' ? 8 : 10, 
-            height: size === 'small' ? 8 : 10 
+        <span
+          className="inline-block rounded-full"
+          style={{
+            width: size === 'small' ? 8 : 10,
+            height: size === 'small' ? 8 : 10,
+            backgroundColor: config.backgroundColor,
           }}
         />
       </Tooltip>
@@ -88,15 +84,15 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <Tooltip title={config.tooltip}>
       <Tag
-        icon={config.icon}
         color={config.color}
+        bgColor={config.backgroundColor}
+        borderColor={config.borderColor}
+        icon={config.icon}
         style={{
-          backgroundColor: config.backgroundColor,
-          borderColor: config.borderColor,
           fontSize: size === 'small' ? 11 : 12,
           padding: size === 'small' ? '2px 6px' : '4px 8px',
           borderRadius: 4,
-          fontWeight: 500
+          fontWeight: 500,
         }}
       >
         {config.text}

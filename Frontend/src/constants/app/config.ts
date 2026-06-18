@@ -17,7 +17,7 @@ export const APP_CONFIG = {
     baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV
       ? (() => {
           const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-          return `http://${hostname}:5000/api`;
+          return `http://${hostname}:5001/api`;
         })()
       : '/api'),
   },

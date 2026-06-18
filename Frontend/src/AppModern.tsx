@@ -1,8 +1,6 @@
 // Modern App Root with Clean Architecture
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
-import { antdTheme } from './theme';
 
 // App Configuration
 import { AppProviders } from './app/providers/AppProviders';
@@ -17,12 +15,16 @@ import SimplifiedExtractionPage from './features/extraction/pages/SimplifiedExtr
 import { DashboardPage, ProfilePage, ProductsPage } from './features/dashboard';
 import { HierarchyManagement, UsersManagement } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
+import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
+import ArticleDetailPage from './features/approver/pages/ArticleDetailPage'; // Article detail view
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
+import ModelGenerationPage from './features/model-generation/pages/ModelGenerationPage';
 
 // Shared Components
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { SentryTest } from './components/SentryTest';
+import { Toaster } from './shared/components/ui-tw';
 
 // Global Styles
 import './styles/App.css';
@@ -31,9 +33,18 @@ import './styles/index.css';
 // Route Guards
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // PD_DESIGNER only has access to model-generation
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -67,12 +78,26 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   if (user) {
     const userData = JSON.parse(user);
-    // Allow ADMIN, APPROVER or CATEGORY_HEAD
-    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'ADMIN') {
+    // Allow ADMIN, APPROVER, CATEGORY_HEAD, SUB_DIVISION_HEAD, CREATOR, PO_COMMITTEE or PD
+    if (userData.role !== 'APPROVER' && userData.role !== 'CATEGORY_HEAD' && userData.role !== 'SUB_DIVISION_HEAD' && userData.role !== 'ADMIN' && userData.role !== 'CREATOR' && userData.role !== 'PO_COMMITTEE' && userData.role !== 'PD') {
       return <Navigate to="/dashboard" replace />;
     }
   }
 
+  return <>{children}</>;
+};
+
+// PD page guard — only ADMIN and PD may view/submit on the PD approval queue.
+const PdRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user = localStorage.getItem('user');
+  if (!token) return <Navigate to="/login" replace />;
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role !== 'ADMIN' && userData.role !== 'PD') {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
   return <>{children}</>;
 };
 
@@ -86,9 +111,60 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   if (user) {
     const userData = JSON.parse(user);
-    // Approver-side roles should not access creator pages
+    // APPROVER and CATEGORY_HEAD cannot access creator pages; SUB_DIVISION_HEAD can
     if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
+    }
+    // PD is an approval-only role → send to the PD queue
+    if (userData.role === 'PD') {
+      return <Navigate to="/approver/pd" replace />;
+    }
+    // PD_DESIGNER only has access to model-generation
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
+// Extraction page — same access as CreatorRoute, but APPROVER is also allowed.
+const ExtractionRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user) {
+    const userData = JSON.parse(user);
+    // CATEGORY_HEAD has no extraction access; PD_DESIGNER is single-purpose.
+    // APPROVER is explicitly allowed (in addition to the creator-side roles).
+    if (userData.role === 'CATEGORY_HEAD') {
+      return <Navigate to="/approver" replace />;
+    }
+    if (userData.role === 'PD_DESIGNER') {
+      return <Navigate to="/model-generation" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
+// PD_DESIGNER (and ADMIN) only — model-generation page
+const ModelGenerationRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = localStorage.getItem('authToken');
+  const user  = localStorage.getItem('user');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.role !== 'PD_DESIGNER' && userData.role !== 'ADMIN') {
+      return <Navigate to="/dashboard" replace />;
     }
   }
 
@@ -97,10 +173,10 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const App: React.FC = () => {
   return (
-    <ConfigProvider theme={antdTheme}>
-      <AppProviders>
-        <ErrorBoundary>
-          <Router>
+    <AppProviders>
+      <ErrorBoundary>
+        <Toaster />
+        <Router>
             <Routes>
               {/* Public Routes - No MainLayout */}
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -136,22 +212,22 @@ const App: React.FC = () => {
               <Route
                 path="/extraction"
                 element={
-                  <CreatorRoute>
+                  <ExtractionRoute>
                     <MainLayout>
                       <SimplifiedExtractionPage />
                     </MainLayout>
-                  </CreatorRoute>
+                  </ExtractionRoute>
                 }
               />
 
               <Route
                 path="/extraction/simplified"
                 element={
-                  <CreatorRoute>
+                  <ExtractionRoute>
                     <MainLayout>
                       <SimplifiedExtractionPage />
                     </MainLayout>
-                  </CreatorRoute>
+                  </ExtractionRoute>
                 }
               />
               <Route
@@ -216,6 +292,16 @@ const App: React.FC = () => {
                   </AdminRoute>
                 }
               />
+              <Route
+                path="/admin/srm-failed"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <SrmFailedExtractionsPage />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
 
               {/* Approver Routes - With MainLayout */}
               <Route
@@ -224,6 +310,16 @@ const App: React.FC = () => {
                   <ApproverRoute>
                     <MainLayout>
                       <ApproverDashboard key="new-articles" pathType="new" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
                     </MainLayout>
                   </ApproverRoute>
                 }
@@ -239,6 +335,16 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/approver/old-articles/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
                 path="/approver/rejected"
                 element={
                   <ApproverRoute>
@@ -246,6 +352,58 @@ const App: React.FC = () => {
                       <ApproverDashboard key="rejected-articles" pathType="rejected" />
                     </MainLayout>
                   </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/rejected/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/created"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ApproverDashboard key="created-articles" pathType="created" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/created/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+
+              {/* PD Approval — Admin + PD only */}
+              <Route
+                path="/approver/pd"
+                element={
+                  <PdRoute>
+                    <MainLayout>
+                      <ApproverDashboard key="pd-approval" pathType="pd" />
+                    </MainLayout>
+                  </PdRoute>
+                }
+              />
+              <Route
+                path="/approver/pd/:id"
+                element={
+                  <PdRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </PdRoute>
                 }
               />
 
@@ -261,13 +419,33 @@ const App: React.FC = () => {
                 }
               />
 
+              {/* Model Generation — PD_DESIGNER and ADMIN only */}
+              <Route
+                path="/model-generation"
+                element={
+                  <ModelGenerationRoute>
+                    <MainLayout>
+                      <ModelGenerationPage />
+                    </MainLayout>
+                  </ModelGenerationRoute>
+                }
+              />
+
               {/* Fallback */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="*"
+                element={(() => {
+                  const u = localStorage.getItem('user');
+                  if (u && JSON.parse(u).role === 'PD_DESIGNER') {
+                    return <Navigate to="/model-generation" replace />;
+                  }
+                  return <Navigate to="/dashboard" replace />;
+                })()}
+              />
             </Routes>
-          </Router>
-        </ErrorBoundary>
-      </AppProviders>
-    </ConfigProvider>
+        </Router>
+      </ErrorBoundary>
+    </AppProviders>
   );
 };
 

@@ -11,6 +11,7 @@ import { flatExtractionController } from '../controllers/flatExtractionControlle
 import { validateRequest } from '../middleware/errorHandler';
 import * as adminController from '../controllers/adminController';
 import { prismaClient as prisma } from '../utils/prisma';
+import { hierarchyService } from '../services/hierarchyService';
 
 const router = Router();
 const enhancedController = new EnhancedExtractionController();
@@ -113,6 +114,16 @@ router.post('/extract/category',
 // ═══════════════════════════════════════════════════════
 // CATEGORY & SCHEMA INFORMATION
 // ═══════════════════════════════════════════════════════
+
+// Dynamic hierarchy for the extraction selector (dept → categories, DB-driven)
+router.get('/hierarchy', async (req, res) => {
+  try {
+    const data = await hierarchyService.getSimpleHierarchy();
+    res.json({ success: true, data, timestamp: Date.now() });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Get category hierarchy
 router.get('/categories/hierarchy', enhancedController.getCategoryHierarchy);
