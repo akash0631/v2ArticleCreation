@@ -18,5 +18,8 @@
       "Bash(find \"/c/Users/Administrator/Desktop/Ai-fashion/Backend/src\" -name \"*.ts\" -type f -exec grep -l \"division.*majorCategory\\\\|update.*division\\\\|override.*division\" {} \\\\;)",
       "Bash(npm install:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }
