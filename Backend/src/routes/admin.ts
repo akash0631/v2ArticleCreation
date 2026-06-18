@@ -186,6 +186,13 @@ router.get('/grid-values/audit', h(adminController.getGridValueAudit));
 router.post('/grid-values/add', h(adminController.addGridValue));
 router.post('/grid-values/delete', h(adminController.deleteGridValue));
 
+// Size Master editor (maj_cat_sizes) — browse per major category, add/remove with audit
+router.get('/size-master/categories', h(adminController.getSizeMasterCategories));
+router.get('/size-master/sizes', h(adminController.getSizeMasterSizes));
+router.get('/size-master/audit', h(adminController.getSizeMasterAudit));
+router.post('/size-master/add', h(adminController.addSizeMasterSize));
+router.post('/size-master/delete', h(adminController.deleteSizeMasterSize));
+
 // ═══════════════════════════════════════════════════════
 // HIERARCHY EXCEL UPLOAD (ADMIN)
 // Upserts Department / SubDepartment / Category from

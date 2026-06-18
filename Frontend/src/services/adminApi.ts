@@ -461,6 +461,43 @@ export const getGridValueAudit = async (attribute: string, majorCategory: string
 };
 
 // ═══════════════════════════════════════════════════════
+// SIZE MASTER EDITOR (maj_cat_sizes)
+// ═══════════════════════════════════════════════════════
+export interface SizeMasterCategory { majorCategory: string; count: number }
+export interface SizeMasterItem { id: number; size: string }
+export interface SizeMasterAuditEntry {
+  id: number;
+  size: string;
+  action: 'ADD' | 'DELETE';
+  remarks: string | null;
+  by: string;
+  at: string;
+}
+
+export const getSizeMasterCategories = async (): Promise<SizeMasterCategory[]> => {
+  const { data } = await adminApi.get('/size-master/categories');
+  return data.data ?? [];
+};
+
+export const getSizeMasterSizes = async (majorCategory: string): Promise<SizeMasterItem[]> => {
+  const { data } = await adminApi.get('/size-master/sizes', { params: { majorCategory } });
+  return data.data ?? [];
+};
+
+export const addSizeMasterSize = async (majorCategory: string, size: string, remarks: string): Promise<void> => {
+  await adminApi.post('/size-master/add', { majorCategory, size, remarks });
+};
+
+export const deleteSizeMasterSize = async (id: number, remarks: string): Promise<void> => {
+  await adminApi.post('/size-master/delete', { id, remarks });
+};
+
+export const getSizeMasterAudit = async (majorCategory: string): Promise<SizeMasterAuditEntry[]> => {
+  const { data } = await adminApi.get('/size-master/audit', { params: { majorCategory } });
+  return data.data ?? [];
+};
+
+// ═══════════════════════════════════════════════════════
 // USERS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
 
