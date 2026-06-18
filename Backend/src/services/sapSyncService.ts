@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { pushAttributesViaV64, isAttributePushEnabled, AttributePushResult } from './sapAttributePushService';
 
 type SapSyncItemInput = {
   id: string;
@@ -23,6 +24,7 @@ export type SapSyncItemResult = {
   message: string;
   statusCode?: number;
   sapArticleNumber?: string;
+  attributePush?: AttributePushResult;
   fabricArticleNumber?: string;
   fabricArticleDescription?: string;
 };
@@ -488,24 +490,58 @@ export const syncApprovedItemsToSap = async (
       const firstAttempt = await callSap(fullBody);
 
       if (firstAttempt.ok) {
+        // Step 7: push characteristic attrs to AUSP via V64 chain
+        // Standard SAP tables only (CT04 catalog -> AUSP values). ZCT04 deprecated.
+        let attributePush: AttributePushResult | undefined;
+        let combinedMessage = firstAttempt.message || 'SAP sync success';
+
+        if (firstAttempt.sapArticleNumber && isAttributePushEnabled()) {
+          try {
+            attributePush = await pushAttributesViaV64(firstAttempt.sapArticleNumber, item);
+            const summary = attributePush.ok
+              ? `attrs:ok written=${attributePush.writtenCount} nic=${attributePush.nicCount} locked=${attributePush.lockedCount}`
+              : `attrs:fail ${attributePush.errorMessage || 'unknown'} written=${attributePush.writtenCount} nic=${attributePush.nicCount}`;
+            combinedMessage = `${combinedMessage} | ${summary}`;
+          } catch (pushErr) {
+            const msg = pushErr instanceof Error ? pushErr.message : 'attr push threw';
+            combinedMessage = `${combinedMessage} | attrs:exception ${msg}`;
+          }
+        }
+
         results.push({
           id: item.id,
           success: true,
           statusCode: firstAttempt.statusCode,
-          message: firstAttempt.message || 'SAP sync success',
-          sapArticleNumber: firstAttempt.sapArticleNumber
+          message: combinedMessage,
+          sapArticleNumber: firstAttempt.sapArticleNumber,
+          attributePush
         });
       } else {
         // Optional retry: disabled by default to avoid duplicate API hits.
         if (firstAttempt.isUnknownElementError && SAP_RETRY_VENDOR_ONLY_ON_UNKNOWN_ELEMENT) {
           const retryOutcome = await callSap(buildVendorOnlyBody(item));
           if (retryOutcome.ok) {
+            let attributePush: AttributePushResult | undefined;
+            let combinedMessage = `Retried with VENDOR only. ${retryOutcome.message}`;
+            if (retryOutcome.sapArticleNumber && isAttributePushEnabled()) {
+              try {
+                attributePush = await pushAttributesViaV64(retryOutcome.sapArticleNumber, item);
+                const summary = attributePush.ok
+                  ? `attrs:ok written=${attributePush.writtenCount} nic=${attributePush.nicCount}`
+                  : `attrs:fail ${attributePush.errorMessage || 'unknown'}`;
+                combinedMessage = `${combinedMessage} | ${summary}`;
+              } catch (pushErr) {
+                const msg = pushErr instanceof Error ? pushErr.message : 'attr push threw';
+                combinedMessage = `${combinedMessage} | attrs:exception ${msg}`;
+              }
+            }
             results.push({
               id: item.id,
               success: true,
               statusCode: retryOutcome.statusCode,
-              message: `Retried with VENDOR only. ${retryOutcome.message}`,
-              sapArticleNumber: retryOutcome.sapArticleNumber
+              message: combinedMessage,
+              sapArticleNumber: retryOutcome.sapArticleNumber,
+              attributePush
             });
           } else {
             results.push({
