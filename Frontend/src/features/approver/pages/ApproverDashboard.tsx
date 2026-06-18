@@ -1,1044 +1,736 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, Button, Typography, message, Modal, Form, Input, Select, Row, Col, Tabs, DatePicker } from 'antd';
-import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
-import { ApproverTable } from '../components/ApproverTable';
-import type { ApproverItem, MasterAttribute } from '../components/ApproverTable';
-import VariantSubTable from '../components/VariantSubTable';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import dayjs from 'dayjs';
+import { RotateCw, Download, Sparkles, Search, ChevronDown } from 'lucide-react';
+import type { Dayjs } from 'dayjs';
+import {
+  Button,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  RangePicker,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
+import { cn } from '@/lib/utils';
+import type { ApproverItem } from '../components/ApproverTable';
+import { ArticleCard } from '../components/ArticleCard';
 import { APP_CONFIG } from '../../../constants/app/config';
 import { SIMPLIFIED_HIERARCHY } from '../../extraction/components/SimplifiedCategorySelector';
-import { getMcCodeByMajorCategory } from '../../../data/majorCategoryMcCodeMap';
-import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
-import type { Dayjs } from 'dayjs';
+import { getMcCodeByMajorCategory, MAJOR_CATEGORY_ALLOWED_VALUES } from '../../../data/majorCategoryMcCodeMap';
 import { exportToExcel } from '../../../shared/utils/export/extractionExport';
+import { formatDivisionLabel } from '../../../shared/utils/ui/formatters';
+import type { DetailFilters, DetailNavigationState } from './ArticleDetailPage';
 
-const { Title, Text } = Typography;
-const { Option } = Select;
-const { RangePicker } = DatePicker;
+const inferMcCode = (majorCategory?: string | null) => getMcCodeByMajorCategory(majorCategory);
 
-const inferMcCode = (majorCategory?: string | null): string | null =>
-    getMcCodeByMajorCategory(majorCategory);
-
-const parseNumericValue = (value: unknown): number | null => {
-    if (value === null || value === undefined || value === '') return null;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-
-    const cleaned = String(value)
-        .replace(/[₹$€£¥,]/g, '')
-        .replace(/\s+/g, ' ')
-        .replace(/\/-$/, '')
-        .replace(/\/$/, '')
-        .replace(/-$/, '')
-        .trim();
-    const match = cleaned.match(/-?\d+(\.\d+)?/);
-    if (!match) return null;
-    const parsed = parseFloat(match[0]);
-    return Number.isNaN(parsed) ? null : parsed;
-};
-
-const calcMarkdown = (mrp: unknown, rate: unknown): string | null => {
-    const m = parseNumericValue(mrp);
-    const r = parseNumericValue(rate);
-    if (m === null || r === null || m === 0) return null;
-    return ((m - r) / m * 100).toFixed(1) + '%';
-};
-
-const normalizeText = (value?: string | null): string =>
-    String(value || '').trim().toUpperCase();
+const normalizeText = (value?: string | null): string => String(value || '').trim().toUpperCase();
 
 const getDivisionVariants = (value?: string | null): string[] => {
-    const normalized = normalizeText(value);
-    if (!normalized) return [];
-
-    if (normalized === 'MEN' || normalized === 'MENS') return ['MEN', 'MENS'];
-    if (normalized === 'LADIES' || normalized === 'WOMEN' || normalized === 'WOMAN') return ['LADIES', 'WOMEN'];
-    if (normalized === 'KID' || normalized === 'KIDS') return ['KID', 'KIDS'];
-
-    return [normalized];
+  const n = normalizeText(value);
+  if (!n) return [];
+  if (n === 'MEN' || n === 'MENS') return ['MEN', 'MENS'];
+  if (n === 'LADIES' || n === 'WOMEN' || n === 'WOMAN') return ['LADIES', 'WOMEN'];
+  if (n === 'KID' || n === 'KIDS') return ['KID', 'KIDS'];
+  return [n];
 };
 
 const getSubDivisionVariants = (value?: string | null): string[] =>
-    Array.from(new Set(
-        String(value || '')
-            .split(/[;,|]+/)
-            .map((item) => normalizeText(item))
-            .filter(Boolean)
-    ));
+  Array.from(new Set(String(value || '').split(/[;,|]+/).map(normalizeText).filter(Boolean)));
+
+const getSubDivisionOptions = (division?: string): string[] => {
+  if (!division) return [];
+  if (division.match(/LADIES|WOMEN/i)) return SIMPLIFIED_HIERARCHY['Ladies'];
+  if (division.match(/KIDS/i)) return SIMPLIFIED_HIERARCHY['Kids'];
+  if (division.match(/MEN/i)) return SIMPLIFIED_HIERARCHY['MENS'];
+  return [];
+};
 
 export const SIMPLE_APPROVER_EXPORT_HEADERS = [
-    'Article Number',
-    'Division',
-    'Sub Division',
-    'Major Category',
-    'Status',
-    'Vendor Name',
-    'Vendor Code',
-    'Design Number',
-    'PPT Number',
-    'Rate',
-    'MRP',
-    'Size',
-    'Pattern',
-    'Fit',
-    'Wash',
-    'Macro MVGR',
-    'Main MVGR',
-    'Yarn 1',
-    'Fabric Main MVGR',
-    'Weave',
-    'M FAB 2',
-    'Composition',
-    'Finish',
-    'GSM',
-    'Weight',
-    'Lycra',
-    'Shade',
-    'Neck',
-    'Neck Details',
-    'Sleeve',
-    'Length',
-    'Collar',
-    'Placket',
-    'Bottom Fold',
-    'Front Open Style',
-    'Pocket Type',
-    'Drawcord',
-    'Button',
-    'Zipper',
-    'Zip Colour',
-    'Father Belt',
-    'Child Belt',
-    'Print Type',
-    'Print Style',
-    'Print Placement',
-    'Patches',
-    'Patches Type',
-    'Embroidery',
-    'Embroidery Type',
-    'Reference Article Number',
-    'Reference Article Description',
-    'MC Code',
-    'Segment',
-    'Season',
-    'HSN Tax Code',
-    'Article Description',
-    'Fashion Grid',
-    'Year',
-    'Article Type',
-    'Extracted By',
-    'Created Date'
+    'Article Number', 'Division', 'Sub Division', 'Major Category', 'MC Code', 'Status',
+    'Vendor Name', 'Vendor Code', 'Design Number', 'PPT Number', 'Article Description',
+    'Reference Article Number', 'Reference Article Description', 'Season', 'HSN Tax Code',
+    'Year', 'Article Type',
+    'Rate', 'MRP',
+    'M_FAB_MAIN_MVGR_1', 'M_FAB_MAIN_MVGR_2', 'M_WEAVE_01', 'M_WEAVE_02', 'M_YARN',
+    'M_COMPOSITION', 'M_COUNT', 'M_CONSTRUCTION', 'M_LYCRA', 'M_FINISH', 'M_GSM',
+    'M_OUNZ', 'M_WIDTH', 'M_FAB_DIV', 'M_FAB_VDR', 'SHADE', 'WEIGHT',
+    'M_BODY_STYLE', 'M_COLLAR_TYPE', 'M_COLLAR_STYLE', 'M_NECK_TYPE', 'M_NECK_STYLE',
+    'M_PLACKET', 'M_BLT_TYPE', 'M_BLT_STYLE', 'M_SLEEVES_MAIN_STYLE', 'M_SLEEVE_FOLD',
+    'M_BTM_FOLD', 'M_NO_OF_POCKET', 'M_POCKET', 'M_EXTRA_POCKET', 'M_FIT', 'M_LENGTH',
+    'M_DC_STYLE', 'M_DC_SHAPE', 'M_BTN_TYPE', 'M_BTN_CLR', 'M_ZIP_TYPE', 'M_ZIP_COL',
+    'M_PATCH_STYLE', 'M_PATCHE_TYPE', 'M_HTRF_TYPE', 'M_HTRF_STYLE',
+    'M_PRINT_TYPE', 'M_PRINT_STYLE', 'M_PRINT_PLACEMENT', 'M_EMB_TYPE',
+    'M_EMBROIDERY_STYLE', 'M_EMB_PLACEMENT', 'M_WASH',
+    'M_IMP_ATBT', 'M_AGE_GROUP', 'ARTICLE FASHION TYPE', 'SEGMENT',
+    'Extracted By', 'Created Date',
 ] as const;
 
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-    pathType?: 'old' | 'new' | 'rejected';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
-    const [items, setItems] = useState<ApproverItem[]>([]);
-    const [attributes, setAttributes] = useState<MasterAttribute[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-    const [user, setUser] = useState<any>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-    // Filters
-    const [statusFilter, setStatusFilter] = useState<string>('ALL');
-    const [searchText, setSearchText] = useState('');
-    const [divisionFilter, setDivisionFilter] = useState<string>('ALL');
-    const [subDivisionFilter, setSubDivisionFilter] = useState<string>('ALL');
-    const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  // When returning from the detail page via its Back button, the filters that
+  // were active when the card was opened are passed back in navigation state.
+  // We seed the filter useStates from this so the list stays filtered (e.g. a
+  // "MIX VENDOR" search) instead of resetting on Back.
+  const restoredFilters = (location.state as { restoreFilters?: DetailFilters } | null)?.restoreFilters;
 
-    // Debounce search — wait 700ms idle AND require at least 3 chars (or empty to reset)
-    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-        // Fire immediately on clear, otherwise wait 700ms and require 3+ chars
-        if (value === '') {
-            setSearchText('');
-            return;
-        }
-        if (value.length < 3) return; // don't search on 1-2 chars
-        searchDebounceRef.current = setTimeout(() => setSearchText(value), 700);
-    }, []);
+  const [items, setItems] = useState<ApproverItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  // Read ?page=N from URL so Back-button navigation restores the correct page
+  const [currentPage, setCurrentPage] = useState(() => {
+    const p = parseInt(searchParams.get('page') || '1', 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [user, setUser] = useState<any>(null);
 
-    // Derived: user's assigned divisions/sub-divisions (parsed from their profile)
-    const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
-    const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
+  // Filters are seeded from the URL query string first (so browser back/forward,
+  // hard refresh and shared links keep the filters), then from the detail page's
+  // Back-button navigation state, then defaults.
+  const seed = (key: keyof DetailFilters, fallback: string) =>
+    searchParams.get(key) ?? restoredFilters?.[key] ?? fallback;
 
-    // Show division filter if non-admin user has more than one division assigned
-    const showDivisionFilter = user?.role !== 'ADMIN' && userAssignedDivisions.length > 1;
-    // Show sub-division filter if non-admin user has more than one sub-division assigned
-    const showSubDivisionFilter = user?.role !== 'ADMIN' && userAssignedSubDivisions.length > 1;
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [searchText, setSearchText] = useState(() => seed('search', ''));
+  const [divisionFilter, setDivisionFilter] = useState<string>(() => seed('division', 'ALL'));
+  const [subDivisionFilter, setSubDivisionFilter] = useState<string>(() => seed('subDivision', 'ALL'));
+  const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>(() => seed('majorCategory', ''));
+  const [sourceFilter, setSourceFilter] = useState<string>(() => seed('source', 'ALL'));
+  const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(() => {
+    const start = searchParams.get('startDate') ?? restoredFilters?.startDate;
+    const end = searchParams.get('endDate') ?? restoredFilters?.endDate;
+    return start || end ? [start ? dayjs(start) : null, end ? dayjs(end) : null] : null;
+  });
+  const [exportingAll, setExportingAll] = useState(false);
+  // IDs of cards checked for selective export. Scoped to the current page only:
+  // cleared on every fetch (pagination / filter change) so it never holds ids
+  // that aren't currently rendered.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-    useEffect(() => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try {
-                setUser(JSON.parse(userStr));
-            } catch (e) {
-                console.error('Failed to parse user', e);
-            }
-        }
-    }, []);
+  // Combobox open/search state for the two searchable filter dropdowns
+  const [subDivOpen, setSubDivOpen] = useState(false);
+  const [subDivSearch, setSubDivSearch] = useState('');
+  const [majCatOpen, setMajCatOpen] = useState(false);
+  const [majCatSearch, setMajCatSearch] = useState('');
 
-    // Edit Modal State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<ApproverItem | null>(null);
-    const [form] = Form.useForm();
-    // Track selected division in modal to cascade subDivision dropdown
-    const [modalDivision, setModalDivision] = useState<string | undefined>(undefined);
-    // Live markdown preview in edit modal (MRP - Rate) / MRP * 100%
-    const [modalMarkdown, setModalMarkdown] = useState<string | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether this is the first fetch so we honour the ?page= from the URL
+  const isInitialFetch = useRef(true);
+  // Holds the latest data that handleCardClick needs, so the click handler can
+  // stay referentially STABLE (deps: [navigate]) — this keeps the memoized
+  // ArticleCards from re-rendering whenever filters/items change identity.
+  const cardClickDataRef = useRef<any>(null);
 
-    const fetchAttributes = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/attributes`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setAttributes(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch attributes', error);
-        }
-    }, []);
+  const userAssignedDivisions = useMemo(() => getDivisionVariants(user?.division), [user]);
+  const userAssignedSubDivisions = useMemo(() => getSubDivisionVariants(user?.subDivision), [user]);
+  // Unscoped roles (ADMIN, PD, PO_COMMITTEE) see all divisions → full division/sub-division filters.
+  const isUnscoped = user?.role === 'ADMIN' || user?.role === 'PD' || user?.role === 'PO_COMMITTEE';
+  const showDivisionFilter = !isUnscoped && userAssignedDivisions.length > 1;
+  const showSubDivisionFilter = !isUnscoped && userAssignedSubDivisions.length > 1;
 
-    // Server-side pagination + filtering. Recreated whenever any filter changes,
-    // which causes the useEffect below to re-fire and reset to page 1.
-    const fetchItems = useCallback(async (page = 1) => {
-        setLoading(true);
-        setCurrentPage(page);
-        try {
-            const token = localStorage.getItem('authToken');
-            const params = new URLSearchParams();
-            params.set('page', String(page));
-            params.set('limit', String(PAGE_SIZE));
-            params.set('status', statusFilter);
-            if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
-            if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
-            if (searchText) params.set('search', searchText);
-            if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
-            if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
-            if (pathType) params.set('pathType', pathType);
+  useEffect(() => {
+    const str = localStorage.getItem('user');
+    if (str) { try { setUser(JSON.parse(str)); } catch { /* skip */ } }
+  }, []);
 
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+  useEffect(() => {
+    if (pathType === 'created') setStatusFilter('APPROVED');
+  }, [pathType]);
 
-            if (!response.ok) throw new Error('Failed to fetch items');
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (value === '') { setSearchText(''); return; }
+    if (value.length < 3) return;
+    searchDebounceRef.current = setTimeout(() => setSearchText(value), 700);
+  }, []);
 
-            const result = await response.json();
-            const withMcCode = (result.data || []).map((item: ApproverItem) => ({
-                ...item,
-                mcCode: item.mcCode || inferMcCode(item.majorCategory)
-            }));
-            setItems(withMcCode);
-            setTotalCount(result.meta?.total || 0);
-        } catch (error) {
-            message.error('Failed to load items');
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter, divisionFilter, subDivisionFilter, searchText, dateRangeFilter, pathType]);
+  const fetchItems = useCallback(
+    async (page = 1) => {
+      setLoading(true);
+      setCurrentPage(page);
+      // Selection is current-page-only: drop any checked cards when (re)fetching.
+      setSelectedIds(new Set());
+      try {
+        const token = localStorage.getItem('authToken');
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(PAGE_SIZE));
+        const effectiveStatus =
+          pathType === 'new' ? 'PENDING'
+          : pathType === 'rejected' ? 'REJECTED'
+          : pathType === 'created' ? 'APPROVED'
+          : statusFilter;
+        params.set('status', effectiveStatus);
+        if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
+        if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
+        if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+        if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+        if (searchText) params.set('search', searchText);
+        if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
+        if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
+        if (pathType) params.set('pathType', pathType);
 
-    useEffect(() => { fetchAttributes(); }, [fetchAttributes]);
-
-    // Fires on mount and whenever fetchItems is recreated (i.e. any filter changes).
-    // Always resets to page 1 so filter results start from the beginning.
-    useEffect(() => { fetchItems(1); }, [fetchItems]);
-
-    const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
-        return rows.map((row) => {
-            const createdAt = row.createdAt ? new Date(row.createdAt) : null;
-            const formattedDate = createdAt && !Number.isNaN(createdAt.getTime())
-                ? createdAt.toLocaleDateString('en-GB')
-                : '';
-
-            return {
-                'Article Number': row.articleNumber || row.imageName || '',
-                'Division': row.division || '',
-                'Sub Division': row.subDivision || '',
-                'Major Category': row.majorCategory || '',
-                'Status': row.approvalStatus || '',
-                'Vendor Name': row.vendorName || '',
-                'Vendor Code': row.vendorCode || '',
-                'Design Number': row.designNumber || '',
-                'PPT Number': row.pptNumber || '',
-                'Rate': row.rate == null ? undefined : Number(row.rate),
-                'MRP': row.mrp == null ? undefined : Number(row.mrp),
-                'Size': row.size || '',
-                'Pattern': row.pattern || '',
-                'Fit': row.fit || '',
-                'Wash': row.wash || '',
-                'Macro MVGR': row.macroMvgr || '',
-                'Main MVGR': row.mainMvgr || '',
-                'Yarn 1': row.yarn1 || '',
-                'Fabric Main MVGR': row.fabricMainMvgr || '',
-                'Weave': row.weave || '',
-                'M FAB 2': row.mFab2 || '',
-                'Composition': row.composition || '',
-                'Finish': row.finish || '',
-                'GSM': row.gsm || '',
-                'Weight': row.weight || '',
-                'Lycra': row.lycra || '',
-                'Shade': row.shade || '',
-                'Neck': row.neck || '',
-                'Neck Details': row.neckDetails || '',
-                'Sleeve': row.sleeve || '',
-                'Length': row.length || '',
-                'Collar': row.collar || '',
-                'Placket': row.placket || '',
-                'Bottom Fold': row.bottomFold || '',
-                'Front Open Style': row.frontOpenStyle || '',
-                'Pocket Type': row.pocketType || '',
-                'Drawcord': row.drawcord || '',
-                'Button': row.button || '',
-                'Zipper': row.zipper || '',
-                'Zip Colour': row.zipColour || '',
-                'Father Belt': row.fatherBelt || '',
-                'Child Belt': row.childBelt || '',
-                'Print Type': row.printType || '',
-                'Print Style': row.printStyle || '',
-                'Print Placement': row.printPlacement || '',
-                'Patches': row.patches || '',
-                'Patches Type': row.patchesType || '',
-                'Embroidery': row.embroidery || '',
-                'Embroidery Type': row.embroideryType || '',
-                'Reference Article Number': row.referenceArticleNumber || '',
-                'Reference Article Description': row.referenceArticleDescription || '',
-                'MC Code': row.mcCode || '',
-                'Segment': row.segment || '',
-                'Season': row.season || '',
-                'HSN Tax Code': row.hsnTaxCode || '',
-                'Article Description': row.articleDescription || '',
-                'Fashion Grid': row.fashionGrid || '',
-                'Year': row.year || '',
-                'Article Type': row.articleType || '',
-                'Extracted By': row.userName || '',
-                'Created Date': formattedDate
-            } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+        const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items?${params}`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-    }, []);
+        if (!response.ok) throw new Error('Failed to fetch items');
+        const result = await response.json();
+        const withMcCode = (result.data || []).map((item: ApproverItem) => ({
+          ...item,
+          mcCode: item.mcCode || inferMcCode(item.majorCategory),
+        }));
+        setItems(withMcCode);
+        setTotalCount(result.meta?.total || 0);
+      } catch {
+        message.error('Failed to load items');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType],
+  );
 
-    const handleExportSelected = useCallback(async () => {
-        if (selectedRowKeys.length === 0) {
-            message.warning('Select at least one article to export');
-            return;
-        }
+  useEffect(() => {
+    if (isInitialFetch.current) {
+      isInitialFetch.current = false;
+      // On mount honour the page from the URL (?page=N); filter changes always reset to 1
+      fetchItems(currentPage);
+    } else {
+      fetchItems(1);
+    }
+  // currentPage intentionally omitted: only used on first mount via the ref guard
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchItems]);
 
-        const selectedItems = items.filter((item) => selectedRowKeys.includes(item.id));
-        if (selectedItems.length === 0) {
-            message.warning('No selected articles available to export');
-            return;
-        }
+  // Sync page + active filters → URL query string (separate from fetching so the
+  // two don't interfere). Keeps browser back/forward, hard refresh and shared
+  // links in step with the on-screen filters.
+  useEffect(() => {
+    setSearchParams(p => {
+      const setOrDel = (key: string, val: string | null | undefined) => {
+        if (val) p.set(key, val); else p.delete(key);
+      };
+      p.set('page', String(currentPage));
+      setOrDel('search', searchText);
+      setOrDel('division', divisionFilter !== 'ALL' ? divisionFilter : '');
+      setOrDel('subDivision', subDivisionFilter !== 'ALL' ? subDivisionFilter : '');
+      setOrDel('majorCategory', majorCategoryFilter);
+      setOrDel('source', sourceFilter !== 'ALL' ? sourceFilter : '');
+      setOrDel('startDate', dateRangeFilter?.[0]?.toISOString());
+      setOrDel('endDate', dateRangeFilter?.[1]?.toISOString());
+      return p;
+    }, { replace: true });
+  // setSearchParams is stable; these drive the sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchText, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, dateRangeFilter]);
 
-        const exportData = buildApproverExportData(selectedItems);
-        await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], 'Article Creation');
-    }, [buildApproverExportData, items, selectedRowKeys]);
+  // ─── Export ──────────────────────────────────────────────────────────────────
 
-    const [exportingAll, setExportingAll] = useState(false);
+  const buildApproverExportData = useCallback((rows: ApproverItem[]) => {
+    // The "Created Date" column must use the SAME field the backend filters on for
+    // this tab — approvedAt (when the article was approved) on the Created tab, createdAt
+    // (extraction date) everywhere else — so an export only contains the filtered range.
+    const dateSource: 'createdAt' | 'approvedAt' = pathType === 'created' ? 'approvedAt' : 'createdAt';
+    return rows.map((row) => {
+      const rawDate = (row as any)[dateSource];
+      const parsedDate = rawDate ? new Date(rawDate) : null;
+      const formattedDate = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toLocaleDateString('en-GB') : '';
+      return {
+        'Article Number': row.articleNumber || '', Division: row.division || '',
+        'Sub Division': row.subDivision || '', 'Major Category': row.majorCategory || '',
+        'MC Code': row.mcCode || '', Status: row.approvalStatus || '',
+        'Vendor Name': row.vendorName || '', 'Vendor Code': row.vendorCode || '',
+        'Design Number': row.designNumber || '', 'PPT Number': row.pptNumber || '',
+        'Article Description': row.articleDescription || '',
+        'Reference Article Number': row.referenceArticleNumber || '',
+        'Reference Article Description': row.referenceArticleDescription || '',
+        Season: row.season || '', 'HSN Tax Code': row.hsnTaxCode || '',
+        Year: row.year || '', 'Article Type': row.articleType || '',
+        Rate: row.rate == null ? undefined : Number(row.rate),
+        MRP: row.mrp == null ? undefined : Number(row.mrp),
+        M_FAB_MAIN_MVGR_1: row.mainMvgr || '', M_FAB_MAIN_MVGR_2: row.fabricMainMvgr || '',
+        M_WEAVE_01: row.weave || '', M_WEAVE_02: row.mFab2 || '', M_YARN: row.yarn1 || '',
+        M_COMPOSITION: row.composition || '', M_COUNT: row.fCount || '',
+        M_CONSTRUCTION: row.fConstruction || '', M_LYCRA: row.lycra || '',
+        M_FINISH: row.finish || '', M_GSM: row.gsm || '', M_OUNZ: row.fOunce || '',
+        M_WIDTH: row.fWidth || '', M_FAB_DIV: row.fabDiv || '', M_FAB_VDR: (row as any).fabVdr || '',
+        SHADE: row.shade || '', WEIGHT: row.weight || '',
+        M_BODY_STYLE: row.pattern || '', M_COLLAR_TYPE: row.collar || '',
+        M_COLLAR_STYLE: row.collarStyle || '', M_NECK_TYPE: row.neck || '',
+        M_NECK_STYLE: row.neckDetails || '', M_PLACKET: row.placket || '',
+        M_BLT_TYPE: row.fatherBelt || '', M_BLT_STYLE: row.childBelt || '',
+        M_SLEEVES_MAIN_STYLE: row.sleeve || '', M_SLEEVE_FOLD: row.sleeveFold || '',
+        M_BTM_FOLD: row.bottomFold || '', M_NO_OF_POCKET: row.noOfPocket || '',
+        M_POCKET: row.pocketType || '', M_EXTRA_POCKET: row.extraPocket || '',
+        M_FIT: row.fit || '', M_LENGTH: row.length || '',
+        M_DC_STYLE: row.drawcord || '', M_DC_SHAPE: row.dcShape || '',
+        M_BTN_TYPE: row.button || '', M_BTN_CLR: row.btnColour || '',
+        M_ZIP_TYPE: row.zipper || '', M_ZIP_COL: row.zipColour || '',
+        M_PATCH_STYLE: row.patchesType || '', M_PATCHE_TYPE: row.patches || '',
+        M_HTRF_TYPE: row.htrfType || '', M_HTRF_STYLE: row.htrfStyle || '',
+        M_PRINT_TYPE: row.printType || '', M_PRINT_STYLE: row.printStyle || '',
+        M_PRINT_PLACEMENT: row.printPlacement || '', M_EMB_TYPE: row.embroidery || '',
+        M_EMBROIDERY_STYLE: row.embroideryType || '', M_EMB_PLACEMENT: row.embPlacement || '',
+        M_WASH: row.wash || '', M_IMP_ATBT: row.impAtrbt2 || '',
+        M_AGE_GROUP: row.ageGroup || '', 'ARTICLE FASHION TYPE': row.articleFashionType || '',
+        SEGMENT: row.segment || '', 'Extracted By': row.userName || '',
+        'Created Date': formattedDate,
+      } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+    });
+  }, [pathType]);
 
-    const handleExportAll = useCallback(async () => {
-        setExportingAll(true);
-        const hide = message.loading('Fetching all records for export…', 0);
-        try {
-            const token = localStorage.getItem('authToken');
-            const params = new URLSearchParams();
-            params.set('status', statusFilter);
-            if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
-            if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
-            if (searchText) params.set('search', searchText);
-            if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
-            if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
-            if (pathType) params.set('pathType', pathType);
+  const handleExportAll = useCallback(async () => {
+    setExportingAll(true);
+    const loadingId = message.loading('Fetching all records for export…');
+    try {
+      const token = localStorage.getItem('authToken');
+      const params = new URLSearchParams();
+      const effectiveStatus =
+        pathType === 'new' ? 'PENDING' : pathType === 'rejected' ? 'REJECTED'
+        : pathType === 'created' ? 'APPROVED' : statusFilter;
+      params.set('status', effectiveStatus);
+      if (divisionFilter !== 'ALL') params.set('division', divisionFilter);
+      if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
+      if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
+      if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+      if (searchText) params.set('search', searchText);
+      if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
+      if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
+      if (pathType) params.set('pathType', pathType);
 
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/export-all?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+      const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/export-all?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Export failed');
+      const result = await response.json();
+      const allRows = (result.data || []).map((item: ApproverItem) => ({
+        ...item, mcCode: item.mcCode || inferMcCode(item.majorCategory),
+      }));
+      if (allRows.length === 0) {
+        message.dismiss(loadingId);
+        message.warning('No records found for the current filters');
+        return;
+      }
+      const exportData = buildApproverExportData(allRows);
+      const fileName =
+        pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+        : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
+      const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
+      await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
+      message.dismiss(loadingId);
+      message.success(`Exported ${allRows.length} records`);
+    } catch {
+      message.dismiss(loadingId);
+      message.error('Export failed. Please try again.');
+    } finally {
+      setExportingAll(false);
+    }
+  }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
 
-            if (!response.ok) throw new Error('Export failed');
+  // ─── Selective export ─────────────────────────────────────────────────────────
 
-            const result = await response.json();
-            const allRows = (result.data || []).map((item: ApproverItem) => ({
-                ...item,
-                mcCode: item.mcCode || inferMcCode(item.majorCategory)
-            }));
+  // Stable (empty deps, functional update) so memoized ArticleCards don't
+  // re-render just because this handler's identity changed.
+  const toggleSelect = useCallback((item: ApproverItem) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      return next;
+    });
+  }, []);
 
-            if (allRows.length === 0) {
-                message.warning('No records found for the current filters');
-                return;
-            }
+  const allOnPageSelected = items.length > 0 && items.every((i) => selectedIds.has(i.id));
 
-            const exportData = buildApproverExportData(allRows);
-            const fileName = pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
-            const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
-            await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
-            message.success(`Exported ${allRows.length} records`);
-        } catch {
-            message.error('Export failed. Please try again.');
-        } finally {
-            hide();
-            setExportingAll(false);
-        }
-    }, [statusFilter, divisionFilter, subDivisionFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
+  const toggleSelectAllOnPage = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allSelected = items.length > 0 && items.every((i) => prev.has(i.id));
+      return allSelected ? new Set() : new Set(items.map((i) => i.id));
+    });
+  }, [items]);
 
-    // Only PENDING items from the current page selection are eligible for approve/reject actions
-    const pendingSelectedKeys = useMemo(() =>
-        selectedRowKeys.filter(key =>
-            items.find(item => item.id === key)?.approvalStatus === 'PENDING'
-        ),
-        [selectedRowKeys, items]
-    );
+  const handleExportSelected = useCallback(async () => {
+    const rows = items.filter((i) => selectedIds.has(i.id));
+    if (rows.length === 0) {
+      message.warning('No cards selected');
+      return;
+    }
+    const exportData = buildApproverExportData(rows);
+    const fileName =
+      pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+      : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
+    const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
+    await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel} - Selected`);
+    message.success(`Exported ${rows.length} selected records`);
+  }, [items, selectedIds, buildApproverExportData, pathType, divisionFilter]);
 
-    const handleApprove = async () => {
-        if (pendingSelectedKeys.length === 0) return;
+  // ─── Card click ───────────────────────────────────────────────────────────────
 
-        Modal.confirm({
-            title: 'Confirm Approval',
-            content: `Are you sure you want to approve ${pendingSelectedKeys.length} items? This action cannot be undone.`,
-            okText: 'Approve',
-            okType: 'primary',
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ ids: pendingSelectedKeys })
-                    });
+  // Keep the ref pointed at the latest values every render (cheap, render-safe).
+  cardClickDataRef.current = {
+    items, currentPage, totalCount, statusFilter, divisionFilter, subDivisionFilter,
+    majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType,
+  };
 
-                    if (!response.ok) throw new Error('Approval failed');
-
-                    const payload = await response.json();
-
-                    if (payload?.sapSync) {
-                        message.success(`Approved ${payload.count}. SAP sync: ${payload.sapSync.synced} synced, ${payload.sapSync.failed} failed.`);
-                    } else {
-                        message.success('Items approved successfully');
-                    }
-
-                    setSelectedRowKeys([]);
-                    fetchItems(1);
-                } catch (error) {
-                    message.error('Failed to approve items');
-                }
-            }
-        });
+  // Stable handler (deps: [navigate]) so memoized ArticleCards never re-render
+  // just because this callback's identity changed.
+  const handleCardClick = useCallback((item: ApproverItem, index: number) => {
+    const d = cardClickDataRef.current;
+    const effectiveStatus =
+      d.pathType === 'new' ? 'PENDING' : d.pathType === 'rejected' ? 'REJECTED'
+      : d.pathType === 'created' ? 'APPROVED' : d.statusFilter;
+    const filters: DetailFilters = {
+      status: effectiveStatus,
+      division: d.divisionFilter,
+      subDivision: d.subDivisionFilter,
+      majorCategory: d.majorCategoryFilter,
+      source: d.sourceFilter,
+      search: d.searchText,
+      startDate: d.dateRangeFilter?.[0]?.toISOString(),
+      endDate: d.dateRangeFilter?.[1]?.toISOString(),
+      pathType: d.pathType,
     };
-
-    const handleReject = async () => {
-        if (pendingSelectedKeys.length === 0) return;
-
-        Modal.confirm({
-            title: 'Confirm Rejection',
-            content: `Are you sure you want to reject ${pendingSelectedKeys.length} items?`,
-            okText: 'Reject',
-            okButtonProps: { danger: true },
-            onOk: async () => {
-                try {
-                    const token = localStorage.getItem('authToken');
-                    const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/reject`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ ids: pendingSelectedKeys })
-                    });
-
-                    if (!response.ok) throw new Error('Rejection failed');
-
-                    message.success('Items rejected');
-                    setSelectedRowKeys([]);
-                    fetchItems(1);
-                } catch (error) {
-                    message.error('Failed to reject items');
-                }
-            }
-        });
+    const basePath =
+      d.pathType === 'old' ? '/approver/old-articles'
+      : d.pathType === 'rejected' ? '/approver/rejected'
+      : d.pathType === 'created' ? '/approver/created'
+      : d.pathType === 'pd' ? '/approver/pd'
+      : '/approver';
+    const state: DetailNavigationState = {
+      items: d.items, currentIndex: index, currentPage: d.currentPage,
+      totalCount: d.totalCount, pathType: d.pathType, filters,
+      listPage: d.currentPage,
     };
+    navigate(`${basePath}/${item.id}`, { state });
+  }, [navigate]);
 
-    const handleEdit = (item: ApproverItem) => {
-        setEditingItem(item);
-        // Sync modal division tracker for cascading subDivision dropdown
-        setModalDivision(item.division || undefined);
-        form.setFieldsValue({
-            // Core
-            articleNumber: item.articleNumber,
-            division: item.division,
-            subDivision: item.subDivision,       // ✅ correct field
-            majorCategory: item.majorCategory,   // ✅ its own field
-            vendorName: item.vendorName,
-            designNumber: item.designNumber,
-            pptNumber: item.pptNumber,
-            referenceArticleNumber: item.referenceArticleNumber,
-            referenceArticleDescription: item.referenceArticleDescription,
-            rate: item.rate,
-            size: item.size,
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
-            // Fabric
-            fabricMainMvgr: item.fabricMainMvgr,
-            composition: item.composition,
-            weave: item.weave,
-            macroMvgr: item.macroMvgr,
-            mainMvgr: item.mainMvgr,
-            mFab2: item.mFab2,
-            gsm: item.gsm,
-            finish: item.finish,
-            shade: item.shade,
-            weight: item.weight,
-            lycra: item.lycra,
-            yarn1: item.yarn1,
-
-            // Design / Styling
-            colour: item.colour,
-            pattern: item.pattern,
-            fit: item.fit,
-            neck: item.neck,
-            sleeve: item.sleeve,
-            length: item.length,
-            collar: item.collar,
-            placket: item.placket,
-            bottomFold: item.bottomFold,
-            frontOpenStyle: item.frontOpenStyle,
-            pocketType: item.pocketType,
-
-            // Trims & Closure
-            drawcord: item.drawcord,
-            button: item.button,
-            zipper: item.zipper,
-            zipColour: item.zipColour,
-            fatherBelt: item.fatherBelt,
-            childBelt: item.childBelt,
-
-            // Embellishment
-            printType: item.printType,
-            printStyle: item.printStyle,
-            printPlacement: item.printPlacement,
-            patches: item.patches,
-            patchesType: item.patchesType,
-            embroidery: item.embroidery,
-            embroideryType: item.embroideryType,
-            wash: item.wash,
-            neckDetails: item.neckDetails,
-
-            // New business fields
-            vendorCode: item.vendorCode,
-            mrp: item.mrp,
-            mcCode: item.mcCode || inferMcCode(item.majorCategory),
-            segment: item.segment,
-            season: item.season,
-            hsnTaxCode: item.hsnTaxCode,
-            articleDescription: item.articleDescription,
-            fashionGrid: item.fashionGrid,
-            year: item.year,
-            articleType: item.articleType,
-        });
-        setModalMarkdown(calcMarkdown(item.mrp, item.rate));
-        setIsEditModalOpen(true);
-    };
-
-    const handleSaveEdit = async () => {
-        try {
-            const values = await form.validateFields();
-            const token = localStorage.getItem('authToken');
-
-            // Auto-fill mcCode based on majorCategory
-            // Populate when category changes OR mcCode is empty.
-            if (values.majorCategory && (values.majorCategory !== editingItem?.majorCategory || !values.mcCode)) {
-                values.mcCode = inferMcCode(values.majorCategory) || values.mcCode;
-            }
-
-            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${editingItem?.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(values)
-            });
-
-            if (!response.ok) {
-                let errorText = 'Failed to update item';
-                try {
-                    const payload = await response.json();
-                    if (payload?.error) {
-                        errorText = payload.error;
-                    }
-                } catch {
-                    // keep default fallback
-                }
-                throw new Error(errorText);
-            }
-
-            message.success('Item updated');
-            setIsEditModalOpen(false);
-            setEditingItem(null);
-            fetchItems(currentPage);
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : 'Failed to update item');
-        }
-    };
-
-    // Derive subDivision options based on current modal division
-    const getSubDivisionOptions = (division: string | undefined): string[] => {
-        if (!division) return [];
-        if (division.match(/LADIES|WOMEN/i)) return SIMPLIFIED_HIERARCHY['Ladies'];
-        if (division.match(/KIDS/i)) return SIMPLIFIED_HIERARCHY['Kids'];
-        if (division.match(/MEN/i)) return SIMPLIFIED_HIERARCHY['MENS'];
-        return [];
-    };
-
-    const coreDetailsTab = (
-        <Row gutter={16}>
-            <Col span={12}>
-                <Form.Item name="articleNumber" label="Article Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="designNumber" label="Design Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="majorCategory" label="Major Category">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="division" label="Division">
-                    <Select
-                        allowClear={user?.role !== 'APPROVER' && user?.role !== 'CATEGORY_HEAD'}
-                        disabled={(user?.role === 'APPROVER' || user?.role === 'CATEGORY_HEAD') && !!user?.division}
-                        onChange={(val) => {
-                            // Cascade: reset subDivision when division changes
-                            setModalDivision(val);
-                            form.setFieldsValue({ subDivision: undefined });
-                        }}
-                    >
-                        <Option value="MEN">MENS</Option>
-                        <Option value="LADIES">LADIES</Option>
-                        <Option value="KIDS">KIDS</Option>
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                {/* ✅ Sub-Division: properly bound to subDivision field, cascades from Division */}
-                <Form.Item name="subDivision" label="Sub-Division">
-                    <Select
-                        allowClear
-                        placeholder="Select sub-division"
-                        disabled={user?.role === 'APPROVER' && !!user?.subDivision}
-                        showSearch
-                    >
-                        {getSubDivisionOptions(modalDivision).map(sd => (
-                            <Option key={sd} value={sd}>{sd}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="vendorName" label="Vendor Name">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="pptNumber" label="PPT Number">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="referenceArticleNumber" label="Ref. Article #">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="referenceArticleDescription" label="Ref. Description">
-                    <Input />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="rate" label="Rate">
-                    <Input
-                        onChange={(e) => {
-                            const md = calcMarkdown(form.getFieldValue('mrp'), e.target.value);
-                            setModalMarkdown(md);
-                        }}
-                    />
-                </Form.Item>
-            </Col>
-            <Col span={12}>
-                <Form.Item name="mrp" label="MRP">
-                    <Input
-                        placeholder="e.g. 599"
-                        onChange={(e) => {
-                            const md = calcMarkdown(e.target.value, form.getFieldValue('rate'));
-                            setModalMarkdown(md);
-                        }}
-                    />
-                </Form.Item>
-            </Col>
-            {modalMarkdown !== null && (
-                <Col span={24}>
-                    <div style={{ background: '#f0f5ff', border: '1px solid #adc6ff', borderRadius: 6, padding: '6px 12px', marginBottom: 8, fontSize: 13 }}>
-                        <span style={{ color: '#595959' }}>Markdown: </span>
-                        <span style={{ fontWeight: 700, color: '#2f54eb' }}>{modalMarkdown}</span>
-                        <span style={{ color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>(MRP − Rate) ÷ MRP × 100</span>
-                    </div>
-                </Col>
-            )}
-            <Col span={12}>
-                <Form.Item name="size" label="Size">
-                    <Input />
-                </Form.Item>
-            </Col>
-        </Row>
-    );
-
-    const attributesTab = (
-        <Row gutter={16} style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-            <Col span={24}><Typography.Title level={5}>Fabric Details</Typography.Title></Col>
-            <Col span={8}>
-                <Form.Item name="macroMvgr" label="Macro MVGR">
-                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
-                        {attributes.find(a => a.key === 'MACRO_MVGR')?.allowedValues?.map(v => (
-                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={8}>
-                <Form.Item name="mainMvgr" label="Main MVGR">
-                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
-                        {attributes.find(a => a.key === 'MAIN_MVGR')?.allowedValues?.map(v => (
-                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={8}><Form.Item name="yarn1" label="Yarn 1"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="fabricMainMvgr" label="Fabric Main MVGR"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="weave" label="Weave"><Input /></Form.Item></Col>
-            <Col span={8}>
-                <Form.Item name="mFab2" label="M FAB 2">
-                    <Select showSearch allowClear optionFilterProp="children" placeholder="Select...">
-                        {attributes.find(a => a.key === 'M_FAB2')?.allowedValues?.map(v => (
-                            <Option key={v.shortForm} value={v.shortForm}>{v.shortForm}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
-            </Col>
-            <Col span={8}><Form.Item name="composition" label="Composition"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="finish" label="Finish"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="gsm" label="GSM"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="weight" label="G-Weight"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="lycra" label="Lycra"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="shade" label="Shade"><Input /></Form.Item></Col>
-
-            <Col span={24}><Typography.Title level={5}>Styling & Design</Typography.Title></Col>
-            <Col span={8}><Form.Item name="pattern" label="Pattern"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="fit" label="Fit"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="wash" label="Wash"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="neck" label="Neck"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="neckDetails" label="Neck Details"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="collar" label="Collar"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="placket" label="Placket"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="sleeve" label="Sleeve"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="length" label="Length"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="bottomFold" label="Bottom Fold"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="frontOpenStyle" label="Front Open"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="pocketType" label="Pocket"><Input /></Form.Item></Col>
-
-            <Col span={24}><Typography.Title level={5}>Trims & Closure</Typography.Title></Col>
-            <Col span={8}><Form.Item name="drawcord" label="Drawcord"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="button" label="Button"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="zipper" label="Zipper"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="zipColour" label="Zip Color"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="fatherBelt" label="Father Belt"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="childBelt" label="Child Belt"><Input /></Form.Item></Col>
-
-            <Col span={24}><Typography.Title level={5}>Embellishments</Typography.Title></Col>
-            <Col span={8}><Form.Item name="printType" label="Print Type"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="printStyle" label="Print Style"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="printPlacement" label="Print Placement"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="patches" label="Patches"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="patchesType" label="Patch Type"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="embroidery" label="Embroidery"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="embroideryType" label="Embroidery Type"><Input /></Form.Item></Col>
-        </Row>
-    );
-
-    const businessTab = (
-        <Row gutter={16}>
-            <Col span={24}><Typography.Title level={5}>Business & SAP Fields</Typography.Title></Col>
-            <Col span={8}><Form.Item name="vendorCode" label="Vendor Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="mcCode" label="MC Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="segment" label="Segment"><Input placeholder="e.g. PREMIUM, VALUE" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="season" label="Season"><Input placeholder="e.g. SS25, AW24" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="hsnTaxCode" label="HSN Tax Code"><Input /></Form.Item></Col>
-            <Col span={8}><Form.Item name="fashionGrid" label="Fashion Grid"><Input placeholder="e.g. BASIC, FASHION" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="year" label="Year"><Input placeholder="e.g. 2024-25" /></Form.Item></Col>
-            <Col span={8}><Form.Item name="articleType" label="Article Type"><Input /></Form.Item></Col>
-            <Col span={24}><Form.Item name="articleDescription" label="Article Description"><Input.TextArea rows={3} /></Form.Item></Col>
-        </Row>
-    );
-
-    return (
-        <div>
-            <div style={{ marginBottom: 6, flexShrink: 0 }}>
-                <div style={{
-                    background: '#fff',
-                    borderRadius: 12,
-                    border: '1px solid #ebebeb',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                    overflow: 'hidden',
-                }}>
-                    {/* Title row */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 16px',
-                        borderBottom: '1px solid #f0f0f0',
-                        background: 'linear-gradient(90deg, #fafafa 0%, #f5f3ff 100%)',
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                                width: 6, height: 22, borderRadius: 3,
-                                background: 'linear-gradient(180deg, #6366f1, #a78bfa)',
-                            }} />
-                            <span style={{ fontWeight: 700, fontSize: 15, color: '#1e1b4b' }}>
-                                {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles' : pathType === 'rejected' ? 'Rejected Articles' : 'Approver Dashboard'}
-                            </span>
-                            {user?.division && (
-                                <span style={{
-                                    fontSize: 11, color: '#7c3aed', fontWeight: 500,
-                                    background: '#ede9fe', borderRadius: 20, padding: '2px 10px',
-                                }}>
-                                    {formatDivisionLabel(user.division)}{user.subDivision ? ` · ${user.subDivision}` : ''}
-                                </span>
-                            )}
-                        </div>
-                        <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 600, letterSpacing: 1.5 }}>
-                            AI FASHION
-                        </span>
-                    </div>
-
-                    {/* Filter row */}
-                    <div style={{ padding: '10px 16px 8px', borderBottom: '1px solid #f0f0f0' }}>
-                        <Row gutter={[10, 8]} align="middle">
-                            <Col xs={24} sm={12} md={7}>
-                                <Input.Search
-                                    placeholder="Search article, vendor, design..."
-                                    onSearch={val => setSearchText(val)}
-                                    onChange={handleSearchChange}
-                                    allowClear
-                                    onClear={() => setSearchText('')}
-                                />
-                            </Col>
-                            {pathType !== 'rejected' && (
-                            <Col xs={12} sm={6} md={4}>
-                                <Select style={{ width: '100%' }} value={statusFilter} onChange={(val) => setStatusFilter(val)}>
-                                    <Option value="ALL">All Statuses</Option>
-                                    <Option value="PENDING">Pending</Option>
-                                    <Option value="APPROVED">Approved</Option>
-                                    <Option value="FAILED">Failed</Option>
-                                </Select>
-                            </Col>
-                            )}
-                            {(showDivisionFilter || user?.role === 'ADMIN') && (
-                                <Col xs={12} sm={6} md={4}>
-                                    <Select style={{ width: '100%' }} placeholder="Division" value={divisionFilter}
-                                        onChange={(val) => { setDivisionFilter(val); setSubDivisionFilter('ALL'); }}>
-                                        <Option value="ALL">All Divisions</Option>
-                                        {user?.role === 'ADMIN' ? (
-                                            <><Option value="MEN">MENS</Option><Option value="LADIES">LADIES</Option><Option value="KIDS">KIDS</Option></>
-                                        ) : userAssignedDivisions.map(d => <Option key={d} value={d}>{formatDivisionLabel(d)}</Option>)}
-                                    </Select>
-                                </Col>
-                            )}
-                            {(showSubDivisionFilter || user?.role === 'ADMIN') && (
-                                <Col xs={12} sm={6} md={4}>
-                                    <Select style={{ width: '100%' }} placeholder="Sub-Division" value={subDivisionFilter}
-                                        onChange={setSubDivisionFilter} showSearch>
-                                        <Option value="ALL">All Sub-Divs</Option>
-                                        {user?.role === 'ADMIN'
-                                            ? (getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
-                                                ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).map(sd => <Option key={sd} value={sd}>{sd}</Option>)
-                                                : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']].map(sd => <Option key={sd} value={sd}>{sd}</Option>))
-                                            : userAssignedSubDivisions.map(sd => <Option key={sd} value={sd}>{sd}</Option>)
-                                        }
-                                    </Select>
-                                </Col>
-                            )}
-                            <Col xs={24} sm={12} md={5}>
-                                <RangePicker style={{ width: '100%' }} value={dateRangeFilter}
-                                    onChange={(dates) => setDateRangeFilter(dates)}
-                                    allowEmpty={[true, true]} format="DD-MM-YYYY"
-                                    placeholder={['Start date', 'End date']} />
-                            </Col>
-                        </Row>
-                    </div>
-
-                    {/* Action row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#fafafa' }}>
-                        <span style={{ fontSize: 12, color: '#6366f1', fontWeight: 600 }}>
-                            {totalCount.toLocaleString()} records
-                            {selectedRowKeys.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 8 }}>· {selectedRowKeys.length} selected</span>}
-                        </span>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            <Button size="small" icon={<ReloadOutlined />} onClick={() => fetchItems(currentPage)}>Refresh</Button>
-                            <Button size="small" icon={<DownloadOutlined />} onClick={handleExportSelected} disabled={selectedRowKeys.length === 0}>
-                                Export Selected
-                            </Button>
-                            <Button size="small" icon={<DownloadOutlined />} onClick={handleExportAll} loading={exportingAll}
-                                style={{ background: 'linear-gradient(90deg,#6366f1,#818cf8)', color: '#fff', border: 'none', fontWeight: 600 }}>
-                                Export All ({totalCount})
-                            </Button>
-                            <Button size="small" danger icon={<CloseCircleOutlined />} onClick={handleReject} disabled={pendingSelectedKeys.length === 0}>
-                                Reject ({pendingSelectedKeys.length})
-                            </Button>
-                            <Button size="small" icon={<CheckCircleOutlined />} onClick={handleApprove} disabled={pendingSelectedKeys.length === 0}
-                                style={pendingSelectedKeys.length > 0 ? { background: 'linear-gradient(90deg,#10b981,#34d399)', color: '#fff', border: 'none', fontWeight: 600 } : {}}>
-                                Approve ({pendingSelectedKeys.length})
-                            </Button>
-                        </div>
-                    </div>
+  return (
+    <div className="flex flex-col">
+      {/* Sticky top bar */}
+      <div className="sticky top-0 z-30 mb-2 -mx-1 px-1 pt-1">
+        <div className="overflow-hidden rounded-xl border border-white/60 bg-white/85 shadow-[var(--shadow-md)] backdrop-blur">
+          {/* Brand strip */}
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 text-white"
+            style={{ background: 'linear-gradient(90deg, #1f2937 0%, #334155 100%)' }}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FF6F61]/90">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-display truncate text-[13px] font-semibold leading-tight tracking-tight">
+                  {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
+                    : pathType === 'rejected' ? 'Rejected Articles'
+                    : pathType === 'created' ? 'Created Articles'
+                    : pathType === 'pd' ? 'PD Approval' : 'Approver Dashboard'}
                 </div>
+                {user?.division && (
+                  <div className="truncate text-[10px] font-medium text-white/65">
+                    {formatDivisionLabel(user.division)}{user.subDivision ? ` · ${user.subDivision}` : ''}
+                  </div>
+                )}
+              </div>
+              {totalCount > 0 && (
+                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                  {totalCount} articles
+                </span>
+              )}
             </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="rounded-md bg-[#FF6F61]/90 px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                    {selectedIds.size} selected
+                  </span>
+                  <Button size="sm" variant="outline" onClick={handleExportSelected}
+                    className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                    <Download /> Export Selected
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}
+                    className="h-7 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                    Clear
+                  </Button>
+                </>
+              )}
+              <Button size="sm" variant="outline" onClick={() => fetchItems(currentPage)}
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white">
+                <RotateCw /> Refresh
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportAll} disabled={exportingAll}
+                className="h-7 border-white/30 bg-white/10 px-2.5 text-[12px] text-white hover:bg-white/20 hover:text-white disabled:opacity-50">
+                <Download /> Export ({totalCount})
+              </Button>
+            </div>
+          </div>
 
-            <Card
-                variant="borderless"
-                className="shadow-sm"
-                style={{ marginTop: 6 }}
-                styles={{ body: { padding: '6px 8px' } }}
-            >
-                    <ApproverTable
-                        items={items}
-                        loading={loading}
-                        selectedRowKeys={selectedRowKeys}
-                        onSelectionChange={setSelectedRowKeys}
-                        onEdit={handleEdit}
-                        attributes={attributes}
-                        user={user}
-                        expandable={pathType !== 'old' ? {
-                            expandedRowRender: (record) => (
-                                <VariantSubTable
-                                    genericId={record.id}
-                                    genericRecord={record}
-                                    onRefresh={() => fetchItems(currentPage)}
-                                    attributes={attributes}
-                                />
-                            ),
-                            expandRowByClick: false,
-                            rowExpandable: () => true,
-                            expandIcon: ({ expanded, onExpand, record }) => (
-                                <button
-                                    onClick={e => onExpand(record, e)}
-                                    style={{
-                                        width: 24, height: 24, cursor: 'pointer',
-                                        border: '2px solid #1890ff', borderRadius: 4,
-                                        background: expanded ? '#1890ff' : '#e6f4ff',
-                                        color: expanded ? '#fff' : '#1890ff',
-                                        fontWeight: 'bold', fontSize: 16,
-                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                        padding: 0, lineHeight: 1,
-                                    }}
-                                >
-                                    {expanded ? '−' : '+'}
-                                </button>
-                            ),
-                        } : undefined}
-                        serverPagination={{
-                            total: totalCount,
-                            current: currentPage,
-                            pageSize: PAGE_SIZE,
-                            onChange: (page) => {
-                                setSelectedRowKeys([]);
-                                fetchItems(page);
-                            }
-                        }}
-                        onSave={async (row) => {
-                        // Optimistic update
-                        const newData = [...items];
-                        const index = newData.findIndex((item) => item.id === row.id);
-                        let updatePayload: Record<string, unknown> = {};
-                        if (index > -1) {
-                            const item = newData[index];
-
-                            // Auto-fill mcCode based on majorCategory
-                            if (row.majorCategory && (row.majorCategory !== item.majorCategory || !row.mcCode)) {
-                                row.mcCode = inferMcCode(row.majorCategory) || row.mcCode;
-                            }
-
-                            newData.splice(index, 1, {
-                                ...item,
-                                ...row,
-                            });
-                            setItems(newData);
-
-                            updatePayload = Object.fromEntries(
-                                Object.entries(row)
-                                    .filter(([key, value]) => (item as any)[key] !== value)
-                                    .map(([key, value]) => [key, value === undefined ? null : value])
-                            );
-                        }
-
-                        if (Object.keys(updatePayload).length === 0) {
-                            message.info('No changes to save');
-                            return;
-                        }
-
-                        // API Update
-                        try {
-                            const token = localStorage.getItem('authToken');
-                            const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${row.id}`, {
-                                method: 'PUT',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify(updatePayload)
-                            });
-                            if (!response.ok) throw new Error('Update failed');
-                            message.success('Updated');
-                        } catch (error) {
-                            message.error('Failed to update');
-                            fetchItems(currentPage); // Revert on failure
-                        }
-                        }}
+          {/* Filter row */}
+          <div className="border-t border-border/60 bg-gradient-to-b from-slate-50/40 to-transparent px-3 py-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Input
+                placeholder="Search article, vendor, design, PPT no..."
+                defaultValue={searchText}
+                onChange={handleSearchChange}
+                allowClear
+                onClear={() => setSearchText('')}
+                className="!h-7 w-full text-[12px] sm:w-[240px]"
+              />
+              {pathType !== 'rejected' && pathType !== 'created' && pathType !== 'new' && (
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Statuses</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="APPROVED">Approved</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {(showDivisionFilter || isUnscoped) && (
+                <Select value={divisionFilter} onValueChange={(v) => { setDivisionFilter(v); setSubDivisionFilter('ALL'); }}>
+                  <SelectTrigger className="!h-7 w-[130px] text-[12px]"><SelectValue placeholder="Division" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Divisions</SelectItem>
+                    {isUnscoped ? (
+                      <>
+                        <SelectItem value="MEN">MENS</SelectItem>
+                        <SelectItem value="LADIES">LADIES</SelectItem>
+                        <SelectItem value="KIDS">KIDS</SelectItem>
+                      </>
+                    ) : (
+                      userAssignedDivisions.map(d => <SelectItem key={d} value={d}>{formatDivisionLabel(d)}</SelectItem>)
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              {(showSubDivisionFilter || isUnscoped) && (
+                <Popover
+                  open={subDivOpen}
+                  onOpenChange={(o) => { setSubDivOpen(o); if (!o) setSubDivSearch(''); }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-7 w-[130px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <span className="truncate text-left">
+                        {subDivisionFilter === 'ALL' ? 'All Sub-Divs' : subDivisionFilter}
+                      </span>
+                      <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-0" align="start">
+                    <div className="flex items-center border-b px-2 py-1.5">
+                      <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={subDivSearch}
+                        onChange={(e) => setSubDivSearch(e.target.value)}
+                        placeholder="Search sub-division..."
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {(['ALL'] as string[])
+                        .concat(
+                          isUnscoped
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .map((sd) => (
+                          <button
+                            key={sd}
+                            type="button"
+                            onClick={() => {
+                              setSubDivisionFilter(sd);
+                              setMajorCategoryFilter('');
+                              setSubDivOpen(false);
+                              setSubDivSearch('');
+                            }}
+                            className={cn(
+                              'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                              subDivisionFilter === sd && 'bg-accent font-medium',
+                            )}
+                          >
+                            {sd === 'ALL' ? 'All Sub-Divs' : sd}
+                          </button>
+                        ))}
+                      {(['ALL'] as string[])
+                        .concat(
+                          isUnscoped
+                            ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter).length > 0
+                              ? getSubDivisionOptions(divisionFilter === 'ALL' ? undefined : divisionFilter)
+                              : [...SIMPLIFIED_HIERARCHY['MENS'], ...SIMPLIFIED_HIERARCHY['Ladies'], ...SIMPLIFIED_HIERARCHY['Kids']]
+                            : userAssignedSubDivisions,
+                        )
+                        .filter((sd) => sd === 'ALL' || sd.toLowerCase().includes(subDivSearch.toLowerCase()))
+                        .length === 0 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">No results</div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              <Popover
+                open={majCatOpen}
+                onOpenChange={(o) => { setMajCatOpen(o); if (!o) setMajCatSearch(''); }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-7 w-[170px] items-center justify-between rounded border border-input bg-background px-2 text-[12px] hover:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <span className="truncate text-left">
+                      {majorCategoryFilter || 'All Major Categories'}
+                    </span>
+                    <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="flex items-center border-b px-2 py-1.5">
+                    <Search className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      value={majCatSearch}
+                      onChange={(e) => setMajCatSearch(e.target.value)}
+                      placeholder="Search category..."
+                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                     />
-            </Card>
-
-            <Modal
-                title="Edit Article Details"
-                open={isEditModalOpen}
-                onOk={handleSaveEdit}
-                onCancel={() => setIsEditModalOpen(false)}
-                okText="Save Changes"
-                width={1000}
-                centered
-            >
-                <Form form={form} layout="vertical">
-                    <Tabs
-                        defaultActiveKey="core"
-                        items={[
-                            { label: 'Core Details', key: 'core', children: coreDetailsTab },
-                            { label: 'Attributes', key: 'attributes', children: attributesTab },
-                            { label: 'Business & SAP', key: 'business', children: businessTab },
-                        ]}
-                    />
-                </Form>
-            </Modal>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {(() => {
+                      const div = divisionFilter === 'ALL' ? '' : divisionFilter;
+                      let prefixRegex: RegExp | null = null;
+                      if (div.match(/MEN/i)) prefixRegex = /^M|^MW/i;
+                      else if (div.match(/LADIES|WOMEN/i)) prefixRegex = /^L|^LW/i;
+                      else if (div.match(/KIDS/i)) prefixRegex = /^(K|I|J|Y|G)/i;
+                      const filtered = MAJOR_CATEGORY_ALLOWED_VALUES
+                        .filter((v) => !prefixRegex || v.shortForm.match(prefixRegex))
+                        .filter((v) => v.shortForm.toLowerCase().includes(majCatSearch.toLowerCase()));
+                      return (
+                        <>
+                          {!majCatSearch && (
+                            <button
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(''); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                !majorCategoryFilter && 'bg-accent font-medium',
+                              )}
+                            >
+                              All Major Categories
+                            </button>
+                          )}
+                          {filtered.map((v) => (
+                            <button
+                              key={v.shortForm}
+                              type="button"
+                              onClick={() => { setMajorCategoryFilter(v.shortForm); setMajCatOpen(false); setMajCatSearch(''); }}
+                              className={cn(
+                                'w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground',
+                                majorCategoryFilter === v.shortForm && 'bg-accent font-medium',
+                              )}
+                            >
+                              {v.shortForm}
+                            </button>
+                          ))}
+                          {filtered.length === 0 && (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">No categories found</div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="!h-7 w-[110px] text-[12px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Sources</SelectItem>
+                  <SelectItem value="SRM">SRM</SelectItem>
+                  <SelectItem value="WATCHER">Watcher</SelectItem>
+                  <SelectItem value="USER">User</SelectItem>
+                </SelectContent>
+              </Select>
+              <RangePicker
+                value={dateRangeFilter}
+                onChange={setDateRangeFilter}
+                placeholder={pathType === 'created' ? ['Updated From', 'Updated To'] : ['Created From', 'Created To']}
+              />
+              {items.length > 0 && (
+                <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-input bg-background px-2 text-[12px] text-muted-foreground hover:border-ring">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAllOnPage}
+                    className="h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                  Select page
+                </label>
+              )}
+            </div>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Card grid */}
+      {loading ? (
+        <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="h-56 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+          <span className="text-4xl">📭</span>
+          <span className="text-sm">No articles found</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {items.map((item, index) => (
+              <ArticleCard key={item.id} item={item} index={index} onClick={handleCardClick} dateField={pathType === 'created' ? 'approvedAt' : 'createdAt'} selected={selectedIds.has(item.id)} onToggleSelect={toggleSelect} />
+            ))}
+          </div>
+          {totalCount > PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-3 border-t py-3">
+              <Button size="sm" variant="outline" disabled={currentPage === 1}
+                onClick={() => fetchItems(currentPage - 1)}
+                className="h-7 px-3 text-[12px]">
+                ← Prev
+              </Button>
+              <span className="text-[12px] text-muted-foreground">
+                Page {currentPage} of {Math.ceil(totalCount / PAGE_SIZE)} · {totalCount} articles
+              </span>
+              <Button size="sm" variant="outline" disabled={currentPage * PAGE_SIZE >= totalCount}
+                onClick={() => fetchItems(currentPage + 1)}
+                className="h-7 px-3 text-[12px]">
+                Next →
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }

@@ -6,6 +6,7 @@ type McCodeListRow = {
   'mc code'?: number | string;
   'mc des'?: string;
   MC_DESC?: string;
+  division?: string;
 };
 
 const normalizeCategory = (value?: string | null): string =>
@@ -38,4 +39,16 @@ export const getMcCodeByMajorCategory = (majorCategory?: string | null): string 
   const key = normalizeCategory(majorCategory);
   if (!key) return null;
   return mcCodeLookup.get(key) || null;
+};
+
+// Normalize "MEN" → "MENS" to match mc-code-list division values
+const normalizeDivision = (div: string): string =>
+  div.trim().toUpperCase() === 'MEN' ? 'MENS' : div.trim().toUpperCase();
+
+export const getMajorCategoriesByDivision = (division: string): string[] => {
+  const div = normalizeDivision(division);
+  return (mcCodeListData as McCodeListRow[])
+    .filter(row => (row.division || '').toUpperCase() === div)
+    .map(row => String(row['mc des'] ?? row.MC_DESC ?? '').trim())
+    .filter(Boolean);
 };

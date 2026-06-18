@@ -6,7 +6,7 @@
 import axios from 'axios';
 import { clearAuthSession, redirectToLoginOnce } from '../shared/utils/auth/navigation';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5001/api' : '/api');
 
 const adminApi = axios.create({
   baseURL: `${API_BASE_URL}/admin`,
@@ -89,6 +89,7 @@ export interface Category {
   description?: string;
   displayOrder: number;
   isActive: boolean;
+  garmentType?: string | null;
   createdAt: string;
   updatedAt: string;
   subDepartment?: SubDepartment & { department?: Department };
@@ -103,6 +104,7 @@ export interface MasterAttribute {
   description?: string;
   displayOrder: number;
   isActive: boolean;
+  group?: string | null;
   createdAt: string;
   updatedAt: string;
   allowedValues?: AllowedValue[];
@@ -141,7 +143,7 @@ export interface AdminUser {
   id: number;
   email: string;
   name: string;
-  role: 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD';
+  role: 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD' | 'SUB_DIVISION_HEAD' | 'PD_DESIGNER' | 'PD';
   division?: string | null;
   subDivision?: string | null;
   isActive: boolean;
@@ -367,6 +369,37 @@ export const getHierarchyTree = async (): Promise<Department[]> => {
   return data.data.departments;
 };
 
+export interface LightweightCategory {
+  id: number;
+  name: string;
+  code: string;
+  garmentType?: string | null;
+  displayOrder: number;
+  enabledCount: number;
+  totalCount: number;
+}
+
+export interface LightweightSubDepartment {
+  id: number;
+  name: string;
+  code: string;
+  displayOrder: number;
+  categories: LightweightCategory[];
+}
+
+export interface LightweightDepartment {
+  id: number;
+  name: string;
+  code: string;
+  displayOrder: number;
+  subDepartments: LightweightSubDepartment[];
+}
+
+export const getHierarchyTreeLightweight = async (): Promise<LightweightDepartment[]> => {
+  const { data } = await adminApi.get<ApiResponse<{ departments: LightweightDepartment[] }>>('/hierarchy/tree/lightweight');
+  return data.data.departments;
+};
+
 /**
  * Get category with ALL master attributes (showing enabled/disabled status)
  * Used by admin matrix to show all 44 attributes with toggles
@@ -384,6 +417,50 @@ export const exportHierarchy = async (): Promise<Blob> => {
 };
 
 // ═══════════════════════════════════════════════════════
+// GRID VALUES EDITOR (maj_cat_grid_values)
+// ═══════════════════════════════════════════════════════
+export interface GridValueAttribute { gridKey: string; label: string }
+export interface GridValueGroup { group: string; label: string; attributes: GridValueAttribute[] }
+export interface GridValueCategory { majorCategory: string; count: number }
+export interface GridValueItem { id: number; value: string }
+export interface GridValueAuditEntry {
+  id: number;
+  value: string;
+  action: 'ADD' | 'DELETE';
+  remarks: string | null;
+  by: string;
+  at: string;
+}
+
+export const getGridValueAttributes = async (): Promise<GridValueGroup[]> => {
+  const { data } = await adminApi.get('/grid-values/attributes');
+  return data.data ?? [];
+};
+
+export const getGridValueCategories = async (attribute: string): Promise<GridValueCategory[]> => {
+  const { data } = await adminApi.get('/grid-values/categories', { params: { attribute } });
+  return data.data ?? [];
+};
+
+export const getGridValues = async (attribute: string, majorCategory: string): Promise<GridValueItem[]> => {
+  const { data } = await adminApi.get('/grid-values/values', { params: { attribute, majorCategory } });
+  return data.data ?? [];
+};
+
+export const addGridValue = async (attribute: string, majorCategory: string, value: string, remarks: string): Promise<void> => {
+  await adminApi.post('/grid-values/add', { attribute, majorCategory, value, remarks });
+};
+
+export const deleteGridValue = async (id: number, remarks: string): Promise<void> => {
+  await adminApi.post('/grid-values/delete', { id, remarks });
+};
+
+export const getGridValueAudit = async (attribute: string, majorCategory: string): Promise<GridValueAuditEntry[]> => {
+  const { data } = await adminApi.get('/grid-values/audit', { params: { attribute, majorCategory } });
+  return data.data ?? [];
+};
+
+// ═══════════════════════════════════════════════════════
 // USERS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
 
@@ -396,7 +473,7 @@ export const createUser = async (payload: {
   email: string;
   password: string;
   name: string;
-  role?: 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD';
+  role?: 'ADMIN' | 'CREATOR' | 'PO_COMMITTEE' | 'APPROVER' | 'CATEGORY_HEAD' | 'SUB_DIVISION_HEAD' | 'PD_DESIGNER' | 'PD';
   division?: string;
   subDivision?: string | string[];
 }): Promise<AdminUser> => {

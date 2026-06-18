@@ -125,10 +125,10 @@ async function mapAttributes() {
     // Save mapping to JSON
     const fs = require('fs');
     fs.writeFileSync(
-        'attribute-mapping.json',
+        require('path').join(__dirname, '..', 'outputs', 'attribute-mapping.json'),
         JSON.stringify(mapped, null, 2)
     );
-    console.log(`\n💾 Mapping saved to attribute-mapping.json`);
+    console.log(`\n💾 Mapping saved to outputs/attribute-mapping.json`);
 
     await prisma.$disconnect();
 }

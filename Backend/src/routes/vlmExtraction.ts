@@ -69,32 +69,28 @@ router.get('/vlm/info', (req, res) => {
       pipeline: 'multi-vlm',
       providers: [
         {
-          id: 'fashion-clip',
-          name: 'Fashion-CLIP Specialized',
-          strengths: ['fashion_classification', 'color_detection', 'style_recognition'],
+          id: 'google-gemini',
+          name: 'Google Gemini Vision',
+          strengths: ['fashion_classification', 'color_detection', 'ocr', 'attribute_extraction'],
           speed: 'fast',
-          accuracy: 'high'
+          accuracy: 'very_high',
+          status: 'active'
         },
         {
-          id: 'ollama-llava',
-          name: 'Local LLaVA (Ollama)',
-          strengths: ['privacy', 'no_api_cost', 'detailed_analysis'],
-          speed: 'medium',
-          accuracy: 'good'
-        },
-        {
-          id: 'huggingface-llava',
-          name: 'HuggingFace LLaVA',
-          strengths: ['open_source', 'fine_details', 'fabric_analysis'],
-          speed: 'medium',
-          accuracy: 'good'
+          id: 'claude-sonnet',
+          name: 'Anthropic Claude',
+          strengths: ['reasoning', 'text_extraction', 'fallback'],
+          speed: 'fast',
+          accuracy: 'very_high',
+          status: 'fallback'
         },
         {
           id: 'openai-gpt4v',
           name: 'OpenAI GPT-4 Vision',
-          strengths: ['general_reasoning', 'text_extraction', 'reliability'],
-          speed: 'fast',
-          accuracy: 'very_high'
+          strengths: ['general_reasoning', 'reliability'],
+          speed: 'medium',
+          accuracy: 'very_high',
+          status: 'fallback'
         }
       ],
       features: [

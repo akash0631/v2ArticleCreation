@@ -1,11 +1,13 @@
-name: Deploy Backend to Azure
+name: Deploy to Azure
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main]
     paths:
       - 'Backend/**'
+      - 'Frontend/**'
+      - '.github/workflows/deploy-backend.yml'
 
 jobs:
   deploy:
@@ -29,19 +31,58 @@ jobs:
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           az webapp config set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" \
-            --startup-file "node --max-old-space-size=512 dist/index.js" --linux-fx-version "NODE|22-lts"
+            --startup-file "node --max-old-space-size=1024 dist/index.js" --linux-fx-version "NODE|22-lts"
           az webapp config appsettings set --name v2-article-backend --resource-group dab-rg --subscription "$SUB" --settings \
-            NODE_ENV=production PORT=8080 ENABLE_REDIS=false \
-            FRONTEND_URL=https://articles.v2retail.net \
+            NODE_ENV=production PORT=8080 \
+            SCM_DO_BUILD_DURING_DEPLOYMENT=false WEBSITE_RUN_FROM_PACKAGE=0 \
+            FRONTEND_URL=https://articlecreation.v2retail.net \
+            STARTUP_BACKFILLS_ENABLED=false \
+            ENABLE_REDIS=true \
+            ENABLE_AUDIT_LOGGING=false \
+            VLM_FUSION_MODE=high-quality \
+            ZMM_RFC_URL=http://192.168.151.36:9005/api/ZMM_ART_CREATION_RFC \
+            ZMM_RFC_ENABLED=true \
+            WATCHER_API_KEY=watcher-fashion-2026 \
+            SRM_API_KEY=v2@123 \
+            R2_PUBLIC_URL_BASE=https://pub-6d446c8877b540c49d306be2eedbf3b4.r2.dev \
+            APPROVED_R2_PUBLIC_URL_BASE=https://pub-fef1ebc0d586419e95e342b7b73a655d.r2.dev \
+            R2_BUCKET_NAME=articlecreation \
+            R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
+            APPROVED_R2_BUCKET_NAME=article-master \
+            APPROVED_R2_ACCOUNT_ID=bab06c93e17ae71cae3c11b4cc40240b \
+            PYTHON_BIN=python3 \
+            PYTHONPATH=/home/site/wwwroot/python_libs \
             "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
             "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             "DIRECT_URL=${{ secrets.DIRECT_URL }}" \
-            "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}"
+            "REDIS_URL=${{ secrets.REDIS_URL }}" \
+            "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
+            "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" \
+            "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" \
+            "HUGGINGFACE_API_KEY=${{ secrets.HUGGINGFACE_API_KEY }}" \
+            "R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}" \
+            "R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" \
+            "APPROVED_R2_ACCESS_KEY_ID=${{ secrets.APPROVED_R2_ACCESS_KEY_ID }}" \
+            "APPROVED_R2_SECRET_ACCESS_KEY=${{ secrets.APPROVED_R2_SECRET_ACCESS_KEY }}" \
+            "SRM_SUPABASE_ANON_KEY=${{ secrets.SRM_SUPABASE_ANON_KEY }}"
+
+      - name: Wait for Kudu to stabilize after config changes
+        run: |
+          echo "Sleeping 45s to let Kudu restart after config/appsettings changes..."
+          sleep 45
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Build frontend
+        working-directory: Frontend
+        run: |
+          npm install --production=false
+          npm run build
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
 
       - name: Build backend
         working-directory: Backend
@@ -52,20 +93,91 @@ jobs:
           npm run postbuild
           npm prune --production
 
-      - name: Deploy zip to Azure
+      # Pillow is required by scripts/watermark.py (called by the approver flow).
+      # Install into Backend/python_libs/ so it ships inside the deploy zip,
+      # then point PYTHONPATH at it (set in the appsettings step above).
+      # --only-binary=:all: forces manylinux wheels — Azure App Service Linux is
+      # x86_64 manylinux2014-compatible so these wheels run without rebuild.
+      - name: Install Python deps into bundle
         working-directory: Backend
         run: |
-          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json
-          echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
-          az webapp deploy --name v2-article-backend --resource-group dab-rg \
-            --src-path /tmp/v2-backend.zip --type zip --async true \
-            --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}" || true
+          python3 -m pip install --upgrade pip
+          python3 -m pip install \
+            --target python_libs \
+            --only-binary=:all: \
+            -r scripts/requirements.txt
+          echo "Bundled Python packages:"
+          python3 -c "import sys; sys.path.insert(0,'python_libs'); import PIL; print('PIL OK:', PIL.__version__)" \
+            || (echo "PIL/Pillow not present"; exit 1)
+          du -sh python_libs
 
-      - name: Restart and health check
+      - name: Bundle frontend into backend
+        run: cp -r Frontend/dist Backend/public
+
+      - name: Create deployment zip
+        working-directory: Backend
+        run: |
+          zip -r /tmp/v2-backend.zip dist/ node_modules/ prisma/schema.prisma package.json public/ scripts/ python_libs/ -x "*.map"
+          echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
+
+      - name: Deploy zip to Azure
         run: |
           SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          az webapp restart --name v2-article-backend --resource-group dab-rg --subscription "$SUB"
-          sleep 60
-          HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://v2-article-backend.azurewebsites.net/api/health || echo 000)
+          echo "Zip size: $(du -sh /tmp/v2-backend.zip)"
+          az webapp deploy --name v2-article-backend --resource-group dab-rg \
+            --src-path /tmp/v2-backend.zip --type zip \
+            --subscription "$SUB" --async true
+          echo "Waiting 30s for app to fully boot..."
+          sleep 30
+
+      - name: Capture startup logs
+        if: always()
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "=== Fetching Docker/startup logs ==="
+          az webapp log download --name v2-article-backend --resource-group dab-rg \
+            --subscription "$SUB" --log-file /tmp/app-logs.zip 2>&1 || true
+          if [ -f /tmp/app-logs.zip ]; then
+            unzip -q /tmp/app-logs.zip -d /tmp/app-logs/ 2>/dev/null || true
+            echo "--- Files in log zip ---"
+            find /tmp/app-logs -type f | head -20
+            echo "--- Last 80 lines of app log ---"
+            find /tmp/app-logs -name "*.log" | xargs grep -l "" 2>/dev/null | head -3 | xargs tail -n 80 2>/dev/null || echo "No logs found"
+          else
+            echo "Log download failed or no logs available"
+          fi
+
+      - name: Show domain verification ID (add TXT record in Cloudflare if hostname binding fails)
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          VERIFICATION_ID=$(az webapp show --name v2-article-backend --resource-group dab-rg \
+            --subscription "$SUB" --query customDomainVerificationId -o tsv 2>/dev/null || echo "FETCH_FAILED")
+          echo "======================================================"
+          echo "AZURE CUSTOM DOMAIN VERIFICATION ID: $VERIFICATION_ID"
+          echo "======================================================"
+          echo "Add this TXT record in Cloudflare DNS (if not already present):"
+          echo "  Type: TXT"
+          echo "  Name: asuid.articlecreation.v2retail.net"
+          echo "  Value: $VERIFICATION_ID"
+          echo "  TTL: Auto"
+          echo "======================================================"
+
+      - name: Register custom hostnames
+        run: |
+          SUB="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          for HOSTNAME in articlecreation.v2retail.net articlecreationliveweb.v2retail.net; do
+            echo "Binding $HOSTNAME..."
+            az webapp config hostname add \
+              --webapp-name v2-article-backend \
+              --resource-group dab-rg \
+              --hostname "$HOSTNAME" \
+              --subscription "$SUB" \
+              && echo "$HOSTNAME bound OK" \
+              || echo "$HOSTNAME binding failed — may need TXT record asuid.$HOSTNAME in Cloudflare DNS"
+          done
+
+      - name: Health check
+        run: |
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" https://articlecreation.v2retail.net || echo 000)
           echo "Health check: $HTTP"
-          [ "$HTTP" = "200" ] && echo "BACKEND LIVE" || echo "Returned HTTP $HTTP"
+          [ "$HTTP" = "200" ] && echo "LIVE ✓" || echo "Warming up (HTTP $HTTP) — check Azure logs if issue persists"

@@ -1,54 +1,46 @@
-import React from 'react';
-import { Upload, Button, Typography, Card, message } from 'antd';
-import { UploadOutlined, FileImageOutlined, InboxOutlined, FolderOpenOutlined } from '@ant-design/icons';
-import type { RcFile } from 'antd/es/upload';
-
-const { Text, Title } = Typography;
-const { Dragger } = Upload;
+import React, { useRef, useState } from 'react';
+import { Upload as UploadIcon, Image as ImageIcon, Inbox, FolderOpen } from 'lucide-react';
+import { Button, Card, CardContent } from '@/shared/components/ui-tw';
+import { message } from '@/lib/message';
+import { cn } from '@/lib/utils';
 
 interface UploadAreaProps {
   onUpload: (file: File, fileList: File[]) => Promise<boolean | void>;
   disabled?: boolean;
 }
 
-export const UploadArea: React.FC<UploadAreaProps> = ({
-  onUpload,
-  disabled = false
-}) => {
-  interface FileSystemEntry {
-    isFile: boolean;
-    isDirectory: boolean;
-    name: string;
-    fullPath: string;
-  }
+interface FileSystemEntry {
+  isFile: boolean;
+  isDirectory: boolean;
+  name: string;
+  fullPath: string;
+}
 
-  interface FileSystemFileEntry extends FileSystemEntry {
-    file: (success: (file: File) => void, error?: (err: DOMException) => void) => void;
-  }
+interface FileSystemFileEntry extends FileSystemEntry {
+  file: (success: (file: File) => void, error?: (err: DOMException) => void) => void;
+}
 
-  interface FileSystemDirectoryEntry extends FileSystemEntry {
-    createReader: () => FileSystemDirectoryReader;
-  }
+interface FileSystemDirectoryEntry extends FileSystemEntry {
+  createReader: () => FileSystemDirectoryReader;
+}
 
-  interface FileSystemDirectoryReader {
-    readEntries: (success: (entries: FileSystemEntry[]) => void, error?: (err: DOMException) => void) => void;
-  }
+interface FileSystemDirectoryReader {
+  readEntries: (success: (entries: FileSystemEntry[]) => void, error?: (err: DOMException) => void) => void;
+}
+
+export const UploadArea: React.FC<UploadAreaProps> = ({ onUpload, disabled = false }) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleUploadFiles = async (files: File[]) => {
     if (files.length === 0) return false;
     return onUpload(files[0], files);
   };
 
-  const handleUpload = async (file: RcFile, fileList: RcFile[]) => {
-    // Convert RcFile to File for consistency
-    const files = fileList.map(f => f as File);
-    return handleUploadFiles(files);
-  };
-
   const validateFile = (file: File) => {
     const isImage = file.type.startsWith('image/');
     const isLt10M = file.size / 1024 / 1024 < 10;
-    
     if (!isImage) {
       message.error('You can only upload image files!');
       return false;
@@ -64,7 +56,6 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
     new Promise((resolve, reject) => {
       const reader = directoryEntry.createReader();
       const entries: FileSystemEntry[] = [];
-
       const readBatch = () => {
         reader.readEntries(
           (batch) => {
@@ -75,10 +66,9 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
             entries.push(...batch);
             readBatch();
           },
-          (err) => reject(err)
+          (err) => reject(err),
         );
       };
-
       readBatch();
     });
 
@@ -88,13 +78,11 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
         (entry as FileSystemFileEntry).file((file) => resolve([file]), () => resolve([]));
       });
     }
-
     if (entry.isDirectory) {
       const directoryEntries = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
       const nestedFiles = await Promise.all(directoryEntries.map(getFilesFromEntry));
       return nestedFiles.flat();
     }
-
     return [];
   };
 
@@ -102,37 +90,17 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
     const itemList = Array.from(items);
     const files = await Promise.all(
       itemList.map(async (item) => {
-        const entry = (item as unknown as { webkitGetAsEntry?: () => FileSystemEntry | null })
-          .webkitGetAsEntry?.();
-        if (entry) {
-          return getFilesFromEntry(entry);
-        }
-
+        const entry = (item as unknown as { webkitGetAsEntry?: () => FileSystemEntry | null }).webkitGetAsEntry?.();
+        if (entry) return getFilesFromEntry(entry);
         const file = item.getAsFile?.();
         return file ? [file] : [];
-      })
+      }),
     );
-
     return files.flat();
   };
 
-  const handleDraggerUpload = (file: RcFile, fileList: RcFile[]) => {
-    // Validate all files first
-    const validFiles = fileList.filter(validateFile);
-    if (validFiles.length > 0) {
-      handleUpload(file, validFiles);
-    }
-    return false; // Prevent default upload
-  };
-
-  const handleButtonUpload = (file: RcFile, fileList: RcFile[]) => {
-    if (validateFile(file)) {
-      handleUpload(file, fileList);
-    }
-    return false; // Prevent default upload
-  };
-
-  const handleFolderDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    setIsDragging(false);
     if (disabled) return;
     event.preventDefault();
 
@@ -141,135 +109,122 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
 
     const files = await getFilesFromDataTransferItems(items);
     const validFiles = files.filter(validateFile);
-
     if (validFiles.length === 0) {
       message.error('No valid images found in the dropped folder.');
       return;
     }
-
     await handleUploadFiles(validFiles);
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    const validFiles = files.filter(validateFile);
+    if (validFiles.length > 0) handleUploadFiles(validFiles);
+    if (e.target) e.target.value = '';
+  };
+
   return (
-    <Card className="upload-area" style={{ borderRadius: 16, overflow: 'hidden' }}>
-      <div style={{ textAlign: 'center', padding: 40 }}>
+    <Card className="upload-area overflow-hidden rounded-2xl">
+      <CardContent className="p-10 text-center">
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <FileImageOutlined 
-            style={{ 
-              fontSize: 64, 
-              color: disabled ? '#d9d9d9' : '#FF6F61',
-              marginBottom: 16 
-            }} 
+        <div className="mb-8">
+          <ImageIcon
+            className="mx-auto mb-4 h-16 w-16"
+            style={{ color: disabled ? '#d9d9d9' : '#FF6F61' }}
           />
-          <Title level={3} style={{ color: disabled ? '#d9d9d9' : '#FF6F61', margin: 0 }}>
+          <h3
+            className="m-0 text-2xl font-semibold"
+            style={{ color: disabled ? '#d9d9d9' : '#FF6F61' }}
+          >
             {disabled ? 'AI Processing Images...' : 'Upload Fashion Images'}
-          </Title>
-          <Text type="secondary" style={{ fontSize: 16, display: 'block', marginTop: 8 }}>
-            {disabled 
+          </h3>
+          <p className="mt-2 text-base text-muted-foreground">
+            {disabled
               ? 'Please wait while AI extracts attributes from your images'
-              : 'AI will analyze each image and extract fashion attributes'
-            }
-          </Text>
+              : 'AI will analyze each image and extract fashion attributes'}
+          </p>
         </div>
 
-        {/* Upload Dragger */}
-        <Dragger
-          name="files"
-          multiple
-          accept="image/*"
-          beforeUpload={handleDraggerUpload} // ✅ FIXED: Use beforeUpload
-          onDrop={handleFolderDrop}
-          disabled={disabled}
-          style={{
-            padding: '40px 20px',
-            borderRadius: 12,
-            border: disabled 
-              ? '2px dashed #d9d9d9' 
-              : '2px dashed #FF6F61',
-            backgroundColor: disabled 
-              ? '#fafafa' 
-              : 'rgba(102, 126, 234, 0.02)',
-            transition: 'all 0.3s ease'
+        {/* Drag-and-drop zone */}
+        <div
+          onDragEnter={() => !disabled && setIsDragging(true)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            !disabled && setIsDragging(true);
           }}
-          showUploadList={false}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => !disabled && fileInputRef.current?.click()}
+          className={cn(
+            'cursor-pointer rounded-xl border-2 border-dashed px-5 py-10 transition-all',
+            disabled
+              ? 'cursor-not-allowed border-border bg-muted/50'
+              : isDragging
+              ? 'border-primary bg-primary/5'
+              : 'border-primary bg-primary/[0.02] hover:bg-primary/[0.05]',
+          )}
         >
-          <div>
-            <InboxOutlined 
-              style={{ 
-                fontSize: 48, 
-                color: disabled ? '#d9d9d9' : '#FF6F61',
-                marginBottom: 16 
-              }} 
-            />
-            <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>
-              {disabled 
-                ? 'Upload disabled during processing' 
-                : 'Click or drag files to this area to upload'
-              }
-            </div>
-            <div style={{ color: '#8c8c8c', fontSize: 14 }}>
-              Support for single or bulk upload. Only image files (JPG, PNG, WEBP) under 10MB.
-            </div>
+          <Inbox
+            className="mx-auto mb-4 h-12 w-12"
+            style={{ color: disabled ? '#d9d9d9' : '#FF6F61' }}
+          />
+          <div className="mb-2 text-lg font-medium">
+            {disabled ? 'Upload disabled during processing' : 'Click or drag files to this area to upload'}
           </div>
-        </Dragger>
+          <div className="text-sm text-muted-foreground">
+            Support for single or bulk upload. Only image files (JPG, PNG, WEBP) under 10MB.
+          </div>
+        </div>
 
-        {/* Alternative Upload Button */}
-        <div style={{ marginTop: 24 }}>
-          <Upload
-            name="files"
+        {/* Alt buttons */}
+        <div className="mt-6">
+          <Button
+            size="lg"
+            disabled={disabled}
+            className="min-w-[200px]"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <UploadIcon />
+            {disabled ? 'Processing...' : 'Select Files'}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            disabled={disabled}
+            className="ml-3 min-w-[200px]"
+            onClick={() => folderInputRef.current?.click()}
+          >
+            <FolderOpen />
+            {disabled ? 'Processing...' : 'Select Folder'}
+          </Button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
             multiple
             accept="image/*"
-            beforeUpload={handleButtonUpload} // ✅ FIXED: Use beforeUpload
-            disabled={disabled}
-            showUploadList={false}
-          >
-            <Button 
-              icon={<UploadOutlined />} 
-              size="large"
-              disabled={disabled}
-              className={disabled ? 'btn-secondary' : 'btn-primary'}
-              style={{ minWidth: 200 }}
-            >
-              {disabled ? 'Processing...' : 'Select Files'}
-            </Button>
-          </Upload>
-          <Upload
-            name="files"
+            className="hidden"
+            onChange={handleInputChange}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
             multiple
-            directory
+            // @ts-expect-error — chromium-only `webkitdirectory` attribute
+            webkitdirectory=""
+            directory=""
             accept="image/*"
-            beforeUpload={handleButtonUpload}
-            disabled={disabled}
-            showUploadList={false}
-          >
-            <Button
-              icon={<FolderOpenOutlined />}
-              size="large"
-              disabled={disabled}
-              className={disabled ? 'btn-secondary' : 'btn-primary'}
-              style={{ minWidth: 200, marginLeft: 12 }}
-            >
-              {disabled ? 'Processing...' : 'Select Folder'}
-            </Button>
-          </Upload>
-          <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
-            or drag and drop images/folders above
-          </div>
+            className="hidden"
+            onChange={handleInputChange}
+          />
+
+          <div className="mt-2 text-xs text-muted-foreground">or drag and drop images/folders above</div>
         </div>
 
         {/* Features */}
-        <div style={{ 
-          marginTop: 32, 
-          padding: 24, 
-          backgroundColor: '#f6f8fa', 
-          borderRadius: 12,
-          textAlign: 'left'
-        }}>
-          <Text strong style={{ fontSize: 14, color: '#FF6F61' }}>
-            ✨ AI-Powered Features:
-          </Text>
-          <ul style={{ marginTop: 8, paddingLeft: 20, fontSize: 13, color: '#666' }}>
+        <div className="mt-8 rounded-xl bg-muted/40 p-6 text-left">
+          <strong className="text-sm text-primary">AI-Powered Features:</strong>
+          <ul className="mt-2 list-disc pl-5 text-[13px] text-muted-foreground">
             <li>Automatic attribute extraction using GPT-4 Vision</li>
             <li>Confidence scoring for each detected attribute</li>
             <li>Discovery mode to find attributes beyond your schema</li>
@@ -277,7 +232,7 @@ export const UploadArea: React.FC<UploadAreaProps> = ({
             <li>Export results to Excel or CSV format</li>
           </ul>
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 };

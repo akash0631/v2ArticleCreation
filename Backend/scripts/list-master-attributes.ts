@@ -21,8 +21,9 @@ async function main() {
     // Print a JSON summary file to disk for easy copy/paste
     const fs = await import('fs');
     const out = attrs.map(a => ({ id: a.id, key: a.key, label: a.label, type: a.type, allowedValues: a.allowedValues.map(v => ({ shortForm: v.shortForm, fullForm: v.fullForm })) }));
-    fs.writeFileSync('master-attributes.json', JSON.stringify(out, null, 2));
-    console.log('\nWrote master-attributes.json to current folder.');
+    const outPath = require('path').join(__dirname, '..', 'outputs', 'master-attributes.json');
+    fs.writeFileSync(outPath, JSON.stringify(out, null, 2));
+    console.log('\nWrote master-attributes.json to outputs/ folder.');
   } catch (err: any) {
     console.error('Error fetching master attributes:', err.message || err);
     process.exit(1);

@@ -1,0 +1,35 @@
+name: CI Check (Backend)
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'Backend/**'
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: Backend
+        run: npm install --production=false
+
+      - name: Generate Prisma client
+        working-directory: Backend
+        run: npx prisma generate
+
+      - name: TypeScript type check
+        working-directory: Backend
+        run: npx tsc --noEmit --skipLibCheck
+
+      - name: Build
+        working-directory: Backend
+        run: npx tsc --skipLibCheck && npm run postbuild

@@ -25,31 +25,42 @@ export interface CostCalculation {
   timestamp: string;
 }
 
-// Gemini API Pricing (in USD per 1M tokens)
+// Gemini API Pricing (in USD per 1M tokens) — May 2026
+// Source: https://ai.google.dev/pricing
 const PRICING = {
+  // $1.25 input / $10.00 output (standard ≤200K context tier)
   'gemini-2.5-pro': {
-    inputPrice: 0.10,
-    outputPrice: 0.40,
+    inputPrice: 1.25,
+    outputPrice: 10.00,
     displayName: 'Gemini 2.5 Pro'
   },
+  // $0.15 input / $3.50 output (non-thinking)
+  'gemini-2.5-flash': {
+    inputPrice: 0.15,
+    outputPrice: 3.50,
+    displayName: 'Gemini 2.5 Flash'
+  },
+  // $0.10 input / $0.40 output
   'gemini-2.0-flash': {
-    inputPrice: 0.075,
-    outputPrice: 0.30,
+    inputPrice: 0.10,
+    outputPrice: 0.40,
     displayName: 'Gemini 2.0 Flash'
   },
   'gemini-2.0-flash-batch': {
-    inputPrice: 0.0188,
-    outputPrice: 0.075,
+    inputPrice: 0.05,
+    outputPrice: 0.20,
     displayName: 'Gemini 2.0 Flash (Batch)'
   },
+  // $1.25 input / $5.00 output (≤128K ctx)
   'gemini-1.5-pro': {
-    inputPrice: 0.075,
-    outputPrice: 0.30,
+    inputPrice: 1.25,
+    outputPrice: 5.00,
     displayName: 'Gemini 1.5 Pro'
   },
+  // $0.075 input / $0.30 output (≤128K ctx)
   'gemini-1.5-flash': {
-    inputPrice: 0.0375,
-    outputPrice: 0.15,
+    inputPrice: 0.075,
+    outputPrice: 0.30,
     displayName: 'Gemini 1.5 Flash'
   }
 };

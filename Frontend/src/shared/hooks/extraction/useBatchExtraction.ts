@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { message } from 'antd';
+import { message } from '@/lib/message';
 import type { ExtractedRowEnhanced, BatchOperationResult, SchemaItem, PerformanceMetrics } from '../../types/extraction/ExtractionTypes';
 
 /**

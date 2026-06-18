@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "prisma generate && tsc --skipLibCheck && npm run postbuild",
-    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true})\"",
+    "postbuild": "node -e \"require('fs').cpSync('src/generated', 'dist/generated', {recursive: true}); require('fs').cpSync('src/data', 'dist/data', {recursive: true})\"",
     "postinstall": "prisma generate",
-    "start": "node --max-old-space-size=512 dist/index.js",
+    "start": "node --max-old-space-size=2048 dist/index.js",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist",
     "db:generate": "prisma generate",
@@ -30,6 +30,7 @@
     "sap:unique-values": "ts-node scripts/extract-sap-unique-values.ts",
     "sap:sync": "ts-node scripts/sync-sap-attribute-values.ts",
     "sap:sync:daily": "npm run sap:sync",
+    "excel:sync:mandatory": "ts-node scripts/sync-mandatory-grid.ts",
     "excel:sync": "ts-node scripts/sync-excel-attribute-values.ts",
     "excel:sync:watch": "ts-node scripts/sync-excel-attribute-values.ts --watch",
     "excel:map-to-extraction": "ts-node scripts/sync-excel-to-extraction-values.ts",
@@ -54,6 +55,7 @@
     "@aws-sdk/client-s3": "^3.990.0",
     "@aws-sdk/lib-storage": "^3.990.0",
     "@aws-sdk/s3-request-presigner": "^3.990.0",
+    "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "6.17.1",
     "@types/bcryptjs": "^2.4.6",
@@ -62,6 +64,7 @@
     "@types/ioredis": "^4.28.10",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
+    "adm-zip": "^0.5.16",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -79,6 +82,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/compression": "^1.8.1",
     "@types/node": "^24.10.0",
     "nodemon": "^3.1.10",

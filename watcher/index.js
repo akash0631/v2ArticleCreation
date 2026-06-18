@@ -9,6 +9,11 @@ const log = require('./logger');
 // --test flag: run one scan immediately and exit (for manual testing)
 const testMode = process.argv.includes('--test');
 
+// NOTE: The scheduled SRM pull (runSrmSync → POST /api/watcher/sync-srm) has been
+// removed. SRM presentations are ingested via the external SRM writer →
+// raw_articles table → the backend's raw-articles extraction cron. This watcher
+// now only scans the image folder.
+
 async function main() {
   log.info('AI Fashion Watcher Service starting...');
   log.info(`Schedules: 12:00 PM, 8:00 PM (daily)`);
@@ -31,7 +36,7 @@ async function main() {
       try {
         await runScan();
       } catch (err) {
-        log.error('Unexpected error during scan:', err.message);
+        log.error('Unexpected error during image scan:', err.message);
       }
     });
     log.info(`Scheduled: ${labels[i]} (cron: ${schedule})`);

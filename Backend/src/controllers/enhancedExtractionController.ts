@@ -12,8 +12,12 @@ import { storageService } from '../services/storageService';
 import { getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { duplicateForKidsDivision } from '../services/kidsDivisionDuplicationService';
 import { createVariantsForGeneric } from '../services/variantCreationService';
+import { mirror360FlatUpdate } from '../utils/mirror360Flat';
+import { hierarchyService } from '../services/hierarchyService';
+import { snapValueToGrid } from '../utils/gridSnap';
 
 export class EnhancedExtractionController {
   private vlmService = new VLMService();
@@ -166,7 +170,6 @@ export class EnhancedExtractionController {
 
         if (subDept && subDept.categories.length > 0) {
           category = subDept.categories[0];
-          console.log(`Mapped SubDepartment '${potentialCode}' to proxy Category ID: ${category.id}`);
         }
       }
 
@@ -204,6 +207,46 @@ export class EnhancedExtractionController {
         }
       });
 
+      // STRICT per-major-category grid enforcement (garment attributes only).
+      //
+      // On the main extraction page the major category is NOT chosen up front —
+      // the VLM/OCR classifies it during extraction — so we cannot pre-constrain
+      // the schema like the auto-pipeline does. Instead we enforce the grid
+      // whitelist here, after extraction, once the major category is known:
+      //   • GRID-GOVERNED garment attributes (master_attributes.grid_attribute_name
+      //     is set) are snapped to the nearest grid value; if this category has no
+      //     grid values for that attribute (or no grid resolves at all) the value
+      //     is dropped (strict whitelist).
+      //   • Metadata/identity attributes (major_category, vendor_name/code,
+      //     design_number, rate, mrp, size, division, gsm, weight, …) are NOT
+      //     grid-governed and pass through unchanged so the article stays usable.
+      //
+      // The major category is read from extracted metadata first, then from the
+      // extracted `major_category` attribute (the OCR'd whiteboard code, e.g.
+      // "MW_TEES_FS"), so the grid resolves on the normal extraction path.
+      const majorFromAttrs = (() => {
+        const a = (result.attributes as any)?.major_category
+          ?? (result.attributes as any)?.majorCategory
+          ?? null;
+        const v = a ? (a.schemaValue ?? a.rawValue ?? null) : null;
+        return v != null && String(v).trim() !== '' ? String(v).trim() : null;
+      })();
+      const majorMetaValue = (result.extractedMetadata as any)?.majorCategory
+        ?? (result.extractedMetadata as any)?.major_category
+        ?? majorFromAttrs
+        ?? null;
+      const gridValues = majorMetaValue
+        ? await hierarchyService.getCategoryGridValues(String(majorMetaValue).trim())
+        : new Map<string, string[]>();
+      const gridGovernedKeys = await hierarchyService.getGridGovernedKeys();
+      const keyByAttributeId = new Map<number, string>(
+        attributes.map(a => [a.id, a.key] as [number, string])
+      );
+      const gridReady = gridValues.size > 0;
+      if (!gridReady) {
+        console.log(`[Enhanced] No grid values for major category "${majorMetaValue ?? '(none)'}" — grid-governed garment attributes not stored (strict).`);
+      }
+
       const attributeEntries = Object.entries(result.attributes || {})
         .filter(([_, v]) => {
           const value = v as any;
@@ -213,6 +256,32 @@ export class EnhancedExtractionController {
           const token = normalizeToken(key);
           const attributeId = attributeIdByKey.get(token);
           if (!attributeId) return null;
+
+          const masterKey = keyByAttributeId.get(attributeId);
+          const isGridGoverned = masterKey ? gridGovernedKeys.has(masterKey) : false;
+
+          if (isGridGoverned) {
+            // STRICT grid scoping: drop the garment attribute when no grid is
+            // resolvable, or this attribute has no grid values for the category.
+            const allowed = (gridReady && masterKey) ? gridValues.get(masterKey) : undefined;
+            if (!allowed || allowed.length === 0) return null;
+
+            const extracted = v.schemaValue ?? v.rawValue ?? null;
+            // Snap to the nearest grid value; null when there is no reasonable match.
+            const snapped = extracted != null ? snapValueToGrid(String(extracted), allowed) : null;
+            // Keep rawValue aligned with finalValue so the downstream flattener
+            // (which falls back to rawValue when finalValue is null) cannot
+            // resurrect an off-grid value.
+            return {
+              attributeId,
+              rawValue: snapped,
+              finalValue: snapped,
+              confidence: v.visualConfidence ?? null,
+              extractionMethod: 'VLM',
+            };
+          }
+
+          // Non-grid metadata/identity attribute: store as extracted.
           const schemaValue = v.schemaValue ?? v.rawValue ?? null;
           const finalValue = schemaValue !== null && schemaValue !== undefined ? String(schemaValue) : null;
           return {
@@ -225,9 +294,6 @@ export class EnhancedExtractionController {
         })
         .filter(Boolean) as Array<{ attributeId: number; rawValue: string | null; finalValue: string | null; confidence: number | null; extractionMethod: string; }>;
 
-      const majorMetaValue = (result.extractedMetadata as any)?.majorCategory
-        ?? (result.extractedMetadata as any)?.major_category
-        ?? null;
       if (majorMetaValue) {
         const majorToken = normalizeToken('major_category');
         const majorAltToken = normalizeToken('major category');
@@ -269,14 +335,6 @@ export class EnhancedExtractionController {
         }
       }
 
-      // DEBUG: Log token/cost data before saving
-      console.log('💰 [DEBUG] Token/Cost Data:', {
-        inputTokens: result.inputTokens,
-        outputTokens: result.outputTokens,
-        apiCost: result.apiCost,
-        tokensUsed: result.tokensUsed
-      });
-
       const job = await prisma.extractionJob.create({
         data: {
           userId: userId ?? null,
@@ -293,7 +351,7 @@ export class EnhancedExtractionController {
           extractedCount: attributeEntries.length,
           avgConfidence: result.confidence ?? null,
           completedAt: new Date(),
-          designNumber: originalFilename || null, // Store original filename as article number (designNumber field)
+          designNumber: null, // articleNumber is assigned only after successful SAP sync
         },
       });
 
@@ -347,7 +405,7 @@ export class EnhancedExtractionController {
 
           if (Object.keys(directFill).length > 0) {
             await prisma.extractionResultFlat.update({ where: { id: flatId }, data: directFill });
-            console.log(`✅ Direct gsm/weight backfill for flat row ${flatId}:`, directFill);
+            void mirror360FlatUpdate(flatId, directFill);
           }
         }
       } catch (flatError) {
@@ -400,7 +458,7 @@ export class EnhancedExtractionController {
             where: { id: flatId },
             data: overrides,
           });
-          console.log(`✅ Watcher fields + derived fields applied to flat row ${flatId}`);
+          void mirror360FlatUpdate(flatId, overrides);
 
           // ── Step 4: Segment + Article Description (need the updated row values) ──
           const updatedRow = await prisma.extractionResultFlat.findUnique({
@@ -427,8 +485,10 @@ export class EnhancedExtractionController {
             const seg = getSegmentByCategoryAndMrp(updatedRow.majorCategory, updatedRow.mrp);
             if (seg) derivedStep2.segment = seg;
 
-            // Article Description (built from extracted attributes)
-            const artDesc = buildArticleDescription(updatedRow as any);
+            // Article Description — only include fields visible in the article card for this major category
+            const artDesc = buildArticleDescription(updatedRow as any, 40, {
+              excludeFields: await getExcludedDescriptionFields(updatedRow.majorCategory) as any,
+            });
             if (artDesc) derivedStep2.articleDescription = artDesc;
 
             if (Object.keys(derivedStep2).length > 0) {
@@ -436,7 +496,7 @@ export class EnhancedExtractionController {
                 where: { id: flatId },
                 data: derivedStep2,
               });
-              console.log(`✅ Segment + article description computed for flat row ${flatId}`);
+              void mirror360FlatUpdate(flatId, derivedStep2);
             }
           }
         } catch (overrideError) {
@@ -444,36 +504,45 @@ export class EnhancedExtractionController {
         }
       }
 
-      // ── Kids Division Duplication ────────────────────────────────────────
-      // Fire-and-forget: if the saved record belongs to KIDS division, create
-      // sibling copies for all other MAJ_CATs that share the same NAME in the
-      // kids-division-mapping.xlsx file. Wrapped in a void call so it never
-      // blocks the main response or propagates errors.
-      if (flatId) {
-        void duplicateForKidsDivision(flatId);
+      // ── User-Selected Division/SubDivision Override ──────────────────────
+      // When the user explicitly passed department/subDepartment in the request
+      // (from the Simplified Extraction Page), apply them as authoritative overrides
+      // on the flat record so they win over any VLM-extracted or JSON-fallback values.
+      if (!watcherFields && flatId && (params.department || params.subDepartment)) {
+        try {
+          const scopeOverrides: Record<string, any> = {};
+          if (params.department)     scopeOverrides.division    = params.department;
+          if (params.subDepartment)  scopeOverrides.subDivision = params.subDepartment;
+          if (Object.keys(scopeOverrides).length > 0) {
+            await prisma.extractionResultFlat.update({
+              where: { id: flatId },
+              data: scopeOverrides,
+            });
+            console.log(`[Extraction] Applied user scope override for flat ${flatId}:`, scopeOverrides);
+          }
+        } catch (scopeOverrideError) {
+          console.warn('⚠️ Failed to apply user scope overrides:', scopeOverrideError);
+        }
       }
 
+      // ── Kids Division Duplication ────────────────────────────────────────
+      // Disabled: only 1 article is created per extraction (no copies).
+      // if (flatId) {
+      //   void duplicateForKidsDivision(flatId);
+      // }
+
       // ── Variant Creation ─────────────────────────────────────────────────
-      // Fire-and-forget: create size variants from the variant-sizes-mapping.xlsx
-      // for the new generic article. Never blocks the main response.
-      if (flatId) {
-        void createVariantsForGeneric(flatId);
-      }
+      // Disabled: auto variant creation on extraction is turned off.
+      // if (flatId) {
+      //   void createVariantsForGeneric(flatId);
+      // }
 
       return {
         jobId: job.id,
         flatId
       };
     } catch (error: any) {
-      console.error('❌ Critical Error in persistExtractionJob:', error);
-      console.error('   Error stack:', error.stack);
-      console.error('   Parameters:', {
-        image: params.image,
-        categoryName: params.categoryName,
-        userId: params.userId,
-        department: params.department,
-        subDepartment: params.subDepartment
-      });
+      console.error('Critical error in persistExtractionJob:', error?.message, error?.stack);
       return null;
     }
   }
@@ -542,7 +611,9 @@ export class EnhancedExtractionController {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
-        if (currentUser?.subDivision) {
+        // Use the user's selected sub-division from the request (dropdown selection).
+        // Only fall back to profile sub-division if nothing was selected AND it's a single value.
+        if (!enforcedSubDepartment && currentUser?.subDivision && !String(currentUser.subDivision).includes(',')) {
           enforcedSubDepartment = currentUser.subDivision;
         }
       }
@@ -610,7 +681,6 @@ export class EnhancedExtractionController {
                 type: ca.attribute.type.toLowerCase() as any,
                 allowedValues: ca.attribute.allowedValues.map(av => av.shortForm),
               }));
-              console.log(`📋 Watcher: loaded ${parsedSchema.length} category-specific attributes for ${resolvedCategoryCode}`);
             }
           }
 
@@ -629,7 +699,6 @@ export class EnhancedExtractionController {
               type: attr.type.toLowerCase() as any,
               allowedValues: attr.allowedValues.map(av => av.shortForm),
             }));
-            console.log(`📋 Watcher: loaded ${parsedSchema.length} master attributes (no category config found)`);
           }
         } catch (schemaErr: any) {
           console.warn(`⚠️ Watcher schema build failed: ${schemaErr.message}`);
@@ -638,8 +707,6 @@ export class EnhancedExtractionController {
 
       // Convert image to base64 for VLM processing
       const base64Image = await ImageProcessor.processImageToBase64(req.file);
-
-      console.log(`Enhanced VLM Extraction Started - Category: ${categoryName}, Schema: ${parsedSchema.length} attrs`);
 
       // Create enhanced fashion extraction request
       const vlmRequest: FashionExtractionRequest = {
@@ -657,16 +724,11 @@ export class EnhancedExtractionController {
       // Extract using Multi-VLM pipeline
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      console.log(`✅ Enhanced VLM Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
-
-
       // Upload to Cloudflare R2 (REQUIRED - fail if this doesn't work)
       let imagePath = '';
       const timestamp = Date.now();
       const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${timestamp}_${originalName}`;
-
-      console.log(`☁️ Uploading to R2 Storage: ${fileName}`);
 
       try {
         const uploadResult = await storageService.uploadFile(
@@ -676,11 +738,8 @@ export class EnhancedExtractionController {
           'fashion-images'
         );
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
-        console.error('❌ R2 Upload Failed:', uploadError);
+        console.error('R2 Upload Failed:', uploadError);
         console.error('   Error details:', uploadError.message);
 
         // Return error to user - don't proceed without image storage
@@ -695,7 +754,6 @@ export class EnhancedExtractionController {
 
       // Verify we have a valid image URL
       if (!imagePath) {
-        console.error('❌ No image URL after upload');
         res.status(500).json({
           success: false,
           error: 'Image upload succeeded but no URL was returned',
@@ -799,8 +857,19 @@ export class EnhancedExtractionController {
         if (currentUser?.division) {
           enforcedDepartment = currentUser.division;
         }
-        if (currentUser?.subDivision) {
+        // Use the user's selected sub-division from the request (dropdown selection).
+        // Only fall back to profile sub-division if nothing was selected AND it's a single value.
+        if (!enforcedSubDepartment && currentUser?.subDivision && !String(currentUser.subDivision).includes(',')) {
           enforcedSubDepartment = currentUser.subDivision;
+        }
+        // Block extraction entirely if sub-division is still not resolved for CREATOR role
+        if (!enforcedSubDepartment) {
+          res.status(400).json({
+            success: false,
+            error: 'Sub-Division is required. Please select a Sub-Division before extracting.',
+            timestamp: Date.now()
+          });
+          return;
         }
       }
 
@@ -822,8 +891,6 @@ export class EnhancedExtractionController {
         return;
       }
 
-      console.log(`Enhanced Base64 VLM Extraction - Discovery: ${discoveryMode}, Schema: ${schema.length} attrs, Force Refresh: ${forceRefresh}`);
-
       // Create enhanced fashion extraction request
       const vlmRequest: FashionExtractionRequest = {
         image,
@@ -838,8 +905,6 @@ export class EnhancedExtractionController {
       };
 
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
-
-      console.log(`✅ Enhanced VLM Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
 
       // Upload base64 image to Cloudflare R2
       let imagePath: string | null = null;
@@ -858,7 +923,6 @@ export class EnhancedExtractionController {
         // Use provided filename or generate one
         const originalName = fileName || `upload_${Date.now()}.${extension}`;
 
-        console.log(`☁️ Uploading base64 image to R2: ${originalName}`);
         const uploadResult = await storageService.uploadFile(
           imageBuffer,
           originalName,
@@ -866,15 +930,24 @@ export class EnhancedExtractionController {
           'fashion-images'
         );
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
         console.error('❌ R2 Upload Failed for base64 image:', uploadError.message);
-        // Non-fatal: continue with extraction data saved, image URL will be null
-        // User can re-upload image later if needed
-        console.warn('⚠️ Continuing extraction save without image URL (R2 unavailable)');
-        imagePath = null;
+        res.status(500).json({
+          success: false,
+          error: 'Failed to upload image to cloud storage',
+          details: uploadError.message,
+          timestamp: Date.now()
+        });
+        return;
+      }
+
+      if (!imagePath) {
+        res.status(500).json({
+          success: false,
+          error: 'Image upload succeeded but no URL was returned',
+          timestamp: Date.now()
+        });
+        return;
       }
 
       const parsedFolderFromFileName = typeof fileName === 'string' && (fileName.includes('/') || fileName.includes('\\'))
@@ -1038,8 +1111,6 @@ export class EnhancedExtractionController {
         return;
       }
 
-      console.log(`Category-Based Extraction Started - Code: ${categoryCode}`);
-
       // Load schema from database
       const { category, schema, stats } = await this.schemaService.getCategorySchema(categoryCode);
 
@@ -1065,9 +1136,6 @@ export class EnhancedExtractionController {
         }
       }
 
-      console.log(`📊 Category: ${category.name} (${category.department.name} → ${category.subDepartment.name})`);
-      console.log(`📋 Schema: ${stats.totalAttributes} attributes (${stats.aiExtractableCount} AI-extractable, ${stats.requiredCount} required)`);
-
       // Create enhanced fashion extraction request with garment type
       const vlmRequest: FashionExtractionRequest = {
         image,
@@ -1083,8 +1151,6 @@ export class EnhancedExtractionController {
       // Extract using Multi-VLM pipeline
       const result = await this.vlmService.extractFashionAttributes(vlmRequest);
 
-      console.log(`✅ Category-Based Extraction Complete - Confidence: ${result.confidence}%, Time: ${result.processingTime}ms`);
-
       // Merge extracted metadata with provided metadata
       const finalMetadata = {
         vendorName: result.extractedMetadata?.vendorName || vendorName || null,
@@ -1095,10 +1161,6 @@ export class EnhancedExtractionController {
         notes,
         extractionDate: new Date().toISOString()
       };
-
-      if (result.extractedMetadata) {
-        console.log(`🏷️ AI extracted metadata from tag/board:`, result.extractedMetadata);
-      }
 
       // Upload base64 image to Cloudflare R2 (required for consistent storage)
       let imagePath = '';
@@ -1114,7 +1176,6 @@ export class EnhancedExtractionController {
 
         const originalName = fileName || `upload_${Date.now()}.${extension}`;
 
-        console.log(`☁️ Uploading category extraction image to R2: ${originalName}`);
         const uploadResult = await storageService.uploadFile(
           imageBuffer,
           originalName,
@@ -1123,11 +1184,8 @@ export class EnhancedExtractionController {
         );
 
         imagePath = uploadResult.url;
-        console.log(`✅ Uploaded to R2: ${imagePath}`);
-        console.log(`   UUID: ${uploadResult.uuid}`);
-        console.log(`   Path: ${uploadResult.key}`);
       } catch (uploadError: any) {
-        console.error('❌ R2 Upload Failed for category extraction image:', uploadError);
+        console.error('R2 Upload Failed for category extraction image:', uploadError);
         console.error('   Error details:', uploadError.message);
 
         res.status(500).json({
@@ -1140,7 +1198,6 @@ export class EnhancedExtractionController {
       }
 
       if (!imagePath) {
-        console.error('❌ No image URL after category extraction upload');
         res.status(500).json({
           success: false,
           error: 'Image upload succeeded but no URL was returned',
@@ -1205,7 +1262,6 @@ export class EnhancedExtractionController {
    */
   getCategoryHierarchy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      console.log('📂 Fetching category hierarchy...');
       const hierarchy = await this.schemaService.getCategoryHierarchy();
 
       res.json({

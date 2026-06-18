@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+export { asyncHandler, requestTimeout } from './asyncHandler';
 
 export interface ApiError extends Error {
   statusCode?: number;
@@ -11,6 +12,18 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
+  // Response already committed (e.g. timeout fired while async handler was still running).
+  // We cannot send another response — just log and bail.
+  if (res.headersSent) {
+    console.error('Error occurred after response already sent:', {
+      message: err.message,
+      url: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
   console.error('Error occurred:', {
     message: err.message,
     stack: err.stack,

@@ -1,14 +1,61 @@
 import { Request, Response } from 'express';
-import { ApprovalStatus, SapSyncStatus } from '../generated/prisma';
+import { ApprovalStatus, SapSyncStatus, PdStatus } from '../generated/prisma';
+import fs from 'fs';
+import path from 'path';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
 import { parseNumericValue } from '../utils/mrpCalculator';
 import { getSegmentByCategoryAndMrp } from '../utils/segmentRangeMapper';
 import { syncApprovedItemsToSap } from '../services/sapSyncService';
-import { storageService } from '../services/storageService';
+import { syncArticlesToSapViaRfc, buildModifyChangesPayload } from '../services/zmmArtCreationService';
+import { patchArticleAttributes } from '../services/sapModifyService';
+import { FLAT_TO_RFC } from '../data/flatToRfcMap';
+import { syncVariantsToSapViaRfc } from '../services/zmmVarArtCreationService';
+import { storageService, type WatermarkLabel } from '../services/storageService';
 import { ARTICLE_DESCRIPTION_SOURCE_FIELDS, buildArticleDescription } from '../utils/articleDescriptionBuilder';
+import { getExcludedDescriptionFields } from '../utils/categoryFieldVisibility';
 import { prismaClient as prisma } from '../utils/prisma';
-import { syncGenericToVariants, addColorVariants } from '../services/variantCreationService';
+import { syncGenericToVariants, addColorVariants, getSizesForMajCat, isSizeAllowed } from '../services/variantCreationService';
 import { hasVendorCode, isValidVendorCode, normalizeVendorCode } from '../utils/vendorCode';
+import { mirror360FlatUpdate } from '../utils/mirror360Flat';
+
+// Fields a client is allowed to update / modify on an article. Shared by
+// updateItem (PUT) and modifyItem (SAP patch-bulk). Anything not in this list
+// (ids, status, timestamps, SAP metadata) is never client-writable.
+const ITEM_UPDATE_ALLOWED_FIELDS = [
+    'articleNumber', 'division', 'subDivision', 'majorCategory', 'vendorName', 'designNumber',
+    'pptNumber', 'rate', 'size', 'yarn1', 'yarn2', 'fabricMainMvgr', 'weave',
+    'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra', 'neck', 'neckDetails',
+    // Body fields (full set)
+    'collar', 'collarStyle', 'placket', 'sleeve', 'sleeveFold', 'bottomFold',
+    'frontOpenStyle', 'noOfPocket', 'pocketType', 'extraPocket',
+    'fit', 'pattern', 'length', 'colour', 'fatherBelt', 'childBelt',
+    // Fabric detail fields
+    'fCount', 'fConstruction', 'fOunce', 'fWidth', 'fabDiv', 'fabVdr',
+    // VA Accessories
+    'drawcord', 'dcShape', 'button', 'btnColour', 'zipper', 'zipColour',
+    'patches', 'patchesType',
+    // VA Accessories — new
+    'htrfType', 'htrfStyle',
+    // VA Processing
+    'printType', 'printStyle', 'printPlacement',
+    'embroidery', 'embroideryType', 'embPlacement', 'wash',
+    // Business
+    'ageGroup', 'articleFashionType', 'articleDimension',
+    'referenceArticleNumber', 'referenceArticleDescription',
+    'impAtrbt2',
+    // Business / SAP fields
+    'macroMvgr', 'mainMvgr', 'mFab2',
+    'vendorCode', 'mrp', 'mcCode', 'segment', 'season',
+    'hsnTaxCode', 'articleDescription', 'fashionGrid', 'year', 'articleType',
+    // Card footer fields (fabric/body article builder)
+    'fabricArticleNumber', 'fabricArticleDescription',
+    'bodyArticle', 'bodyArticleDescription',
+    'attrArticleNums',
+    // Brand vendor MVGR
+    'mvgrBrandVendor',
+    // Variant-specific fields
+    'variantColor', 'variantSize',
+];
 
 export class ApproverController {
     private static readonly STARTUP_BACKFILL_BATCH_SIZE = parseInt(process.env.STARTUP_BACKFILL_BATCH_SIZE || '250', 10);
@@ -16,23 +63,18 @@ export class ApproverController {
     private static readonly STARTUP_BACKFILLS_ENABLED = String(process.env.STARTUP_BACKFILLS_ENABLED ?? 'true').toLowerCase() !== 'false';
     private static readonly STARTUP_BACKFILLS_IN_DEV = String(process.env.STARTUP_BACKFILLS_IN_DEV ?? 'false').toLowerCase() === 'true';
     private static readonly APPROVER_ATTRIBUTES_CACHE_TTL_MS = parseInt(process.env.APPROVER_ATTRIBUTES_CACHE_TTL_MS || '300000', 10);
-    private static readonly NUMERIC_OLD_ARTICLES_CACHE_TTL_MS = parseInt(process.env.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS || '1800000', 10); // 30 min default
     private static startupBackfillRunning = false;
     private static attributesCache: { data: any[]; expiresAt: number } | null = null;
     private static pendingAttributesLoad: Promise<any[]> | null = null;
-    private static numericOldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
-    private static pendingNumericOldArticleIdsLoad: Promise<string[]> | null = null;
-    // Combined cache: all "old" article IDs (path-marker based + numeric name based).
-    // Used so the main getItems query can do id IN/NOT IN instead of ILIKE on every request.
-    private static oldArticleIdsCache: { ids: string[]; expiresAt: number } | null = null;
-    private static pendingOldArticleIdsLoad: Promise<string[]> | null = null;
     // Short-lived cache for getItems responses (8s TTL). Eliminates redundant DB hits
     // when multiple users load the same page simultaneously or filters haven't changed.
     private static readonly ITEMS_CACHE_TTL_MS = 8_000;
+    private static readonly ITEMS_CACHE_MAX = 100;
     private static itemsCache = new Map<string, { data: any; expiresAt: number }>();
     // Count cache (60s TTL). COUNT(*) is a full-table scan — cache it so only the
     // very first request per filter combination pays the cost.
     private static readonly COUNT_CACHE_TTL_MS = 60_000;
+    private static readonly COUNT_CACHE_MAX = 200;
     private static countCache = new Map<string, { value: number; expiresAt: number }>();
 
     private static extractNumericWeight(value: unknown): string | null {
@@ -122,16 +164,16 @@ export class ApproverController {
             const variants = ApproverController.getDivisionVariants(divisionValue);
             if (variants.length === 0) return;
 
-            if (variants.length === 1) {
-                where.division = { equals: variants[0], mode: 'insensitive' };
-                return;
-            }
-
+            // SRM records are cross-divisional presentations — always visible regardless
+            // of the approver's assigned division.
             where.AND = where.AND || [];
             where.AND.push({
-                OR: variants.map((variant) => ({
-                    division: { equals: variant, mode: 'insensitive' }
-                }))
+                OR: [
+                    { source: 'SRM' },
+                    ...variants.map((variant) => ({
+                        division: { equals: variant, mode: 'insensitive' }
+                    }))
+                ]
             });
         };
 
@@ -140,7 +182,10 @@ export class ApproverController {
             if (variants.length === 0) return;
 
             // Include articles with matching subDivision OR with null/empty subDivision
-            // (articles extracted without category assignment should still be visible)
+            // (articles extracted without category assignment should still be visible).
+            // NOTE: SRM records are NOT exempt here — an SRM article with subDivision='LN&L'
+            // must NOT appear for a user scoped to LK&L,LW. Only SRM articles with
+            // null/empty subDivision pass through (via the null/'' conditions below).
             where.AND = where.AND || [];
             where.AND.push({
                 OR: [
@@ -153,7 +198,7 @@ export class ApproverController {
             });
         };
 
-        if (role === 'APPROVER') {
+        if (role === 'APPROVER' || role === 'SUB_DIVISION_HEAD' || role === 'CREATOR') {
             addDivisionScope(user?.division);
             addSubDivisionScope(user?.subDivision);
             return;
@@ -204,12 +249,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingHsnCodes(baseWhere: any): Promise<number> {
@@ -248,12 +289,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingSegments(baseWhere: any): Promise<number> {
@@ -294,12 +331,8 @@ export class ApproverController {
             })
         );
 
-        let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
-        }
-        return total;
+        const results = await Promise.all(updates);
+        return results.reduce((sum, r) => sum + r.count, 0);
     }
 
     private static async backfillMissingYears(baseWhere: any): Promise<number> {
@@ -339,103 +372,72 @@ export class ApproverController {
     }
 
     private static async refreshArticleDescriptions(baseWhere: any): Promise<number> {
-        const rows = await prisma.extractionResultFlat.findMany({
-            where: {
-                ...baseWhere
-            },
-            select: {
-                id: true,
-                articleDescription: true,
-                // All fields used by buildArticleDescription
-                yarn1: true,
-                weave: true,
-                mFab2: true,
-                fabricMainMvgr: true,
-                lycra: true,
-                neck: true,
-                sleeve: true,
-                fatherBelt: true,
-                fit: true,
-                pattern: true,
-                length: true,
-                printType: true,
-                printPlacement: true,
-                printStyle: true,
-                embroidery: true,
-                pocketType: true,
-                vendorCode: true,
-                designNumber: true,
-                size: true,
-                // Extra fields fetched but not part of description formula
-                yarn2: true,
-                composition: true,
-                finish: true,
-                gsm: true,
-                shade: true,
-                neckDetails: true,
-                collar: true,
-                placket: true,
-                bottomFold: true,
-                frontOpenStyle: true,
-                drawcord: true,
-                button: true,
-                zipper: true,
-                zipColour: true,
-                patches: true,
-                patchesType: true,
-                embroideryType: true,
-                wash: true,
-                childBelt: true
-            },
-            take: ApproverController.STARTUP_BACKFILL_BATCH_SIZE
-        });
-
-        if (rows.length === 0) return 0;
-
-        const idsByDescription = new Map<string, string[]>();
-        const idsToNull: string[] = [];
-
-        for (const row of rows) {
-            const computedDescription = buildArticleDescription(row as any);
-            const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
-
-            if ((computedDescription || null) === (currentDescription || null)) {
-                continue;
-            }
-
-            if (!computedDescription) {
-                idsToNull.push(row.id);
-                continue;
-            }
-
-            const ids = idsByDescription.get(computedDescription) || [];
-            ids.push(row.id);
-            idsByDescription.set(computedDescription, ids);
-        }
-
-        const updates = Array.from(idsByDescription.entries()).map(([articleDescription, ids]) =>
-            prisma.extractionResultFlat.updateMany({
-                where: { id: { in: ids } },
-                data: { articleDescription }
-            })
-        );
-
-        if (idsToNull.length > 0) {
-            updates.push(
-                prisma.extractionResultFlat.updateMany({
-                    where: { id: { in: idsToNull } },
-                    data: { articleDescription: null }
-                })
-            );
-        }
-
-        if (updates.length === 0) return 0;
+        const BATCH = 500;
+        const DESC_FIELDS = {
+            id: true,
+            articleDescription: true,
+            fabDiv: true, yarn1: true, fabricMainMvgr: true, weave: true, mFab2: true,
+            lycra: true, neck: true, collar: true, sleeve: true, sleeveFold: true,
+            pocketType: true, childBelt: true, length: true,
+            fit: true, pattern: true, printType: true, embroideryType: true,
+            embroidery: true, wash: true,
+        } as const;
 
         let total = 0;
-        for (const update of updates) {
-            const result = await update;
-            total += result.count;
+        let cursor: string | undefined;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const rows = await prisma.extractionResultFlat.findMany({
+                where: { ...baseWhere },
+                select: DESC_FIELDS,
+                orderBy: { id: 'asc' },
+                take: BATCH,
+                ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            });
+
+            if (rows.length === 0) break;
+            cursor = rows[rows.length - 1].id;
+
+            const idsByDescription = new Map<string, string[]>();
+            const idsToNull: string[] = [];
+
+            for (const row of rows) {
+                const computedDescription = buildArticleDescription(row as any, 40, {
+                    excludeFields: await getExcludedDescriptionFields((row as any).majorCategory) as any,
+                });
+                const currentDescription = row.articleDescription ? String(row.articleDescription).trim() : null;
+
+                if ((computedDescription || null) === (currentDescription || null)) continue;
+
+                if (!computedDescription) {
+                    idsToNull.push(row.id);
+                    continue;
+                }
+
+                const ids = idsByDescription.get(computedDescription) || [];
+                ids.push(row.id);
+                idsByDescription.set(computedDescription, ids);
+            }
+
+            const updates = Array.from(idsByDescription.entries()).map(([articleDescription, ids]) =>
+                prisma.extractionResultFlat.updateMany({ where: { id: { in: ids } }, data: { articleDescription } })
+            );
+
+            if (idsToNull.length > 0) {
+                updates.push(
+                    prisma.extractionResultFlat.updateMany({ where: { id: { in: idsToNull } }, data: { articleDescription: null } })
+                );
+            }
+
+            for (const update of updates) {
+                const result = await update;
+                total += result.count;
+            }
+
+            if (rows.length < BATCH) break; // last page
         }
+
         return total;
     }
 
@@ -471,10 +473,29 @@ export class ApproverController {
         }
     }
 
+    // Backfill isGeneric=true for SRM records that were created before the fix.
+    // SRM articles are always standalone generics — they should never be variants.
+    private static async backfillSrmIsGeneric(): Promise<number> {
+        const result = await prisma.extractionResultFlat.updateMany({
+            where: {
+                source: 'SRM',
+                isGeneric: false
+            },
+            data: { isGeneric: true }
+        });
+        if (result.count > 0) {
+            console.log(`[Backfill] Set isGeneric=true for ${result.count} SRM records`);
+        }
+        return result.count;
+    }
+
     // Backfill variantColor (and colour) for existing size variants that are missing them.
     // Looks up each variant's generic article and copies its colour.
+    // Capped at STARTUP_BACKFILL_BATCH_SIZE rows per run to avoid holding DB connections
+    // for minutes and starving normal user requests.
     private static async backfillVariantColors(): Promise<number> {
-        // Find all non-generic variants that are missing variantColor OR colour
+        // Limit rows fetched per startup run — prevents the N individual updates from
+        // holding all pooled DB connections for 10–15 min on large datasets.
         const variants = await prisma.extractionResultFlat.findMany({
             where: {
                 isGeneric: false,
@@ -484,12 +505,13 @@ export class ApproverController {
                     { colour: null }
                 ]
             },
-            select: { id: true, colour: true, variantColor: true, genericArticleId: true }
+            select: { id: true, colour: true, variantColor: true, genericArticleId: true },
+            take: ApproverController.STARTUP_BACKFILL_BATCH_SIZE
         });
 
         if (variants.length === 0) return 0;
 
-        // Group by genericArticleId to batch generic lookups
+        // Group by genericArticleId to batch the generic lookup into one query
         const genericIds = [...new Set(variants.map(v => v.genericArticleId!))];
         const generics = await prisma.extractionResultFlat.findMany({
             where: { id: { in: genericIds } },
@@ -497,16 +519,28 @@ export class ApproverController {
         });
         const genericColourMap = new Map(generics.map(g => [g.id, g.colour]));
 
-        let count = 0;
+        // Group variants by their resolved colour so we can do one updateMany per colour
+        // instead of one update per row (avoids N individual DB round-trips).
+        const idsByColour = new Map<string, string[]>();
         for (const v of variants) {
             const colour = v.colour || genericColourMap.get(v.genericArticleId!) || null;
-            if (!colour) continue; // skip if neither variant nor generic has colour
-            await prisma.extractionResultFlat.update({
-                where: { id: v.id },
-                data: { variantColor: colour, colour }
-            });
-            count++;
+            if (!colour) continue;
+            const ids = idsByColour.get(colour) || [];
+            ids.push(v.id);
+            idsByColour.set(colour, ids);
         }
+
+        if (idsByColour.size === 0) return 0;
+
+        const updates = Array.from(idsByColour.entries()).map(([colour, ids]) =>
+            prisma.extractionResultFlat.updateMany({
+                where: { id: { in: ids } },
+                data: { variantColor: colour, colour }
+            })
+        );
+
+        const results = await Promise.all(updates);
+        const count = results.reduce((sum, r) => sum + r.count, 0);
         console.log(`[Backfill] Fixed variantColor for ${count} variant rows`);
         return count;
     }
@@ -530,13 +564,18 @@ export class ApproverController {
         ApproverController.startupBackfillRunning = true;
 
         const run = async () => {
+            // Small delay between each step so normal user requests can acquire a
+            // DB connection without competing with the backfill the entire time.
+            const pause = () => new Promise<void>(resolve => setTimeout(resolve, 2_000));
             try {
-                await ApproverController.backfillMissingMcCodes({});
-                await ApproverController.backfillMissingHsnCodes({});
-                await ApproverController.backfillMissingSegments({});
-                await ApproverController.backfillMissingYears({});
-                await ApproverController.backfillMissingSeasonCodes({});
-                await ApproverController.refreshArticleDescriptions({});
+                await ApproverController.backfillSrmIsGeneric(); await pause();
+                await ApproverController.backfillMissingMcCodes({}); await pause();
+                await ApproverController.backfillMissingHsnCodes({}); await pause();
+                await ApproverController.backfillMissingSegments({}); await pause();
+                await ApproverController.backfillMissingYears({}); await pause();
+                await ApproverController.backfillMissingSeasonCodes({}); await pause();
+                // Article description backfill disabled — new formula applied to new articles only
+                // await ApproverController.refreshArticleDescriptions({}); await pause();
                 await ApproverController.backfillVariantColors();
                 console.log('✅ Startup backfills completed');
             } catch (err: any) {
@@ -545,197 +584,119 @@ export class ApproverController {
                 ApproverController.startupBackfillRunning = false;
             }
         };
-        // Warm caches early (5s after start) so the first real request hits a warm cache.
-        setTimeout(() => {
-            void ApproverController.getOldArticleIds().catch(() => {});
-        }, 5_000);
-
         // Delay heavier startup backfills so the first page load is not competing for DB sessions.
         setTimeout(() => { void run(); }, ApproverController.STARTUP_BACKFILL_DELAY_MS);
     }
 
     // Get items for approver dashboard
     // Filters: approvalStatus (default: PENDING), division, date range, search
-    // Unique folder-name markers that identify "OLD ARTICLES" paths.
-    // Using contains (no backslashes) instead of startsWith to avoid PostgreSQL LIKE escape issues.
-    private static readonly OLD_PATH_MARKERS = [
-        'PIC-LADIES-LESS THAN 180',
-        'PIC-KIDS-LESS THAN 180',
-        'PIC-MENS-LESS THAN 180',
-    ];
-
-    /**
-     * Returns IDs of articles whose articleNumber OR imageName is a 10-digit numeric string
-     * (e.g. "1130153330" or "1130153330.jpg"). These are treated as OLD articles regardless
-     * of their imageUncPath, because they already have a pre-existing SAP article number.
-     */
-    private static async getNumericOldArticleIds(): Promise<string[]> {
-        const cached = ApproverController.numericOldArticleIdsCache;
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.ids;
-        }
-
-        if (ApproverController.pendingNumericOldArticleIdsLoad) {
-            return ApproverController.pendingNumericOldArticleIdsLoad;
-        }
-
-        // Only PENDING articles with 10-digit numeric names are routed to Old Articles.
-        // NOTE: Do NOT wrap in prisma.$transaction — SET LOCAL does not persist across statements
-        // in PgBouncer transaction mode (each statement may hit a different backend connection).
-        // Use a plain $queryRaw so the Prisma transaction timeout cannot block concurrent requests.
-        const loadPromise = prisma.$queryRaw<{ id: string }[]>`
-            SELECT id FROM extraction_results_flat
-            WHERE approval_status = 'PENDING'
-              AND (
-                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
-                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
-              )
-        `.then((rows) => {
-            const ids = rows.map(r => r.id);
-            ApproverController.numericOldArticleIdsCache = {
-                ids,
-                expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
-            };
-            return ids;
-        }).catch((err) => {
-            // On timeout/error, return empty array so the main query still runs.
-            // The ILIKE-based old-path detection still works; only numeric IDs are missed temporarily.
-            console.error('[ApproverController] getNumericOldArticleIds failed, using empty fallback:', err?.message);
-            return [] as string[];
-        }).finally(() => {
-            ApproverController.pendingNumericOldArticleIdsLoad = null;
-        });
-
-        ApproverController.pendingNumericOldArticleIdsLoad = loadPromise;
-        return loadPromise;
-    }
-
-    /**
-     * Returns ALL "old" article IDs: those whose imageUncPath contains an old-path marker,
-     * PLUS those with a 10-digit numeric article/image name.
-     *
-     * Cached for 30 minutes. On error, returns [] so the caller degrades gracefully.
-     *
-     * This cache is the key optimisation: by resolving "old vs new" to a set of IDs once,
-     * the main getItems query can use  WHERE id IN (...)  or  WHERE id NOT IN (...)
-     * instead of  ILIKE '%marker%'  on every request, avoiding full table scans.
-     */
-    private static async getOldArticleIds(): Promise<string[]> {
-        const cached = ApproverController.oldArticleIdsCache;
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.ids;
-        }
-
-        if (ApproverController.pendingOldArticleIdsLoad) {
-            return ApproverController.pendingOldArticleIdsLoad;
-        }
-
-        const markers = ApproverController.OLD_PATH_MARKERS;
-
-        // Build the ILIKE conditions as a raw SQL OR chain.
-        // Also include numeric-name articles (PENDING only, using index on approval_status).
-        const loadPromise = prisma.$queryRaw<{ id: string }[]>`
-            SELECT id FROM extraction_results_flat
-            WHERE image_unc_path ILIKE ${'%' + markers[0] + '%'}
-               OR image_unc_path ILIKE ${'%' + markers[1] + '%'}
-               OR image_unc_path ILIKE ${'%' + markers[2] + '%'}
-            UNION
-            SELECT id FROM extraction_results_flat
-            WHERE approval_status = 'PENDING'
-              AND (
-                (char_length(article_number) = 10 AND article_number ~ '^[0-9]{10}$')
-                OR (char_length(image_name) >= 10 AND image_name ~ '^[0-9]{10}(\.[a-zA-Z0-9]+)?$')
-              )
-        `.then((rows) => {
-            const ids = rows.map(r => r.id);
-            ApproverController.oldArticleIdsCache = {
-                ids,
-                expiresAt: Date.now() + ApproverController.NUMERIC_OLD_ARTICLES_CACHE_TTL_MS
-            };
-            return ids;
-        }).catch((err) => {
-            console.error('[ApproverController] getOldArticleIds failed, using empty fallback:', err?.message);
-            return [] as string[];
-        }).finally(() => {
-            ApproverController.pendingOldArticleIdsLoad = null;
-        });
-
-        ApproverController.pendingOldArticleIdsLoad = loadPromise;
-        return loadPromise;
-    }
+    //
+    // "Old article" classification (old-path folder markers + 10-digit numeric SAP ids,
+    // PENDING-gated) is now persisted in the `is_old_article` column and maintained by the
+    // DB trigger trg_set_is_old_article. The old runtime ILIKE+regex scan and the cached
+    // ID-set helpers (getOldArticleIds / getNumericOldArticleIds) have been removed — the
+    // queries below just filter on `isOldArticle`.
 
     static async getItems(req: Request, res: Response) {
         try {
-            const { status, division, subDivision, startDate, endDate, search, page = 1, limit = 50, pathType } = req.query;
+            const { status, division, subDivision, majorCategory, startDate, endDate, search, page = 1, limit = 50, pathType, source } = req.query;
 
             // ── Response cache (8 s TTL) ───────────────────────────────────────────
             // Key includes all query params + user scope so different users/filters
             // never share a cached response.
             const role = String(req.user?.role || '');
+            // ADMIN, PO_COMMITTEE and PD are unscoped — they see/act across all divisions.
+            const isUnscoped = role === 'ADMIN' || role === 'PO_COMMITTEE' || role === 'PD';
             const cacheKey = JSON.stringify({
                 role,
-                userId: role !== 'ADMIN' ? req.user?.id : undefined,
-                userDiv: role !== 'ADMIN' ? req.user?.division : undefined,
-                userSubDiv: role !== 'ADMIN' ? req.user?.subDivision : undefined,
-                status, division, subDivision, startDate, endDate, search, page, limit, pathType,
+                userId: !isUnscoped ? req.user?.id : undefined,
+                userDiv: !isUnscoped ? req.user?.division : undefined,
+                userSubDiv: !isUnscoped ? req.user?.subDivision : undefined,
+                status, division, subDivision, majorCategory, startDate, endDate, search, page, limit, pathType, source,
             });
             const cached = ApproverController.itemsCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
                 return res.json(cached.data);
             }
-            // Evict expired entries periodically (keep map small)
-            if (ApproverController.itemsCache.size > 200) {
-                const now = Date.now();
-                for (const [k, v] of ApproverController.itemsCache) {
-                    if (v.expiresAt <= now) ApproverController.itemsCache.delete(k);
-                }
+            // Evict oldest entries when cache is full (hard cap prevents unbounded growth)
+            if (ApproverController.itemsCache.size >= ApproverController.ITEMS_CACHE_MAX) {
+                const firstKey = ApproverController.itemsCache.keys().next().value;
+                if (firstKey !== undefined) ApproverController.itemsCache.delete(firstKey);
             }
 
             const where: any = {};
 
+            // SRM records are cross-divisional presentations — bypass scope so any authenticated
+            // user can see them regardless of their assigned division.
+            const bypassScope = source === 'SRM';
+
             // RBAC: Enforce scope by role
-            if (role === 'ADMIN') {
-                // Admins can filter freely
-                if (division && division !== 'ALL') where.division = division as string;
-                if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
-            } else {
-                ApproverController.applyApproverScope(where, req.user);
-            }
-
-            // Path-type filter — NON-BLOCKING.
-            // Read old IDs only if the cache is already warm (instant).
-            // If the cache is cold, kick off a background load and skip the old/new split
-            // so this request returns immediately. The next request (after ~5s) will have
-            // the warm cache and apply the filter correctly.
-            if (pathType === 'old' || pathType === 'new') {
-                const cachedOld = ApproverController.oldArticleIdsCache;
-                const oldIds = (cachedOld && cachedOld.expiresAt > Date.now()) ? cachedOld.ids : null;
-
-                if (oldIds === null) {
-                    // Cache cold — fire background warm, skip old/new split this request.
-                    void ApproverController.getOldArticleIds();
+            if (!bypassScope) {
+                if (isUnscoped) {
+                    // ADMIN / PO_COMMITTEE can filter freely — use case-insensitive variant
+                    // matching so "MEN" matches both "MEN" and "MENS" stored values.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
                 } else {
-                    where.AND = where.AND || [];
-                    if (pathType === 'old') {
-                        where.AND.push({ id: { in: oldIds.length > 0 ? oldIds : [] } });
-                    } else {
-                        if (oldIds.length > 0) where.AND.push({ id: { notIn: oldIds } });
+                    // Apply profile-based scope first (division + subDivision from user record)
+                    ApproverController.applyApproverScope(where, req.user);
+
+                    // Then narrow by the dropdown filters the user explicitly selected.
+                    // These AND on top of the scope — they can only narrow, never expand.
+                    if (division && division !== 'ALL') {
+                        const divVariants = ApproverController.getDivisionVariants(division as string);
+                        if (divVariants.length > 0) {
+                            where.AND = where.AND || [];
+                            where.AND.push({
+                                OR: divVariants.map(v => ({ division: { equals: v, mode: 'insensitive' } }))
+                            });
+                        }
+                    }
+                    if (subDivision && subDivision !== 'ALL') {
+                        where.AND = where.AND || [];
+                        where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
                     }
                 }
+            }
 
-                if (pathType === 'new') {
-                    where.AND = where.AND || [];
-                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
-                }
+            // Path-type filter — backed by the persistent `is_old_article` column
+            // (maintained by the DB trigger trg_set_is_old_article). This replaces the
+            // old runtime ILIKE+regex scan and the ~25k-row IN/NOT IN list that was
+            // shipped to Postgres on every request — the root cause of Disk IO blowout.
+            // The column's value is computed by the SAME formula as the legacy
+            // getOldArticleIds, so the old/new/created tab contents are unchanged.
+            if (pathType === 'old') {
+                where.isOldArticle = true;
+            } else if (pathType === 'new') {
+                // Approver queue: PENDING articles not yet sent to PD, excluding old-path.
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.PENDING;
+                where.isOldArticle = false;
+            } else if (pathType === 'pd') {
+                // PD queue: approver has sent it (pdStatus=COMPLETED) but it's not yet
+                // approved/created in SAP. Admin + PD only (route-guarded on the frontend).
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.COMPLETED;
+                where.isOldArticle = false;
             } else if (pathType === 'rejected') {
-                where.AND = where.AND || [];
-                where.AND.push({ approvalStatus: ApprovalStatus.REJECTED });
+                where.approvalStatus = ApprovalStatus.REJECTED;
+            } else if (pathType === 'created') {
+                where.approvalStatus = ApprovalStatus.APPROVED;
+                where.isOldArticle = false;
             }
 
             // Status Filtering (Multi-select support)
             // Supports virtual FAILED status mapped from sapSyncStatus=FAILED.
-            // Skip status filter when pathType forces a specific status (rejected view).
-            if (status && status !== 'ALL' && pathType !== 'rejected') {
+            // Skip status filter when pathType already forces a specific status.
+            if (status && status !== 'ALL' && !pathType) {
                 const requestedStatuses = (status as string)
                     .split(',')
                     .map(s => String(s || '').trim().toUpperCase())
@@ -770,67 +731,81 @@ export class ApproverController {
             }
 
             // Date Range Filtering
+            // Created Articles tab filters by approvedAt (when the article was actually approved);
+            // every other tab filters by createdAt (when the article was first extracted).
             if (startDate && endDate) {
-                where.createdAt = {
+                const dateField = pathType === 'created' ? 'approvedAt' : 'createdAt';
+                (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
                 };
             }
 
-            // Text Search
+            // Text Search — pushed into AND so it never overrides path/status filters
             if (search) {
                 const searchTerm = search as string;
-                where.OR = [
-                    { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { designNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { vendorName: { contains: searchTerm, mode: 'insensitive' } },
-                    { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } }
-                ];
+                where.AND = where.AND || [];
+                where.AND.push({
+                    OR: [
+                        { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { designNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorCode: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorName: { contains: searchTerm, mode: 'insensitive' } },
+                        { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                    ],
+                });
             }
+
+            // Major category filter
+            if (majorCategory) where.majorCategory = majorCategory as string;
+
+            // Source filter — 'SRM', 'WATCHER', 'USER', or omitted for all
+            if (source && source !== 'ALL') where.source = source as string;
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
 
+            // Exclude orphaned records with empty imageUrl (old import artifacts, source=null)
+            where.imageUrl = { not: '' };
+
+            // SRM extraction gate: hide SRM records while Gemini is still running.
+            // Show when: (a) not SRM, (b) SRM + COMPLETED, (c) SRM + SRM_IMPORT for >30min (Gemini gave up).
+            // This prevents a race condition where an approver edits a field that Gemini later overwrites.
+            const srmGateTime = new Date(Date.now() - 30 * 60 * 1000);
+            where.AND = where.AND || [];
+            where.AND.push({
+                OR: [
+                    { source: { not: 'SRM' } },
+                    { source: null },
+                    { source: 'SRM', extractionStatus: { not: 'SRM_IMPORT' } },
+                    { source: 'SRM', extractionStatus: 'SRM_IMPORT', createdAt: { lt: srmGateTime } },
+                ]
+            });
+
             const skip = (Number(page) - 1) * Number(limit);
 
-            // ── Count: NEVER block the response on it ─────────────────────────────
-            // COUNT(*) is a full table scan — it starves the connection pool under
-            // concurrent load. Strategy: serve a cached value instantly; if nothing
-            // is cached yet, kick off a background query and return a best-effort
-            // estimate so this response goes out immediately using only ONE connection.
+            // ── Count: serve from cache instantly; fetch synchronously on cache miss ──
+            // On the first request for a given filter, run COUNT and findMany in parallel
+            // so the response always shows the real total (not a placeholder).
+            // The 60-second cache means subsequent requests pay no extra cost.
             const whereKey = JSON.stringify(where);
             const cachedCount = ApproverController.countCache.get(whereKey);
             let total: number;
-            if (cachedCount && cachedCount.expiresAt > Date.now()) {
-                total = cachedCount.value;
-            } else {
-                // Placeholder while background count runs: just enough to show the
-                // NEXT page button. Real total arrives before user reaches page 2.
-                // Will be corrected after findMany (last-page detection below).
-                total = skip + Number(limit) + 1;
-                void prisma.extractionResultFlat.count({ where }).then((n) => {
-                    ApproverController.countCache.set(whereKey, {
-                        value: n,
-                        expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
-                    });
-                    // Also bust the response cache so the next load shows the real total.
-                    ApproverController.itemsCache.clear();
-                    if (ApproverController.countCache.size > 500) {
-                        const now = Date.now();
-                        for (const [k, v] of ApproverController.countCache) {
-                            if (v.expiresAt <= now) ApproverController.countCache.delete(k);
-                        }
-                    }
-                }).catch(() => { /* non-critical */ });
-            }
 
-            // Only ONE connection used: just the findMany (LIMIT 50).
-            const items = await prisma.extractionResultFlat.findMany({
+            // Created tab is ordered by approvedAt (most-recently-approved first) so a
+            // freshly-created SAP article appears at the top — consistent with the
+            // Created tab's approvedAt date filter/export/card date. NULLs (older
+            // approvals without a timestamp) sort last. Every other tab uses createdAt.
+            const orderBy = pathType === 'created'
+                ? ({ approvedAt: { sort: 'desc', nulls: 'last' } } as const)
+                : ({ createdAt: 'desc' } as const);
+
+            const findManyArgs = {
                 where,
                 skip,
                 take: Number(limit),
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 select: {
                     id: true,
                     imageName: true,
@@ -847,6 +822,7 @@ export class ApproverController {
                     referenceArticleNumber: true,
                     referenceArticleDescription: true,
                     approvalStatus: true,
+                    approvedAt: true,
                     sapSyncStatus: true,
                     sapSyncMessage: true,
                     sapArticleId: true,
@@ -864,12 +840,16 @@ export class ApproverController {
                     neck: true,
                     neckDetails: true,
                     sleeve: true,
+                    sleeveFold: true,
                     length: true,
                     collar: true,
+                    collarStyle: true,
                     placket: true,
                     bottomFold: true,
                     frontOpenStyle: true,
                     pocketType: true,
+                    noOfPocket: true,
+                    extraPocket: true,
                     composition: true,
                     gsm: true,
                     weight: true,
@@ -882,9 +862,16 @@ export class ApproverController {
                     macroMvgr: true,
                     mainMvgr: true,
                     mFab2: true,
+                    fabDiv: true,
+                    fCount: true,
+                    fConstruction: true,
+                    fOunce: true,
+                    fWidth: true,
                     wash: true,
                     drawcord: true,
+                    dcShape: true,
                     button: true,
+                    btnColour: true,
                     zipper: true,
                     zipColour: true,
                     fatherBelt: true,
@@ -896,7 +883,14 @@ export class ApproverController {
                     patchesType: true,
                     embroidery: true,
                     embroideryType: true,
+                    embPlacement: true,
+                    htrfType: true,
+                    htrfStyle: true,
+                    ageGroup: true,
+                    articleFashionType: true,
+                    articleDimension: true,
                     mcCode: true,
+                    impAtrbt2: true,
                     segment: true,
                     season: true,
                     hsnTaxCode: true,
@@ -904,12 +898,45 @@ export class ApproverController {
                     fashionGrid: true,
                     year: true,
                     articleType: true,
+                    // Article reference fields
+                    bodyArticle: true,
+                    bodyArticleDescription: true,
+                    fabricArticleNumber: true,
+                    fabricArticleDescription: true,
+                    attrArticleNums: true,
+                    // Brand vendor MVGR
+                    mvgrBrandVendor: true,
                     isGeneric: true,
                     genericArticleId: true,
                     variantSize: true,
                     variantColor: true,
                 }
-            });
+            };
+
+            let items: any[];
+            if (cachedCount && cachedCount.expiresAt > Date.now()) {
+                // Cache hit — total is known; only one DB query needed
+                total = cachedCount.value;
+                items = await prisma.extractionResultFlat.findMany(findManyArgs);
+            } else {
+                // Cache miss — run findMany + COUNT in parallel so first load shows real total
+                const [fetchedItems, countResult] = await Promise.all([
+                    prisma.extractionResultFlat.findMany(findManyArgs),
+                    prisma.extractionResultFlat.count({ where }),
+                ]);
+                items = fetchedItems;
+                total = countResult;
+                ApproverController.countCache.set(whereKey, {
+                    value: total,
+                    expiresAt: Date.now() + ApproverController.COUNT_CACHE_TTL_MS,
+                });
+                // Hard cap — evict oldest entry when full
+                if (ApproverController.countCache.size >= ApproverController.COUNT_CACHE_MAX) {
+                    const firstKey = ApproverController.countCache.keys().next().value;
+                    if (firstKey !== undefined) ApproverController.countCache.delete(firstKey);
+                }
+            }
+
             // Last-page detection: if fewer rows returned than limit, we know the exact total.
             if (items.length < Number(limit)) {
                 total = skip + items.length;
@@ -932,9 +959,11 @@ export class ApproverController {
                 data: responseBody,
                 expiresAt: Date.now() + ApproverController.ITEMS_CACHE_TTL_MS,
             });
+            if (res.headersSent) return; // timeout fired while we were querying
             return res.json(responseBody);
         } catch (error) {
             console.error('Error fetching approver items:', error);
+            if (res.headersSent) return; // timeout fired before catch ran
             return res.status(500).json({ error: 'Failed to fetch items' });
         }
     }
@@ -942,38 +971,57 @@ export class ApproverController {
     // Export ALL items matching current filters (no pagination) — used for bulk Excel download
     static async exportAll(req: Request, res: Response) {
         try {
-            const { status, division, subDivision, startDate, endDate, search, pathType } = req.query;
+            const { status, division, subDivision, majorCategory, startDate, endDate, search, pathType } = req.query;
 
             const where: any = {};
 
-            // RBAC
+            // RBAC — ADMIN, PO_COMMITTEE and PD are unscoped (all divisions).
             const role = String(req.user?.role || '');
-            if (role === 'ADMIN') {
-                if (division && division !== 'ALL') where.division = division as string;
-                if (subDivision && subDivision !== 'ALL') where.subDivision = subDivision as string;
+            if (role === 'ADMIN' || role === 'PO_COMMITTEE' || role === 'PD') {
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') where.subDivision = { equals: subDivision as string, mode: 'insensitive' };
             } else {
+                // Apply profile-based scope first, then narrow by dropdown filters
                 ApproverController.applyApproverScope(where, req.user);
+                if (division && division !== 'ALL') {
+                    const divVariants = ApproverController.getDivisionVariants(division as string);
+                    if (divVariants.length > 0) {
+                        where.AND = where.AND || [];
+                        where.AND.push({
+                            OR: divVariants.map((v: string) => ({ division: { equals: v, mode: 'insensitive' } }))
+                        });
+                    }
+                }
+                if (subDivision && subDivision !== 'ALL') {
+                    where.AND = where.AND || [];
+                    where.AND.push({ subDivision: { equals: subDivision as string, mode: 'insensitive' } });
+                }
             }
 
-            // Path-type filter — same cached-ID approach as getItems to avoid ILIKE scans.
+            // Path-type filter — backed by the persistent `is_old_article` column
+            // (see getItems for rationale). No ILIKE scan, no giant IN/NOT IN list.
             console.log(`[ApproverController] exportAll pathType=${pathType ?? 'none'}`);
-            if (pathType === 'old' || pathType === 'new') {
-                const oldIds = await ApproverController.getOldArticleIds();
-
-                where.AND = where.AND || [];
-                if (pathType === 'old') {
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { in: oldIds } });
-                    } else {
-                        // Same as getItems: no ILIKE fallback — return empty to prevent timeout loops.
-                        where.AND.push({ id: { in: [] } });
-                    }
-                } else {
-                    if (oldIds.length > 0) {
-                        where.AND.push({ id: { notIn: oldIds } });
-                    }
-                    where.AND.push({ NOT: { approvalStatus: ApprovalStatus.REJECTED } });
-                }
+            if (pathType === 'old') {
+                where.isOldArticle = true;
+            } else if (pathType === 'new') {
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.PENDING;
+                where.isOldArticle = false;
+            } else if (pathType === 'pd') {
+                where.approvalStatus = ApprovalStatus.PENDING;
+                where.pdStatus = PdStatus.COMPLETED;
+                where.isOldArticle = false;
+            } else if (pathType === 'created') {
+                where.approvalStatus = ApprovalStatus.APPROVED;
+                where.isOldArticle = false;
             }
 
             // Status filter
@@ -1008,37 +1056,160 @@ export class ApproverController {
                 }
             }
 
-            // Date range
+            // Date range — mirror getItems(): Created tab filters by approvedAt, every other
+            // tab by createdAt. The export's date column uses the matching field per tab.
             if (startDate && endDate) {
-                where.createdAt = {
+                const dateField = pathType === 'created' ? 'approvedAt' : 'createdAt';
+                (where as any)[dateField] = {
                     gte: new Date(startDate as string),
                     lte: new Date(endDate as string)
                 };
             }
 
-            // Text search
+            // Text search — pushed into AND so it never overrides path/status filters
             if (search) {
                 const searchTerm = search as string;
-                where.OR = [
-                    { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { designNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { vendorName: { contains: searchTerm, mode: 'insensitive' } },
-                    { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
-                    { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } }
-                ];
+                where.AND = where.AND || [];
+                where.AND.push({
+                    OR: [
+                        { articleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { designNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorCode: { contains: searchTerm, mode: 'insensitive' } },
+                        { vendorName: { contains: searchTerm, mode: 'insensitive' } },
+                        { pptNumber: { contains: searchTerm, mode: 'insensitive' } },
+                        { referenceArticleNumber: { contains: searchTerm, mode: 'insensitive' } },
+                    ],
+                });
             }
 
-            // Fetch ALL matching rows (no skip/take) ordered by createdAt desc
+            // Major category filter
+            if (majorCategory) where.majorCategory = majorCategory as string;
+
+            // Only generic articles (variants are sub-rows, not top-level exports)
+            where.isGeneric = true;
+            where.imageUrl = { not: '' };
+
+            // Same SRM extraction gate as getItems
+            const srmGateTimeExport = new Date(Date.now() - 30 * 60 * 1000);
+            where.AND = where.AND || [];
+            where.AND.push({
+                OR: [
+                    { source: { not: 'SRM' } },
+                    { source: null },
+                    { source: 'SRM', extractionStatus: { not: 'SRM_IMPORT' } },
+                    { source: 'SRM', extractionStatus: 'SRM_IMPORT', createdAt: { lt: srmGateTimeExport } },
+                ]
+            });
+
+            // No row cap — select only the ~55 fields the frontend export uses.
+            // The narrow select keeps each row small enough that even 50k+ rows stays well
+            // under the heap limit (vs. fetching all 100+ columns which caused OOM).
             const items = await prisma.extractionResultFlat.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy: pathType === 'created'
+                    ? ({ approvedAt: { sort: 'desc', nulls: 'last' } } as const)
+                    : ({ createdAt: 'desc' } as const),
+                select: {
+                    id: true,
+                    articleNumber: true,
+                    imageName: true,
+                    division: true,
+                    subDivision: true,
+                    majorCategory: true,
+                    approvalStatus: true,
+                    vendorName: true,
+                    vendorCode: true,
+                    designNumber: true,
+                    pptNumber: true,
+                    rate: true,
+                    mrp: true,
+                    size: true,
+                    pattern: true,
+                    fit: true,
+                    wash: true,
+                    macroMvgr: true,
+                    mainMvgr: true,
+                    yarn1: true,
+                    fabricMainMvgr: true,
+                    weave: true,
+                    mFab2: true,
+                    composition: true,
+                    finish: true,
+                    gsm: true,
+                    weight: true,
+                    lycra: true,
+                    shade: true,
+                    neck: true,
+                    neckDetails: true,
+                    sleeve: true,
+                    length: true,
+                    collar: true,
+                    placket: true,
+                    bottomFold: true,
+                    frontOpenStyle: true,
+                    pocketType: true,
+                    drawcord: true,
+                    button: true,
+                    zipper: true,
+                    zipColour: true,
+                    fatherBelt: true,
+                    childBelt: true,
+                    printType: true,
+                    printStyle: true,
+                    printPlacement: true,
+                    patches: true,
+                    patchesType: true,
+                    embroidery: true,
+                    embroideryType: true,
+                    referenceArticleNumber: true,
+                    referenceArticleDescription: true,
+                    mcCode: true,
+                    segment: true,
+                    season: true,
+                    hsnTaxCode: true,
+                    articleDescription: true,
+                    fashionGrid: true,
+                    year: true,
+                    articleType: true,
+                    userName: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    approvedAt: true,
+                    sapSyncStatus: true,
+                    // BOM
+                    impAtrbt2: true,
+                    // FAB extras
+                    fCount: true,
+                    fConstruction: true,
+                    fOunce: true,
+                    fWidth: true,
+                    fabDiv: true,
+                    // BODY extras
+                    collarStyle: true,
+                    sleeveFold: true,
+                    noOfPocket: true,
+                    extraPocket: true,
+                    // VA ACC extras
+                    dcShape: true,
+                    btnColour: true,
+                    htrfType: true,
+                    htrfStyle: true,
+                    // VA PRCS extras
+                    embPlacement: true,
+                    // BUSINESS extras
+                    ageGroup: true,
+                    articleFashionType: true,
+                    mvgrBrandVendor: true,
+                },
             });
 
             console.log(`[ApproverController] exportAll returning ${items.length} rows`);
 
-            return res.json({ data: items, meta: { total: items.length } });
+            if (res.headersSent) return; // timeout fired while querying
+            return res.json({ data: items, meta: { total: items.length, capped: false } });
         } catch (error) {
             console.error('Error in exportAll:', error);
+            if (res.headersSent) return; // timeout fired before catch ran
             return res.status(500).json({ error: 'Failed to export items' });
         }
     }
@@ -1081,6 +1252,77 @@ export class ApproverController {
         }
     }
 
+    // Fetch a single item by id — used by the detail page on direct URL access
+    static async getById(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const item = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: {
+                    id: true, imageName: true, imageUrl: true, imageUncPath: true,
+                    articleNumber: true, division: true, subDivision: true, majorCategory: true,
+                    vendorName: true, vendorCode: true, designNumber: true, pptNumber: true,
+                    referenceArticleNumber: true, referenceArticleDescription: true,
+                    approvalStatus: true, sapSyncStatus: true, sapSyncMessage: true, sapArticleId: true,
+                    createdAt: true, updatedAt: true, userName: true, source: true,
+                    rate: true, mrp: true, size: true, colour: true,
+                    fabricMainMvgr: true, pattern: true, fit: true, neck: true, neckDetails: true,
+                    sleeve: true, sleeveFold: true, length: true, collar: true, collarStyle: true,
+                    placket: true, bottomFold: true, frontOpenStyle: true, pocketType: true,
+                    noOfPocket: true, extraPocket: true, composition: true, gsm: true, weight: true,
+                    finish: true, shade: true, lycra: true, yarn1: true, yarn2: true, weave: true,
+                    macroMvgr: true, mainMvgr: true, mFab2: true, fabDiv: true,
+                    fCount: true, fConstruction: true, fOunce: true, fWidth: true, wash: true,
+                    drawcord: true, dcShape: true, button: true, btnColour: true,
+                    zipper: true, zipColour: true, fatherBelt: true, childBelt: true,
+                    printType: true, printStyle: true, printPlacement: true,
+                    patches: true, patchesType: true, embroidery: true, embroideryType: true,
+                    embPlacement: true, htrfType: true, htrfStyle: true,
+                    ageGroup: true, articleFashionType: true, articleDimension: true,
+                    mcCode: true, impAtrbt2: true, segment: true, season: true,
+                    hsnTaxCode: true, articleDescription: true, fashionGrid: true,
+                    year: true, articleType: true,
+                    bodyArticle: true, bodyArticleDescription: true,
+                    fabricArticleNumber: true, fabricArticleDescription: true,
+                    attrArticleNums: true, mvgrBrandVendor: true,
+                    isGeneric: true, genericArticleId: true, variantSize: true, variantColor: true,
+                },
+            });
+            if (!item) return res.status(404).json({ error: 'Item not found' });
+            return res.json(item);
+        } catch (error) {
+            console.error('Error fetching item by id:', error);
+            return res.status(500).json({ error: 'Failed to fetch item' });
+        }
+    }
+
+    // Delete a variant (only PENDING variants may be deleted)
+    static async deleteItem(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+
+            const item = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: { approvalStatus: true }
+            });
+            if (!item) return res.status(404).json({ error: 'Variant not found' });
+
+            if (item.approvalStatus !== ApprovalStatus.PENDING) {
+                return res.status(400).json({ error: 'Only PENDING variants can be deleted' });
+            }
+
+            await prisma.extractionResultFlat.delete({ where: { id } });
+
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+
+            return res.json({ success: true });
+        } catch (error) {
+            console.error('Error deleting variant:', error);
+            return res.status(500).json({ error: 'Failed to delete variant' });
+        }
+    }
+
     // Update item details (Edit)
     static async updateItem(req: Request, res: Response) {
         ApproverController.itemsCache.clear();
@@ -1090,27 +1332,10 @@ export class ApproverController {
             const rawData = req.body;
 
             // Whitelist allowed fields to prevent overwriting metadata
-            // and sanitize types
-            const allowedFields = [
-                'articleNumber', 'division', 'subDivision', 'majorCategory', 'vendorName', 'designNumber',
-                'pptNumber', 'rate', 'size', 'yarn1', 'yarn2', 'fabricMainMvgr', 'weave',
-                'composition', 'finish', 'gsm', 'shade', 'weight', 'lycra', 'neck', 'neckDetails',
-                'collar', 'placket', 'sleeve', 'bottomFold', 'frontOpenStyle', 'pocketType',
-                'fit', 'pattern', 'length', 'colour', 'drawcord', 'button', 'zipper',
-                'zipColour', 'printType', 'printStyle', 'printPlacement', 'patches',
-                'patchesType', 'embroidery', 'embroideryType', 'wash', 'fatherBelt', 'childBelt',
-                'referenceArticleNumber', 'referenceArticleDescription',
-                // New business fields
-                'macroMvgr', 'mainMvgr', 'mFab2',
-                'vendorCode', 'mrp', 'mcCode', 'segment', 'season',
-                'hsnTaxCode', 'articleDescription', 'fashionGrid', 'year', 'articleType',
-                // Variant-specific fields
-                'variantColor', 'variantSize'
-            ];
-
+            // and sanitize types (shared with modifyItem via ITEM_UPDATE_ALLOWED_FIELDS)
             const data: any = {};
 
-            for (const field of allowedFields) {
+            for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
                 if (rawData[field] !== undefined) {
                     let value = rawData[field];
 
@@ -1182,45 +1407,67 @@ export class ApproverController {
                     subDivision: true,
                     majorCategory: true,
                     mrp: true,
+                    // Article description fields (47-field sequence)
+                    fabDiv: true,
                     yarn1: true,
-                    yarn2: true,
+                    mainMvgr: true,
                     fabricMainMvgr: true,
                     weave: true,
-                    composition: true,
-                    finish: true,
+                    mFab2: true,
+                    fCount: true,
                     gsm: true,
-                    shade: true,
-                    weight: true,
+                    fOunce: true,
+                    fConstruction: true,
+                    finish: true,
+                    fWidth: true,
                     lycra: true,
                     neck: true,
                     neckDetails: true,
                     collar: true,
-                    placket: true,
+                    collarStyle: true,
                     sleeve: true,
+                    sleeveFold: true,
+                    placket: true,
+                    childBelt: true,
                     bottomFold: true,
-                    frontOpenStyle: true,
                     pocketType: true,
+                    noOfPocket: true,
+                    extraPocket: true,
+                    length: true,
                     fit: true,
                     pattern: true,
-                    length: true,
                     drawcord: true,
-                    button: true,
+                    dcShape: true,
                     zipper: true,
                     zipColour: true,
-                    printType: true,
-                    printStyle: true,
-                    printPlacement: true,
-                    patches: true,
+                    button: true,
+                    btnColour: true,
                     patchesType: true,
+                    patches: true,
+                    htrfStyle: true,
+                    htrfType: true,
+                    printPlacement: true,
+                    printStyle: true,
+                    printType: true,
                     embroidery: true,
                     embroideryType: true,
+                    embPlacement: true,
                     wash: true,
+                    ageGroup: true,
+                    impAtrbt2: true,
+                    // Other fields used for logic/display
+                    macroMvgr: true,
                     fatherBelt: true,
-                    childBelt: true,
+                    yarn2: true,
+                    composition: true,
+                    shade: true,
+                    weight: true,
+                    frontOpenStyle: true,
                     vendorCode: true,
                     season: true,
                     year: true,
-                    isGeneric: true
+                    isGeneric: true,
+                    pdStatus: true
                 }
             });
 
@@ -1234,7 +1481,13 @@ export class ApproverController {
             }
 
             const role = String(req.user?.role || '');
-            if (role === 'APPROVER' || role === 'CATEGORY_HEAD') {
+
+            // Once sent to PD (pdStatus=COMPLETED) the article is locked for the
+            // approver — only PD / ADMIN may edit it from the PD page.
+            if ((existingItem as any).pdStatus === 'COMPLETED' && role !== 'PD' && role !== 'ADMIN') {
+                return res.status(403).json({ error: 'This article has been sent to PD. Only PD or Admin can edit it.' });
+            }
+            if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
                 const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
@@ -1243,7 +1496,8 @@ export class ApproverController {
                 if (userDivisionVariants.length > 0 && !userDivisionVariants.includes(existingDivision)) {
                     return res.status(403).json({ error: 'Access denied: Division mismatch' });
                 }
-                if (role === 'APPROVER' && userSubDivisionVariants.length > 0 && !userSubDivisionVariants.includes(existingSubDivision)) {
+                // Allow update when article has no subDivision yet (null/empty) — same as list query logic
+                if ((role === 'APPROVER' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
                     return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
                 }
             }
@@ -1261,6 +1515,26 @@ export class ApproverController {
 
             const finalMajorCategory = (data.majorCategory !== undefined ? data.majorCategory : existingItem.majorCategory) as string | null;
             const finalMrp = data.mrp !== undefined ? data.mrp : existingItem.mrp;
+
+            // PR1 size guard: when a variant's size is edited, the new size must be
+            // valid for its Major Category (server-side backstop behind the UI dropdown).
+            if (!existingItem.isGeneric && (data.variantSize !== undefined || data.size !== undefined)) {
+                const newSize = String((data.variantSize ?? data.size) ?? '').trim();
+                if (newSize && finalMajorCategory) {
+                    let sizeOk: boolean;
+                    try {
+                        sizeOk = await isSizeAllowed(finalMajorCategory, newSize);
+                    } catch (err: any) {
+                        return res.status(500).json({ error: err?.message || 'Size validation failed' });
+                    }
+                    if (!sizeOk) {
+                        return res.status(422).json({
+                            error: 'INVALID_SIZE_FOR_CATEGORY',
+                            detail: `Size '${newSize}' is not allowed for category '${finalMajorCategory}'.`,
+                        });
+                    }
+                }
+            }
 
             // Recalculate segment whenever MRP or majorCategory changes.
             // MRP is manually editable, so never hard-block the save — just set segment to null if out of range.
@@ -1289,26 +1563,30 @@ export class ApproverController {
 
             // Article Description: merge ordered attribute values with '-' separator,
             // max 40 chars, starting from yarn1 and skipping empty values.
+            // collar is only included when it is visible in the article card for this major category.
             const descriptionSource: any = {};
             for (const field of ARTICLE_DESCRIPTION_SOURCE_FIELDS) {
                 descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
             }
-            data.articleDescription = buildArticleDescription(descriptionSource);
+            const majCatForDescCheck = data.majorCategory ?? (existingItem as any).majorCategory;
+            data.articleDescription = buildArticleDescription(descriptionSource, 40, {
+                excludeFields: await getExcludedDescriptionFields(majCatForDescCheck) as any,
+            });
 
             const updated = await prisma.extractionResultFlat.update({
                 where: { id },
                 data
             });
 
-            // Only sync mcCode/hsnTaxCode across rows when majorCategory actually changed.
-            if (data.majorCategory !== undefined && data.majorCategory !== existingItem.majorCategory && updated.majorCategory) {
-                const expectedMcCode = getMcCodeByMajorCategory(updated.majorCategory) || null;
-                const expectedHsnCode = getHsnCodeByMcCode(expectedMcCode) || null;
-                void prisma.extractionResultFlat.updateMany({
-                    where: { majorCategory: updated.majorCategory },
-                    data: { mcCode: expectedMcCode, hsnTaxCode: expectedHsnCode }
-                });
-            }
+            // Mirror to 360article.article_360_flat (fire-and-forget)
+            void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] update failed:', err?.message));
+
+            // NOTE: We intentionally update ONLY this edited row. The correct
+            // mcCode/hsnTaxCode for the new majorCategory are already applied to
+            // this row above (data.mcCode / data.hsnTaxCode) and saved via the
+            // single-row update. We do NOT propagate to every other article in
+            // the category — that previously re-stamped the whole category (incl.
+            // approved/SAP-synced rows) and bumped their updated_at en masse.
 
             // If variantColor was updated on a non-generic, sync colour field too
             if (!existingItem.isGeneric && data.variantColor !== undefined) {
@@ -1321,7 +1599,7 @@ export class ApproverController {
 
             // If this is a generic article being updated, sync changes to variants (fire-and-forget)
             if (existingItem.isGeneric) {
-                void syncGenericToVariants(existingItem.id, data);
+                void syncGenericToVariants(existingItem.id, data).catch((err: any) => console.error('[syncGenericToVariants] failed:', err?.message));
             }
 
             return res.json(updated);
@@ -1331,7 +1609,177 @@ export class ApproverController {
         }
     }
 
+    // Modify an already-created (SAP-synced) article.
+    //
+    // Flow: build the SAP `Changes` payload from the edited fields → call the
+    // SAP patch-bulk API → ONLY if SAP applies them successfully, persist the
+    // same fields to our local DB. If SAP rejects, the DB is left untouched and
+    // the SAP error is returned so the user can fix the value and retry.
+    //
+    // Unlike updateItem, this is allowed on APPROVED articles (that is the whole
+    // point — Created Articles are APPROVED + SAP-synced).
+    static async modifyItem(req: Request, res: Response) {
+        ApproverController.itemsCache.clear();
+        ApproverController.countCache.clear();
+        try {
+            const { id } = req.params;
+            const changes = req.body?.changes;
+
+            if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
+                return res.status(400).json({ error: 'No changes provided' });
+            }
+
+            // Whitelist + coerce the incoming fields (mirrors updateItem).
+            const data: any = {};
+            for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
+                if (changes[field] === undefined) continue;
+                let value = changes[field];
+                if (field === 'rate' || field === 'mrp') {
+                    value = value === '' || value === null || value === undefined ? null : parseNumericValue(value);
+                } else if (field === 'weight') {
+                    value = ApproverController.extractNumericWeight(value);
+                } else if (field === 'vendorCode') {
+                    if (!hasVendorCode(value) || !isValidVendorCode(value)) {
+                        return res.status(400).json({ error: 'Vendor Code is required and must be exactly 6 digits.' });
+                    }
+                    value = normalizeVendorCode(value);
+                } else if (value === '') {
+                    value = null;
+                }
+                data[field] = value;
+            }
+
+            if (Object.keys(data).length === 0) {
+                return res.status(400).json({ error: 'No valid fields to modify' });
+            }
+
+            // Load the FULL article record: every SAP-mapped field is needed so
+            // the modify payload can carry all of them (not just the diff), plus
+            // the description-source fields and a few control fields.
+            const existingItem = await prisma.extractionResultFlat.findUnique({
+                where: { id },
+                select: {
+                    id: true,
+                    sapArticleId: true,
+                    approvalStatus: true,
+                    division: true,
+                    subDivision: true,
+                    majorCategory: true,
+                    mrp: true,
+                    isGeneric: true,
+                    ...Object.fromEntries(FLAT_TO_RFC.map((m) => [m.flat, true])),
+                    ...Object.fromEntries(ARTICLE_DESCRIPTION_SOURCE_FIELDS.map((f) => [f, true])),
+                } as any,
+            });
+
+            if (!existingItem) {
+                return res.status(404).json({ error: 'Item not found' });
+            }
+
+            // RBAC: same division / sub-division scoping as updateItem.
+            const role = String(req.user?.role || '');
+            if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
+                const existingDivision = ApproverController.normalizeText((existingItem as any).division);
+                const existingSubDivision = ApproverController.normalizeText((existingItem as any).subDivision);
+                const userDivisionVariants = ApproverController.getDivisionVariants(req.user?.division);
+                const userSubDivisionVariants = ApproverController.getSubDivisionVariants(req.user?.subDivision);
+                if (userDivisionVariants.length > 0 && !userDivisionVariants.includes(existingDivision)) {
+                    return res.status(403).json({ error: 'Access denied: Division mismatch' });
+                }
+                if ((role === 'APPROVER' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') && userSubDivisionVariants.length > 0 && existingSubDivision && !userSubDivisionVariants.includes(existingSubDivision)) {
+                    return res.status(403).json({ error: 'Access denied: Sub-Division mismatch' });
+                }
+            }
+
+            const matnr = (existingItem as any).sapArticleId ? String((existingItem as any).sapArticleId).trim() : '';
+            if (!matnr) {
+                return res.status(400).json({ error: 'This article has no SAP article number yet, so it cannot be modified in SAP.' });
+            }
+
+            // Recalculate segment when MRP or majorCategory changes (mirrors updateItem).
+            // Done BEFORE building the payload so the recalculated segment is sent to SAP.
+            const finalMajorCategory = (data.majorCategory !== undefined ? data.majorCategory : (existingItem as any).majorCategory) as string | null;
+            const finalMrp = data.mrp !== undefined ? data.mrp : (existingItem as any).mrp;
+            if (finalMajorCategory && finalMrp !== null && finalMrp !== undefined) {
+                const segment = getSegmentByCategoryAndMrp(finalMajorCategory, finalMrp);
+                if (segment) data.segment = segment;
+            }
+
+            // ── Build the FULL Changes payload from the merged record. ──
+            // The user's edits (`data`) are merged over the current DB record, then
+            // buildModifyChangesPayload emits EVERY field applicable to this article
+            // (all identity/price/business fields + the garment characteristics valid
+            // for its major category), including empties. So changing one field still
+            // sends the complete attribute set to SAP.
+            const mergedItem = { ...(existingItem as any), ...data };
+            const sapChanges = await buildModifyChangesPayload(mergedItem);
+
+            // Modify flow only: these keys must NOT be sent to SAP on modification.
+            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT']) {
+                delete (sapChanges as any)[k];
+            }
+
+            // ── Call SAP FIRST. Only persist locally on success. ──
+            const result = await patchArticleAttributes(matnr, sapChanges);
+            if (!result.ok) {
+                return res.status(502).json({ error: result.message || 'SAP modification failed', sap: result.raw });
+            }
+            const sapResult: { applied: number; message: string } = { applied: result.applied, message: result.message };
+
+            // Rebuild article description from the merged attribute values.
+            const descriptionSource: any = {};
+            for (const field of ARTICLE_DESCRIPTION_SOURCE_FIELDS) {
+                descriptionSource[field] = data[field] !== undefined ? data[field] : (existingItem as any)[field];
+            }
+            const majCatForDescCheck = data.majorCategory ?? (existingItem as any).majorCategory;
+            data.articleDescription = buildArticleDescription(descriptionSource, 40, {
+                excludeFields: await getExcludedDescriptionFields(majCatForDescCheck) as any,
+            });
+
+            const updated = await prisma.extractionResultFlat.update({ where: { id }, data });
+
+            // Mirror to 360article.article_360_flat (fire-and-forget)
+            void mirror360FlatUpdate(id, data).catch((err: any) => console.error('[mirror360] modify update failed:', err?.message));
+
+            // Keep variants in sync for generic articles (fire-and-forget)
+            if ((existingItem as any).isGeneric) {
+                void syncGenericToVariants((existingItem as any).id, data).catch((err: any) => console.error('[syncGenericToVariants] modify failed:', err?.message));
+            }
+
+            return res.json({ ...updated, sapModify: sapResult });
+        } catch (error) {
+            console.error('Error modifying item:', error);
+            return res.status(500).json({ error: 'Failed to modify item' });
+        }
+    }
+
     // Approve items
+    // Approver "Save & Submit": hand articles off to PD. Sets pdStatus=COMPLETED
+    // for PENDING, not-yet-sent items. No SAP call — SAP creation happens when
+    // PD/ADMIN approves from the PD page (approveItems).
+    static async sendToPd(req: Request, res: Response) {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ error: 'No items selected' });
+            }
+            const result = await prisma.extractionResultFlat.updateMany({
+                where: {
+                    id: { in: ids },
+                    approvalStatus: ApprovalStatus.PENDING,
+                    pdStatus: PdStatus.PENDING,
+                },
+                data: { pdStatus: PdStatus.COMPLETED },
+            });
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            return res.json({ success: true, sentToPd: result.count });
+        } catch (err: any) {
+            console.error('[sendToPd] Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
     static async approveItems(req: Request, res: Response) {
         ApproverController.itemsCache.clear();
         ApproverController.countCache.clear();
@@ -1363,7 +1811,7 @@ export class ApproverController {
                     void prisma.extractionResultFlat.update({
                         where: { id: row.id },
                         data: { mcCode: mc, hsnTaxCode: getHsnCodeByMcCode(mc) || null }
-                    });
+                    }).catch((err: any) => console.error('[pre-approval mcCode fix] update failed:', err?.message));
                 }
             }
 
@@ -1381,10 +1829,38 @@ export class ApproverController {
                 where: {
                     ...whereClause,
                     approvalStatus: 'APPROVED'
+                },
+                select: {
+                    id: true, articleNumber: true, majorCategory: true, division: true,
+                    subDivision: true, vendorCode: true, vendorName: true, designNumber: true,
+                    pptNumber: true, rate: true, mrp: true, macroMvgr: true, mainMvgr: true,
+                    yarn1: true, fabricMainMvgr: true, weave: true, mFab2: true, composition: true,
+                    finish: true, gsm: true, weight: true, lycra: true, shade: true, neck: true,
+                    neckDetails: true, sleeve: true, length: true, collar: true, collarStyle: true,
+                    placket: true, sleeveFold: true, bottomFold: true, frontOpenStyle: true,
+                    pocketType: true, noOfPocket: true, extraPocket: true, drawcord: true,
+                    dcShape: true, button: true, btnColour: true, zipper: true, zipColour: true,
+                    fatherBelt: true, childBelt: true, printType: true, printStyle: true,
+                    printPlacement: true, patches: true, patchesType: true, embroidery: true,
+                    embroideryType: true, embPlacement: true, htrfType: true, htrfStyle: true,
+                    wash: true, fit: true, pattern: true, segment: true, ageGroup: true,
+                    articleFashionType: true, mvgrBrandVendor: true, fCount: true,
+                    fConstruction: true, fOunce: true, fWidth: true, fabDiv: true, fabVdr: true, impAtrbt2: true,
+                    mcCode: true, hsnTaxCode: true, articleDescription: true, fashionGrid: true,
+                    season: true, year: true, articleType: true, referenceArticleNumber: true,
+                    referenceArticleDescription: true, imageUrl: true, imageName: true,
+                    sapArticleId: true, isGeneric: true, genericArticleId: true,
+                    colour: true, variantSize: true, variantColor: true,
+                    attrArticleNums: true, source: true, createdAt: true,
+                    srmUniqueId: true,
                 }
             });
 
-            const syncResults = await syncApprovedItemsToSap(approvedItems);
+            console.log(`[APPROVE_DEBUG] approvedItems=${approvedItems.length}, ids=${approvedItems.map(i => i.id).join(',')}`);
+            approvedItems.forEach(i => console.log(`[APPROVE_DEBUG] id=${i.id} majorCategory="${i.majorCategory}" finish="${i.finish}"`));
+            const syncResults = await syncArticlesToSapViaRfc(approvedItems);
+            const syncOk = syncResults.filter((r: any) => r.success).length;
+            console.log(`[APPROVE_DEBUG] syncResults: ${syncOk}/${syncResults.length} succeeded`);
             const approvedItemById = new Map(approvedItems.map((item) => [item.id, item]));
 
             // Phase 1: Persist SAP article creation/sync outcome first.
@@ -1415,6 +1891,38 @@ export class ApproverController {
                 await prisma.$transaction(syncUpdates);
             }
 
+            // Write SAP article number back to raw_articles if the flat record came from SRM flow
+            const rawArticleWritebacks = finalizedSyncResults
+                .filter((r: any) => r.success && r.sapArticleNumber)
+                .map((r: any) => {
+                    const approvedItem = approvedItemById.get(r.id);
+                    return approvedItem?.srmUniqueId
+                        ? prisma.rawArticle.update({
+                            where: { id: approvedItem.srmUniqueId },
+                            data:  { articleNumber: r.sapArticleNumber },
+                          })
+                        : null;
+                })
+                .filter(Boolean) as any[];
+
+            if (rawArticleWritebacks.length > 0) {
+                await prisma.$transaction(rawArticleWritebacks);
+                console.log(`[APPROVE] Wrote article numbers back to ${rawArticleWritebacks.length} raw_articles row(s)`);
+            }
+
+            // Mirror approval + SAP sync outcome to 360article.article_360_flat
+            void Promise.all(finalizedSyncResults.map((syncResult: any) => {
+                const approvedItem = approvedItemById.get(syncResult.id);
+                return mirror360FlatUpdate(syncResult.id, {
+                    approvalStatus:  'APPROVED',
+                    sapSyncStatus:   syncResult.success ? 'SYNCED' : 'FAILED',
+                    sapSyncMessage:  syncResult.message ?? null,
+                    sapArticleId:    syncResult.sapArticleNumber ?? null,
+                    articleNumber:   syncResult.sapArticleNumber ?? approvedItem?.articleNumber ?? null,
+                    imageUrl:        syncResult.approvedImageUrl ?? approvedItem?.imageUrl ?? null,
+                });
+            })).catch((err: any) => console.error('[mirror360] approval mirror failed:', err?.message));
+
             // Phase 2: Upload approved image only after article creation is persisted.
             await Promise.all(finalizedSyncResults.map(async (syncResult: any) => {
                 if (!syncResult.success || !syncResult.sapArticleNumber) {
@@ -1436,9 +1944,32 @@ export class ApproverController {
 
                 try {
                     console.log(`📦 Copying approved image for article ${syncResult.sapArticleNumber} from source to article-master bucket...`);
+
+                    // Build the data we want stamped on the watermark. Every field is optional —
+                    // Python skips any line whose value is null/empty. Article number comes from
+                    // the freshly minted SAP RFC result, the rest from the DB row.
+                    const labelData: WatermarkLabel = {
+                        article_number: String(syncResult.sapArticleNumber),
+                        presentation_no: approvedItem.pptNumber ?? null,
+                        vendor_code: approvedItem.vendorCode ?? null,
+                        vendor_name: approvedItem.vendorName ?? null,
+                        division: approvedItem.division ?? null,
+                        sub_division: approvedItem.subDivision ?? null,
+                        major_category: approvedItem.majorCategory ?? null,
+                        design_number: approvedItem.designNumber ?? null,
+                        mc_code: approvedItem.mcCode ?? null,
+                        hsn_tax_code: approvedItem.hsnTaxCode ?? null,
+                        fabric: approvedItem.macroMvgr ?? null,
+                        season: approvedItem.season ?? null,
+                        year: approvedItem.year ?? null,
+                        rate: approvedItem.rate != null ? Number(approvedItem.rate) : null,
+                        mrp: approvedItem.mrp != null ? Number(approvedItem.mrp) : null,
+                    };
+
                     const approvedImageUpload = await storageService.uploadApprovedImageFromSourceUrl(
                         String(approvedItem.imageUrl),
-                        String(syncResult.sapArticleNumber)
+                        String(syncResult.sapArticleNumber),
+                        labelData,
                     );
 
                     await prisma.extractionResultFlat.update({
@@ -1497,13 +2028,91 @@ export class ApproverController {
                 });
             }
 
+            // ── Variant RFC sync ─────────────────────────────────────────────
+            // For each successfully synced generic article, create its color/size
+            // variants in SAP via ZMM_VAR_ART_CREATION_RFC.
+            console.log(`[VARIANT_RFC] successfullyApprovedIds=${JSON.stringify(successfullyApprovedIds)}`);
+            if (successfullyApprovedIds.length > 0) {
+                try {
+                    const allVariants = await prisma.extractionResultFlat.findMany({
+                        where: {
+                            genericArticleId: { in: successfullyApprovedIds },
+                            isGeneric: false
+                        },
+                        select: {
+                            id: true, genericArticleId: true, variantSize: true,
+                            variantColor: true, colour: true, vendorCode: true,
+                            rate: true, mrp: true, sapArticleId: true,
+                            approvalStatus: true, sapSyncStatus: true,
+                        }
+                    });
+
+                    console.log(`[VARIANT_RFC] allVariants fetched=${allVariants.length} for genericIds=${JSON.stringify(successfullyApprovedIds)}`);
+                    allVariants.forEach(v => console.log(`[VARIANT_RFC] variant id=${v.id} genericArticleId=${v.genericArticleId} size=${v.variantSize} colour=${v.colour} variantColor=${v.variantColor}`));
+
+                    if (allVariants.length > 0) {
+                        const variantsByGenericId = new Map<string, typeof allVariants>();
+                        for (const variant of allVariants) {
+                            const gId = variant.genericArticleId!;
+                            if (!variantsByGenericId.has(gId)) variantsByGenericId.set(gId, []);
+                            variantsByGenericId.get(gId)!.push(variant);
+                        }
+
+                        const genericSapArticleMap = new Map<string, string>();
+                        for (const syncResult of finalizedSyncResults) {
+                            if (syncResult.success && syncResult.sapArticleNumber) {
+                                genericSapArticleMap.set(syncResult.id, syncResult.sapArticleNumber);
+                            }
+                        }
+                        console.log(`[VARIANT_RFC] genericSapArticleMap=${JSON.stringify(Object.fromEntries(genericSapArticleMap))}`);
+
+                        const variantSyncResults = await syncVariantsToSapViaRfc(variantsByGenericId, genericSapArticleMap);
+                        console.log(`[VARIANT_RFC] ${variantSyncResults.filter((r: any) => r.success).length}/${variantSyncResults.length} variant(s) synced to SAP`);
+
+                        const variantSyncUpdates = variantSyncResults.map((vResult: any) => {
+                            const data: any = {
+                                sapSyncStatus: vResult.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
+                                sapSyncMessage: vResult.message
+                            };
+                            if (vResult.sapArticleNumber) {
+                                data.sapArticleId = vResult.sapArticleNumber;
+                                data.articleNumber = vResult.sapArticleNumber;
+                            }
+                            if (vResult.success && vResult.fabricArticleNumber) {
+                                data.fabricArticleNumber = vResult.fabricArticleNumber;
+                            }
+                            if (vResult.success && vResult.fabricArticleDescription) {
+                                data.fabricArticleDescription = vResult.fabricArticleDescription;
+                            }
+                            return prisma.extractionResultFlat.update({
+                                where: { id: vResult.id },
+                                data
+                            });
+                        });
+
+                        if (variantSyncUpdates.length > 0) {
+                            await Promise.allSettled(variantSyncUpdates);
+                        }
+                    }
+                } catch (varErr: any) {
+                    console.error('[VARIANT_RFC] Variant sync failed (non-fatal):', varErr?.message);
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────
+
+            // Build failure details so the caller knows exactly what SAP rejected
+            const failureDetails = finalizedSyncResults
+                .filter((r: any) => !r.success)
+                .map((r: any) => ({ id: r.id, message: r.message || 'SAP sync failed' }));
+
             return res.json({
                 message: 'Items approved successfully',
                 count: result.count,
                 sapSync: {
                     totalAttempted: finalizedSyncResults.length,
                     synced: syncedCount,
-                    failed: failedCount
+                    failed: failedCount,
+                    failures: failureDetails   // Full SAP error messages per item
                 }
             });
         } catch (error) {
@@ -1543,8 +2152,17 @@ export class ApproverController {
                 }
             });
 
+            // Mirror rejection to 360article (fire-and-forget)
+            void Promise.all(ids.map((rid: string) =>
+                mirror360FlatUpdate(rid, { approvalStatus: 'REJECTED', sapSyncStatus: 'NOT_SYNCED' })
+            )).catch((err: any) => console.error('[mirror360] rejection mirror failed:', err?.message));
+
             // Auto-reject all variants of rejected generic articles
             const rejectedIds = ids;
+            const variantsToReject = await prisma.extractionResultFlat.findMany({
+                where: { genericArticleId: { in: rejectedIds }, isGeneric: false },
+                select: { id: true }
+            });
             await prisma.extractionResultFlat.updateMany({
                 where: {
                     genericArticleId: { in: rejectedIds },
@@ -1558,6 +2176,11 @@ export class ApproverController {
                     approvedAt: new Date()
                 }
             });
+
+            // Mirror variant rejections to 360article (fire-and-forget)
+            void Promise.all(variantsToReject.map(v =>
+                mirror360FlatUpdate(v.id, { approvalStatus: 'REJECTED', sapSyncStatus: 'NOT_SYNCED' })
+            )).catch((err: any) => console.error('[mirror360] variant rejection mirror failed:', err?.message));
 
             return res.json({
                 message: 'Items rejected',
@@ -1596,7 +2219,8 @@ export class ApproverController {
             const { id } = req.params;
             const variants = await prisma.extractionResultFlat.findMany({
                 where: { genericArticleId: id, isGeneric: false },
-                orderBy: [{ variantColor: 'asc' }, { variantSize: 'asc' }]
+                orderBy: [{ variantColor: 'asc' }, { variantSize: 'asc' }],
+                take: 5000,
             });
             return res.json({ data: variants });
         } catch (err: any) {
@@ -1604,17 +2228,293 @@ export class ApproverController {
         }
     }
 
-    // Add color variants to an existing generic article
+    // Retry SAP sync for FAILED / NOT_SYNCED / PENDING variants of a generic article
+    static async retryVariants(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+
+            // 1. Load the generic article
+            const generic = await prisma.extractionResultFlat.findUnique({ where: { id } });
+            if (!generic || !generic.isGeneric) {
+                return res.status(404).json({ error: 'Generic article not found' });
+            }
+            if (!generic.sapArticleId) {
+                return res.status(400).json({ error: 'Generic article has no SAP article number. Approve the generic first.' });
+            }
+
+            // 2. Find all variants that need (re)syncing
+            const variants = await prisma.extractionResultFlat.findMany({
+                where: {
+                    genericArticleId: id,
+                    isGeneric: false,
+                    sapSyncStatus: { in: ['FAILED', 'NOT_SYNCED'] }
+                }
+            });
+
+            // Also include PENDING variants — auto-approve them first
+            const pendingVariants = await prisma.extractionResultFlat.findMany({
+                where: {
+                    genericArticleId: id,
+                    isGeneric: false,
+                    approvalStatus: 'PENDING'
+                }
+            });
+
+            if (pendingVariants.length > 0) {
+                const userId = (req as any).user?.id;
+                await prisma.extractionResultFlat.updateMany({
+                    where: { id: { in: pendingVariants.map(v => v.id) } },
+                    data: {
+                        approvalStatus: 'APPROVED',
+                        approvedBy: userId ? Number(userId) : null,
+                        approvedAt: new Date(),
+                        sapSyncStatus: 'NOT_SYNCED'
+                    }
+                });
+            }
+
+            // Merge both lists (dedup by id)
+            const allToSync = [
+                ...variants,
+                ...pendingVariants.filter(p => !variants.find(v => v.id === p.id))
+            ];
+
+            if (allToSync.length === 0) {
+                return res.json({ message: 'No variants need SAP sync', synced: 0, failed: 0 });
+            }
+
+            // 3. Build maps for syncVariantsToSapViaRfc
+            const variantsByGenericId = new Map([[id, allToSync]]);
+            const genericSapArticleMap = new Map([[id, generic.sapArticleId]]);
+
+            // 4. Call the existing RFC function
+            const results = await syncVariantsToSapViaRfc(variantsByGenericId, genericSapArticleMap);
+
+            // 5. Persist results back to DB
+            await Promise.allSettled(results.map(r => {
+                const data: Record<string, unknown> = {
+                    sapSyncStatus: r.success ? SapSyncStatus.SYNCED : SapSyncStatus.FAILED,
+                    sapSyncMessage: r.message
+                };
+                if (r.sapArticleNumber) {
+                    data.sapArticleId = r.sapArticleNumber;
+                    data.articleNumber = r.sapArticleNumber;
+                }
+                if (r.success && r.fabricArticleNumber) {
+                    data.fabricArticleNumber = r.fabricArticleNumber;
+                }
+                if (r.success && r.fabricArticleDescription) {
+                    data.fabricArticleDescription = r.fabricArticleDescription;
+                }
+                return prisma.extractionResultFlat.update({ where: { id: r.id }, data });
+            }));
+
+            const synced = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+
+            console.log(`[RETRY_VARIANTS] generic=${id} synced=${synced} failed=${failed}`);
+            return res.json({
+                message: `Retry complete: ${synced} synced, ${failed} failed`,
+                synced,
+                failed,
+                results: results.map(r => ({ id: r.id, success: r.success, message: r.message, sapArticleNumber: r.sapArticleNumber }))
+            });
+        } catch (err: any) {
+            console.error('[RETRY_VARIANTS] Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Duplicate an existing article — creates a new PENDING copy with all fields copied
+    static async duplicateItem(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const source = await prisma.extractionResultFlat.findUnique({ where: { id } });
+            if (!source) return res.status(404).json({ error: 'Article not found' });
+
+            // Fetch original job for metadata
+            const originalJob = await prisma.extractionJob.findUnique({
+                where: { id: source.jobId },
+                select: { categoryId: true, userId: true, aiModel: true },
+            });
+            if (!originalJob) return res.status(404).json({ error: 'Source job not found' });
+
+            // Create a new ExtractionJob for the duplicate
+            const newJob = await prisma.extractionJob.create({
+                data: {
+                    userId: originalJob.userId,
+                    categoryId: originalJob.categoryId,
+                    imageUrl: source.imageUrl || '',
+                    status: 'COMPLETED',
+                    aiModel: originalJob.aiModel,
+                    processingTimeMs: source.processingTimeMs,
+                    tokensUsed: source.totalTokens,
+                    inputTokens: source.inputTokens,
+                    outputTokens: source.outputTokens,
+                    apiCost: source.apiCost,
+                    totalAttributes: source.totalAttributes,
+                    extractedCount: source.extractedCount,
+                    avgConfidence: source.avgConfidence,
+                    completedAt: new Date(),
+                    designNumber: source.articleNumber,
+                },
+            });
+
+            // Strip identity / status fields — copy everything else
+            const {
+                id: _id,
+                jobId: _jobId,
+                createdAt: _createdAt,
+                updatedAt: _updatedAt,
+                imageUncPath: _imageUncPath,
+                approvalStatus: _approvalStatus,
+                approvedBy: _approvedBy,
+                approvedAt: _approvedAt,
+                sapSyncStatus: _sapSyncStatus,
+                sapArticleId: _sapArticleId,
+                sapSyncMessage: _sapSyncMessage,
+                articleNumber: _articleNumber,
+                fabricArticleNumber: _fabricArticleNumber,
+                fabricArticleDescription: _fabricArticleDescription,
+                ...rest
+            } = source;
+
+            const { randomUUID } = await import('crypto');
+            const newId = randomUUID();
+
+            const newRecord = await prisma.extractionResultFlat.create({
+                data: {
+                    ...rest,
+                    id: newId,
+                    jobId: newJob.id,
+                    imageUncPath: null,
+                    approvalStatus: 'PENDING',
+                    approvedBy: null,
+                    approvedAt: null,
+                    sapSyncStatus: 'NOT_SYNCED',
+                    sapArticleId: null,
+                    sapSyncMessage: null,
+                    articleNumber: null,
+                    fabricArticleNumber: null,
+                    fabricArticleDescription: null,
+                },
+            });
+
+            console.log(`[Duplicate] Created duplicate id=${newId} from source id=${id}`);
+            return res.json({ success: true, id: newRecord.id });
+        } catch (err: any) {
+            console.error('[Duplicate] Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Add color variants to an existing generic article.
+    // Body: { colors|color, sizes? } — when `sizes` is provided (manual mode) only
+    // those sizes are created; otherwise all of the MC's active sizes (auto mode).
     static async addColor(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const { color } = req.body;
-            if (!color?.trim()) return res.status(400).json({ error: 'Color is required' });
+            const { color, colors, sizes } = req.body;
+            // Accept either colors[] (new) or color string (legacy)
+            const colorList: string[] = Array.isArray(colors)
+                ? colors.map((c: string) => c.trim().toUpperCase()).filter(Boolean)
+                : color?.trim()
+                ? [color.trim().toUpperCase()]
+                : [];
 
-            const count = await addColorVariants(id, color.trim());
-            return res.json({ message: `Created ${count} color variants`, count });
+            if (colorList.length === 0) return res.status(400).json({ error: 'At least one color is required' });
+
+            // Manual mode: validate requested sizes against the Major Category's
+            // allowed sizes (maj_cat_sizes). Reject the whole request on any invalid size.
+            let sizesOverride: string[] | undefined;
+            if (Array.isArray(sizes) && sizes.length > 0) {
+                const generic = await prisma.extractionResultFlat.findUnique({
+                    where: { id }, select: { majorCategory: true },
+                });
+                const allowed = await getSizesForMajCat(generic?.majorCategory || '');
+                const allowedUpper = new Set(allowed.map((s) => s.trim().toUpperCase()));
+                const invalid = sizes
+                    .map((s: string) => String(s).trim())
+                    .filter((s: string) => s && !allowedUpper.has(s.toUpperCase()));
+                if (invalid.length > 0) {
+                    return res.status(422).json({
+                        error: 'INVALID_SIZE_FOR_CATEGORY',
+                        detail: `Size(s) not allowed for category '${generic?.majorCategory ?? ''}': ${invalid.join(', ')}.`,
+                    });
+                }
+                sizesOverride = sizes.map((s: string) => String(s).trim()).filter(Boolean);
+            }
+
+            let totalCreated = 0;
+            for (const c of colorList) {
+                totalCreated += await addColorVariants(id, c, sizesOverride);
+            }
+            return res.json({ message: `Created ${totalCreated} color variants`, count: totalCreated });
         } catch (err: any) {
             return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Cached BOM grid map (loaded once from disk)
+    private static bomGridMap: Record<string, Record<string, Record<string, string>>> | null = null;
+
+    private static loadBomGridMap() {
+        if (ApproverController.bomGridMap) return ApproverController.bomGridMap;
+        try {
+            const filePath = path.resolve(__dirname, '../data/majCatGridMap.json');
+            ApproverController.bomGridMap = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        } catch (err) {
+            console.error('[BomGrid] Failed to load majCatGridMap.json:', err);
+            ApproverController.bomGridMap = {};
+        }
+        return ApproverController.bomGridMap!;
+    }
+
+    // GET /api/approver/sizes-for-majcat/:majCat
+    // Returns active sizes array for the given major category (from maj_cat_sizes table)
+    static async getSizesForMajCat(req: Request, res: Response) {
+        const { majCat } = req.params;
+        const sizes = await getSizesForMajCat(majCat || '');
+        return res.json({ majCat, sizes, count: sizes.length });
+    }
+
+    // GET /api/approver/colors
+    // Color list for the "Add Color Variants" dropdown, from the color_master table.
+    //   code   = sap_create_old (stored on the variant as its colour)
+    //   name   = child_color (display name)
+    //   father = father_color (family, for optional grouping)
+    static async getColorMaster(_req: Request, res: Response) {
+        try {
+            const rows = await prisma.$queryRaw<{ code: string; name: string; father: string | null }[]>`
+                SELECT sap_create_old AS code, child_color AS name, father_color AS father
+                FROM color_master
+                WHERE sap_create_old IS NOT NULL AND TRIM(sap_create_old) <> ''
+                  AND child_color    IS NOT NULL AND TRIM(child_color)    <> ''
+                ORDER BY father_color, child_color
+            `;
+            const colors = rows.map(r => ({
+                code: String(r.code).trim(),
+                name: String(r.name).trim(),
+                father: r.father ? String(r.father).trim() : null,
+            }));
+            return res.json({ colors, count: colors.length });
+        } catch (error) {
+            console.error('Error fetching color master:', error);
+            return res.status(500).json({ error: 'Failed to fetch colors' });
+        }
+    }
+
+    // GET /api/approver/bom-art-numbers/:majCat
+    // Returns { [excelAttrName]: { [mvgrValue]: sapCd } } for the given major category
+    static async getBomArtNumbers(req: Request, res: Response) {
+        try {
+            const { majCat } = req.params;
+            const map = ApproverController.loadBomGridMap();
+            const catData = map[majCat] || {};
+            return res.json({ success: true, data: catData });
+        } catch (err: any) {
+            console.error('[BomGrid] getBomArtNumbers error:', err);
+            return res.status(500).json({ success: false, error: 'Failed to load BOM art numbers' });
         }
     }
 
@@ -1652,6 +2552,26 @@ export class ApproverController {
 
             // If it's a primary bucket public URL, return it as-is (bucket is public)
             if (publicBase && storedUrl.startsWith(publicBase + '/')) {
+                return res.json({ url: storedUrl });
+            }
+
+            // Public R2 CDN URLs (hostname starts with "pub-" and ends with ".r2.dev") never
+            // expire — they are served from Cloudflare's public CDN. Return as-is with no
+            // key extraction, no signing, and no DB update.
+            try {
+                const { hostname } = new URL(storedUrl);
+                if (hostname.startsWith('pub-') && hostname.endsWith('.r2.dev')) {
+                    return res.json({ url: storedUrl });
+                }
+            } catch { /* malformed URL — fall through */ }
+
+            // If the URL is not from any R2 domain (e.g. Supabase, external CDN), return as-is.
+            // Never rewrite or persist a replacement — that would corrupt non-R2 URLs permanently.
+            const isR2Url = storedUrl.includes('.r2.cloudflarestorage.com') ||
+                storedUrl.includes('.r2.dev/') ||
+                (publicBase && storedUrl.startsWith(publicBase)) ||
+                (approvedBase && storedUrl.startsWith(approvedBase));
+            if (!isR2Url) {
                 return res.json({ url: storedUrl });
             }
 
@@ -1694,5 +2614,32 @@ export class ApproverController {
             console.error('Error refreshing image URL:', error);
             return res.status(500).json({ error: 'Failed to refresh image URL' });
         }
+    }
+
+    /**
+     * GET /api/approver/vendor-search?q=<query>
+     * Returns up to 15 vendor records matching the typed name (case-insensitive).
+     * Requires at least 2 characters to avoid returning the full 8k list.
+     */
+    static async vendorSearch(req: Request, res: Response) {
+        const q = String(req.query.q ?? '').trim();
+        if (q.length < 2) {
+            return res.json({ success: true, data: [] });
+        }
+
+        const results = await prisma.masterVendorDetail.findMany({
+            where: {
+                vendorName: { contains: q, mode: 'insensitive' },
+            },
+            select: {
+                vendorCode: true,
+                vendorName: true,
+                vendorCity: true,
+            },
+            orderBy: { vendorName: 'asc' },
+            take: 15,
+        });
+
+        return res.json({ success: true, data: results });
     }
 }
