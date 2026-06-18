@@ -3146,6 +3146,177 @@ export const getGridValueAudit = async (req: Request, res: Response): Promise<vo
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SIZE MASTER EDITOR (maj_cat_sizes)
+// Browse Major Category → its active sizes; add/remove a size with a required
+// remark; every change is logged to maj_cat_sizes_audit (who / why / when).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Write one row to the maj_cat_sizes_audit log. Never throws. */
+async function writeSizeAudit(
+  req: Request,
+  action: 'ADD' | 'DELETE',
+  majorCategory: string,
+  size: string,
+  remarks: string,
+): Promise<void> {
+  try {
+    const u = (req as any).user;
+    await prisma.$executeRaw`
+      INSERT INTO maj_cat_sizes_audit
+        (major_category, size, action, remarks, performed_by_id, performed_by_name, performed_by_email, performed_at)
+      VALUES
+        (${majorCategory}, ${size}, ${action}, ${remarks},
+         ${u?.id ?? null}, ${u?.name ?? null}, ${u?.email ?? null}, NOW())
+    `;
+  } catch (e: any) {
+    console.error('[SizeMaster] audit write failed:', e?.message);
+  }
+}
+
+/** GET /api/admin/size-master/categories — major categories with active sizes (+ count). */
+export const getSizeMasterCategories = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<{ major_category: string; n: bigint }[]>`
+      SELECT major_category, COUNT(*)::bigint AS n
+      FROM maj_cat_sizes
+      WHERE UPPER(TRIM(status)) = 'ACT'
+      GROUP BY major_category
+      ORDER BY major_category
+    `;
+    res.json({ success: true, data: rows.map((r) => ({ majorCategory: r.major_category, count: Number(r.n) })) });
+  } catch (error: any) {
+    console.error('[SizeMaster] categories error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/** GET /api/admin/size-master/sizes?majorCategory=MW_TEES_FS — active sizes for a category. */
+export const getSizeMasterSizes = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const majorCategory = String(req.query.majorCategory || '').trim();
+    if (!majorCategory) {
+      res.status(400).json({ success: false, error: 'majorCategory query param is required' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{ id: bigint; size: string }[]>`
+      SELECT id, size
+      FROM maj_cat_sizes
+      WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()}
+        AND UPPER(TRIM(status)) = 'ACT'
+        AND size IS NOT NULL AND TRIM(size) <> ''
+      ORDER BY id
+    `;
+    res.json({ success: true, data: rows.map((r) => ({ id: Number(r.id), size: r.size })) });
+  } catch (error: any) {
+    console.error('[SizeMaster] sizes error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/** POST /api/admin/size-master/add  body: { majorCategory, size, remarks } */
+export const addSizeMasterSize = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const majorCategory = String(req.body?.majorCategory || '').trim();
+    const size = String(req.body?.size || '').trim();
+    const remarks = String(req.body?.remarks || '').trim();
+    if (!majorCategory || !size) {
+      res.status(400).json({ success: false, error: 'majorCategory and size are required' });
+      return;
+    }
+    if (!remarks) {
+      res.status(400).json({ success: false, error: 'A remark/reason is required to add a size.' });
+      return;
+    }
+    const inserted = await prisma.$executeRaw`
+      INSERT INTO maj_cat_sizes (major_category, size, status, mc_code, created_at)
+      SELECT ${majorCategory}, ${size}, 'ACT',
+             (SELECT mc_code FROM maj_cat_sizes WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()} AND mc_code IS NOT NULL LIMIT 1),
+             NOW()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM maj_cat_sizes
+        WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()}
+          AND UPPER(TRIM(size)) = UPPER(TRIM(${size}))
+          AND UPPER(TRIM(status)) = 'ACT'
+      )
+    `;
+    if (inserted === 0) {
+      res.status(409).json({ success: false, error: `Size "${size}" already exists for ${majorCategory}.` });
+      return;
+    }
+    await writeSizeAudit(req, 'ADD', majorCategory, size, remarks);
+    res.json({ success: true, message: `Added size "${size}".` });
+  } catch (error: any) {
+    console.error('[SizeMaster] add error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/** POST /api/admin/size-master/delete  body: { id, remarks } */
+export const deleteSizeMasterSize = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.body?.id);
+    const remarks = String(req.body?.remarks || '').trim();
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ success: false, error: 'A valid numeric id is required' });
+      return;
+    }
+    if (!remarks) {
+      res.status(400).json({ success: false, error: 'A remark/reason is required to remove a size.' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{ major_category: string; size: string }[]>`
+      SELECT major_category, size FROM maj_cat_sizes WHERE id = ${id}
+    `;
+    if (rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Size not found (already removed?).' });
+      return;
+    }
+    const { major_category, size } = rows[0];
+    await prisma.$executeRaw`DELETE FROM maj_cat_sizes WHERE id = ${id}`;
+    await writeSizeAudit(req, 'DELETE', major_category, size, remarks);
+    res.json({ success: true, message: 'Size removed.' });
+  } catch (error: any) {
+    console.error('[SizeMaster] delete error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/** GET /api/admin/size-master/audit?majorCategory= — change history for a category. */
+export const getSizeMasterAudit = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const majorCategory = String(req.query.majorCategory || '').trim();
+    if (!majorCategory) {
+      res.status(400).json({ success: false, error: 'majorCategory query param is required' });
+      return;
+    }
+    const rows = await prisma.$queryRaw<{
+      id: bigint; size: string; action: string; remarks: string | null;
+      performed_by_name: string | null; performed_by_email: string | null; performed_at: Date;
+    }[]>`
+      SELECT id, size, action, remarks, performed_by_name, performed_by_email, performed_at
+      FROM maj_cat_sizes_audit
+      WHERE UPPER(TRIM(major_category)) = ${majorCategory.toUpperCase()}
+      ORDER BY performed_at DESC
+      LIMIT 200
+    `;
+    res.json({
+      success: true,
+      data: rows.map((r) => ({
+        id: Number(r.id),
+        size: r.size,
+        action: r.action,
+        remarks: r.remarks,
+        by: r.performed_by_name || r.performed_by_email || 'Unknown',
+        at: r.performed_at,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[SizeMaster] audit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MANDATORY GRID (maj_cat_mandatory_grid)
 // ═══════════════════════════════════════════════════════════════════════════════
 
