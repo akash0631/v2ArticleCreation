@@ -345,6 +345,8 @@ interface AddColorModalProps {
   genericId: string;
   majorCategory: string;
   existingColors: string[];
+  /** Existing (size, color) pairs already created, as `SIZE||COLOR` (upper-cased). */
+  existingPairs: Set<string>;
   sizeCount: number;
   attributes: MasterAttribute[];
   onClose: () => void;
@@ -356,6 +358,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
   genericId,
   majorCategory,
   existingColors,
+  existingPairs,
   sizeCount,
   attributes,
   onClose,
@@ -433,6 +436,28 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
       a.label.toUpperCase() === 'COLOR' ||
       a.label.toUpperCase() === 'COLOUR',
   );
+
+  // Whether a color should be disabled in the picker.
+  //  • Auto mode  → a color spans ALL of the MC's sizes, so disable it if it
+  //    already exists for any size.
+  //  • Manual mode → the user targets specific size(s). Only disable a color
+  //    when EVERY selected size already has it (otherwise there's a new
+  //    size × color combination to create — e.g. adding size 34 for a color
+  //    that currently exists only on 28/30/32/36). With no size chosen yet we
+  //    keep colors enabled so the user can pick in any order.
+  const isColorDisabled = (code: string, label?: string): boolean => {
+    const codeU = code.toUpperCase();
+    const labelU = label?.toUpperCase();
+    if (mode === 'manual') {
+      if (selectedSizes.length === 0) return false;
+      return selectedSizes.every((sz) => {
+        const s = sz.trim().toUpperCase();
+        return existingPairs.has(`${s}||${codeU}`) || (labelU ? existingPairs.has(`${s}||${labelU}`) : false);
+      });
+    }
+    return existingColors.some((ec) => ec.toUpperCase() === codeU || (labelU ? ec.toUpperCase() === labelU : false));
+  };
+
   // Colors come from the color_master table (child_color + sap_create_old).
   // value  = sap_create_old (stored on the variant), label = "CHILD COLOR - SAP_CODE".
   // Falls back to the COLOR attribute / hardcoded list only if color_master is unavailable.
@@ -441,7 +466,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
       ? masterColors.map((c) => ({
           value: c.code,
           label: `${c.name} - ${c.code}`,
-          disabled: existingColors.some((ec) => ec.toUpperCase() === c.code.toUpperCase()),
+          disabled: isColorDisabled(c.code),
         }))
       : (colorAttr && colorAttr.allowedValues.length > 0
           ? colorAttr.allowedValues.map((v) => ({ code: v.shortForm, label: v.fullForm }))
@@ -449,9 +474,7 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
         ).map(({ code, label }) => ({
           value: code,
           label: label !== code ? `${code} — ${label}` : code,
-          disabled: existingColors.some(
-            (ec) => ec.toUpperCase() === code.toUpperCase() || ec.toUpperCase() === label.toUpperCase(),
-          ),
+          disabled: isColorDisabled(code, label),
         }));
 
   const sizeOptions = mcSizes.map((s) => ({ value: s, label: s }));
@@ -628,6 +651,14 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
 
   const existingColors = Array.from(
     new Set(variants.map((v) => v.variantColor).filter((c): c is string => Boolean(c))),
+  );
+
+  // Existing (size, color) combinations, so the Add-Color modal can tell apart
+  // "this color exists for some sizes" from "this exact size × color exists".
+  const existingPairs = new Set(
+    variants
+      .filter((v) => v.variantSize && v.variantColor)
+      .map((v) => `${String(v.variantSize).trim().toUpperCase()}||${String(v.variantColor).trim().toUpperCase()}`),
   );
 
   const sizeCount =
@@ -877,6 +908,7 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
         genericId={genericId}
         majorCategory={genericRecord.majorCategory || ''}
         existingColors={existingColors}
+        existingPairs={existingPairs}
         sizeCount={sizeCount}
         attributes={attributes}
         onClose={() => setAddColorOpen(false)}

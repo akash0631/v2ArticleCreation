@@ -150,10 +150,25 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
   // Manual mode: restrict to the requested sizes, keeping only those actually
   // allowed for this Major Category (the dropdown is MC-filtered, but this also
   // guards against tampering). Auto mode (no override) uses all allowed sizes.
-  const sizes = sizesOverride && sizesOverride.length > 0
+  const requestedSizes = sizesOverride && sizesOverride.length > 0
     ? allowedSizes.filter((s) => sizesOverride.some((o) => o.trim().toUpperCase() === s.trim().toUpperCase()))
     : allowedSizes;
-  if (sizes.length === 0) throw new Error('None of the selected sizes are valid for this Major Category.');
+  if (requestedSizes.length === 0) throw new Error('None of the selected sizes are valid for this Major Category.');
+
+  // Skip any (size, color) combinations that already exist for this generic so
+  // re-adding a color for a new size never duplicates existing variant rows.
+  const colorUpper = color.trim().toUpperCase();
+  const existingForColor = await prisma.extractionResultFlat.findMany({
+    where: { genericArticleId: genericId, isGeneric: false },
+    select: { variantSize: true, variantColor: true },
+  });
+  const existingSizesForColor = new Set(
+    existingForColor
+      .filter((v) => (v.variantColor || '').trim().toUpperCase() === colorUpper)
+      .map((v) => (v.variantSize || '').trim().toUpperCase()),
+  );
+  const sizes = requestedSizes.filter((s) => !existingSizesForColor.has(s.trim().toUpperCase()));
+  if (sizes.length === 0) return 0; // every requested size already has this color
 
   const originalJob = await prisma.extractionJob.findUnique({
     where: { id: generic.jobId },
