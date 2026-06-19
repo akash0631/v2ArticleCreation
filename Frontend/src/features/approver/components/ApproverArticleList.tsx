@@ -213,6 +213,21 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
   },
 ];
 
+// REFERENCE ARTICLE DESC source fields, in the user-confirmed sequence.
+// These item keys span several cards (FAB / BODY / VA PRCS):
+//   M_FAB_MAIN_MVGR_2 → M_WEAVE_02 → M_BLT_TYPE → M_BLT_STYLE →
+//   M_FIT → M_BODY_STYLE → M_PRINT_PLACEMENT → M_WASH
+const REF_DESC_FIELDS = [
+  'fabricMainMvgr', // M_FAB_MAIN_MVGR_2
+  'mFab2',          // M_WEAVE_02
+  'fatherBelt',     // M_BLT_TYPE
+  'childBelt',      // M_BLT_STYLE
+  'fit',            // M_FIT
+  'pattern',        // M_BODY_STYLE
+  'printPlacement', // M_PRINT_PLACEMENT
+  'wash',           // M_WASH
+];
+
 const GROUP_COLORS: Record<string, string> = {
   FAB: '#e6f4ff',
   BODY: '#f6ffed',
@@ -723,9 +738,16 @@ const ArticleCard = React.memo(
         const bodyParts = BODY_FIELDS.map((f) => getVal(f.field)).filter(Boolean) as string[];
         const newFabDesc = fabParts.length > 0 ? fabParts.join('-').slice(0, 40) : null;
         const newBodyDesc = bodyParts.length > 0 ? bodyParts.join('-').slice(0, 40) : null;
+        // REFERENCE ARTICLE DESC — built like ARTICLE DESC but from a fixed,
+        // user-confirmed sequence spanning multiple cards:
+        //   M_FAB_MAIN_MVGR_2 → M_WEAVE_02 → M_BLT_TYPE → M_BLT_STYLE →
+        //   M_FIT → M_BODY_STYLE → M_PRINT_PLACEMENT → M_WASH
+        const refParts = REF_DESC_FIELDS.map((f) => getVal(f)).filter(Boolean) as string[];
+        const newRefDesc = refParts.length > 0 ? refParts.join('-').slice(0, 40) : null;
         const updates: Record<string, string | null> = {};
         if (newFabDesc !== null && newFabDesc !== prev['fabricArticleDescription']) updates['fabricArticleDescription'] = newFabDesc;
         if (newBodyDesc !== null && newBodyDesc !== prev['bodyArticleDescription']) updates['bodyArticleDescription'] = newBodyDesc;
+        if (newRefDesc !== null && newRefDesc !== prev['referenceArticleDescription']) updates['referenceArticleDescription'] = newRefDesc;
         return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
       });
     }, [item, FAB_FIELDS, BODY_FIELDS]);
