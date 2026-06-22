@@ -478,9 +478,24 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
         }));
 
   const sizeOptions = mcSizes.map((s) => ({ value: s, label: s }));
+
+  // Manual mode: a (size × color) combo that already exists is skipped by the
+  // backend, so the preview must count only the genuinely-new combinations.
+  const pairKey = (size: string, color: string) => `${size.trim().toUpperCase()}||${color.trim().toUpperCase()}`;
+  const plannedPairs =
+    mode === 'manual'
+      ? selectedColors.flatMap((c) => selectedSizes.map((s) => ({ size: s, color: c, key: pairKey(s, c) })))
+      : [];
+  const newPairs = plannedPairs.filter((p) => !existingPairs.has(p.key));
+  const skippedPairs = plannedPairs.filter((p) => existingPairs.has(p.key));
+
   const effectiveSizeCount = mode === 'manual' ? selectedSizes.length : sizeCount;
   const variantPreview =
-    selectedColors.length > 0 && effectiveSizeCount > 0
+    mode === 'manual'
+      ? selectedColors.length > 0 && selectedSizes.length > 0
+        ? `${newPairs.length} new variant${newPairs.length !== 1 ? 's' : ''}`
+        : null
+      : selectedColors.length > 0 && effectiveSizeCount > 0
       ? `${selectedColors.length} color${selectedColors.length > 1 ? 's' : ''} × ${effectiveSizeCount} size${
           effectiveSizeCount > 1 ? 's' : ''
         } = ${selectedColors.length * effectiveSizeCount} variants`
@@ -566,6 +581,17 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           </div>
         )}
 
+        {mode === 'manual' && skippedPairs.length > 0 && (
+          <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-700">
+            Already exists — will be skipped:{' '}
+            {skippedPairs.map((p) => (
+              <Tag key={p.key} className="ml-1">
+                {p.size} × {p.color}
+              </Tag>
+            ))}
+          </div>
+        )}
+
         {existingColors.length > 0 && (
           <div className="mt-2 text-xs text-muted-foreground">
             Already added:{' '}
@@ -586,7 +612,8 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
             disabled={
               saving ||
               selectedColors.length === 0 ||
-              (mode === 'manual' && (selectedSizes.length === 0 || noSizesConfigured))
+              (mode === 'manual' &&
+                (selectedSizes.length === 0 || noSizesConfigured || newPairs.length === 0))
             }
           >
             {saving ? 'Adding…' : mode === 'manual' ? 'Add Variants' : 'Add Colors'}
