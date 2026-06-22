@@ -186,6 +186,9 @@ router.get('/grid-values/audit', h(adminController.getGridValueAudit));
 router.post('/grid-values/add', h(adminController.addGridValue));
 router.post('/grid-values/delete', h(adminController.deleteGridValue));
 
+// Status dashboard — generic-article counts by status, grouped division → sub-division
+router.get('/status-dashboard', h(adminController.getStatusDashboard));
+
 // Size Master editor (maj_cat_sizes) — browse per major category, add/remove with audit
 router.get('/size-master/categories', h(adminController.getSizeMasterCategories));
 router.get('/size-master/sizes', h(adminController.getSizeMasterSizes));

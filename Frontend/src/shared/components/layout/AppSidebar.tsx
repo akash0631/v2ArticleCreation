@@ -11,6 +11,7 @@ import {
   XCircle,
   CheckCircle2,
   SlidersHorizontal,
+  BarChart3,
   Globe,
   User,
   AlertTriangle,
@@ -173,6 +174,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
       Icon: SlidersHorizontal,
       label: 'Admin Panel',
       children: [
+        { key: '/admin/status-dashboard', Icon: BarChart3, label: 'Status Dashboard' },
         { key: '/admin/hierarchy', Icon: Globe, label: 'Hierarchy' },
         { key: '/admin/users', Icon: User, label: 'Users' },
         { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expenses' },
