@@ -13,7 +13,7 @@ import { LoginPage, RegisterPage } from './features/auth';
 
 import SimplifiedExtractionPage from './features/extraction/pages/SimplifiedExtractionPage'; // NEW: Simplified workflow
 import { DashboardPage, ProfilePage, ProductsPage } from './features/dashboard';
-import { HierarchyManagement, UsersManagement } from './features/admin';
+import { HierarchyManagement, UsersManagement, StatusDashboard } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
@@ -298,6 +298,16 @@ const App: React.FC = () => {
                   <AdminRoute>
                     <MainLayout>
                       <SrmFailedExtractionsPage />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/status-dashboard"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <StatusDashboard />
                     </MainLayout>
                   </AdminRoute>
                 }

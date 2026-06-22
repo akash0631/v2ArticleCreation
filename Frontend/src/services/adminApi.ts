@@ -498,6 +498,32 @@ export const getSizeMasterAudit = async (majorCategory: string): Promise<SizeMas
 };
 
 // ═══════════════════════════════════════════════════════
+// STATUS DASHBOARD (extraction_results_flat — generic articles)
+// ═══════════════════════════════════════════════════════
+export interface StatusCounts {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
+}
+export interface StatusSubDivision extends StatusCounts {
+  subDivision: string;
+}
+export interface StatusDivision extends StatusCounts {
+  division: string;
+  subDivisions: StatusSubDivision[];
+}
+export interface StatusDashboard {
+  data: StatusDivision[];
+  totals: StatusCounts;
+}
+
+export const getStatusDashboard = async (): Promise<StatusDashboard> => {
+  const { data } = await adminApi.get('/status-dashboard');
+  return { data: data.data ?? [], totals: data.totals ?? { pending: 0, approved: 0, rejected: 0, total: 0 } };
+};
+
+// ═══════════════════════════════════════════════════════
 // USERS (ADMIN ONLY)
 // ═══════════════════════════════════════════════════════
 
