@@ -731,6 +731,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
           )}
         </>
       )}
+
     </div>
   );
 }

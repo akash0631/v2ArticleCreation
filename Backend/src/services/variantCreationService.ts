@@ -139,7 +139,12 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
   }
 }
 
-export async function addColorVariants(genericId: string, color: string, sizesOverride?: string[]): Promise<number> {
+export async function addColorVariants(
+  genericId: string,
+  color: string,
+  sizesOverride?: string[],
+  imageUrlOverride?: string,
+): Promise<number> {
   const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
   if (!generic) return 0;
 
@@ -184,6 +189,10 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
     ...rest
   } = generic;
 
+  // A per-color image (uploaded in the Add Color flow) overrides the generic's
+  // image so every size of this color shows that color's photo.
+  const variantImageUrl = (imageUrlOverride && imageUrlOverride.trim()) || generic.imageUrl || '';
+
   let created = 0;
   for (const size of sizes) {
     try {
@@ -191,7 +200,7 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
         data: {
           userId: originalJob.userId,
           categoryId: originalJob.categoryId,
-          imageUrl: generic.imageUrl || '',
+          imageUrl: variantImageUrl,
           status: 'COMPLETED',
           aiModel: originalJob.aiModel,
           processingTimeMs: generic.processingTimeMs,
@@ -211,6 +220,7 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
         ...rest,
         id: colorVariantId,
         jobId: newJob.id,
+        imageUrl: variantImageUrl,
         imageUncPath: null,
         approvalStatus: 'PENDING' as const,
         approvedBy: null,

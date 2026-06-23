@@ -1,10 +1,22 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { ApproverController } from '../controllers/ApproverController';
 import { authenticate, requireApprover, requireApprovalRights, requirePd } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 const h = asyncHandler; // shorthand — wraps every handler so unhandled errors become 500s
+
+// In-memory multer for image uploads (per-color variant images). 15MB cap, images only.
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE || '15728640', 10) },
+  fileFilter: (_req, file, cb) => {
+    const ok = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.mimetype);
+    if (ok) cb(null, true);
+    else cb(new Error('Only JPEG/PNG/WEBP images are allowed'));
+  },
+});
 
 // Apply middleware to all routes
 router.use(authenticate);
@@ -49,6 +61,8 @@ router.get('/image/:id', h(ApproverController.getImageUrl));
 // Variant routes
 router.get('/items/:id/variants', h(ApproverController.getVariants));
 router.post('/items/:id/add-color', h(ApproverController.addColor));
+// Upload a per-color variant image → returns { url }
+router.post('/upload-image', imageUpload.single('image'), h(ApproverController.uploadImage));
 router.post('/items/:id/duplicate', h(ApproverController.duplicateItem));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));

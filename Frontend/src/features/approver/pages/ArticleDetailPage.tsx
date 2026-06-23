@@ -361,12 +361,15 @@ export default function ArticleDetailPage() {
     return pendingItems.reduce<{ articleId: string; missing: string[] }[]>((acc, item) => {
       const missing: string[] = [];
       if (!item.vendorCode) missing.push('VENDOR CODE');
+      // Color is mandatory on the New Articles flow — it drives auto-variant
+      // creation when the article is sent to PD.
+      if (pathType === 'new' && !item.colour) missing.push('COLOUR');
       missing.push(...getMissingMandatoryFields(item));
       if (missing.length > 0) acc.push({ articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id, missing });
       return acc;
     }, []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectedKeys, items, gridVersion]);
+  }, [pendingSelectedKeys, items, gridVersion, pathType]);
 
   const handleApproveClick = () => {
     if (pendingSelectedKeys.length === 0) return;
@@ -388,7 +391,10 @@ export default function ArticleDetailPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ids: pendingSelectedKeys }),
       });
-      if (!r.ok) throw new Error(isPdSubmit ? 'Approval failed' : 'Send to PD failed');
+      if (!r.ok) {
+        const errPayload = await r.json().catch(() => null);
+        throw new Error(errPayload?.detail || errPayload?.error || (isPdSubmit ? 'Approval failed' : 'Send to PD failed'));
+      }
       const payload = await r.json();
       setConfirmDialog(null);
       if (!isPdSubmit) {
@@ -404,7 +410,10 @@ export default function ArticleDetailPage() {
       } else { message.success('Items approved successfully'); }
       setSelectedRowKeys([]);
       await refetchCurrentItem();
-    } catch { setConfirmDialog(null); message.error(isPdSubmit ? 'Failed to approve items' : 'Failed to send to PD'); }
+    } catch (e) {
+      setConfirmDialog(null);
+      message.error(e instanceof Error ? e.message : (isPdSubmit ? 'Failed to approve items' : 'Failed to send to PD'));
+    }
     finally { setApproving(false); }
   };
 

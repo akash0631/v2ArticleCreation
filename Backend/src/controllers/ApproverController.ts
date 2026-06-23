@@ -1763,6 +1763,39 @@ export class ApproverController {
             if (!Array.isArray(ids) || ids.length === 0) {
                 return res.status(400).json({ error: 'No items selected' });
             }
+
+            // Color is mandatory: each generic must carry a colour, and its Major
+            // Category must have sizes configured — otherwise no variants can be
+            // generated and we block the submit with a clear message.
+            const generics = await prisma.extractionResultFlat.findMany({
+                where: { id: { in: ids }, isGeneric: true },
+                select: { id: true, colour: true, majorCategory: true, articleNumber: true, imageName: true },
+            });
+            for (const g of generics) {
+                const label = g.articleNumber || g.imageName || g.id;
+                if (!g.colour || !g.colour.trim()) {
+                    return res.status(422).json({
+                        error: 'COLOR_REQUIRED',
+                        detail: `Select a color in the BOM for article ${label} before submitting.`,
+                    });
+                }
+                const sizes = await getSizesForMajCat(g.majorCategory || '');
+                if (sizes.length === 0) {
+                    return res.status(422).json({
+                        error: 'NO_SIZES_FOR_CATEGORY',
+                        detail: `No sizes are configured for "${g.majorCategory ?? ''}". Add them in the Size Master (Admin) before submitting.`,
+                    });
+                }
+            }
+
+            // Auto-generate one variant per Major-Category size for the chosen
+            // colour. addColorVariants is idempotent — it skips (size, colour)
+            // combinations that already exist (e.g. added via "Add Color").
+            let variantsCreated = 0;
+            for (const g of generics) {
+                variantsCreated += await addColorVariants(g.id, g.colour!.trim());
+            }
+
             const result = await prisma.extractionResultFlat.updateMany({
                 where: {
                     id: { in: ids },
@@ -1773,7 +1806,7 @@ export class ApproverController {
             });
             ApproverController.itemsCache.clear();
             ApproverController.countCache.clear();
-            return res.json({ success: true, sentToPd: result.count });
+            return res.json({ success: true, sentToPd: result.count, variantsCreated });
         } catch (err: any) {
             console.error('[sendToPd] Error:', err.message);
             return res.status(500).json({ error: err.message });
@@ -2397,6 +2430,11 @@ export class ApproverController {
                     articleNumber: null,
                     fabricArticleNumber: null,
                     fabricArticleDescription: null,
+                    // A manual duplicate has no pending AI extraction — mark it COMPLETED
+                    // so it isn't hidden by the 30-minute SRM extraction gate (which only
+                    // holds back source=SRM rows still in SRM_IMPORT) and isn't re-processed
+                    // (and overwritten) by the SRM raw-extraction cron.
+                    extractionStatus: 'COMPLETED',
                 },
             });
 
@@ -2409,12 +2447,14 @@ export class ApproverController {
     }
 
     // Add color variants to an existing generic article.
-    // Body: { colors|color, sizes? } — when `sizes` is provided (manual mode) only
-    // those sizes are created; otherwise all of the MC's active sizes (auto mode).
+    // Body: { colors|color, sizes?, colorImages? } — when `sizes` is provided
+    // (manual mode) only those sizes are created; otherwise all of the MC's active
+    // sizes (auto mode). `colorImages` maps each color code → uploaded image URL;
+    // that image is applied to every size of that color.
     static async addColor(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const { color, colors, sizes } = req.body;
+            const { color, colors, sizes, colorImages } = req.body;
             // Accept either colors[] (new) or color string (legacy)
             const colorList: string[] = Array.isArray(colors)
                 ? colors.map((c: string) => c.trim().toUpperCase()).filter(Boolean)
@@ -2423,6 +2463,22 @@ export class ApproverController {
                 : [];
 
             if (colorList.length === 0) return res.status(400).json({ error: 'At least one color is required' });
+
+            // Per-color image map (keys upper-cased to match colorList). Each color
+            // must have an image — the UI uploads one before submitting.
+            const imageByColor: Record<string, string> = {};
+            if (colorImages && typeof colorImages === 'object') {
+                for (const [k, v] of Object.entries(colorImages)) {
+                    if (typeof v === 'string' && v.trim()) imageByColor[k.trim().toUpperCase()] = v.trim();
+                }
+            }
+            const missingImg = colorList.filter((c) => !imageByColor[c]);
+            if (missingImg.length > 0) {
+                return res.status(422).json({
+                    error: 'IMAGE_REQUIRED',
+                    detail: `An image is required for each color. Missing: ${missingImg.join(', ')}.`,
+                });
+            }
 
             // Manual mode: validate requested sizes against the Major Category's
             // allowed sizes (maj_cat_sizes). Reject the whole request on any invalid size.
@@ -2447,11 +2503,30 @@ export class ApproverController {
 
             let totalCreated = 0;
             for (const c of colorList) {
-                totalCreated += await addColorVariants(id, c, sizesOverride);
+                totalCreated += await addColorVariants(id, c, sizesOverride, imageByColor[c]);
             }
             return res.json({ message: `Created ${totalCreated} color variants`, count: totalCreated });
         } catch (err: any) {
             return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Upload a single image (used by the Add Color flow for per-color images).
+    // Receives a multipart file field `image`; stores it in R2 and returns its URL.
+    static async uploadImage(req: Request, res: Response) {
+        try {
+            const file = (req as any).file as { buffer: Buffer; originalname: string; mimetype: string } | undefined;
+            if (!file) return res.status(400).json({ error: 'No image file provided' });
+            const result = await storageService.uploadFile(
+                file.buffer,
+                file.originalname || 'color.jpg',
+                file.mimetype || 'image/jpeg',
+                'variant-colors',
+            );
+            return res.json({ url: result.url });
+        } catch (err: any) {
+            console.error('[uploadImage] Error:', err.message);
+            return res.status(500).json({ error: 'Failed to upload image' });
         }
     }
 

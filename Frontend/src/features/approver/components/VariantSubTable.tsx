@@ -370,9 +370,13 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
   const [mcSizes, setMcSizes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [masterColors, setMasterColors] = useState<{ code: string; name: string }[]>([]);
+  // Step 2: per-color image upload. step 1 = pick colors/sizes, step 2 = upload images.
+  const [step, setStep] = useState<1 | 2>(1);
+  const [colorImages, setColorImages] = useState<Record<string, string>>({}); // color code → uploaded URL
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!open) { setSelectedColors([]); setSelectedSizes([]); setMode('auto'); return; }
+    if (!open) { setSelectedColors([]); setSelectedSizes([]); setMode('auto'); setStep(1); setColorImages({}); setUploading({}); return; }
     const token = localStorage.getItem('authToken');
     // Colors from the color_master table.
     fetch(`${APP_CONFIG.api.baseURL}/approver/colors`, {
@@ -394,6 +398,43 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
     }
   }, [open, majorCategory]);
 
+  // color code → "Name - CODE" label for the image step.
+  const colorLabel = (code: string) => {
+    const m = masterColors.find((c) => c.code.toUpperCase() === code.toUpperCase());
+    return m ? `${m.name} - ${m.code}` : code;
+  };
+
+  const uploadColorImage = async (code: string, file: File) => {
+    setUploading((u) => ({ ...u, [code]: true }));
+    try {
+      const token = localStorage.getItem('authToken');
+      const fd = new FormData();
+      fd.append('image', file);
+      const r = await fetch(`${APP_CONFIG.api.baseURL}/approver/upload-image`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!r.ok) throw new Error('Upload failed');
+      const d = await r.json();
+      setColorImages((m) => ({ ...m, [code]: d.url }));
+    } catch {
+      message.error(`Failed to upload image for ${code}`);
+    } finally {
+      setUploading((u) => ({ ...u, [code]: false }));
+    }
+  };
+
+  const anyUploading = Object.values(uploading).some(Boolean);
+  const allImagesReady = selectedColors.length > 0 && selectedColors.every((c) => !!colorImages[c]);
+
+  const handleNext = () => {
+    if (selectedColors.length === 0) { message.warning('Please select at least one color'); return; }
+    if (mode === 'manual' && selectedSizes.length === 0) { message.warning('Please select at least one size'); return; }
+    if (mode === 'manual' && newPairs.length === 0) { message.warning('All selected size × color combinations already exist'); return; }
+    setStep(2);
+  };
+
   const handleOk = async () => {
     if (selectedColors.length === 0) {
       message.warning('Please select at least one color');
@@ -403,12 +444,16 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
       message.warning('Please select at least one size');
       return;
     }
+    if (!allImagesReady) {
+      message.warning('Upload an image for every color');
+      return;
+    }
     setSaving(true);
     try {
       const token = localStorage.getItem('authToken');
       const body = mode === 'manual'
-        ? { colors: selectedColors, sizes: selectedSizes }
-        : { colors: selectedColors };
+        ? { colors: selectedColors, sizes: selectedSizes, colorImages }
+        : { colors: selectedColors, colorImages };
       const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${genericId}/add-color`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -478,9 +523,24 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
         }));
 
   const sizeOptions = mcSizes.map((s) => ({ value: s, label: s }));
+
+  // Manual mode: a (size × color) combo that already exists is skipped by the
+  // backend, so the preview must count only the genuinely-new combinations.
+  const pairKey = (size: string, color: string) => `${size.trim().toUpperCase()}||${color.trim().toUpperCase()}`;
+  const plannedPairs =
+    mode === 'manual'
+      ? selectedColors.flatMap((c) => selectedSizes.map((s) => ({ size: s, color: c, key: pairKey(s, c) })))
+      : [];
+  const newPairs = plannedPairs.filter((p) => !existingPairs.has(p.key));
+  const skippedPairs = plannedPairs.filter((p) => existingPairs.has(p.key));
+
   const effectiveSizeCount = mode === 'manual' ? selectedSizes.length : sizeCount;
   const variantPreview =
-    selectedColors.length > 0 && effectiveSizeCount > 0
+    mode === 'manual'
+      ? selectedColors.length > 0 && selectedSizes.length > 0
+        ? `${newPairs.length} new variant${newPairs.length !== 1 ? 's' : ''}`
+        : null
+      : selectedColors.length > 0 && effectiveSizeCount > 0
       ? `${selectedColors.length} color${selectedColors.length > 1 ? 's' : ''} × ${effectiveSizeCount} size${
           effectiveSizeCount > 1 ? 's' : ''
         } = ${selectedColors.length * effectiveSizeCount} variants`
@@ -495,6 +555,8 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           <DialogTitle>Add Color Variants</DialogTitle>
         </DialogHeader>
 
+        {step === 1 && (
+        <>
         {/* Mode selector */}
         <div className="mb-3 inline-flex rounded-md border border-border p-0.5">
           <button
@@ -566,6 +628,17 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
           </div>
         )}
 
+        {mode === 'manual' && skippedPairs.length > 0 && (
+          <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-700">
+            Already exists — will be skipped:{' '}
+            {skippedPairs.map((p) => (
+              <Tag key={p.key} className="ml-1">
+                {p.size} × {p.color}
+              </Tag>
+            ))}
+          </div>
+        )}
+
         {existingColors.length > 0 && (
           <div className="mt-2 text-xs text-muted-foreground">
             Already added:{' '}
@@ -576,21 +649,89 @@ const AddColorModal: React.FC<AddColorModalProps> = ({
             ))}
           </div>
         )}
+        </>
+        )}
+
+        {/* Step 2 — per-color image upload */}
+        {step === 2 && (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Upload an image for each color. That image is applied to all sizes of the color.
+            </p>
+            <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+              {selectedColors.map((code) => {
+                const url = colorImages[code];
+                const busy = uploading[code];
+                return (
+                  <div key={code} className="flex items-center gap-3 rounded-md border border-border p-2">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-muted">
+                      {url ? (
+                        <img src={url} alt={code} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">
+                          No image
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{colorLabel(code)}</div>
+                      <div
+                        className={
+                          'text-[11px] ' +
+                          (busy ? 'text-muted-foreground' : url ? 'text-emerald-600' : 'text-rose-600')
+                        }
+                      >
+                        {busy ? 'Uploading…' : url ? 'Image uploaded' : 'Required'}
+                      </div>
+                    </div>
+                    <label className="shrink-0 cursor-pointer rounded-md border border-input bg-background px-2.5 py-1 text-[12px] hover:bg-muted">
+                      {url ? 'Replace' : 'Upload'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        className="hidden"
+                        disabled={busy}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadColorImage(code, f);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleOk}
-            disabled={
-              saving ||
-              selectedColors.length === 0 ||
-              (mode === 'manual' && (selectedSizes.length === 0 || noSizesConfigured))
-            }
-          >
-            {saving ? 'Adding…' : mode === 'manual' ? 'Add Variants' : 'Add Colors'}
-          </Button>
+          {step === 1 ? (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleNext}
+                disabled={
+                  selectedColors.length === 0 ||
+                  (mode === 'manual' &&
+                    (selectedSizes.length === 0 || noSizesConfigured || newPairs.length === 0))
+                }
+              >
+                Next
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setStep(1)} disabled={saving || anyUploading}>
+                Back
+              </Button>
+              <Button onClick={handleOk} disabled={saving || anyUploading || !allImagesReady}>
+                {saving ? 'Adding…' : mode === 'manual' ? 'Add Variants' : 'Add Colors'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
