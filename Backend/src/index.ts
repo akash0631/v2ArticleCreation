@@ -406,7 +406,7 @@ app.use(errorHandler);
       }
     }, 60_000);
 
-    // raw_articles Extraction Cron — runs every 10 minutes AND immediately on startup.
+    // raw_articles Extraction Cron — runs every 5 minutes AND immediately on startup.
     // Picks up PENDING / FAILED rows (up to 10 per run), runs VLM, pushes to extraction_results_flat.
     // The worker has an internal guard so overlapping runs are safely skipped.
     const rawExtractTick = () => {
@@ -425,7 +425,7 @@ app.use(errorHandler);
         .catch(err => console.error('[RawExtract Cron] ❌ Unhandled error:', err?.message));
     };
 
-    // The 10-min raw-extraction cron is gated by ENABLE_CRON so it does not run
+    // The 5-min raw-extraction cron is gated by ENABLE_CRON so it does not run
     // in local development. Explicit ENABLE_CRON=true/false wins; otherwise it
     // defaults to ON in production and OFF everywhere else.
     const cronEnabled = process.env.ENABLE_CRON !== undefined
@@ -435,10 +435,10 @@ app.use(errorHandler);
     if (cronEnabled) {
       // Fire immediately on startup (catches any rows that were PENDING before restart)
       setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
-      // Then repeat every 10 minutes
-      setInterval(rawExtractTick, 10 * 60_000);
+      // Then repeat every 5 minutes
+      setInterval(rawExtractTick, 5 * 60_000);
     } else {
-      console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 10-min raw-extraction cron.');
+      console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 5-min raw-extraction cron.');
     }
 
     // Start server
