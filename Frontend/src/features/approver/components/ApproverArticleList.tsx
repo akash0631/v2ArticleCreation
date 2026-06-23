@@ -213,6 +213,66 @@ const ATTRIBUTE_GROUPS: { group: string; color: string; fields: { field: string;
   },
 ];
 
+// color_master options for the BOM Colour dropdown — fetched once, cached across cards.
+let _masterColorsCache: { code: string; name: string }[] | null = null;
+
+// Searchable single-select for the BOM Colour field (color_master can be long).
+const ColorSelect: React.FC<{
+  value: string | null;
+  options: { code: string; name: string }[];
+  onPick: (code: string) => void;
+  onClose: () => void;
+}> = ({ value, options, onPick, onClose }) => {
+  const [q, setQ] = useState('');
+  const lower = q.trim().toLowerCase();
+  const filtered = lower
+    ? options.filter((c) => c.code.toLowerCase().includes(lower) || c.name.toLowerCase().includes(lower))
+    : options;
+  return (
+    <Popover defaultOpen onOpenChange={(o) => { if (!o) onClose(); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex h-6 w-full items-center justify-between rounded border border-input bg-background px-1.5 text-[11px]"
+        >
+          <span className="truncate">{value || 'Select…'}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[230px] p-0">
+        <div className="border-b border-border p-1.5">
+          <Input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search colors…"
+            className="h-7 text-[12px]"
+          />
+        </div>
+        <div className="max-h-[240px] overflow-y-auto py-1">
+          {filtered.map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => onPick(c.code)}
+              className={cn(
+                'flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[12px] transition-colors hover:bg-primary/5',
+                value === c.code && 'bg-primary/10 font-medium',
+              )}
+            >
+              <span className="truncate">{c.name}</span>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{c.code}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-2.5 py-2 text-[12px] text-muted-foreground">No colors match.</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 const GROUP_COLORS: Record<string, string> = {
   FAB: '#e6f4ff',
   BODY: '#f6ffed',
@@ -690,6 +750,21 @@ const ArticleCard = React.memo(
     const [failedImg, setFailedImg] = useState(false);
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
     const refreshAttempted = React.useRef(false);
+
+    // color_master colors for the BOM Colour dropdown (fetched once, cached).
+    const [masterColors, setMasterColors] = useState<{ code: string; name: string }[]>(_masterColorsCache ?? []);
+    useEffect(() => {
+      if (_masterColorsCache) { setMasterColors(_masterColorsCache); return; }
+      const token = localStorage.getItem('authToken');
+      fetch(`${APP_CONFIG.api.baseURL}/approver/colors`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        .then((r) => (r.ok ? r.json() : { colors: [] }))
+        .then((d) => {
+          const c = Array.isArray(d?.colors) ? d.colors : [];
+          _masterColorsCache = c;
+          setMasterColors(c);
+        })
+        .catch(() => setMasterColors([]));
+    }, []);
 
     const FAB_FIELDS = useMemo(
       () =>
@@ -1946,9 +2021,10 @@ const ArticleCard = React.memo(
                     </div>
                     <div className="space-y-0 p-1">
                       {[
-                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false },
-                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
-                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isMarkdown: true },
+                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false, isColor: false, isMarkdown: false },
+                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false, isColor: false, isMarkdown: false },
+                        { label: 'COLOUR', field: 'colour', editable: true, mandatory: true, isDropdown: true, isColor: true, isMarkdown: false },
+                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isColor: false, isMarkdown: true },
                       ].map((bom) => {
                         const isEditingBom = editingField === `bom_${bom.field}`;
                         const val = bom.isMarkdown
@@ -1990,7 +2066,14 @@ const ArticleCard = React.memo(
                               {bom.label}
                             </span>
                             <div className="w-[100px] shrink-0 text-right">
-                              {isEditingBom && bom.isDropdown ? (
+                              {isEditingBom && bom.isColor ? (
+                                <ColorSelect
+                                  value={val === '—' ? null : val}
+                                  options={masterColors}
+                                  onPick={(code) => handleSave('colour', code)}
+                                  onClose={() => setEditingField(null)}
+                                />
+                              ) : isEditingBom && bom.isDropdown ? (
                                 <Select
                                   defaultValue={val === '—' ? undefined : val}
                                   onValueChange={(v) => handleSave(bom.field, v ?? null)}
