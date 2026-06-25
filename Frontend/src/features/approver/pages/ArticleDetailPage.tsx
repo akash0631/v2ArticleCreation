@@ -361,8 +361,8 @@ export default function ArticleDetailPage() {
     return pendingItems.reduce<{ articleId: string; missing: string[] }[]>((acc, item) => {
       const missing: string[] = [];
       if (!item.vendorCode) missing.push('VENDOR CODE');
-      // Color is mandatory on the New Articles flow — it drives auto-variant
-      // creation when the article is sent to PD.
+      // Color is mandatory on New Articles — on Save & Submit the approver's
+      // direct approval auto-generates variants from this BOM color.
       if (pathType === 'new' && !item.colour) missing.push('COLOUR');
       missing.push(...getMissingMandatoryFields(item));
       if (missing.length > 0) acc.push({ articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id, missing });
@@ -378,14 +378,18 @@ export default function ArticleDetailPage() {
   };
 
   const doApprove = async () => {
-    // On the PD page the action is the FINAL SAP submit (/approve). On every
-    // other page (New Articles) Save & Submit hands the article off to PD
-    // (/send-to-pd) — no SAP call until PD approves.
-    const isPdSubmit = pathType === 'pd';
+    // ─── PD two-stage flow (TEMPORARILY DISABLED — reverted to previous flow) ───
+    // Previously: New Articles "Save & Submit" handed the article to PD via
+    // /send-to-pd, and only PD did the final /approve (SAP create). That routing
+    // is commented out below so the APPROVER approves directly (creates in SAP),
+    // as in the original flow. Re-enable by restoring the two commented lines.
+    // const isPdSubmit = pathType === 'pd';
+    // const endpoint = isPdSubmit ? '/approver/approve' : '/approver/send-to-pd';
+    const isPdSubmit = true;                       // always perform the final SAP submit
+    const endpoint = '/approver/approve';          // approver approves directly
     setApproving(true);
     try {
       const token = localStorage.getItem('authToken');
-      const endpoint = isPdSubmit ? '/approver/approve' : '/approver/send-to-pd';
       const r = await fetch(`${APP_CONFIG.api.baseURL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
