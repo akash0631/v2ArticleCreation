@@ -1825,6 +1825,30 @@ export class ApproverController {
             // @ts-ignore - Assuming userId is added to req by auth middleware
             const userId = req.user?.id;
 
+            // ── Auto-generate color variants from the BOM colour ──────────────────
+            // On "Save & Submit" the approver approves directly; before approval we
+            // create one variant per Major-Category size for each generic's BOM
+            // colour (idempotent — addColorVariants skips combos that already
+            // exist, e.g. those added manually via "Add Color"). If a generic has a
+            // colour but its Major Category has no sizes configured, block with a
+            // clear message since no variants could be created.
+            const genericsToVariant = await prisma.extractionResultFlat.findMany({
+                where: { id: { in: ids }, isGeneric: true },
+                select: { id: true, colour: true, majorCategory: true, articleNumber: true, imageName: true },
+            });
+            for (const g of genericsToVariant) {
+                if (!g.colour || !g.colour.trim()) continue; // no colour → approve generic as-is
+                const sizes = await getSizesForMajCat(g.majorCategory || '');
+                if (sizes.length === 0) {
+                    const label = g.articleNumber || g.imageName || g.id;
+                    return res.status(422).json({
+                        error: 'NO_SIZES_FOR_CATEGORY',
+                        detail: `No sizes are configured for "${g.majorCategory ?? ''}" (article ${label}). Add them in the Size Master before submitting.`,
+                    });
+                }
+                await addColorVariants(g.id, g.colour.trim());
+            }
+
             const whereClause: any = {
                 id: { in: ids },
                 approvalStatus: 'PENDING'
