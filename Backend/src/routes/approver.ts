@@ -71,6 +71,8 @@ router.post('/upload-image', imageUpload.single('image'), h(ApproverController.u
 router.post('/items/:id/duplicate', h(ApproverController.duplicateItem));
 router.post('/items/:id/sync-color', h(ApproverController.syncColorToVariants));
 router.post('/items/:id/retry-variants', h(ApproverController.retryVariants));
+// Re-queue FAILED generics for the background SAP-sync worker (async approval flow)
+router.post('/retry-sap-sync', requireApprovalRights, h(ApproverController.retrySapSync));
 
 // Vendor name search — returns up to 15 matching vendors from master_vendor_details
 router.get('/vendor-search', h(ApproverController.vendorSearch));

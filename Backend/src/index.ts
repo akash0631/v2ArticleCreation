@@ -441,6 +441,23 @@ app.use(errorHandler);
       console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 5-min raw-extraction cron.');
     }
 
+    // Approval → SAP sync worker. After Save & Submit, the article is approved +
+    // queued (sapSyncStatus=PENDING); this worker creates it in SAP in the
+    // background so the UI never blocks. Runs every 30s (configurable); the
+    // in-process guard skips overlapping ticks. Same ENABLE_CRON gate.
+    if (cronEnabled) {
+      const approvalSyncTick = () => {
+        ApproverController.runApprovalSyncTick()
+          .catch((err) => console.error('[ApprovalSync Cron] Unhandled error:', err?.message));
+      };
+      const approvalIntervalMs = parseInt(process.env.APPROVAL_SYNC_INTERVAL_MS || '30000', 10);
+      console.log(`[ApprovalSync Cron] enabled — running every ${Math.round(approvalIntervalMs / 1000)}s`);
+      setTimeout(approvalSyncTick, 8000);
+      setInterval(approvalSyncTick, approvalIntervalMs);
+    } else {
+      console.log('[ApprovalSync Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production".');
+    }
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`\n🚀 Backend running on PORT: ${PORT}`);

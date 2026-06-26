@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Pencil, Trash2, Plus, Info } from 'lucide-react';
 import {
@@ -40,7 +40,7 @@ interface VariantSubTableProps {
   genericRecord: ApproverItem;
   onRefresh: () => void;
   attributes: MasterAttribute[];
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
 }
 
 // ── Edit variant modal ────────────────────────────────────────────────────────
@@ -754,8 +754,8 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
   const [addColorOpen, setAddColorOpen] = useState(false);
   const [majCatSizeCount, setMajCatSizeCount] = useState<number | null>(null);
 
-  const fetchVariants = useCallback(async () => {
-    setLoading(true);
+  const fetchVariants = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${genericId}/variants`, {
@@ -765,9 +765,9 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
       const result = await response.json();
       setVariants(result.data || result);
     } catch {
-      message.error('Failed to load variants');
+      if (!silent) message.error('Failed to load variants');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [genericId]);
 
@@ -777,6 +777,25 @@ const VariantSubTable: React.FC<VariantSubTableProps> = ({
   useEffect(() => {
     fetchVariants();
   }, [fetchVariants, genericRecord.approvalStatus, genericRecord.sapArticleId]);
+
+  // Variants sync to SAP a bit AFTER the generic, so the first refetch above often
+  // still shows them "Pending SAP". Quietly re-poll every 5s while the generic is
+  // APPROVED and any variant is still un-synced, so their SAP numbers/status appear
+  // without a hard refresh. Self-stops once all variants resolve (or after 3 min).
+  const variantPollElapsedRef = useRef(0);
+  useEffect(() => { variantPollElapsedRef.current = 0; }, [genericId]);
+  useEffect(() => {
+    if (genericRecord.approvalStatus !== 'APPROVED') return;
+    const anyPending = variants.some(
+      (v) => v.sapSyncStatus === 'PENDING' || v.sapSyncStatus === 'NOT_SYNCED',
+    );
+    if (!anyPending || variantPollElapsedRef.current >= 180) return;
+    const t = window.setTimeout(() => {
+      variantPollElapsedRef.current += 5;
+      void fetchVariants(true);
+    }, 5000);
+    return () => window.clearTimeout(t);
+  }, [variants, genericRecord.approvalStatus, fetchVariants]);
 
   useEffect(() => {
     const majCat = genericRecord.majorCategory;

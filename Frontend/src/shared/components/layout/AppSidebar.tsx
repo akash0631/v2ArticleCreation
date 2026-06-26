@@ -155,6 +155,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/approver/old-articles', Icon: History, label: 'Old articles' },
         { key: '/approver/rejected', Icon: XCircle, label: 'Rejected' },
         { key: '/approver/created', Icon: CheckCircle2, label: 'Created' },
+        { key: '/approver/failed', Icon: AlertTriangle, label: 'Failed Creations' },
       ],
     });
   }

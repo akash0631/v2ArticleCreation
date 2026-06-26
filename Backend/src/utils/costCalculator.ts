@@ -82,7 +82,7 @@ export function calculateApiCost(
     outputTokens: number,
     modelName: string
 ): number {
-    const pricing = MODEL_PRICING[modelName] || MODEL_PRICING['gpt-4-turbo']; // Default to GPT-4 Turbo
+    const pricing = MODEL_PRICING[modelName] || MODEL_PRICING['gemini-2.5-pro'];
 
     const inputCost = (inputTokens / 1_000_000) * pricing.inputCostPer1M;
     const outputCost = (outputTokens / 1_000_000) * pricing.outputCostPer1M;

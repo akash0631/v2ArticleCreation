@@ -394,6 +394,26 @@ const App: React.FC = () => {
                   </ApproverRoute>
                 }
               />
+              <Route
+                path="/approver/failed"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ApproverDashboard key="failed-articles" pathType="failed" />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
+              <Route
+                path="/approver/failed/:id"
+                element={
+                  <ApproverRoute>
+                    <MainLayout>
+                      <ArticleDetailPage />
+                    </MainLayout>
+                  </ApproverRoute>
+                }
+              />
 
               {/* PD Approval — Admin + PD only */}
               <Route
