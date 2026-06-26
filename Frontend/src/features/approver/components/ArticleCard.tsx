@@ -87,6 +87,9 @@ function ArticleCardComponent({ item, index, onClick, dateField = 'createdAt', s
           {item.sapSyncStatus === 'SYNCED' && (
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">SAP ✓</span>
           )}
+          {item.sapSyncStatus === 'PENDING' && item.approvalStatus === 'APPROVED' && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">SAP …</span>
+          )}
           {item.sapSyncStatus === 'FAILED' && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">SAP ✗</span>
           )}

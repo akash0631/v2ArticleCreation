@@ -691,6 +691,16 @@ export class ApproverController {
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
                 where.isOldArticle = false;
+            } else if (pathType === 'failed') {
+                // Failed Creations: generics whose SAP creation failed. User-specific —
+                // a user sees only the ones they approved; ADMIN/PD see all.
+                where.isGeneric = true;
+                where.isOldArticle = false;
+                where.sapSyncStatus = SapSyncStatus.FAILED;
+                const role = (req.user as any)?.role;
+                if (role !== 'ADMIN' && role !== 'PD') {
+                    where.approvedBy = (req.user as any)?.id ? Number((req.user as any).id) : -1;
+                }
             }
 
             // Status Filtering (Multi-select support)
@@ -762,6 +772,13 @@ export class ApproverController {
 
             // Source filter — 'SRM', 'WATCHER', 'USER', or omitted for all
             if (source && source !== 'ALL') where.source = source as string;
+
+            // SAP sync-status filter — works alongside pathType (e.g. on the Created
+            // tab) so users can find FAILED / still-queued (PENDING) syncs.
+            const sapSyncFilter = String(req.query.sapSyncStatus || '').trim().toUpperCase();
+            if (['SYNCED', 'PENDING', 'FAILED', 'NOT_SYNCED'].includes(sapSyncFilter)) {
+                where.sapSyncStatus = sapSyncFilter as SapSyncStatus;
+            }
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
@@ -1022,6 +1039,14 @@ export class ApproverController {
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
                 where.isOldArticle = false;
+            } else if (pathType === 'failed') {
+                where.isGeneric = true;
+                where.isOldArticle = false;
+                where.sapSyncStatus = SapSyncStatus.FAILED;
+                const role = (req.user as any)?.role;
+                if (role !== 'ADMIN' && role !== 'PD') {
+                    where.approvedBy = (req.user as any)?.id ? Number((req.user as any).id) : -1;
+                }
             }
 
             // Status filter
@@ -1872,19 +1897,75 @@ export class ApproverController {
                 }
             }
 
+            // Approve the generics and QUEUE them for background SAP sync
+            // (sapSyncStatus = PENDING). The SAP RFC runs in the background worker
+            // (runApprovalSyncTick) so this request returns instantly.
             const result = await prisma.extractionResultFlat.updateMany({
                 where: whereClause,
                 data: {
                     approvalStatus: 'APPROVED',
                     approvedBy: userId ? Number(userId) : null,
                     approvedAt: new Date(),
-                    sapSyncStatus: 'NOT_SYNCED' // Ready for sync
+                    sapSyncStatus: SapSyncStatus.PENDING,
                 }
             });
 
+            // Approve their variants too (also queued for SAP sync).
+            const approvedGenericIds = (await prisma.extractionResultFlat.findMany({
+                where: { id: { in: ids }, isGeneric: true, approvalStatus: 'APPROVED' },
+                select: { id: true },
+            })).map((r) => r.id);
+            if (approvedGenericIds.length > 0) {
+                await prisma.extractionResultFlat.updateMany({
+                    where: { genericArticleId: { in: approvedGenericIds }, isGeneric: false, approvalStatus: 'PENDING' },
+                    data: {
+                        approvalStatus: 'APPROVED',
+                        approvedBy: userId ? Number(userId) : null,
+                        approvedAt: new Date(),
+                        sapSyncStatus: SapSyncStatus.PENDING,
+                    },
+                });
+            }
+
+            // Clear any stale sync lease left over from a previous attempt so the
+            // worker can claim this article immediately on (re-)approval. Without
+            // this, a re-submit after a failed sync stays stuck PENDING until the
+            // old lease expires. (sap_lock_until is maintained via raw SQL.)
+            await prisma.$executeRawUnsafe(
+                'UPDATE public.extraction_results_flat SET sap_lock_until = NULL WHERE id = ANY($1::text[]) OR generic_article_id = ANY($1::text[])',
+                ids,
+            );
+
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            // 202 Accepted — approved and queued; the worker performs the SAP sync.
+            return res.status(202).json({
+                message: 'Approved and queued for SAP creation',
+                count: result.count,
+                queued: result.count,
+            });
+        } catch (error) {
+            console.error('Error approving items:', error);
+            return res.status(500).json({ error: 'Failed to approve items' });
+        }
+    }
+
+    // In-process guard so the approval-sync worker never overlaps itself.
+    private static _approvalSyncRunning = false;
+
+    /**
+     * Background SAP sync for approved-but-unsynced articles (sapSyncStatus=PENDING).
+     * On SAP failure the generic and its variants are reverted to PENDING approval
+     * (so the article returns to New Articles for correction), keeping
+     * sapSyncStatus=FAILED + sapSyncMessage so the UI can show why.
+     */
+    static async syncApprovedToSap(genericIds: string[]): Promise<{ synced: number; failed: number }> {
+        const ids = genericIds;
+        if (ids.length === 0) return { synced: 0, failed: 0 };
+        try {
             const approvedItems = await prisma.extractionResultFlat.findMany({
                 where: {
-                    ...whereClause,
+                    id: { in: ids },
                     approvalStatus: 'APPROVED'
                 },
                 select: {
@@ -2056,34 +2137,24 @@ export class ApproverController {
                 .filter((r) => !r.success)
                 .map((r) => r.id);
 
+            // On SAP failure, send the article back to the approver: revert the
+            // generic AND its variants to PENDING approval so it reappears in New
+            // Articles for correction. sapSyncStatus stays FAILED + sapSyncMessage
+            // (persisted above) so the UI can show why it failed.
             if (failedIds.length > 0) {
+                // Revert to PENDING for re-work, but KEEP approvedBy/approvedAt so the
+                // Failed Creations page can scope "who tried" (user-specific). The
+                // generic keeps sapSyncStatus=FAILED (+message) from the persist above.
                 await prisma.extractionResultFlat.updateMany({
                     where: { id: { in: failedIds } },
-                    data: {
-                        approvalStatus: ApprovalStatus.PENDING,
-                        approvedBy: null,
-                        approvedAt: null
-                    }
+                    data: { approvalStatus: ApprovalStatus.PENDING },
                 });
-            }
-
-            // Auto-approve all variants of approved generic articles
-            const successfullyApprovedIds = ids.filter((id: string) => !failedIds.includes(id));
-            if (successfullyApprovedIds.length > 0) {
                 await prisma.extractionResultFlat.updateMany({
-                    where: {
-                        genericArticleId: { in: successfullyApprovedIds },
-                        isGeneric: false,
-                        approvalStatus: 'PENDING'
-                    },
-                    data: {
-                        approvalStatus: 'APPROVED',
-                        approvedBy: userId ? Number(userId) : null,
-                        approvedAt: new Date(),
-                        sapSyncStatus: 'NOT_SYNCED'
-                    }
+                    where: { genericArticleId: { in: failedIds }, isGeneric: false },
+                    data: { approvalStatus: ApprovalStatus.PENDING, sapSyncStatus: SapSyncStatus.NOT_SYNCED },
                 });
             }
+            const successfullyApprovedIds = ids.filter((id: string) => !failedIds.includes(id));
 
             // ── Variant RFC sync ─────────────────────────────────────────────
             // For each successfully synced generic article, create its color/size
@@ -2162,19 +2233,94 @@ export class ApproverController {
                 .filter((r: any) => !r.success)
                 .map((r: any) => ({ id: r.id, message: r.message || 'SAP sync failed' }));
 
-            return res.json({
-                message: 'Items approved successfully',
-                count: result.count,
-                sapSync: {
-                    totalAttempted: finalizedSyncResults.length,
-                    synced: syncedCount,
-                    failed: failedCount,
-                    failures: failureDetails   // Full SAP error messages per item
-                }
+            void failureDetails; // per-item SAP errors are persisted on each row's sapSyncMessage
+            return { synced: syncedCount, failed: failedCount };
+        } catch (error: any) {
+            console.error('[ApprovalSync] syncApprovedToSap error:', error?.message);
+            return { synced: 0, failed: genericIds.length };
+        }
+    }
+
+    /**
+     * Background worker tick — claims a batch of APPROVED + PENDING(sync) generics
+     * and runs their SAP creation. Multi-process safe: the claim is atomic
+     * (FOR UPDATE SKIP LOCKED) with a lease (sap_lock_until) so two workers never
+     * grab the same row and a crashed worker's rows are reclaimed once the lease
+     * expires. Batch/lease are env-configurable.
+     */
+    static async runApprovalSyncTick(): Promise<{ processed: number; synced: number; failed: number }> {
+        if (ApproverController._approvalSyncRunning) {
+            return { processed: 0, synced: 0, failed: 0 };
+        }
+        ApproverController._approvalSyncRunning = true;
+        try {
+            const batchSize = parseInt(process.env.APPROVAL_SYNC_BATCH || '10', 10);
+            const lockMinutes = parseInt(process.env.APPROVAL_SYNC_LOCK_MINUTES || '15', 10);
+            const lockUntil = new Date(Date.now() + lockMinutes * 60_000); // computed in JS — no SQL interval fn
+
+            const claimed = await prisma.$queryRaw<{ id: string }[]>`
+                UPDATE public.extraction_results_flat
+                SET sap_lock_until = ${lockUntil}
+                WHERE id IN (
+                    SELECT id FROM public.extraction_results_flat
+                    WHERE is_generic = true
+                      AND approval_status::text = 'APPROVED'
+                      AND sap_sync_status::text = 'PENDING'
+                      AND (sap_lock_until IS NULL OR sap_lock_until < NOW())
+                    ORDER BY approved_at ASC
+                    LIMIT ${batchSize}
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING id
+            `;
+            if (claimed.length === 0) return { processed: 0, synced: 0, failed: 0 };
+            const ids = claimed.map((c) => c.id);
+
+            const remaining = await prisma.extractionResultFlat.count({
+                where: { isGeneric: true, approvalStatus: 'APPROVED', sapSyncStatus: SapSyncStatus.PENDING },
             });
-        } catch (error) {
-            console.error('Error approving items:', error);
-            return res.status(500).json({ error: 'Failed to approve items' });
+            console.log(`[ApprovalSync] Claimed ${ids.length} approved article(s) to sync (${remaining} still queued)`);
+
+            const r = await ApproverController.syncApprovedToSap(ids);
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            console.log(`[ApprovalSync] Done — synced:${r.synced} failed:${r.failed}`);
+            return { processed: ids.length, ...r };
+        } catch (err: any) {
+            console.error('[ApprovalSync] tick error:', err?.message);
+            return { processed: 0, synced: 0, failed: 0 };
+        } finally {
+            ApproverController._approvalSyncRunning = false;
+        }
+    }
+
+    // Re-queue FAILED generics for the background worker. Only generics never
+    // created in SAP (sapArticleId IS NULL) are re-queued — never a duplicate.
+    static async retrySapSync(req: Request, res: Response) {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ error: 'No items selected' });
+            }
+            const result = await prisma.extractionResultFlat.updateMany({
+                where: {
+                    id: { in: ids },
+                    isGeneric: true,
+                    approvalStatus: 'APPROVED',
+                    sapSyncStatus: SapSyncStatus.FAILED,
+                    sapArticleId: null,
+                },
+                data: { sapSyncStatus: SapSyncStatus.PENDING },
+            });
+            await prisma.$executeRawUnsafe(
+                'UPDATE public.extraction_results_flat SET sap_lock_until = NULL WHERE id = ANY($1::text[])',
+                ids,
+            );
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            return res.json({ success: true, requeued: result.count });
+        } catch (err: any) {
+            return res.status(500).json({ error: err.message });
         }
     }
 

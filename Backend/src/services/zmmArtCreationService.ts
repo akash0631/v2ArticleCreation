@@ -9,6 +9,7 @@
  */
 
 import { SapSyncItemResult } from './sapSyncService';
+import { mapWithConcurrency } from '../utils/concurrency';
 import { getMcCodeByMajorCategory, getHsnCodeByMcCode } from '../utils/mcCodeMapper';
 import { PrismaClient } from '../generated/prisma';
 import { FLAT_TO_RFC } from '../data/flatToRfcMap';
@@ -192,6 +193,11 @@ async function getDbValues(division: string): Promise<Record<string, string[]>> 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const ZMM_RFC_URL = 'https://sap-api.v2retail.net/api/ZMM_ART_CREATION_RFC?env=prod';
+// Hard timeout per SAP RFC call so a slow/unresponsive SAP endpoint can't hang the
+// approval-sync worker indefinitely (the call aborts → failure → article retried).
+const SAP_RFC_TIMEOUT_MS = parseInt(process.env.SAP_RFC_TIMEOUT_MS || '120000', 10);
+// How many SAP RFC calls to run in parallel ("lanes"). Keep within SAP's capacity.
+const SAP_RFC_CONCURRENCY = parseInt(process.env.SAP_RFC_CONCURRENCY || '6', 10);
 
 const ZMM_RFC_ENABLED =
     (process.env.ZMM_RFC_ENABLED ?? process.env.SAP_SYNC_ENABLED ?? 'true').toLowerCase() === 'true';
@@ -557,13 +563,12 @@ export async function syncArticlesToSapViaRfc(
         }));
     }
 
-    const results: SapSyncItemResult[] = [];
-
     // Load both grids once for the entire batch (cached after first call)
     const mandatoryGrid = await loadMandatoryGridForRfc();
     const majCatVisible = await loadMajCatVisibleFieldsForRfc();
 
-    for (const item of items) {
+    // Process up to SAP_RFC_CONCURRENCY articles in parallel ("open more lanes").
+    const results: SapSyncItemResult[] = await mapWithConcurrency(items, SAP_RFC_CONCURRENCY, async (item): Promise<SapSyncItemResult> => {
         // ── 1. Mandatory field check ──────────────────────────────────────────
         const missing = MANDATORY.filter((f) => {
             const val = toStr(item[f.flat]);
@@ -572,12 +577,11 @@ export async function syncArticlesToSapViaRfc(
             return !val;
         });
         if (missing.length > 0) {
-            results.push({
+            return {
                 id: item.id,
                 success: false,
                 message: `Missing mandatory fields: ${missing.map((f) => f.label).join(', ')}`,
-            });
-            continue;
+            };
         }
 
         // ── 2. Build payload (filtered by card visibility: mandatory + optional grids) ──
@@ -591,11 +595,14 @@ export async function syncArticlesToSapViaRfc(
         // ── 3. Call SAP RFC ──────────────────────────────────────────────────
         // New API expects: { "IM_DATA": [ { ...fields } ] }
         const requestBody = { IM_DATA: [payload] };
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), SAP_RFC_TIMEOUT_MS);
         try {
             const response = await fetch(ZMM_RFC_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
+                signal: ctrl.signal,
             });
 
             const responseText = await response.text();
@@ -609,32 +616,36 @@ export async function syncArticlesToSapViaRfc(
                 console.log(
                     `[ZMM_RFC] ✅ Article created: ${outcome.sapArticleNumber ?? 'no article number'} for flat_id=${item.id}`
                 );
-                results.push({
+                return {
                     id: item.id,
                     success: true,
                     statusCode: response.status,
                     message: outcome.message,
                     sapArticleNumber: outcome.sapArticleNumber,
-                });
-            } else {
-                console.warn(`[ZMM_RFC] ❌ SAP rejected flat_id=${item.id}: ${outcome.message}`);
-                results.push({
-                    id: item.id,
-                    success: false,
-                    statusCode: response.status,
-                    message: outcome.message,
-                });
+                };
             }
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : 'Unknown network error';
-            console.error(`[ZMM_RFC] Network error for flat_id=${item.id}:`, msg);
-            results.push({
+            console.warn(`[ZMM_RFC] ❌ SAP rejected flat_id=${item.id}: ${outcome.message}`);
+            return {
                 id: item.id,
                 success: false,
-                message: `ZMM_ART_CREATION_RFC network error: ${msg}`,
-            });
+                statusCode: response.status,
+                message: outcome.message,
+            };
+        } catch (err) {
+            const isTimeout = err instanceof Error && err.name === 'AbortError';
+            const msg = err instanceof Error ? err.message : 'Unknown network error';
+            console.error(`[ZMM_RFC] ${isTimeout ? 'TIMEOUT' : 'Network error'} for flat_id=${item.id}:`, msg);
+            return {
+                id: item.id,
+                success: false,
+                message: isTimeout
+                    ? `ZMM_ART_CREATION_RFC timed out after ${Math.round(SAP_RFC_TIMEOUT_MS / 1000)}s`
+                    : `ZMM_ART_CREATION_RFC network error: ${msg}`,
+            };
+        } finally {
+            clearTimeout(timer);
         }
-    }
+    });
 
     return results;
 }

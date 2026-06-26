@@ -74,7 +74,7 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
@@ -110,6 +110,8 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
   const [subDivisionFilter, setSubDivisionFilter] = useState<string>(() => seed('subDivision', 'ALL'));
   const [majorCategoryFilter, setMajorCategoryFilter] = useState<string>(() => seed('majorCategory', ''));
   const [sourceFilter, setSourceFilter] = useState<string>(() => seed('source', 'ALL'));
+  // SAP sync-status filter (Created tab): ALL | SYNCED | PENDING | FAILED
+  const [sapSyncFilter, setSapSyncFilter] = useState<string>('ALL');
   const [dateRangeFilter, setDateRangeFilter] = useState<[Dayjs | null, Dayjs | null] | null>(() => {
     const start = searchParams.get('startDate') ?? restoredFilters?.startDate;
     const end = searchParams.get('endDate') ?? restoredFilters?.endDate;
@@ -180,6 +182,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         if (subDivisionFilter !== 'ALL') params.set('subDivision', subDivisionFilter);
         if (majorCategoryFilter) params.set('majorCategory', majorCategoryFilter);
         if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
+        if (sapSyncFilter !== 'ALL') params.set('sapSyncStatus', sapSyncFilter);
         if (searchText) params.set('search', searchText);
         if (dateRangeFilter?.[0]) params.set('startDate', dateRangeFilter[0].startOf('day').toISOString());
         if (dateRangeFilter?.[1]) params.set('endDate', dateRangeFilter[1].endOf('day').toISOString());
@@ -202,7 +205,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         setLoading(false);
       }
     },
-    [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType],
+    [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, sapSyncFilter, searchText, dateRangeFilter, pathType],
   );
 
   useEffect(() => {
@@ -410,6 +413,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       : d.pathType === 'rejected' ? '/approver/rejected'
       : d.pathType === 'created' ? '/approver/created'
       : d.pathType === 'pd' ? '/approver/pd'
+      : d.pathType === 'failed' ? '/approver/failed'
       : '/approver';
     const state: DetailNavigationState = {
       items: d.items, currentIndex: index, currentPage: d.currentPage,
@@ -440,6 +444,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
                     : pathType === 'created' ? 'Created Articles'
+                    : pathType === 'failed' ? 'Failed Creations'
                     : pathType === 'pd' ? 'PD Approval' : 'Approver Dashboard'}
                 </div>
                 {user?.division && (
@@ -672,6 +677,17 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   <SelectItem value="USER">User</SelectItem>
                 </SelectContent>
               </Select>
+              {pathType === 'created' && (
+                <Select value={sapSyncFilter} onValueChange={setSapSyncFilter}>
+                  <SelectTrigger className="!h-7 w-[120px] text-[12px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All SAP Sync</SelectItem>
+                    <SelectItem value="SYNCED">SAP ✓ Synced</SelectItem>
+                    <SelectItem value="PENDING">SAP … Queued</SelectItem>
+                    <SelectItem value="FAILED">SAP ✗ Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               <RangePicker
                 value={dateRangeFilter}
                 onChange={setDateRangeFilter}

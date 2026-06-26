@@ -42,7 +42,7 @@ router.post('/correction', async (req: Request, res: Response): Promise<void> =>
       category,
       department,
       // Track which AI model made this prediction
-      modelUsed: 'gemini-2.5-pro', // Could be dynamic based on request
+      modelUsed: process.env.GEMINI_MODEL || 'gemini-2.5-pro',
       // This helps analyze which models need improvement
       isCorrection: true
     };
