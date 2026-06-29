@@ -1588,6 +1588,7 @@ export const getDetailedExpenses = async (req: Request, res: Response): Promise<
 
     const whereClause = {
       extractionStatus: 'COMPLETED', // Only show completed extractions
+      isGeneric: true,               // Exclude variants — they are DB copies, never extracted by Gemini
     } as const;
 
     // Fetch detailed expense data from flat table (paginated)
