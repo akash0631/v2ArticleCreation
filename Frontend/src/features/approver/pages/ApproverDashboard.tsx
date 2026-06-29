@@ -74,7 +74,7 @@ export const SIMPLE_APPROVER_EXPORT_HEADERS = [
 const PAGE_SIZE = 50;
 
 interface ApproverDashboardProps {
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
 }
 
 export default function ApproverDashboard({ pathType }: ApproverDashboardProps = {}) {
@@ -412,7 +412,6 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       d.pathType === 'old' ? '/approver/old-articles'
       : d.pathType === 'rejected' ? '/approver/rejected'
       : d.pathType === 'created' ? '/approver/created'
-      : d.pathType === 'pd' ? '/approver/pd'
       : d.pathType === 'failed' ? '/approver/failed'
       : '/approver';
     const state: DetailNavigationState = {
@@ -444,8 +443,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
                     : pathType === 'created' ? 'Created Articles'
-                    : pathType === 'failed' ? 'Failed Creations'
-                    : pathType === 'pd' ? 'PD Approval' : 'Approver Dashboard'}
+                    : pathType === 'failed' ? 'Failed Creations' : 'Approver Dashboard'}
                 </div>
                 {user?.division && (
                   <div className="truncate text-[10px] font-medium text-white/65">

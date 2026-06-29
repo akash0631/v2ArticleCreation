@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ApprovalStatus, SapSyncStatus, PdStatus } from '../generated/prisma';
+import { ApprovalStatus, SapSyncStatus } from '../generated/prisma';
 import fs from 'fs';
 import path from 'path';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
@@ -676,15 +676,7 @@ export class ApproverController {
             if (pathType === 'old') {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
-                // Approver queue: PENDING articles not yet sent to PD, excluding old-path.
                 where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.PENDING;
-                where.isOldArticle = false;
-            } else if (pathType === 'pd') {
-                // PD queue: approver has sent it (pdStatus=COMPLETED) but it's not yet
-                // approved/created in SAP. Admin + PD only (route-guarded on the frontend).
-                where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'rejected') {
                 where.approvalStatus = ApprovalStatus.REJECTED;
@@ -1030,11 +1022,6 @@ export class ApproverController {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
                 where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.PENDING;
-                where.isOldArticle = false;
-            } else if (pathType === 'pd') {
-                where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
@@ -1507,11 +1494,6 @@ export class ApproverController {
 
             const role = String(req.user?.role || '');
 
-            // Once sent to PD (pdStatus=COMPLETED) the article is locked for the
-            // approver — only PD / ADMIN may edit it from the PD page.
-            if ((existingItem as any).pdStatus === 'COMPLETED' && role !== 'PD' && role !== 'ADMIN') {
-                return res.status(403).json({ error: 'This article has been sent to PD. Only PD or Admin can edit it.' });
-            }
             if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
@@ -1775,66 +1757,6 @@ export class ApproverController {
         } catch (error) {
             console.error('Error modifying item:', error);
             return res.status(500).json({ error: 'Failed to modify item' });
-        }
-    }
-
-    // Approve items
-    // Approver "Save & Submit": hand articles off to PD. Sets pdStatus=COMPLETED
-    // for PENDING, not-yet-sent items. No SAP call — SAP creation happens when
-    // PD/ADMIN approves from the PD page (approveItems).
-    static async sendToPd(req: Request, res: Response) {
-        try {
-            const { ids } = req.body;
-            if (!Array.isArray(ids) || ids.length === 0) {
-                return res.status(400).json({ error: 'No items selected' });
-            }
-
-            // Color is mandatory: each generic must carry a colour, and its Major
-            // Category must have sizes configured — otherwise no variants can be
-            // generated and we block the submit with a clear message.
-            const generics = await prisma.extractionResultFlat.findMany({
-                where: { id: { in: ids }, isGeneric: true },
-                select: { id: true, colour: true, majorCategory: true, articleNumber: true, imageName: true },
-            });
-            for (const g of generics) {
-                const label = g.articleNumber || g.imageName || g.id;
-                if (!g.colour || !g.colour.trim()) {
-                    return res.status(422).json({
-                        error: 'COLOR_REQUIRED',
-                        detail: `Select a color in the BOM for article ${label} before submitting.`,
-                    });
-                }
-                const sizes = await getSizesForMajCat(g.majorCategory || '');
-                if (sizes.length === 0) {
-                    return res.status(422).json({
-                        error: 'NO_SIZES_FOR_CATEGORY',
-                        detail: `No sizes are configured for "${g.majorCategory ?? ''}". Add them in the Size Master (Admin) before submitting.`,
-                    });
-                }
-            }
-
-            // Auto-generate one variant per Major-Category size for the chosen
-            // colour. addColorVariants is idempotent — it skips (size, colour)
-            // combinations that already exist (e.g. added via "Add Color").
-            let variantsCreated = 0;
-            for (const g of generics) {
-                variantsCreated += await addColorVariants(g.id, g.colour!.trim());
-            }
-
-            const result = await prisma.extractionResultFlat.updateMany({
-                where: {
-                    id: { in: ids },
-                    approvalStatus: ApprovalStatus.PENDING,
-                    pdStatus: PdStatus.PENDING,
-                },
-                data: { pdStatus: PdStatus.COMPLETED },
-            });
-            ApproverController.itemsCache.clear();
-            ApproverController.countCache.clear();
-            return res.json({ success: true, sentToPd: result.count, variantsCreated });
-        } catch (err: any) {
-            console.error('[sendToPd] Error:', err.message);
-            return res.status(500).json({ error: err.message });
         }
     }
 

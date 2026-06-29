@@ -179,7 +179,7 @@ export interface DetailNavigationState {
   currentIndex: number;
   currentPage: number;
   totalCount: number;
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   filters: DetailFilters;
   listPage?: number;
 }
@@ -198,7 +198,6 @@ export default function ArticleDetailPage() {
     : location.pathname.startsWith('/approver/rejected') ? 'rejected'
     : location.pathname.startsWith('/approver/created') ? 'created'
     : location.pathname.startsWith('/approver/failed') ? 'failed'
-    : location.pathname.startsWith('/approver/pd') ? 'pd'
     : location.pathname.startsWith('/approver') ? 'new'
     : undefined;
   const pathType = navState?.pathType ?? pathFromUrl;
@@ -293,7 +292,6 @@ export default function ArticleDetailPage() {
     if (pathType === 'rejected') return '/approver/rejected';
     if (pathType === 'created') return '/approver/created';
     if (pathType === 'failed') return '/approver/failed';
-    if (pathType === 'pd') return '/approver/pd';
     return '/approver';
   }
 
@@ -437,15 +435,7 @@ export default function ArticleDetailPage() {
   };
 
   const doApprove = async () => {
-    // ─── PD two-stage flow (TEMPORARILY DISABLED — reverted to previous flow) ───
-    // Previously: New Articles "Save & Submit" handed the article to PD via
-    // /send-to-pd, and only PD did the final /approve (SAP create). That routing
-    // is commented out below so the APPROVER approves directly (creates in SAP),
-    // as in the original flow. Re-enable by restoring the two commented lines.
-    // const isPdSubmit = pathType === 'pd';
-    // const endpoint = isPdSubmit ? '/approver/approve' : '/approver/send-to-pd';
-    const isPdSubmit = true;                       // always perform the final SAP submit
-    const endpoint = '/approver/approve';          // approver approves directly
+    const endpoint = '/approver/approve';
     setApproving(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -456,7 +446,7 @@ export default function ArticleDetailPage() {
       });
       if (!r.ok) {
         const errPayload = await r.json().catch(() => null);
-        throw new Error(errPayload?.detail || errPayload?.error || (isPdSubmit ? 'Approval failed' : 'Send to PD failed'));
+        throw new Error(errPayload?.detail || errPayload?.error || 'Approval failed');
       }
       const payload = await r.json();
       setConfirmDialog(null);
@@ -471,7 +461,7 @@ export default function ArticleDetailPage() {
       if (approvedId) pollUntilSynced(approvedId);
     } catch (e) {
       setConfirmDialog(null);
-      message.error(e instanceof Error ? e.message : (isPdSubmit ? 'Failed to approve items' : 'Failed to send to PD'));
+      message.error(e instanceof Error ? e.message : 'Failed to approve items');
     }
     finally { setApproving(false); }
   };
@@ -803,7 +793,7 @@ export default function ArticleDetailPage() {
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
                     : pathType === 'created' ? 'Created Articles'
-                    : pathType === 'pd' ? 'PD Approval' : 'Article Detail'}
+                    : 'Article Detail'}
                 </div>
                 {user?.division && (
                   <div className="truncate text-[10px] font-medium text-white/65">

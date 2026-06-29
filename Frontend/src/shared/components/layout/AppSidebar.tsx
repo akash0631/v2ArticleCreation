@@ -160,11 +160,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
     });
   }
 
-  // PD Approval queue — Admin + PD only.
-  if (!isPdDesigner && (isAdmin || isPd)) {
-    items.push({ key: '/approver/pd', Icon: CheckCircle2, label: 'PD Approval' });
-  }
-
   if (!isPdDesigner && (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin)) {
     items.push({ key: '/po-presentation', Icon: FileText, label: 'PO Presentation' });
   }
