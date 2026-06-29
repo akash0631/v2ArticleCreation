@@ -34,7 +34,7 @@ import { checkApiConfiguration } from './services/baseApi';
 import { cacheService } from './services/cacheService';
 import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
-import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
+import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown, isDbCircuitOpen } from './utils/prisma';
 import srmHookRoutes from './routes/srmHook';
 import testApiRoutes from './routes/testApi';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
@@ -447,10 +447,14 @@ app.use(errorHandler);
     // in-process guard skips overlapping ticks. Same ENABLE_CRON gate.
     if (cronEnabled) {
       const approvalSyncTick = () => {
+        if (isDbCircuitOpen()) {
+          console.log('[ApprovalSync Cron] DB circuit open — skipping tick');
+          return;
+        }
         ApproverController.runApprovalSyncTick()
           .catch((err) => console.error('[ApprovalSync Cron] Unhandled error:', err?.message));
       };
-      const approvalIntervalMs = parseInt(process.env.APPROVAL_SYNC_INTERVAL_MS || '30000', 10);
+      const approvalIntervalMs = parseInt(process.env.APPROVAL_SYNC_INTERVAL_MS || '60000', 10);
       console.log(`[ApprovalSync Cron] enabled — running every ${Math.round(approvalIntervalMs / 1000)}s`);
       setTimeout(approvalSyncTick, 8000);
       setInterval(approvalSyncTick, approvalIntervalMs);

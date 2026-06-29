@@ -65,7 +65,10 @@ function isTransientPrismaError(error: any): boolean {
     message.includes('can\'t reach database server') ||
     message.includes('timed out fetching a new connection from the connection pool') ||
     message.includes('maxclientsinsessionmode') ||
-    message.includes('max clients reached')
+    message.includes('max clients reached') ||
+    message.includes('ecircuitbreaker') ||
+    message.includes('too many authentication failures') ||
+    message.includes('new connections are temporarily blocked')
   );
 }
 
@@ -105,6 +108,28 @@ export function isAppShuttingDown(): boolean {
   return globalForPrisma.__appIsShuttingDown === true;
 }
 
+// ── App-side circuit breaker ──────────────────────────────────────────────────
+// When Supabase fires ECIRCUITBREAKER we back off for CIRCUIT_BLOCK_MS before
+// allowing any new DB calls from cron jobs. This prevents the 30s ApprovalSync
+// tick from hammering a blocked pooler and making the block last longer.
+const CIRCUIT_BLOCK_MS = 90_000; // 90 seconds
+let _circuitBlockedUntil = 0;
+
+export function openDbCircuit(): void {
+  _circuitBlockedUntil = Date.now() + CIRCUIT_BLOCK_MS;
+  console.warn(`[DB Circuit] 🔴 Circuit open — cron DB calls blocked for ${CIRCUIT_BLOCK_MS / 1000}s`);
+}
+
+export function isDbCircuitOpen(): boolean {
+  if (_circuitBlockedUntil === 0) return false;
+  if (Date.now() >= _circuitBlockedUntil) {
+    _circuitBlockedUntil = 0;
+    console.log('[DB Circuit] 🟢 Circuit closed — resuming normal DB operations');
+    return false;
+  }
+  return true;
+}
+
 export async function withPrismaRetry<T>(
   operation: () => Promise<T>,
   options: { maxRetries?: number; baseDelayMs?: number } = {}
@@ -123,6 +148,13 @@ export async function withPrismaRetry<T>(
       const canRetry = attempt < maxRetries && isTransientPrismaError(error);
       if (!canRetry) {
         throw error;
+      }
+
+      const msg = String(error?.message || '').toLowerCase();
+      if (msg.includes('ecircuitbreaker') || msg.includes('too many authentication failures')) {
+        openDbCircuit();
+        await resetPrismaClient();
+        throw error; // Don't retry circuit breaker — just fail fast and let cron skip next tick
       }
 
       if (shouldResetPrismaClient(error)) {

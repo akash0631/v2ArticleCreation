@@ -592,6 +592,9 @@ async function enrichSrmRowWithVlm(
       updates.extractionStatus = 'COMPLETED';
       updates.aiModel = result.modelUsed ? String(result.modelUsed) : 'google-gemini';
       if (result.confidence != null) updates.avgConfidence = result.confidence;
+      if (result.inputTokens)  updates.inputTokens = result.inputTokens;
+      if (result.outputTokens) updates.outputTokens = result.outputTokens;
+      if (result.apiCost)      updates.apiCost = result.apiCost;
 
       if (Object.keys(updates).length <= 3) {
         // VLM returned 0 usable attributes — retry if attempts remain
