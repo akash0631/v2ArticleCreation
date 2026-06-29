@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { ApproverController } from '../controllers/ApproverController';
-import { authenticate, requireApprover, requireApprovalRights, requirePd } from '../middleware/auth';
+import { authenticate, requireApprover, requireApprovalRights } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
@@ -45,16 +45,7 @@ router.all('/items/:id', h(async (req, res, next) => {
 // SAP via patch-bulk, then persists locally only on success.
 router.post('/items/:id/modify', requireApprovalRights, h(ApproverController.modifyItem));
 
-// Approver "Save & Submit": hand the article off to PD (sets pdStatus=COMPLETED).
-// Does NOT create in SAP — that now happens at the PD stage via /approve.
-// NOTE: kept for re-enabling the PD two-stage flow; the approver UI no longer calls it.
-router.post('/send-to-pd', requireApprovalRights, h(ApproverController.sendToPd));
-
 // FINAL submit — creates the article in SAP.
-// PD two-stage flow (DISABLED): previously restricted to PD/ADMIN via requirePd.
-// Reverted to previous flow so the APPROVER can approve directly. Re-enable by
-// swapping requireApprovalRights back to requirePd.
-// router.post('/approve', requirePd, h(ApproverController.approveItems));
 router.post('/approve', requireApprovalRights, h(ApproverController.approveItems));
 
 // Reject selected items — approver roles + PD + ADMIN

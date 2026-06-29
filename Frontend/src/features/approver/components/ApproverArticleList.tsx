@@ -372,7 +372,7 @@ export interface ApproverArticleListProps {
   onModify?: (item: ApproverItem, changes: Record<string, unknown>) => Promise<void>;
   attributes: MasterAttribute[];
   onRefresh: () => void;
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   serverPagination: {
     total: number;
     current: number;
@@ -418,7 +418,7 @@ const ArticleCard = React.memo(
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
-    pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd' | 'failed';
+    pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
@@ -2131,8 +2131,8 @@ const ArticleCard = React.memo(
                 </div>
               )}
 
-              {/* Proceed for FG Article Creation — hidden on New Articles + PD Approval */}
-              {!item.articleNumber && pathType !== 'new' && pathType !== 'pd' &&
+              {/* Proceed for FG Article Creation — hidden on New Articles and Failed Creations */}
+              {!item.articleNumber && pathType !== 'new' && pathType !== 'failed' &&
                 (() => {
                   const effectiveVendorCode =
                     localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;

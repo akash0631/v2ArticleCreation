@@ -87,19 +87,6 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
-// PD page guard — only ADMIN and PD may view/submit on the PD approval queue.
-const PdRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem('authToken');
-  const user = localStorage.getItem('user');
-  if (!token) return <Navigate to="/login" replace />;
-  if (user) {
-    const userData = JSON.parse(user);
-    if (userData.role !== 'ADMIN' && userData.role !== 'PD') {
-      return <Navigate to="/dashboard" replace />;
-    }
-  }
-  return <>{children}</>;
-};
 
 const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('authToken');
@@ -115,9 +102,8 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
     }
-    // PD is an approval-only role → send to the PD queue
     if (userData.role === 'PD') {
-      return <Navigate to="/approver/pd" replace />;
+      return <Navigate to="/approver" replace />;
     }
     // PD_DESIGNER only has access to model-generation
     if (userData.role === 'PD_DESIGNER') {
@@ -415,27 +401,6 @@ const App: React.FC = () => {
                 }
               />
 
-              {/* PD Approval — Admin + PD only */}
-              <Route
-                path="/approver/pd"
-                element={
-                  <PdRoute>
-                    <MainLayout>
-                      <ApproverDashboard key="pd-approval" pathType="pd" />
-                    </MainLayout>
-                  </PdRoute>
-                }
-              />
-              <Route
-                path="/approver/pd/:id"
-                element={
-                  <PdRoute>
-                    <MainLayout>
-                      <ArticleDetailPage />
-                    </MainLayout>
-                  </PdRoute>
-                }
-              />
 
               {/* PO Presentation */}
               <Route
