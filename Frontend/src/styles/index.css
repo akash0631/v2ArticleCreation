@@ -41,3 +41,21 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+/* ── Sonner toast close (✕) button — always visible, not hover-only ──────────
+   Sonner renders the close button faint until hover. Force it fully visible at
+   all times with a clear, high-contrast circle so every toast can be dismissed
+   by clicking the cross without needing to hover first. */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: var(--color-primary, #ff5a36) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
