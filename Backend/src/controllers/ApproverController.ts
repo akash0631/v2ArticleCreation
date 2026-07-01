@@ -919,6 +919,10 @@ export class ApproverController {
                     genericArticleId: true,
                     variantSize: true,
                     variantColor: true,
+                    approvedBy: true,
+                    approver: {
+                        select: { name: true, email: true },
+                    },
                 }
             };
 
@@ -1212,6 +1216,9 @@ export class ApproverController {
                     ageGroup: true,
                     articleFashionType: true,
                     mvgrBrandVendor: true,
+                    // Approver identity — used by the Created Articles export
+                    approvedBy: true,
+                    approver: { select: { name: true, email: true } },
                 },
             });
 
@@ -1298,6 +1305,8 @@ export class ApproverController {
                     fabricArticleNumber: true, fabricArticleDescription: true,
                     attrArticleNums: true, mvgrBrandVendor: true,
                     isGeneric: true, genericArticleId: true, variantSize: true, variantColor: true,
+                    approvedBy: true, approvedAt: true,
+                    approver: { select: { name: true, email: true } },
                 },
             });
             if (!item) return res.status(404).json({ error: 'Item not found' });
