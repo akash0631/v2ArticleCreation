@@ -14784,7 +14784,7 @@ export namespace Prisma {
 
   export type ExtractionResultFlatGroupByOutputType = {
     id: string
-    jobId: string
+    jobId: string | null
     imageName: string | null
     imageUrl: string | null
     articleNumber: string | null
@@ -15054,7 +15054,7 @@ export namespace Prisma {
     srmOriginalDesignNumber?: boolean
     srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
     srmSyncRunItems?: boolean | ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>
     _count?: boolean | ExtractionResultFlatCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
@@ -15185,7 +15185,7 @@ export namespace Prisma {
     srmOriginalDesignNumber?: boolean
     srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
 
   export type ExtractionResultFlatSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -15314,7 +15314,7 @@ export namespace Prisma {
     srmOriginalDesignNumber?: boolean
     srmUniqueId?: boolean
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
   }, ExtArgs["result"]["extractionResultFlat"]>
 
   export type ExtractionResultFlatSelectScalar = {
@@ -15447,29 +15447,29 @@ export namespace Prisma {
   export type ExtractionResultFlatOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jobId" | "imageName" | "imageUrl" | "articleNumber" | "extractionStatus" | "aiModel" | "avgConfidence" | "processingTimeMs" | "totalAttributes" | "extractedCount" | "inputTokens" | "outputTokens" | "totalTokens" | "apiCost" | "userId" | "userName" | "extractionDate" | "createdAt" | "updatedAt" | "majorCategory" | "vendorName" | "designNumber" | "pptNumber" | "rate" | "size" | "yarn1" | "yarn2" | "fabricMainMvgr" | "weave" | "weaveFullForm" | "composition" | "finish" | "gsm" | "macroMvgr" | "macroMvgrFullForm" | "mainMvgr" | "mainMvgrFullForm" | "mFab2" | "mFab2FullForm" | "shade" | "weight" | "lycra" | "neck" | "neckDetails" | "collar" | "placket" | "sleeve" | "bottomFold" | "frontOpenStyle" | "pocketType" | "fit" | "pattern" | "length" | "colour" | "drawcord" | "button" | "zipper" | "zipColour" | "printType" | "printStyle" | "printPlacement" | "patches" | "patchesType" | "embroidery" | "embroideryType" | "wash" | "fatherBelt" | "childBelt" | "division" | "subDivision" | "referenceArticleNumber" | "referenceArticleDescription" | "collarStyle" | "sleeveFold" | "noOfPocket" | "extraPocket" | "dcShape" | "btnColour" | "fCount" | "fConstruction" | "fOunce" | "fWidth" | "fabDiv" | "fabVdr" | "htrfType" | "htrfStyle" | "embPlacement" | "ageGroup" | "articleFashionType" | "articleDimension" | "bodyArticle" | "bodyArticleDescription" | "fabricArticleNumber" | "fabricArticleDescription" | "attrArticleNums" | "mvgrBrandVendor" | "vendorCode" | "mrp" | "impAtrbt2" | "mcCode" | "segment" | "season" | "hsnTaxCode" | "articleDescription" | "fashionGrid" | "year" | "articleType" | "approvalStatus" | "pdStatus" | "approvedBy" | "approvedAt" | "source" | "imageUncPath" | "isOldArticle" | "isGeneric" | "genericArticleId" | "variantSize" | "variantColor" | "sapSyncStatus" | "sapArticleId" | "sapSyncMessage" | "srmOriginalDesignNumber" | "srmUniqueId", ExtArgs["result"]["extractionResultFlat"]>
   export type ExtractionResultFlatInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
     srmSyncRunItems?: boolean | ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>
     _count?: boolean | ExtractionResultFlatCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ExtractionResultFlatIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
   }
   export type ExtractionResultFlatIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     approver?: boolean | ExtractionResultFlat$approverArgs<ExtArgs>
-    job?: boolean | ExtractionJobDefaultArgs<ExtArgs>
+    job?: boolean | ExtractionResultFlat$jobArgs<ExtArgs>
   }
 
   export type $ExtractionResultFlatPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "ExtractionResultFlat"
     objects: {
       approver: Prisma.$UserPayload<ExtArgs> | null
-      job: Prisma.$ExtractionJobPayload<ExtArgs>
+      job: Prisma.$ExtractionJobPayload<ExtArgs> | null
       srmSyncRunItems: Prisma.$SrmSyncRunItemPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      jobId: string
+      jobId: string | null
       imageName: string | null
       imageUrl: string | null
       articleNumber: string | null
@@ -15987,7 +15987,7 @@ export namespace Prisma {
   export interface Prisma__ExtractionResultFlatClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     approver<T extends ExtractionResultFlat$approverArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionResultFlat$approverArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-    job<T extends ExtractionJobDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionJobDefaultArgs<ExtArgs>>): Prisma__ExtractionJobClient<$Result.GetResult<Prisma.$ExtractionJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    job<T extends ExtractionResultFlat$jobArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionResultFlat$jobArgs<ExtArgs>>): Prisma__ExtractionJobClient<$Result.GetResult<Prisma.$ExtractionJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     srmSyncRunItems<T extends ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs> = {}>(args?: Subset<T, ExtractionResultFlat$srmSyncRunItemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SrmSyncRunItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -16554,6 +16554,25 @@ export namespace Prisma {
      */
     include?: UserInclude<ExtArgs> | null
     where?: UserWhereInput
+  }
+
+  /**
+   * ExtractionResultFlat.job
+   */
+  export type ExtractionResultFlat$jobArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExtractionJob
+     */
+    select?: ExtractionJobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExtractionJob
+     */
+    omit?: ExtractionJobOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ExtractionJobInclude<ExtArgs> | null
+    where?: ExtractionJobWhereInput
   }
 
   /**
@@ -42073,7 +42092,7 @@ export namespace Prisma {
     OR?: ExtractionResultFlatWhereInput[]
     NOT?: ExtractionResultFlatWhereInput | ExtractionResultFlatWhereInput[]
     id?: StringFilter<"ExtractionResultFlat"> | string
-    jobId?: StringFilter<"ExtractionResultFlat"> | string
+    jobId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageName?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageUrl?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     articleNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -42197,13 +42216,13 @@ export namespace Prisma {
     srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     srmUniqueId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
-    job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
+    job?: XOR<ExtractionJobNullableScalarRelationFilter, ExtractionJobWhereInput> | null
     srmSyncRunItems?: SrmSyncRunItemListRelationFilter
   }
 
   export type ExtractionResultFlatOrderByWithRelationInput = {
     id?: SortOrder
-    jobId?: SortOrder
+    jobId?: SortOrderInput | SortOrder
     imageName?: SortOrderInput | SortOrder
     imageUrl?: SortOrderInput | SortOrder
     articleNumber?: SortOrderInput | SortOrder
@@ -42461,13 +42480,13 @@ export namespace Prisma {
     srmOriginalDesignNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     srmUniqueId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     approver?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
-    job?: XOR<ExtractionJobScalarRelationFilter, ExtractionJobWhereInput>
+    job?: XOR<ExtractionJobNullableScalarRelationFilter, ExtractionJobWhereInput> | null
     srmSyncRunItems?: SrmSyncRunItemListRelationFilter
   }, "id" | "jobId" | "imageUncPath">
 
   export type ExtractionResultFlatOrderByWithAggregationInput = {
     id?: SortOrder
-    jobId?: SortOrder
+    jobId?: SortOrderInput | SortOrder
     imageName?: SortOrderInput | SortOrder
     imageUrl?: SortOrderInput | SortOrder
     articleNumber?: SortOrderInput | SortOrder
@@ -42602,7 +42621,7 @@ export namespace Prisma {
     OR?: ExtractionResultFlatScalarWhereWithAggregatesInput[]
     NOT?: ExtractionResultFlatScalarWhereWithAggregatesInput | ExtractionResultFlatScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"ExtractionResultFlat"> | string
-    jobId?: StringWithAggregatesFilter<"ExtractionResultFlat"> | string
+    jobId?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     imageName?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     imageUrl?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
     articleNumber?: StringNullableWithAggregatesFilter<"ExtractionResultFlat"> | string | null
@@ -45872,13 +45891,13 @@ export namespace Prisma {
     srmOriginalDesignNumber?: string | null
     srmUniqueId?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
-    job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+    job?: ExtractionJobCreateNestedOneWithoutFlatResultInput
     srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUncheckedCreateInput = {
     id?: string
-    jobId: string
+    jobId?: string | null
     imageName?: string | null
     imageUrl?: string | null
     articleNumber?: string | null
@@ -46128,13 +46147,13 @@ export namespace Prisma {
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
-    job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+    job?: ExtractionJobUpdateOneWithoutFlatResultNestedInput
     srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    jobId?: StringFieldUpdateOperationsInput | string
+    jobId?: NullableStringFieldUpdateOperationsInput | string | null
     imageName?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
@@ -46262,7 +46281,7 @@ export namespace Prisma {
 
   export type ExtractionResultFlatCreateManyInput = {
     id?: string
-    jobId: string
+    jobId?: string | null
     imageName?: string | null
     imageUrl?: string | null
     articleNumber?: string | null
@@ -46514,7 +46533,7 @@ export namespace Prisma {
 
   export type ExtractionResultFlatUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    jobId?: StringFieldUpdateOperationsInput | string
+    jobId?: NullableStringFieldUpdateOperationsInput | string | null
     imageName?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
@@ -50144,6 +50163,11 @@ export namespace Prisma {
     not?: NestedEnumSapSyncStatusFilter<$PrismaModel> | $Enums.SapSyncStatus
   }
 
+  export type ExtractionJobNullableScalarRelationFilter = {
+    is?: ExtractionJobWhereInput | null
+    isNot?: ExtractionJobWhereInput | null
+  }
+
   export type SrmSyncRunItemListRelationFilter = {
     every?: SrmSyncRunItemWhereInput
     some?: SrmSyncRunItemWhereInput
@@ -52799,10 +52823,12 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutApprovedItemsInput, UserUpdateWithoutApprovedItemsInput>, UserUncheckedUpdateWithoutApprovedItemsInput>
   }
 
-  export type ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput = {
+  export type ExtractionJobUpdateOneWithoutFlatResultNestedInput = {
     create?: XOR<ExtractionJobCreateWithoutFlatResultInput, ExtractionJobUncheckedCreateWithoutFlatResultInput>
     connectOrCreate?: ExtractionJobCreateOrConnectWithoutFlatResultInput
     upsert?: ExtractionJobUpsertWithoutFlatResultInput
+    disconnect?: ExtractionJobWhereInput | boolean
+    delete?: ExtractionJobWhereInput | boolean
     connect?: ExtractionJobWhereUniqueInput
     update?: XOR<XOR<ExtractionJobUpdateToOneWithWhereWithoutFlatResultInput, ExtractionJobUpdateWithoutFlatResultInput>, ExtractionJobUncheckedUpdateWithoutFlatResultInput>
   }
@@ -56609,13 +56635,13 @@ export namespace Prisma {
     sapSyncMessage?: string | null
     srmOriginalDesignNumber?: string | null
     srmUniqueId?: string | null
-    job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+    job?: ExtractionJobCreateNestedOneWithoutFlatResultInput
     srmSyncRunItems?: SrmSyncRunItemCreateNestedManyWithoutFlatInput
   }
 
   export type ExtractionResultFlatUncheckedCreateWithoutApproverInput = {
     id?: string
-    jobId: string
+    jobId?: string | null
     imageName?: string | null
     imageUrl?: string | null
     articleNumber?: string | null
@@ -56872,7 +56898,7 @@ export namespace Prisma {
     OR?: ExtractionResultFlatScalarWhereInput[]
     NOT?: ExtractionResultFlatScalarWhereInput | ExtractionResultFlatScalarWhereInput[]
     id?: StringFilter<"ExtractionResultFlat"> | string
-    jobId?: StringFilter<"ExtractionResultFlat"> | string
+    jobId?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageName?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     imageUrl?: StringNullableFilter<"ExtractionResultFlat"> | string | null
     articleNumber?: StringNullableFilter<"ExtractionResultFlat"> | string | null
@@ -58536,12 +58562,12 @@ export namespace Prisma {
     srmOriginalDesignNumber?: string | null
     srmUniqueId?: string | null
     approver?: UserCreateNestedOneWithoutApprovedItemsInput
-    job: ExtractionJobCreateNestedOneWithoutFlatResultInput
+    job?: ExtractionJobCreateNestedOneWithoutFlatResultInput
   }
 
   export type ExtractionResultFlatUncheckedCreateWithoutSrmSyncRunItemsInput = {
     id?: string
-    jobId: string
+    jobId?: string | null
     imageName?: string | null
     imageUrl?: string | null
     articleNumber?: string | null
@@ -58843,12 +58869,12 @@ export namespace Prisma {
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
     approver?: UserUpdateOneWithoutApprovedItemsNestedInput
-    job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+    job?: ExtractionJobUpdateOneWithoutFlatResultNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateWithoutSrmSyncRunItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    jobId?: StringFieldUpdateOperationsInput | string
+    jobId?: NullableStringFieldUpdateOperationsInput | string | null
     imageName?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
@@ -59599,7 +59625,7 @@ export namespace Prisma {
 
   export type ExtractionResultFlatCreateManyApproverInput = {
     id?: string
-    jobId: string
+    jobId?: string | null
     imageName?: string | null
     imageUrl?: string | null
     articleNumber?: string | null
@@ -60008,13 +60034,13 @@ export namespace Prisma {
     sapSyncMessage?: NullableStringFieldUpdateOperationsInput | string | null
     srmOriginalDesignNumber?: NullableStringFieldUpdateOperationsInput | string | null
     srmUniqueId?: NullableStringFieldUpdateOperationsInput | string | null
-    job?: ExtractionJobUpdateOneRequiredWithoutFlatResultNestedInput
+    job?: ExtractionJobUpdateOneWithoutFlatResultNestedInput
     srmSyncRunItems?: SrmSyncRunItemUpdateManyWithoutFlatNestedInput
   }
 
   export type ExtractionResultFlatUncheckedUpdateWithoutApproverInput = {
     id?: StringFieldUpdateOperationsInput | string
-    jobId?: StringFieldUpdateOperationsInput | string
+    jobId?: NullableStringFieldUpdateOperationsInput | string | null
     imageName?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
@@ -60141,7 +60167,7 @@ export namespace Prisma {
 
   export type ExtractionResultFlatUncheckedUpdateManyWithoutApproverInput = {
     id?: StringFieldUpdateOperationsInput | string
-    jobId?: StringFieldUpdateOperationsInput | string
+    jobId?: NullableStringFieldUpdateOperationsInput | string | null
     imageName?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     articleNumber?: NullableStringFieldUpdateOperationsInput | string | null
