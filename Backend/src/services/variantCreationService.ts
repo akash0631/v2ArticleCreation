@@ -76,40 +76,13 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
       ...rest
     } = generic;
 
-    // Get original job to create new jobs for each variant
-    const originalJob = await prisma.extractionJob.findUnique({
-      where: { id: generic.jobId },
-      select: { categoryId: true, userId: true, aiModel: true }
-    });
-    if (!originalJob) return;
-
     for (const size of sizes) {
       try {
-        const newJob = await prisma.extractionJob.create({
-          data: {
-            userId: originalJob.userId,
-            categoryId: originalJob.categoryId,
-            imageUrl: generic.imageUrl || '',
-            status: 'COMPLETED',
-            aiModel: originalJob.aiModel,
-            processingTimeMs: generic.processingTimeMs,
-            tokensUsed: generic.totalTokens,
-            inputTokens: generic.inputTokens,
-            outputTokens: generic.outputTokens,
-            apiCost: generic.apiCost,
-            totalAttributes: generic.totalAttributes,
-            extractedCount: generic.extractedCount,
-            avgConfidence: generic.avgConfidence,
-            completedAt: new Date(),
-            designNumber: generic.articleNumber,
-          }
-        });
-
         const variantId = randomUUID();
         const variantData = {
           ...rest,
           id: variantId,
-          jobId: newJob.id,
+          jobId: null,
           imageUncPath: null,
           approvalStatus: 'PENDING' as const,
           approvedBy: null,
@@ -175,12 +148,6 @@ export async function addColorVariants(
   const sizes = requestedSizes.filter((s) => !existingSizesForColor.has(s.trim().toUpperCase()));
   if (sizes.length === 0) return 0; // every requested size already has this color
 
-  const originalJob = await prisma.extractionJob.findUnique({
-    where: { id: generic.jobId },
-    select: { categoryId: true, userId: true, aiModel: true }
-  });
-  if (!originalJob) return 0;
-
   const {
     id: _id, jobId: _jobId, imageUncPath: _unc, createdAt: _ca, updatedAt: _ua,
     approvalStatus: _as, approvedBy: _ab, approvedAt: _aat,
@@ -196,30 +163,11 @@ export async function addColorVariants(
   let created = 0;
   for (const size of sizes) {
     try {
-      const newJob = await prisma.extractionJob.create({
-        data: {
-          userId: originalJob.userId,
-          categoryId: originalJob.categoryId,
-          imageUrl: variantImageUrl,
-          status: 'COMPLETED',
-          aiModel: originalJob.aiModel,
-          processingTimeMs: generic.processingTimeMs,
-          tokensUsed: generic.totalTokens,
-          inputTokens: generic.inputTokens,
-          outputTokens: generic.outputTokens,
-          apiCost: generic.apiCost,
-          totalAttributes: generic.totalAttributes,
-          extractedCount: generic.extractedCount,
-          avgConfidence: generic.avgConfidence,
-          completedAt: new Date(),
-          designNumber: generic.articleNumber,
-        }
-      });
       const colorVariantId = randomUUID();
       const colorVariantData = {
         ...rest,
         id: colorVariantId,
-        jobId: newJob.id,
+        jobId: null,
         imageUrl: variantImageUrl,
         imageUncPath: null,
         approvalStatus: 'PENDING' as const,

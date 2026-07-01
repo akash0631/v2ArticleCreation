@@ -239,10 +239,12 @@ export async function duplicateForKidsDivision(flatId: string): Promise<void> {
         }
 
         // Fetch the original job to get its category
-        const originalJob = await prisma.extractionJob.findUnique({
-          where: { id: original.jobId },
-          select: { categoryId: true, userId: true, aiModel: true },
-        });
+        const originalJob = original.jobId
+          ? await prisma.extractionJob.findUnique({
+              where: { id: original.jobId },
+              select: { categoryId: true, userId: true, aiModel: true },
+            })
+          : null;
 
         if (!originalJob) {
           console.warn(`[KidsDuplication] Original job ${original.jobId} not found — skipping copy ${i + 1}`);

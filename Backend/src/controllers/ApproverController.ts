@@ -2458,10 +2458,12 @@ export class ApproverController {
             if (!source) return res.status(404).json({ error: 'Article not found' });
 
             // Fetch original job for metadata
-            const originalJob = await prisma.extractionJob.findUnique({
-                where: { id: source.jobId },
-                select: { categoryId: true, userId: true, aiModel: true },
-            });
+            const originalJob = source.jobId
+                ? await prisma.extractionJob.findUnique({
+                    where: { id: source.jobId },
+                    select: { categoryId: true, userId: true, aiModel: true },
+                })
+                : null;
             if (!originalJob) return res.status(404).json({ error: 'Source job not found' });
 
             // Create a new ExtractionJob for the duplicate
