@@ -293,9 +293,22 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         M_AGE_GROUP: row.ageGroup || '', 'ARTICLE FASHION TYPE': row.articleFashionType || '',
         SEGMENT: row.segment || '', 'Extracted By': row.userName || '',
         'Created Date': formattedDate,
-      } as Record<(typeof SIMPLE_APPROVER_EXPORT_HEADERS)[number], string | number | undefined>;
+        // Created Articles tab only: who approved the article
+        ...(pathType === 'created' ? {
+          'Approved By Name': row.approver?.name || '',
+          'Approved By Email': row.approver?.email || '',
+        } : {}),
+      } as Record<string, string | number | undefined>;
     });
   }, [pathType]);
+
+  // Created tab appends the two approver columns; every other tab uses the base set.
+  const exportHeaders = useMemo(
+    () => pathType === 'created'
+      ? [...SIMPLE_APPROVER_EXPORT_HEADERS, 'Approved By Name', 'Approved By Email']
+      : [...SIMPLE_APPROVER_EXPORT_HEADERS],
+    [pathType],
+  );
 
   const handleExportAll = useCallback(async () => {
     setExportingAll(true);
@@ -334,7 +347,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
         pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
         : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
       const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
-      await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel}`);
+      await exportToExcel(exportData, exportHeaders, [], `${fileName}${divLabel}`);
       message.dismiss(loadingId);
       message.success(`Exported ${allRows.length} records`);
     } catch {
@@ -343,7 +356,7 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
     } finally {
       setExportingAll(false);
     }
-  }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData]);
+  }, [statusFilter, divisionFilter, subDivisionFilter, majorCategoryFilter, sourceFilter, searchText, dateRangeFilter, pathType, buildApproverExportData, exportHeaders]);
 
   // ─── Selective export ─────────────────────────────────────────────────────────
 
@@ -378,9 +391,9 @@ export default function ApproverDashboard({ pathType }: ApproverDashboardProps =
       pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
       : pathType === 'rejected' ? 'Rejected Articles' : 'Articles';
     const divLabel = divisionFilter !== 'ALL' ? ` - ${divisionFilter}` : '';
-    await exportToExcel(exportData, [...SIMPLE_APPROVER_EXPORT_HEADERS], [], `${fileName}${divLabel} - Selected`);
+    await exportToExcel(exportData, exportHeaders, [], `${fileName}${divLabel} - Selected`);
     message.success(`Exported ${rows.length} selected records`);
-  }, [items, selectedIds, buildApproverExportData, pathType, divisionFilter]);
+  }, [items, selectedIds, buildApproverExportData, pathType, divisionFilter, exportHeaders]);
 
   // ─── Card click ───────────────────────────────────────────────────────────────
 

@@ -140,6 +140,9 @@ export interface ApproverItem {
   genericArticleId: string | null;
   variantSize: string | null;
   variantColor: string | null;
+  approvedBy?: number | null;
+  approvedAt?: string | null;
+  approver?: { name: string | null; email: string | null } | null;
 }
 
 interface EditableCellProps {
