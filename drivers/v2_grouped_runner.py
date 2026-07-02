@@ -1,12 +1,22 @@
-import json, sys, time, urllib.request, concurrent.futures, csv
+import json, sys, time, urllib.request, concurrent.futures, csv, os
 
 ENV = sys.argv[1] if len(sys.argv) > 1 else 'qa'
 CLASS_CONC = int(sys.argv[2]) if len(sys.argv) > 2 else 8
 URL = f"https://sap-api.v2retail.net/api/rfc/proxy?env={ENV}"
 H = {'Content-Type': 'application/json', 'X-RFC-Key': 'v2-rfc-proxy-2026', 'User-Agent': 'Mozilla/5.0'}
 
-g = json.load(open('C:/Users/akash.agarwal/.tmp/v2_grouped_retry.json'))['by_class']
+# Read the flat 1954-pair pool (relative to repo root) and GROUP BY CLASS (mc).
+# Grouping is what makes the run race-safe: process_class runs a class's pairs
+# serially, while classes run in parallel — never two concurrent writes to the
+# same class (that was the lost-update bug in mass_v2_bapi.py).
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_POOL_PATH = os.path.join(_HERE, '..', 'data', 'insert_pool.json')
+_pool = json.load(open(_POOL_PATH))
+g = {}
+for _p in _pool:
+    g.setdefault(_p['mc'], []).append(_p)
 total = sum(len(v) for v in g.values())
+print(f'pool={_POOL_PATH}')
 print(f'classes={len(g)} pairs={total} class_conc={CLASS_CONC}')
 
 def call(p):
@@ -55,7 +65,8 @@ print(f'DONE {el:.0f}s')
 print(f'  added: {added}')
 print(f'  idem: {idem}')
 print(f'  fail: {fail}')
-with open(f'C:/Users/akash.agarwal/.tmp/v2_grouped_{ENV}.csv','w',newline='') as f:
+_OUT_PATH = os.path.join(_HERE, '..', 'data', f'v2_grouped_{ENV}.csv')
+with open(_OUT_PATH,'w',newline='') as f:
     w = csv.DictWriter(f, fieldnames=['mc','attr','clint','imerk','subrc','msg','attempt'])
     w.writeheader()
     for r in all_results: w.writerow(r)

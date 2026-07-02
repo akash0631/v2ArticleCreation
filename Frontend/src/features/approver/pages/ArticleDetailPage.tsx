@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
   CheckCircle2, XCircle, FileText, LayoutGrid, Rocket, Sparkles,
-  ChevronLeft, ChevronRight, ArrowLeft, Loader2,
+  ChevronLeft, ChevronRight, ArrowLeft, Loader2, RotateCw,
 } from 'lucide-react';
 import {
   Button,
@@ -179,7 +179,7 @@ export interface DetailNavigationState {
   currentIndex: number;
   currentPage: number;
   totalCount: number;
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   filters: DetailFilters;
   listPage?: number;
 }
@@ -197,7 +197,7 @@ export default function ArticleDetailPage() {
     location.pathname.startsWith('/approver/old-articles') ? 'old'
     : location.pathname.startsWith('/approver/rejected') ? 'rejected'
     : location.pathname.startsWith('/approver/created') ? 'created'
-    : location.pathname.startsWith('/approver/pd') ? 'pd'
+    : location.pathname.startsWith('/approver/failed') ? 'failed'
     : location.pathname.startsWith('/approver') ? 'new'
     : undefined;
   const pathType = navState?.pathType ?? pathFromUrl;
@@ -291,7 +291,7 @@ export default function ArticleDetailPage() {
     if (pathType === 'old') return '/approver/old-articles';
     if (pathType === 'rejected') return '/approver/rejected';
     if (pathType === 'created') return '/approver/created';
-    if (pathType === 'pd') return '/approver/pd';
+    if (pathType === 'failed') return '/approver/failed';
     return '/approver';
   }
 
@@ -351,6 +351,63 @@ export default function ArticleDetailPage() {
     } catch { message.error('Failed to refresh'); }
   };
 
+  // After an async approval, the SAP create runs in the background worker. Poll the
+  // article until its sync resolves so the SAP number / failure shows without a
+  // manual refresh. Non-blocking — the user can keep working.
+  const pollSyncRef = useRef<number | null>(null);
+  const stopSyncPoll = useCallback(() => {
+    if (pollSyncRef.current) { window.clearInterval(pollSyncRef.current); pollSyncRef.current = null; }
+  }, []);
+  const pollUntilSynced = useCallback((id: string) => {
+    stopSyncPoll();
+    let elapsed = 0;
+    pollSyncRef.current = window.setInterval(async () => {
+      elapsed += 4;
+      const token = localStorage.getItem('authToken');
+      try {
+        const r = await fetch(`${APP_CONFIG.api.baseURL}/approver/items/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) {
+          const saved = await r.json();
+          updateItemInList(saved);
+          if (saved.sapSyncStatus === 'SYNCED') {
+            stopSyncPoll();
+            message.success(`SAP article created: ${saved.sapArticleId || saved.articleNumber || ''}`);
+          } else if (saved.sapSyncStatus === 'FAILED') {
+            stopSyncPoll();
+            // Backend reverts a failed article to PENDING (back in New Articles).
+            // Show the reason so the approver can fix the flagged fields and resubmit.
+            setInfoDialog({
+              kind: 'sapSyncFailed',
+              failures: [{
+                id: saved.articleNumber || saved.designNumber || saved.imageName || saved.id,
+                message: saved.sapSyncMessage || 'SAP creation failed',
+              }],
+              total: 1,
+            });
+          }
+        }
+      } catch { /* transient — keep polling */ }
+      if (elapsed >= 180) stopSyncPoll(); // give up after 3 min; the status badge still reflects state
+    }, 4000);
+  }, [stopSyncPoll, updateItemInList]);
+
+  useEffect(() => stopSyncPoll, [stopSyncPoll]); // stop polling on unmount
+
+  // On opening an article, refresh it from the DB (the list's copy can be stale,
+  // e.g. the SAP number filled in after the list loaded) and resume polling if
+  // it's still being created in SAP. This is why a synced article that was opened
+  // from a stale list now shows its SAP article number instead of "Creating in SAP…".
+  useEffect(() => {
+    if (!currentItem) return;
+    void refetchCurrentItem();
+    if (currentItem.approvalStatus === 'APPROVED' && currentItem.sapSyncStatus === 'PENDING') {
+      pollUntilSynced(currentItem.id);
+    } else {
+      stopSyncPoll();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentItem?.id]);
+
   const pendingSelectedKeys = useMemo(
     () => selectedRowKeys.filter(key => items.find(i => i.id === key)?.approvalStatus === 'PENDING'),
     [selectedRowKeys, items],
@@ -361,12 +418,15 @@ export default function ArticleDetailPage() {
     return pendingItems.reduce<{ articleId: string; missing: string[] }[]>((acc, item) => {
       const missing: string[] = [];
       if (!item.vendorCode) missing.push('VENDOR CODE');
+      // Color is mandatory on New Articles — on Save & Submit the approver's
+      // direct approval auto-generates variants from this BOM color.
+      if (pathType === 'new' && !item.colour) missing.push('COLOUR');
       missing.push(...getMissingMandatoryFields(item));
       if (missing.length > 0) acc.push({ articleId: item.sapArticleId || item.articleNumber || item.imageName || item.id, missing });
       return acc;
     }, []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingSelectedKeys, items, gridVersion]);
+  }, [pendingSelectedKeys, items, gridVersion, pathType]);
 
   const handleApproveClick = () => {
     if (pendingSelectedKeys.length === 0) return;
@@ -375,37 +435,54 @@ export default function ArticleDetailPage() {
   };
 
   const doApprove = async () => {
-    // On the PD page the action is the FINAL SAP submit (/approve). On every
-    // other page (New Articles) Save & Submit hands the article off to PD
-    // (/send-to-pd) — no SAP call until PD approves.
-    const isPdSubmit = pathType === 'pd';
+    const endpoint = '/approver/approve';
     setApproving(true);
     try {
       const token = localStorage.getItem('authToken');
-      const endpoint = isPdSubmit ? '/approver/approve' : '/approver/send-to-pd';
       const r = await fetch(`${APP_CONFIG.api.baseURL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ids: pendingSelectedKeys }),
       });
-      if (!r.ok) throw new Error(isPdSubmit ? 'Approval failed' : 'Send to PD failed');
+      if (!r.ok) {
+        const errPayload = await r.json().catch(() => null);
+        throw new Error(errPayload?.detail || errPayload?.error || 'Approval failed');
+      }
       const payload = await r.json();
       setConfirmDialog(null);
-      if (!isPdSubmit) {
-        message.success(`Sent ${payload?.sentToPd ?? pendingSelectedKeys.length} article(s) to PD for approval`);
-      } else if (payload?.sapSync) {
-        const { synced, failed, failures } = payload.sapSync;
-        if (failed === 0) { message.success(`Approved ${payload.count}. SAP sync: ${synced} synced successfully.`); }
-        else if (synced === 0) { setInfoDialog({ kind: 'sapSyncFailed', failures: failures || [], total: failed }); }
-        else {
-          message.warning(`Approved ${synced} articles. ${failed} failed SAP sync.`);
-          if (failures?.length > 0) setInfoDialog({ kind: 'sapPartialFailed', failures, total: failed });
-        }
-      } else { message.success('Items approved successfully'); }
+      // Async approval: /approve returns 202 immediately and the SAP create runs in
+      // the background worker. Inform the user, free the UI, and poll for completion
+      // so the SAP article number fills in (or a failure popup shows) without blocking.
+      const approvedId = currentItem?.id;
+      const approvedCount = payload?.count ?? payload?.queued ?? pendingSelectedKeys.length;
+      message.success(`Approved ${approvedCount} article(s) — creating in SAP in the background…`);
       setSelectedRowKeys([]);
       await refetchCurrentItem();
-    } catch { setConfirmDialog(null); message.error(isPdSubmit ? 'Failed to approve items' : 'Failed to send to PD'); }
+      if (approvedId) pollUntilSynced(approvedId);
+    } catch (e) {
+      setConfirmDialog(null);
+      message.error(e instanceof Error ? e.message : 'Failed to approve items');
+    }
     finally { setApproving(false); }
+  };
+
+  // Re-queue a FAILED generic for the background SAP-sync worker, then resume polling.
+  const doRetrySync = async () => {
+    if (!currentItem) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      const r = await fetch(`${APP_CONFIG.api.baseURL}/approver/retry-sap-sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ids: [currentItem.id] }),
+      });
+      if (!r.ok) throw new Error('Retry failed');
+      message.success('Re-queued — creating in SAP in the background…');
+      await refetchCurrentItem();
+      pollUntilSynced(currentItem.id);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Failed to re-queue');
+    }
   };
 
   const doReject = async () => {
@@ -716,7 +793,7 @@ export default function ArticleDetailPage() {
                   {pathType === 'old' ? 'Old Articles' : pathType === 'new' ? 'New Articles'
                     : pathType === 'rejected' ? 'Rejected Articles'
                     : pathType === 'created' ? 'Created Articles'
-                    : pathType === 'pd' ? 'PD Approval' : 'Article Detail'}
+                    : 'Article Detail'}
                 </div>
                 {user?.division && (
                   <div className="truncate text-[10px] font-medium text-white/65">
@@ -741,6 +818,32 @@ export default function ArticleDetailPage() {
             </div>
             {/* Actions */}
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+              {currentItem?.approvalStatus === 'APPROVED' && (
+                <>
+                  <span
+                    className={
+                      'mr-1 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ' +
+                      (currentItem.sapSyncStatus === 'SYNCED'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : currentItem.sapSyncStatus === 'FAILED'
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-amber-100 text-amber-700')
+                    }
+                    title="SAP creation status"
+                  >
+                    {currentItem.sapSyncStatus === 'SYNCED'
+                      ? `SAP ✓ ${currentItem.sapArticleId || currentItem.articleNumber || ''}`
+                      : currentItem.sapSyncStatus === 'FAILED'
+                      ? 'SAP sync failed'
+                      : 'Creating in SAP…'}
+                  </span>
+                  {currentItem.sapSyncStatus === 'FAILED' && !currentItem.sapArticleId && (
+                    <Button size="sm" variant="outline" onClick={doRetrySync} className="mr-1 h-7 px-2 text-[12px]">
+                      <RotateCw className="h-3.5 w-3.5" /> Retry SAP
+                    </Button>
+                  )}
+                </>
+              )}
               <Tooltip title={!canApprove ? 'Only Approver, Sub-Division Head, Category Head or Admin can reject articles' : undefined}>
                 {/* span wrapper: disabled <button> swallows pointer events; span keeps hover alive */}
                 <span className="inline-block">

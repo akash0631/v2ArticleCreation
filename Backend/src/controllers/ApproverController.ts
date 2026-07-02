@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ApprovalStatus, SapSyncStatus, PdStatus } from '../generated/prisma';
+import { ApprovalStatus, SapSyncStatus } from '../generated/prisma';
 import fs from 'fs';
 import path from 'path';
 import { getHsnCodeByMcCode, getMcCodeByMajorCategory } from '../utils/mcCodeMapper';
@@ -676,21 +676,23 @@ export class ApproverController {
             if (pathType === 'old') {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
-                // Approver queue: PENDING articles not yet sent to PD, excluding old-path.
                 where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.PENDING;
-                where.isOldArticle = false;
-            } else if (pathType === 'pd') {
-                // PD queue: approver has sent it (pdStatus=COMPLETED) but it's not yet
-                // approved/created in SAP. Admin + PD only (route-guarded on the frontend).
-                where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'rejected') {
                 where.approvalStatus = ApprovalStatus.REJECTED;
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
                 where.isOldArticle = false;
+            } else if (pathType === 'failed') {
+                // Failed Creations: generics whose SAP creation failed. User-specific —
+                // a user sees only the ones they approved; ADMIN/PD see all.
+                where.isGeneric = true;
+                where.isOldArticle = false;
+                where.sapSyncStatus = SapSyncStatus.FAILED;
+                const role = (req.user as any)?.role;
+                if (role !== 'ADMIN' && role !== 'PD') {
+                    where.approvedBy = (req.user as any)?.id ? Number((req.user as any).id) : -1;
+                }
             }
 
             // Status Filtering (Multi-select support)
@@ -762,6 +764,13 @@ export class ApproverController {
 
             // Source filter — 'SRM', 'WATCHER', 'USER', or omitted for all
             if (source && source !== 'ALL') where.source = source as string;
+
+            // SAP sync-status filter — works alongside pathType (e.g. on the Created
+            // tab) so users can find FAILED / still-queued (PENDING) syncs.
+            const sapSyncFilter = String(req.query.sapSyncStatus || '').trim().toUpperCase();
+            if (['SYNCED', 'PENDING', 'FAILED', 'NOT_SYNCED'].includes(sapSyncFilter)) {
+                where.sapSyncStatus = sapSyncFilter as SapSyncStatus;
+            }
 
             // Only show generic articles in the main list (variants are fetched via /items/:id/variants)
             where.isGeneric = true;
@@ -910,6 +919,10 @@ export class ApproverController {
                     genericArticleId: true,
                     variantSize: true,
                     variantColor: true,
+                    approvedBy: true,
+                    approver: {
+                        select: { name: true, email: true },
+                    },
                 }
             };
 
@@ -1013,15 +1026,18 @@ export class ApproverController {
                 where.isOldArticle = true;
             } else if (pathType === 'new') {
                 where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.PENDING;
-                where.isOldArticle = false;
-            } else if (pathType === 'pd') {
-                where.approvalStatus = ApprovalStatus.PENDING;
-                where.pdStatus = PdStatus.COMPLETED;
                 where.isOldArticle = false;
             } else if (pathType === 'created') {
                 where.approvalStatus = ApprovalStatus.APPROVED;
                 where.isOldArticle = false;
+            } else if (pathType === 'failed') {
+                where.isGeneric = true;
+                where.isOldArticle = false;
+                where.sapSyncStatus = SapSyncStatus.FAILED;
+                const role = (req.user as any)?.role;
+                if (role !== 'ADMIN' && role !== 'PD') {
+                    where.approvedBy = (req.user as any)?.id ? Number((req.user as any).id) : -1;
+                }
             }
 
             // Status filter
@@ -1200,6 +1216,9 @@ export class ApproverController {
                     ageGroup: true,
                     articleFashionType: true,
                     mvgrBrandVendor: true,
+                    // Approver identity — used by the Created Articles export
+                    approvedBy: true,
+                    approver: { select: { name: true, email: true } },
                 },
             });
 
@@ -1286,6 +1305,8 @@ export class ApproverController {
                     fabricArticleNumber: true, fabricArticleDescription: true,
                     attrArticleNums: true, mvgrBrandVendor: true,
                     isGeneric: true, genericArticleId: true, variantSize: true, variantColor: true,
+                    approvedBy: true, approvedAt: true,
+                    approver: { select: { name: true, email: true } },
                 },
             });
             if (!item) return res.status(404).json({ error: 'Item not found' });
@@ -1482,11 +1503,6 @@ export class ApproverController {
 
             const role = String(req.user?.role || '');
 
-            // Once sent to PD (pdStatus=COMPLETED) the article is locked for the
-            // approver — only PD / ADMIN may edit it from the PD page.
-            if ((existingItem as any).pdStatus === 'COMPLETED' && role !== 'PD' && role !== 'ADMIN') {
-                return res.status(403).json({ error: 'This article has been sent to PD. Only PD or Admin can edit it.' });
-            }
             if (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'CREATOR' || role === 'SUB_DIVISION_HEAD') {
                 const existingDivision = ApproverController.normalizeText(existingItem.division);
                 const existingSubDivision = ApproverController.normalizeText(existingItem.subDivision);
@@ -1629,9 +1645,26 @@ export class ApproverController {
                 return res.status(400).json({ error: 'No changes provided' });
             }
 
+            // Created-article identity/price fields are LOCKED — they are set at
+            // creation time and must never change on modify (neither in SAP nor in
+            // the local DB). Silently ignore any attempt to edit them.
+            const MODIFY_LOCKED_FIELDS = new Set<string>([
+                'vendorCode',    // VENDOR
+                'mrp',           // MRP
+                'rate',          // cost / PURCH_PRICE
+                'colour',        // colour
+                'designNumber',  // design / DSG_NO
+                'fabDiv',        // M_FAB_DIV
+                'division',      // division (MENS/LADIES/…)
+                'subDivision',   // sub-division / SUB_DIV
+                'majorCategory', // major category
+                'segment',       // segment / PRICE_BAND_CATEGORY
+            ]);
+
             // Whitelist + coerce the incoming fields (mirrors updateItem).
             const data: any = {};
             for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
+                if (MODIFY_LOCKED_FIELDS.has(field)) continue;
                 if (changes[field] === undefined) continue;
                 let value = changes[field];
                 if (field === 'rate' || field === 'mrp') {
@@ -1715,7 +1748,10 @@ export class ApproverController {
             const sapChanges = await buildModifyChangesPayload(mergedItem);
 
             // Modify flow only: these keys must NOT be sent to SAP on modification.
-            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT']) {
+            // Identity/price fields (VENDOR, MRP, DSG_NO, ...) are set at creation
+            // time and must not be altered via patch-bulk. ARTICLE_DES1 and M_FAB_DIV
+            // are likewise excluded from the modify payload.
+            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT', 'VENDOR', 'MRP', 'DSG_NO', 'ARTICLE_DES1', 'M_FAB_DIV']) {
                 delete (sapChanges as any)[k];
             }
 
@@ -1753,33 +1789,6 @@ export class ApproverController {
         }
     }
 
-    // Approve items
-    // Approver "Save & Submit": hand articles off to PD. Sets pdStatus=COMPLETED
-    // for PENDING, not-yet-sent items. No SAP call — SAP creation happens when
-    // PD/ADMIN approves from the PD page (approveItems).
-    static async sendToPd(req: Request, res: Response) {
-        try {
-            const { ids } = req.body;
-            if (!Array.isArray(ids) || ids.length === 0) {
-                return res.status(400).json({ error: 'No items selected' });
-            }
-            const result = await prisma.extractionResultFlat.updateMany({
-                where: {
-                    id: { in: ids },
-                    approvalStatus: ApprovalStatus.PENDING,
-                    pdStatus: PdStatus.PENDING,
-                },
-                data: { pdStatus: PdStatus.COMPLETED },
-            });
-            ApproverController.itemsCache.clear();
-            ApproverController.countCache.clear();
-            return res.json({ success: true, sentToPd: result.count });
-        } catch (err: any) {
-            console.error('[sendToPd] Error:', err.message);
-            return res.status(500).json({ error: err.message });
-        }
-    }
-
     static async approveItems(req: Request, res: Response) {
         ApproverController.itemsCache.clear();
         ApproverController.countCache.clear();
@@ -1791,6 +1800,30 @@ export class ApproverController {
 
             // @ts-ignore - Assuming userId is added to req by auth middleware
             const userId = req.user?.id;
+
+            // ── Auto-generate color variants from the BOM colour ──────────────────
+            // On "Save & Submit" the approver approves directly; before approval we
+            // create one variant per Major-Category size for each generic's BOM
+            // colour (idempotent — addColorVariants skips combos that already
+            // exist, e.g. those added manually via "Add Color"). If a generic has a
+            // colour but its Major Category has no sizes configured, block with a
+            // clear message since no variants could be created.
+            const genericsToVariant = await prisma.extractionResultFlat.findMany({
+                where: { id: { in: ids }, isGeneric: true },
+                select: { id: true, colour: true, majorCategory: true, articleNumber: true, imageName: true },
+            });
+            for (const g of genericsToVariant) {
+                if (!g.colour || !g.colour.trim()) continue; // no colour → approve generic as-is
+                const sizes = await getSizesForMajCat(g.majorCategory || '');
+                if (sizes.length === 0) {
+                    const label = g.articleNumber || g.imageName || g.id;
+                    return res.status(422).json({
+                        error: 'NO_SIZES_FOR_CATEGORY',
+                        detail: `No sizes are configured for "${g.majorCategory ?? ''}" (article ${label}). Add them in the Size Master before submitting.`,
+                    });
+                }
+                await addColorVariants(g.id, g.colour.trim());
+            }
 
             const whereClause: any = {
                 id: { in: ids },
@@ -1815,19 +1848,75 @@ export class ApproverController {
                 }
             }
 
+            // Approve the generics and QUEUE them for background SAP sync
+            // (sapSyncStatus = PENDING). The SAP RFC runs in the background worker
+            // (runApprovalSyncTick) so this request returns instantly.
             const result = await prisma.extractionResultFlat.updateMany({
                 where: whereClause,
                 data: {
                     approvalStatus: 'APPROVED',
                     approvedBy: userId ? Number(userId) : null,
                     approvedAt: new Date(),
-                    sapSyncStatus: 'NOT_SYNCED' // Ready for sync
+                    sapSyncStatus: SapSyncStatus.PENDING,
                 }
             });
 
+            // Approve their variants too (also queued for SAP sync).
+            const approvedGenericIds = (await prisma.extractionResultFlat.findMany({
+                where: { id: { in: ids }, isGeneric: true, approvalStatus: 'APPROVED' },
+                select: { id: true },
+            })).map((r) => r.id);
+            if (approvedGenericIds.length > 0) {
+                await prisma.extractionResultFlat.updateMany({
+                    where: { genericArticleId: { in: approvedGenericIds }, isGeneric: false, approvalStatus: 'PENDING' },
+                    data: {
+                        approvalStatus: 'APPROVED',
+                        approvedBy: userId ? Number(userId) : null,
+                        approvedAt: new Date(),
+                        sapSyncStatus: SapSyncStatus.PENDING,
+                    },
+                });
+            }
+
+            // Clear any stale sync lease left over from a previous attempt so the
+            // worker can claim this article immediately on (re-)approval. Without
+            // this, a re-submit after a failed sync stays stuck PENDING until the
+            // old lease expires. (sap_lock_until is maintained via raw SQL.)
+            await prisma.$executeRawUnsafe(
+                'UPDATE public.extraction_results_flat SET sap_lock_until = NULL WHERE id = ANY($1::text[]) OR generic_article_id = ANY($1::text[])',
+                ids,
+            );
+
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            // 202 Accepted — approved and queued; the worker performs the SAP sync.
+            return res.status(202).json({
+                message: 'Approved and queued for SAP creation',
+                count: result.count,
+                queued: result.count,
+            });
+        } catch (error) {
+            console.error('Error approving items:', error);
+            return res.status(500).json({ error: 'Failed to approve items' });
+        }
+    }
+
+    // In-process guard so the approval-sync worker never overlaps itself.
+    private static _approvalSyncRunning = false;
+
+    /**
+     * Background SAP sync for approved-but-unsynced articles (sapSyncStatus=PENDING).
+     * On SAP failure the generic and its variants are reverted to PENDING approval
+     * (so the article returns to New Articles for correction), keeping
+     * sapSyncStatus=FAILED + sapSyncMessage so the UI can show why.
+     */
+    static async syncApprovedToSap(genericIds: string[]): Promise<{ synced: number; failed: number }> {
+        const ids = genericIds;
+        if (ids.length === 0) return { synced: 0, failed: 0 };
+        try {
             const approvedItems = await prisma.extractionResultFlat.findMany({
                 where: {
-                    ...whereClause,
+                    id: { in: ids },
                     approvalStatus: 'APPROVED'
                 },
                 select: {
@@ -1999,34 +2088,24 @@ export class ApproverController {
                 .filter((r) => !r.success)
                 .map((r) => r.id);
 
+            // On SAP failure, send the article back to the approver: revert the
+            // generic AND its variants to PENDING approval so it reappears in New
+            // Articles for correction. sapSyncStatus stays FAILED + sapSyncMessage
+            // (persisted above) so the UI can show why it failed.
             if (failedIds.length > 0) {
+                // Revert to PENDING for re-work, but KEEP approvedBy/approvedAt so the
+                // Failed Creations page can scope "who tried" (user-specific). The
+                // generic keeps sapSyncStatus=FAILED (+message) from the persist above.
                 await prisma.extractionResultFlat.updateMany({
                     where: { id: { in: failedIds } },
-                    data: {
-                        approvalStatus: ApprovalStatus.PENDING,
-                        approvedBy: null,
-                        approvedAt: null
-                    }
+                    data: { approvalStatus: ApprovalStatus.PENDING },
                 });
-            }
-
-            // Auto-approve all variants of approved generic articles
-            const successfullyApprovedIds = ids.filter((id: string) => !failedIds.includes(id));
-            if (successfullyApprovedIds.length > 0) {
                 await prisma.extractionResultFlat.updateMany({
-                    where: {
-                        genericArticleId: { in: successfullyApprovedIds },
-                        isGeneric: false,
-                        approvalStatus: 'PENDING'
-                    },
-                    data: {
-                        approvalStatus: 'APPROVED',
-                        approvedBy: userId ? Number(userId) : null,
-                        approvedAt: new Date(),
-                        sapSyncStatus: 'NOT_SYNCED'
-                    }
+                    where: { genericArticleId: { in: failedIds }, isGeneric: false },
+                    data: { approvalStatus: ApprovalStatus.PENDING, sapSyncStatus: SapSyncStatus.NOT_SYNCED },
                 });
             }
+            const successfullyApprovedIds = ids.filter((id: string) => !failedIds.includes(id));
 
             // ── Variant RFC sync ─────────────────────────────────────────────
             // For each successfully synced generic article, create its color/size
@@ -2105,19 +2184,94 @@ export class ApproverController {
                 .filter((r: any) => !r.success)
                 .map((r: any) => ({ id: r.id, message: r.message || 'SAP sync failed' }));
 
-            return res.json({
-                message: 'Items approved successfully',
-                count: result.count,
-                sapSync: {
-                    totalAttempted: finalizedSyncResults.length,
-                    synced: syncedCount,
-                    failed: failedCount,
-                    failures: failureDetails   // Full SAP error messages per item
-                }
+            void failureDetails; // per-item SAP errors are persisted on each row's sapSyncMessage
+            return { synced: syncedCount, failed: failedCount };
+        } catch (error: any) {
+            console.error('[ApprovalSync] syncApprovedToSap error:', error?.message);
+            return { synced: 0, failed: genericIds.length };
+        }
+    }
+
+    /**
+     * Background worker tick — claims a batch of APPROVED + PENDING(sync) generics
+     * and runs their SAP creation. Multi-process safe: the claim is atomic
+     * (FOR UPDATE SKIP LOCKED) with a lease (sap_lock_until) so two workers never
+     * grab the same row and a crashed worker's rows are reclaimed once the lease
+     * expires. Batch/lease are env-configurable.
+     */
+    static async runApprovalSyncTick(): Promise<{ processed: number; synced: number; failed: number }> {
+        if (ApproverController._approvalSyncRunning) {
+            return { processed: 0, synced: 0, failed: 0 };
+        }
+        ApproverController._approvalSyncRunning = true;
+        try {
+            const batchSize = parseInt(process.env.APPROVAL_SYNC_BATCH || '10', 10);
+            const lockMinutes = parseInt(process.env.APPROVAL_SYNC_LOCK_MINUTES || '15', 10);
+            const lockUntil = new Date(Date.now() + lockMinutes * 60_000); // computed in JS — no SQL interval fn
+
+            const claimed = await prisma.$queryRaw<{ id: string }[]>`
+                UPDATE public.extraction_results_flat
+                SET sap_lock_until = ${lockUntil}
+                WHERE id IN (
+                    SELECT id FROM public.extraction_results_flat
+                    WHERE is_generic = true
+                      AND approval_status::text = 'APPROVED'
+                      AND sap_sync_status::text = 'PENDING'
+                      AND (sap_lock_until IS NULL OR sap_lock_until < NOW())
+                    ORDER BY approved_at ASC
+                    LIMIT ${batchSize}
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING id
+            `;
+            if (claimed.length === 0) return { processed: 0, synced: 0, failed: 0 };
+            const ids = claimed.map((c) => c.id);
+
+            const remaining = await prisma.extractionResultFlat.count({
+                where: { isGeneric: true, approvalStatus: 'APPROVED', sapSyncStatus: SapSyncStatus.PENDING },
             });
-        } catch (error) {
-            console.error('Error approving items:', error);
-            return res.status(500).json({ error: 'Failed to approve items' });
+            console.log(`[ApprovalSync] Claimed ${ids.length} approved article(s) to sync (${remaining} still queued)`);
+
+            const r = await ApproverController.syncApprovedToSap(ids);
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            console.log(`[ApprovalSync] Done — synced:${r.synced} failed:${r.failed}`);
+            return { processed: ids.length, ...r };
+        } catch (err: any) {
+            console.error('[ApprovalSync] tick error:', err?.message);
+            return { processed: 0, synced: 0, failed: 0 };
+        } finally {
+            ApproverController._approvalSyncRunning = false;
+        }
+    }
+
+    // Re-queue FAILED generics for the background worker. Only generics never
+    // created in SAP (sapArticleId IS NULL) are re-queued — never a duplicate.
+    static async retrySapSync(req: Request, res: Response) {
+        try {
+            const { ids } = req.body;
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ error: 'No items selected' });
+            }
+            const result = await prisma.extractionResultFlat.updateMany({
+                where: {
+                    id: { in: ids },
+                    isGeneric: true,
+                    approvalStatus: 'APPROVED',
+                    sapSyncStatus: SapSyncStatus.FAILED,
+                    sapArticleId: null,
+                },
+                data: { sapSyncStatus: SapSyncStatus.PENDING },
+            });
+            await prisma.$executeRawUnsafe(
+                'UPDATE public.extraction_results_flat SET sap_lock_until = NULL WHERE id = ANY($1::text[])',
+                ids,
+            );
+            ApproverController.itemsCache.clear();
+            ApproverController.countCache.clear();
+            return res.json({ success: true, requeued: result.count });
+        } catch (err: any) {
+            return res.status(500).json({ error: err.message });
         }
     }
 
@@ -2333,10 +2487,12 @@ export class ApproverController {
             if (!source) return res.status(404).json({ error: 'Article not found' });
 
             // Fetch original job for metadata
-            const originalJob = await prisma.extractionJob.findUnique({
-                where: { id: source.jobId },
-                select: { categoryId: true, userId: true, aiModel: true },
-            });
+            const originalJob = source.jobId
+                ? await prisma.extractionJob.findUnique({
+                    where: { id: source.jobId },
+                    select: { categoryId: true, userId: true, aiModel: true },
+                })
+                : null;
             if (!originalJob) return res.status(404).json({ error: 'Source job not found' });
 
             // Create a new ExtractionJob for the duplicate
@@ -2397,6 +2553,11 @@ export class ApproverController {
                     articleNumber: null,
                     fabricArticleNumber: null,
                     fabricArticleDescription: null,
+                    // A manual duplicate has no pending AI extraction — mark it COMPLETED
+                    // so it isn't hidden by the 30-minute SRM extraction gate (which only
+                    // holds back source=SRM rows still in SRM_IMPORT) and isn't re-processed
+                    // (and overwritten) by the SRM raw-extraction cron.
+                    extractionStatus: 'COMPLETED',
                 },
             });
 
@@ -2409,12 +2570,14 @@ export class ApproverController {
     }
 
     // Add color variants to an existing generic article.
-    // Body: { colors|color, sizes? } — when `sizes` is provided (manual mode) only
-    // those sizes are created; otherwise all of the MC's active sizes (auto mode).
+    // Body: { colors|color, sizes?, colorImages? } — when `sizes` is provided
+    // (manual mode) only those sizes are created; otherwise all of the MC's active
+    // sizes (auto mode). `colorImages` maps each color code → uploaded image URL;
+    // that image is applied to every size of that color.
     static async addColor(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const { color, colors, sizes } = req.body;
+            const { color, colors, sizes, colorImages } = req.body;
             // Accept either colors[] (new) or color string (legacy)
             const colorList: string[] = Array.isArray(colors)
                 ? colors.map((c: string) => c.trim().toUpperCase()).filter(Boolean)
@@ -2423,6 +2586,22 @@ export class ApproverController {
                 : [];
 
             if (colorList.length === 0) return res.status(400).json({ error: 'At least one color is required' });
+
+            // Per-color image map (keys upper-cased to match colorList). Each color
+            // must have an image — the UI uploads one before submitting.
+            const imageByColor: Record<string, string> = {};
+            if (colorImages && typeof colorImages === 'object') {
+                for (const [k, v] of Object.entries(colorImages)) {
+                    if (typeof v === 'string' && v.trim()) imageByColor[k.trim().toUpperCase()] = v.trim();
+                }
+            }
+            const missingImg = colorList.filter((c) => !imageByColor[c]);
+            if (missingImg.length > 0) {
+                return res.status(422).json({
+                    error: 'IMAGE_REQUIRED',
+                    detail: `An image is required for each color. Missing: ${missingImg.join(', ')}.`,
+                });
+            }
 
             // Manual mode: validate requested sizes against the Major Category's
             // allowed sizes (maj_cat_sizes). Reject the whole request on any invalid size.
@@ -2447,11 +2626,30 @@ export class ApproverController {
 
             let totalCreated = 0;
             for (const c of colorList) {
-                totalCreated += await addColorVariants(id, c, sizesOverride);
+                totalCreated += await addColorVariants(id, c, sizesOverride, imageByColor[c]);
             }
             return res.json({ message: `Created ${totalCreated} color variants`, count: totalCreated });
         } catch (err: any) {
             return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // Upload a single image (used by the Add Color flow for per-color images).
+    // Receives a multipart file field `image`; stores it in R2 and returns its URL.
+    static async uploadImage(req: Request, res: Response) {
+        try {
+            const file = (req as any).file as { buffer: Buffer; originalname: string; mimetype: string } | undefined;
+            if (!file) return res.status(400).json({ error: 'No image file provided' });
+            const result = await storageService.uploadFile(
+                file.buffer,
+                file.originalname || 'color.jpg',
+                file.mimetype || 'image/jpeg',
+                'variant-colors',
+            );
+            return res.json({ url: result.url });
+        } catch (err: any) {
+            console.error('[uploadImage] Error:', err.message);
+            return res.status(500).json({ error: 'Failed to upload image' });
         }
     }
 

@@ -1,12 +1,8 @@
 /**
  * Cost Calculator Service
- * Calculates API costs based on official Gemini pricing
- * 
- * Pricing (as of January 2026):
- * - Gemini 2.0 Flash: $0.075 per 1M input tokens, $0.30 per 1M output tokens
- * - Gemini 2.0 Flash (batch): $0.0188 per 1M input tokens, $0.075 per 1M output tokens
- * - Gemini 1.5 Pro: $0.075 per 1M input tokens, $0.30 per 1M output tokens
- * - Gemini 1.5 Flash: $0.0375 per 1M input tokens, $0.15 per 1M output tokens
+ * Calculates API costs based on official Gemini pricing (May 2026)
+ * Source: https://ai.google.dev/pricing
+ * Primary model: gemini-2.5-pro — $1.25 input / $10.00 output per 1M tokens (≤200K context)
  */
 
 export interface TokenUsage {
@@ -71,9 +67,9 @@ const PRICING = {
 export function calculateCost(
   inputTokens: number,
   outputTokens: number,
-  model: string = 'gemini-2.0-flash'
+  model: string = process.env.GEMINI_MODEL || 'gemini-2.5-pro'
 ): CostCalculation {
-  const pricing = PRICING[model as keyof typeof PRICING] || PRICING['gemini-2.0-flash'];
+  const pricing = PRICING[model as keyof typeof PRICING] || PRICING['gemini-2.5-pro'];
   
   // Convert pricing from per 1M tokens to per token
   const inputPricePerToken = pricing.inputPrice / 1_000_000;
@@ -113,7 +109,7 @@ export function calculateCumulativeCost(
   let totalCost = 0;
   
   for (const extraction of extractions) {
-    const model = extraction.model || 'gemini-2.0-flash';
+    const model = extraction.model || process.env.GEMINI_MODEL || 'gemini-2.5-pro';
     const calculation = calculateCost(extraction.inputTokens, extraction.outputTokens, model);
     
     totalInputTokens += calculation.inputTokens;

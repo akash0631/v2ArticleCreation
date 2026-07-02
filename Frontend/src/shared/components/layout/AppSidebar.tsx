@@ -15,6 +15,7 @@ import {
   Globe,
   User,
   AlertTriangle,
+  Upload,
   Bell,
   ChevronRight,
   ChevronDown,
@@ -155,13 +156,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/approver/old-articles', Icon: History, label: 'Old articles' },
         { key: '/approver/rejected', Icon: XCircle, label: 'Rejected' },
         { key: '/approver/created', Icon: CheckCircle2, label: 'Created' },
+        { key: '/approver/failed', Icon: AlertTriangle, label: 'Failed Creations' },
       ],
     });
-  }
-
-  // PD Approval queue — Admin + PD only.
-  if (!isPdDesigner && (isAdmin || isPd)) {
-    items.push({ key: '/approver/pd', Icon: CheckCircle2, label: 'PD Approval' });
   }
 
   if (!isPdDesigner && (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin)) {
@@ -179,6 +176,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/admin/users', Icon: User, label: 'Users' },
         { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expenses' },
         { key: '/admin/srm-failed', Icon: AlertTriangle, label: 'Failed Extractions' },
+        { key: '/admin/ksml-uploader', Icon: Upload, label: 'KSML Uploader' },
+        { key: '/admin/poolb-uploader', Icon: Upload, label: 'Pool B Uploader' },
       ],
     });
   }

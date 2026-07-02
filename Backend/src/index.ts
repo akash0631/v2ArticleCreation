@@ -34,9 +34,11 @@ import { checkApiConfiguration } from './services/baseApi';
 import { cacheService } from './services/cacheService';
 import { mvgrMappingService } from './services/mvgrMappingService';
 import { ApproverController } from './controllers/ApproverController';
-import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown } from './utils/prisma';
+import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown, isDbCircuitOpen } from './utils/prisma';
 import srmHookRoutes from './routes/srmHook';
 import testApiRoutes from './routes/testApi';
+import ksmlRoutes from './routes/ksml';
+import poolBRoutes from './routes/poolB';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
 import { runRawArticleExtraction, isExtractionRunning } from './services/rawArticleExtractionService';
 
@@ -176,9 +178,15 @@ app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
 app.use('/api/srm-hook/trigger', requestTimeout(15 * 1000));
 app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
 app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
+// KSML commit pushes up to ~2000 pairs to SAP one-by-one (grouped) — can take 10-15 min.
+app.use('/api/ksml/commit', requestTimeout(20 * 60 * 1000));
+// Pool B commit patches many articles' attribute values via SAP — allow long runs.
+app.use('/api/poolb/commit', requestTimeout(30 * 60 * 1000));
 app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/model-generation/bulk/')) return next();
   if (req.path.startsWith('/admin/majcat-grid/upload')) return next();
+  if (req.path === '/ksml/commit') return next();
+  if (req.path === '/poolb/commit') return next();
   // Variant SAP sync (retry-variants) and approval (approve) can create many SAP
   // articles in one request via RFC (e.g. 20 size×colour variants), which easily
   // exceeds 90s. Give them up to 15 minutes.
@@ -240,6 +248,18 @@ app.use('/api/admin', authenticate, requireAdmin, auditLog, adminRoutes);
 // Raw-articles pipeline staging endpoints.
 // ═══════════════════════════════════════════════════════
 app.use('/api/test-api', authenticate, requireAdmin, testApiRoutes);
+
+// ═══════════════════════════════════════════════════════
+// KSML class-characteristic uploader (Admin role required)
+// Upload an Excel of (class, characteristic) pairs → push to SAP.
+// ═══════════════════════════════════════════════════════
+app.use('/api/ksml', authenticate, requireAdmin, ksmlRoutes);
+
+// ═══════════════════════════════════════════════════════
+// Pool B article-attribute-value uploader (Admin role required)
+// Upload a Matnr×characteristic-value Excel → patch values onto articles (AUSP).
+// ═══════════════════════════════════════════════════════
+app.use('/api/poolb', authenticate, requireAdmin, poolBRoutes);
 
 // ═══════════════════════════════════════════════════════
 // USER ROUTES (Authentication required + Audit logging)
@@ -406,7 +426,7 @@ app.use(errorHandler);
       }
     }, 60_000);
 
-    // raw_articles Extraction Cron — runs every 10 minutes AND immediately on startup.
+    // raw_articles Extraction Cron — runs every 5 minutes AND immediately on startup.
     // Picks up PENDING / FAILED rows (up to 10 per run), runs VLM, pushes to extraction_results_flat.
     // The worker has an internal guard so overlapping runs are safely skipped.
     const rawExtractTick = () => {
@@ -425,7 +445,7 @@ app.use(errorHandler);
         .catch(err => console.error('[RawExtract Cron] ❌ Unhandled error:', err?.message));
     };
 
-    // The 10-min raw-extraction cron is gated by ENABLE_CRON so it does not run
+    // The 5-min raw-extraction cron is gated by ENABLE_CRON so it does not run
     // in local development. Explicit ENABLE_CRON=true/false wins; otherwise it
     // defaults to ON in production and OFF everywhere else.
     const cronEnabled = process.env.ENABLE_CRON !== undefined
@@ -435,10 +455,31 @@ app.use(errorHandler);
     if (cronEnabled) {
       // Fire immediately on startup (catches any rows that were PENDING before restart)
       setTimeout(rawExtractTick, 5000); // 5s delay so DB connection is warm
-      // Then repeat every 10 minutes
-      setInterval(rawExtractTick, 10 * 60_000);
+      // Then repeat every 5 minutes
+      setInterval(rawExtractTick, 5 * 60_000);
     } else {
-      console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 10-min raw-extraction cron.');
+      console.log('[RawExtract Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production". Skipping the 5-min raw-extraction cron.');
+    }
+
+    // Approval → SAP sync worker. After Save & Submit, the article is approved +
+    // queued (sapSyncStatus=PENDING); this worker creates it in SAP in the
+    // background so the UI never blocks. Runs every 30s (configurable); the
+    // in-process guard skips overlapping ticks. Same ENABLE_CRON gate.
+    if (cronEnabled) {
+      const approvalSyncTick = () => {
+        if (isDbCircuitOpen()) {
+          console.log('[ApprovalSync Cron] DB circuit open — skipping tick');
+          return;
+        }
+        ApproverController.runApprovalSyncTick()
+          .catch((err) => console.error('[ApprovalSync Cron] Unhandled error:', err?.message));
+      };
+      const approvalIntervalMs = parseInt(process.env.APPROVAL_SYNC_INTERVAL_MS || '60000', 10);
+      console.log(`[ApprovalSync Cron] enabled — running every ${Math.round(approvalIntervalMs / 1000)}s`);
+      setTimeout(approvalSyncTick, 8000);
+      setInterval(approvalSyncTick, approvalIntervalMs);
+    } else {
+      console.log('[ApprovalSync Cron] Disabled — ENABLE_CRON is not "true" and NODE_ENV is not "production".');
     }
 
     // Start server
