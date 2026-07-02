@@ -1,23 +1,24 @@
-import json, sys, time, urllib.request, concurrent.futures, csv, os
+import json, sys, os, time, urllib.request, concurrent.futures, csv
+from collections import defaultdict
 
 ENV = sys.argv[1] if len(sys.argv) > 1 else 'qa'
 CLASS_CONC = int(sys.argv[2]) if len(sys.argv) > 2 else 8
+INPUT = sys.argv[3] if len(sys.argv) > 3 else os.environ.get('POOL', 'data/insert_pool.json')
+OUTDIR = sys.argv[4] if len(sys.argv) > 4 else os.environ.get('OUTDIR', '.')
 URL = f"https://sap-api.v2retail.net/api/rfc/proxy?env={ENV}"
 H = {'Content-Type': 'application/json', 'X-RFC-Key': 'v2-rfc-proxy-2026', 'User-Agent': 'Mozilla/5.0'}
 
-# Read the flat 1954-pair pool (relative to repo root) and GROUP BY CLASS (mc).
-# Grouping is what makes the run race-safe: process_class runs a class's pairs
-# serially, while classes run in parallel — never two concurrent writes to the
-# same class (that was the lost-update bug in mass_v2_bapi.py).
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_POOL_PATH = os.path.join(_HERE, '..', 'data', 'insert_pool.json')
-_pool = json.load(open(_POOL_PATH))
-g = {}
-for _p in _pool:
-    g.setdefault(_p['mc'], []).append(_p)
+raw = json.load(open(INPUT))
+if isinstance(raw, dict) and 'by_class' in raw:
+    g = raw['by_class']
+else:
+    pool = raw if isinstance(raw, list) else raw.get('pairs', [])
+    g = defaultdict(list)
+    for p in pool:
+        g[p['mc']].append(p)
+    g = dict(g)
 total = sum(len(v) for v in g.values())
-print(f'pool={_POOL_PATH}')
-print(f'classes={len(g)} pairs={total} class_conc={CLASS_CONC}')
+print(f'input={INPUT} classes={len(g)} pairs={total} class_conc={CLASS_CONC}')
 
 def call(p):
     body = json.dumps({'bapiname': 'Z_CLS_ADD_CHAR_BAPI', 'IV_CLASS': p['mc'], 'IV_ATNAM': p['attr'], 'IV_KLART': '026', 'IV_TEST': ' '}).encode()
@@ -65,8 +66,10 @@ print(f'DONE {el:.0f}s')
 print(f'  added: {added}')
 print(f'  idem: {idem}')
 print(f'  fail: {fail}')
-_OUT_PATH = os.path.join(_HERE, '..', 'data', f'v2_grouped_{ENV}.csv')
-with open(_OUT_PATH,'w',newline='') as f:
+outpath = os.path.join(OUTDIR, f'v2_grouped_{ENV}.csv')
+os.makedirs(OUTDIR, exist_ok=True)
+with open(outpath,'w',newline='') as f:
     w = csv.DictWriter(f, fieldnames=['mc','attr','clint','imerk','subrc','msg','attempt'])
     w.writeheader()
     for r in all_results: w.writerow(r)
+print(f'csv={outpath}')
