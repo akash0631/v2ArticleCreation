@@ -1658,6 +1658,7 @@ export class ApproverController {
                 'division',      // division (MENS/LADIES/…)
                 'subDivision',   // sub-division / SUB_DIV
                 'majorCategory', // major category
+                'segment',       // segment / PRICE_BAND_CATEGORY
             ]);
 
             // Whitelist + coerce the incoming fields (mirrors updateItem).
