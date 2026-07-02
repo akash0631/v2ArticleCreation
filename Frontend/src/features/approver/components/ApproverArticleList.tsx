@@ -20,6 +20,7 @@ import {
   Minus,
   RotateCw,
   Search,
+  X,
 } from 'lucide-react';
 import {
   Autocomplete,
@@ -1334,6 +1335,19 @@ const ArticleCard = React.memo(
                       className="flex-1 bg-transparent text-[11px] outline-none placeholder:text-muted-foreground"
                     />
                   </div>
+                  {!isEffectivelyEmpty && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSave(attr.field, null);
+                        setAttrSearch('');
+                      }}
+                      className="flex w-full items-center gap-1.5 border-b px-3 py-1.5 text-left text-[11px] font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <X className="h-3 w-3 shrink-0" />
+                      Clear selection
+                    </button>
+                  )}
                   <div className="max-h-56 overflow-y-auto py-1">
                     {(() => {
                       const q = attrSearch.trim().toLowerCase();
