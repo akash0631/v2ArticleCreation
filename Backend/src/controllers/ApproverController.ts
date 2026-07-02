@@ -1645,9 +1645,25 @@ export class ApproverController {
                 return res.status(400).json({ error: 'No changes provided' });
             }
 
+            // Created-article identity/price fields are LOCKED — they are set at
+            // creation time and must never change on modify (neither in SAP nor in
+            // the local DB). Silently ignore any attempt to edit them.
+            const MODIFY_LOCKED_FIELDS = new Set<string>([
+                'vendorCode',    // VENDOR
+                'mrp',           // MRP
+                'rate',          // cost / PURCH_PRICE
+                'colour',        // colour
+                'designNumber',  // design / DSG_NO
+                'fabDiv',        // M_FAB_DIV
+                'division',      // division (MENS/LADIES/…)
+                'subDivision',   // sub-division / SUB_DIV
+                'majorCategory', // major category
+            ]);
+
             // Whitelist + coerce the incoming fields (mirrors updateItem).
             const data: any = {};
             for (const field of ITEM_UPDATE_ALLOWED_FIELDS) {
+                if (MODIFY_LOCKED_FIELDS.has(field)) continue;
                 if (changes[field] === undefined) continue;
                 let value = changes[field];
                 if (field === 'rate' || field === 'mrp') {
@@ -1731,7 +1747,10 @@ export class ApproverController {
             const sapChanges = await buildModifyChangesPayload(mergedItem);
 
             // Modify flow only: these keys must NOT be sent to SAP on modification.
-            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT']) {
+            // Identity/price fields (VENDOR, MRP, DSG_NO, ...) are set at creation
+            // time and must not be altered via patch-bulk. ARTICLE_DES1 and M_FAB_DIV
+            // are likewise excluded from the modify payload.
+            for (const k of ['HSN_CODE', 'SUB_DIV', 'MC_CD', 'SEASON', 'PRICE_BAND_CATEGORY', 'PURCH_PRICE', 'NET_WEIGHT', 'VENDOR', 'MRP', 'DSG_NO', 'ARTICLE_DES1', 'M_FAB_DIV']) {
                 delete (sapChanges as any)[k];
             }
 

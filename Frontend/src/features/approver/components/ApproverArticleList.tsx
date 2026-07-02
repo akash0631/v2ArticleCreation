@@ -811,9 +811,20 @@ const ArticleCard = React.memo(
     const isLocked = (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') && !isModifyMode;
     const status = getDisplayStatus(item);
 
+    // Created-article identity/price fields are LOCKED even in modify mode — they
+    // are fixed at creation time and must never be edited afterward (so they can
+    // neither reach SAP nor change the local DB). The user cannot open these fields.
+    const MODIFY_LOCKED_FIELDS = new Set<string>([
+      'vendorCode', 'vendorName', 'mrp', 'rate', 'colour',
+      'designNumber', 'fabDiv', 'division', 'subDivision', 'majorCategory',
+    ]);
+    const isFieldLocked = (field: string) =>
+      isLocked || (isModifyMode && MODIFY_LOCKED_FIELDS.has(field));
+
     // Division is non-editable for APPROVER/CATEGORY_HEAD users locked to a specific division
     const canEditDivision = useMemo(() => {
       if (isLocked) return false;
+      if (isModifyMode) return false; // locked on the Created page
       try {
         const raw = localStorage.getItem('user');
         if (raw) {
@@ -824,7 +835,7 @@ const ArticleCard = React.memo(
         /* ignore */
       }
       return true;
-    }, [isLocked]);
+    }, [isLocked, isModifyMode]);
 
     const imgSrc = refreshedUrl || item.imageUrl;
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
@@ -1069,7 +1080,7 @@ const ArticleCard = React.memo(
           : (item as any)[field];
       const displayVal = localValues[field] !== undefined ? localValues[field] : baseValue;
       const isEditingThis = editingField === `hdr_${field}`;
-      const canEdit = editable && !isLocked;
+      const canEdit = editable && !isFieldLocked(field);
       const isEmpty = !displayVal;
       const showRequiredError = required && isEmpty && !isLocked;
       return (
@@ -1225,13 +1236,14 @@ const ArticleCard = React.memo(
       const isMandatory = !attr.freeText && (attr.isMandatory ?? mandatoryKeys.has(attr.schemaKey));
       const isEditing = editingField === attr.field;
       const isUserEdited = !!localValues[attr.field];
+      const attrLocked = isFieldLocked(attr.field);
 
       return (
         <div
           key={attr.field}
           className="group flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
           style={{
-            cursor: isLocked ? 'default' : 'pointer',
+            cursor: attrLocked ? 'default' : 'pointer',
             background: isEditing
               ? '#e0f2fe'
               : isUserEdited
@@ -1243,7 +1255,7 @@ const ArticleCard = React.memo(
               : undefined,
           }}
           onClick={() => {
-            if (!isLocked && !isEditing) setEditingField(attr.field);
+            if (!attrLocked && !isEditing) setEditingField(attr.field);
           }}
         >
           <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-muted-foreground">{num}.</span>
@@ -1522,16 +1534,16 @@ const ArticleCard = React.memo(
                 ) : (
                   <span
                     onClick={() => {
-                      if (!isLocked) setEditingField('topbar_subDivision');
+                      if (!isFieldLocked('subDivision')) setEditingField('topbar_subDivision');
                     }}
                     style={{
-                      cursor: isLocked ? 'default' : 'pointer',
-                      borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                      cursor: isFieldLocked('subDivision') ? 'default' : 'pointer',
+                      borderBottom: isFieldLocked('subDivision') ? 'none' : '1px dashed rgba(255,255,255,0.4)',
                       fontStyle: (localValues['subDivision'] ?? item.subDivision) ? 'normal' : 'italic',
                       opacity: (localValues['subDivision'] ?? item.subDivision) ? 1 : 0.7,
                     }}
                   >
-                    {(localValues['subDivision'] ?? item.subDivision) || (isLocked ? '—' : 'set sub-div')}
+                    {(localValues['subDivision'] ?? item.subDivision) || (isFieldLocked('subDivision') ? '—' : 'set sub-div')}
                   </span>
                 )}
               </span>
@@ -1559,14 +1571,14 @@ const ArticleCard = React.memo(
                   ) : (
                     <span
                       onClick={() => {
-                        if (!isLocked) setEditingField('topbar_designNumber');
+                        if (!isFieldLocked('designNumber')) setEditingField('topbar_designNumber');
                       }}
                       style={{
-                        cursor: isLocked ? 'default' : 'pointer',
-                        borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                        cursor: isFieldLocked('designNumber') ? 'default' : 'pointer',
+                        borderBottom: isFieldLocked('designNumber') ? 'none' : '1px dashed rgba(255,255,255,0.4)',
                       }}
                     >
-                      {(localValues['designNumber'] ?? item.designNumber) || (isLocked ? '—' : 'Click to fill')}
+                      {(localValues['designNumber'] ?? item.designNumber) || (isFieldLocked('designNumber') ? '—' : 'Click to fill')}
                     </span>
                   )}
                 </span>
@@ -2027,6 +2039,7 @@ const ArticleCard = React.memo(
                         { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isColor: false, isMarkdown: true },
                       ].map((bom) => {
                         const isEditingBom = editingField === `bom_${bom.field}`;
+                        const bomLocked = isFieldLocked(bom.field);
                         const val = bom.isMarkdown
                           ? markdown
                           : String(getValue(bom.field) ?? '').trim() || '—';
@@ -2044,15 +2057,15 @@ const ArticleCard = React.memo(
                             key={bom.field}
                             className="flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
                             style={{
-                              cursor: bom.editable && !isLocked ? 'pointer' : 'default',
+                              cursor: bom.editable && !bomLocked ? 'pointer' : 'default',
                               background: isEditingBom
                                 ? '#e0f2fe'
-                                : bom.mandatory && isEmpty && !isLocked
+                                : bom.mandatory && isEmpty && !bomLocked
                                 ? '#fffbeb'
                                 : undefined,
                             }}
                             onClick={() => {
-                              if (bom.editable && !isLocked && !isEditingBom) setEditingField(`bom_${bom.field}`);
+                              if (bom.editable && !bomLocked && !isEditingBom) setEditingField(`bom_${bom.field}`);
                             }}
                           >
                             <span
