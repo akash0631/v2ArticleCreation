@@ -233,22 +233,32 @@ export async function syncVariantsToSapViaRfc(
 
         const out: SapSyncItemResult[] = [];
         for (const variant of variants) { // sequential within a generic (shared SAP lock)
-            const variantSizeStr = toStr(variant.variantSize);
-            if (variantSizeStr) {
-                const check = await validateVariantSizeOnSap(genericSapArt, variantSizeStr);
-                if (!check.ok) {
-                    console.warn(
-                        `[ZMM_VAR_RFC] ❌ Pre-flight SoT BLOCKED variantId=${variant.id} ` +
-                        `size='${variantSizeStr}' matkl='${check.matkl}' — ${check.message}`
-                    );
-                    out.push({
-                        id: variant.id,
-                        success: false,
-                        message: `Pre-flight ZART_GRID_VALUES rejected: ${check.message}`,
-                    });
-                    continue;
-                }
-            }
+            // ── SoT size pre-flight DISABLED 2026-07-03 ───────────────────────
+            // The SAP FM Z_ART_VALIDATE_VARIANT_SIZE started returning
+            // MC_NOT_FOUND (blank EX_MATKL, EX_RC=4) for EVERY article across all
+            // MCs on ~July 2→3 — it can no longer resolve the article→MATKL step.
+            // Because this pre-flight fails CLOSED on a definitive negative, that
+            // SAP-side outage was blocking 100% of variant creation. Commented out
+            // so variants create while Akash/Vaibhav fix the ABAP FM. Re-enable
+            // (and consider failing OPEN on MC_NOT_FOUND) once the FM resolves
+            // MATKL again — verify with a direct RFC call returning EX_ALLOWED='X'.
+            //
+            // const variantSizeStr = toStr(variant.variantSize);
+            // if (variantSizeStr) {
+            //     const check = await validateVariantSizeOnSap(genericSapArt, variantSizeStr);
+            //     if (!check.ok) {
+            //         console.warn(
+            //             `[ZMM_VAR_RFC] ❌ Pre-flight SoT BLOCKED variantId=${variant.id} ` +
+            //             `size='${variantSizeStr}' matkl='${check.matkl}' — ${check.message}`
+            //         );
+            //         out.push({
+            //             id: variant.id,
+            //             success: false,
+            //             message: `Pre-flight ZART_GRID_VALUES rejected: ${check.message}`,
+            //         });
+            //         continue;
+            //     }
+            // }
 
             const payload = buildVariantPayload(genericSapArt, variant);
 
