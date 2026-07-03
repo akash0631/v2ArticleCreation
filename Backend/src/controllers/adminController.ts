@@ -1588,6 +1588,7 @@ export const getDetailedExpenses = async (req: Request, res: Response): Promise<
 
     const whereClause = {
       extractionStatus: 'COMPLETED', // Only show completed extractions
+      isGeneric: true,               // Exclude variants — they are DB copies, never extracted by Gemini
     } as const;
 
     // Fetch detailed expense data from flat table (paginated)
@@ -3312,6 +3313,68 @@ export const getSizeMasterAudit = async (req: Request, res: Response): Promise<v
     });
   } catch (error: any) {
     console.error('[SizeMaster] audit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATUS DASHBOARD (extraction_results_flat)
+// Generic-article counts by approval status, grouped Division → Sub-Division.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** GET /api/admin/status-dashboard — PENDING/APPROVED/REJECTED counts per division & sub-division. */
+export const getStatusDashboard = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await prisma.$queryRaw<
+      { division: string | null; sub_division: string | null; approval_status: string | null; n: bigint }[]
+    >`
+      SELECT division, sub_division, approval_status, COUNT(*)::bigint AS n
+      FROM extraction_results_flat
+      WHERE is_generic = true
+        AND COALESCE(is_old_article, false) = false
+      GROUP BY division, sub_division, approval_status
+    `;
+
+    const UNSPEC = 'Unspecified';
+    type Counts = { pending: number; approved: number; rejected: number; total: number };
+    const blank = (): Counts => ({ pending: 0, approved: 0, rejected: 0, total: 0 });
+    const bump = (c: Counts, status: string | null, n: number) => {
+      const s = (status || '').trim().toUpperCase();
+      if (s === 'PENDING') c.pending += n;
+      else if (s === 'APPROVED') c.approved += n;
+      else if (s === 'REJECTED') c.rejected += n;
+      c.total += n;
+    };
+
+    const divisions = new Map<string, { counts: Counts; subs: Map<string, Counts> }>();
+    const grand = blank();
+
+    for (const r of rows) {
+      // Upper-case so case variants (e.g. "Kids" / "KIDS") merge into one group.
+      const div = (r.division || '').trim().toUpperCase() || UNSPEC;
+      const sub = (r.sub_division || '').trim().toUpperCase() || UNSPEC;
+      const n = Number(r.n);
+      if (!divisions.has(div)) divisions.set(div, { counts: blank(), subs: new Map() });
+      const d = divisions.get(div)!;
+      if (!d.subs.has(sub)) d.subs.set(sub, blank());
+      bump(d.counts, r.approval_status, n);
+      bump(d.subs.get(sub)!, r.approval_status, n);
+      bump(grand, r.approval_status, n);
+    }
+
+    const data = Array.from(divisions.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([division, d]) => ({
+        division,
+        ...d.counts,
+        subDivisions: Array.from(d.subs.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([subDivision, c]) => ({ subDivision, ...c })),
+      }));
+
+    res.json({ success: true, data, totals: grand });
+  } catch (error: any) {
+    console.error('[StatusDashboard] error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

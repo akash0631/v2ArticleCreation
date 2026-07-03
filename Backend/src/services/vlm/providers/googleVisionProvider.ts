@@ -55,7 +55,7 @@ export class GoogleVisionProvider implements VLMProvider {
 
   constructor(config?: Partial<GoogleVisionConfig>) {
     this.config = {
-      model: 'gemini-2.5-pro',  // Best accuracy; thinking mode disabled via thinkingBudget:0
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-pro',
       maxTokens: 65536,  // Gemini 2.5-pro max — effectively unlimited
       temperature: 0.0,
       timeout: 300000,

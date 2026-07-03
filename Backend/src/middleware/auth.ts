@@ -98,6 +98,22 @@ function isPoolExhaustionError(error: any): boolean {
   );
 }
 
+// Supabase/Postgres is unreachable or has tripped its circuit breaker. This is a
+// transient INFRASTRUCTURE problem, not an auth failure — surface it as a 503 so
+// the client retries and NEVER treats it as a reason to log the user out.
+function isDbUnavailableError(error: any): boolean {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    message.includes('ecircuitbreaker') ||
+    message.includes('too many authentication failures') ||
+    message.includes('new connections are temporarily blocked') ||
+    message.includes('can\'t reach database server') ||
+    message.includes('server has closed the connection') ||
+    message.includes('connection reset') ||
+    message.includes('timed out fetching a new connection')
+  );
+}
+
 // Extend Express Request to include user
 declare global {
   namespace Express {
@@ -222,6 +238,19 @@ export const authenticate = async (
         success: false,
         error: 'Database connection pool is busy. Please retry in a few seconds.',
         code: 'DB_POOL_EXHAUSTED'
+      });
+      return;
+    }
+
+    // DB down / circuit-broken → 503 (retryable infra error), NOT an auth failure.
+    // Returned with a distinct code so the frontend can show "retry" instead of
+    // logging the user out. 401 is reserved for genuine token/session problems.
+    if (isDbUnavailableError(error)) {
+      res.setHeader('Retry-After', '30');
+      res.status(503).json({
+        success: false,
+        error: 'Database is temporarily unavailable. Your session is still valid — please retry in a moment.',
+        code: 'DB_UNAVAILABLE'
       });
       return;
     }

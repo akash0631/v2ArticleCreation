@@ -221,7 +221,7 @@ model ExtractionResult {
 /// Extraction Result Flat: Denormalized table for fast querying and Excel export
 model ExtractionResultFlat {
   id                          String        @id @default(uuid())
-  jobId                       String        @unique @map("job_id")
+  jobId                       String?       @unique @map("job_id")
   imageName                   String?       @map("image_name") @db.VarChar(255)
   imageUrl                    String?       @map("image_url")
   articleNumber               String?       @map("article_number") @db.VarChar(100)
@@ -367,7 +367,7 @@ model ExtractionResultFlat {
   // FK to raw_articles.id — only set when extraction came from SRM/raw_articles flow
   srmUniqueId                 String?        @map("srm_unique_id") @db.VarChar(100)
 
-  job                         ExtractionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job                         ExtractionJob? @relation(fields: [jobId], references: [id], onDelete: Cascade)
   srmSyncRunItems             SrmSyncRunItem[]
 
   @@index([jobId])

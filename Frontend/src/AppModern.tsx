@@ -13,7 +13,7 @@ import { LoginPage, RegisterPage } from './features/auth';
 
 import SimplifiedExtractionPage from './features/extraction/pages/SimplifiedExtractionPage'; // NEW: Simplified workflow
 import { DashboardPage, ProfilePage, ProductsPage } from './features/dashboard';
-import { HierarchyManagement, UsersManagement } from './features/admin';
+import { HierarchyManagement, UsersManagement, StatusDashboard } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
@@ -87,19 +87,6 @@ const ApproverRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
-// PD page guard — only ADMIN and PD may view/submit on the PD approval queue.
-const PdRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem('authToken');
-  const user = localStorage.getItem('user');
-  if (!token) return <Navigate to="/login" replace />;
-  if (user) {
-    const userData = JSON.parse(user);
-    if (userData.role !== 'ADMIN' && userData.role !== 'PD') {
-      return <Navigate to="/dashboard" replace />;
-    }
-  }
-  return <>{children}</>;
-};
 
 const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const token = localStorage.getItem('authToken');
@@ -115,9 +102,8 @@ const CreatorRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (userData.role === 'APPROVER' || userData.role === 'CATEGORY_HEAD') {
       return <Navigate to="/approver" replace />;
     }
-    // PD is an approval-only role → send to the PD queue
     if (userData.role === 'PD') {
-      return <Navigate to="/approver/pd" replace />;
+      return <Navigate to="/approver" replace />;
     }
     // PD_DESIGNER only has access to model-generation
     if (userData.role === 'PD_DESIGNER') {
@@ -302,6 +288,16 @@ const App: React.FC = () => {
                   </AdminRoute>
                 }
               />
+              <Route
+                path="/admin/status-dashboard"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <StatusDashboard />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
 
               {/* Approver Routes - With MainLayout */}
               <Route
@@ -384,28 +380,27 @@ const App: React.FC = () => {
                   </ApproverRoute>
                 }
               />
-
-              {/* PD Approval — Admin + PD only */}
               <Route
-                path="/approver/pd"
+                path="/approver/failed"
                 element={
-                  <PdRoute>
+                  <ApproverRoute>
                     <MainLayout>
-                      <ApproverDashboard key="pd-approval" pathType="pd" />
+                      <ApproverDashboard key="failed-articles" pathType="failed" />
                     </MainLayout>
-                  </PdRoute>
+                  </ApproverRoute>
                 }
               />
               <Route
-                path="/approver/pd/:id"
+                path="/approver/failed/:id"
                 element={
-                  <PdRoute>
+                  <ApproverRoute>
                     <MainLayout>
                       <ArticleDetailPage />
                     </MainLayout>
-                  </PdRoute>
+                  </ApproverRoute>
                 }
               />
+
 
               {/* PO Presentation */}
               <Route

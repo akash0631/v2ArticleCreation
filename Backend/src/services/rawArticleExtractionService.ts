@@ -17,7 +17,7 @@
  *     → if retry_count >= MAX_RETRIES → PERM_FAILED
  */
 
-import { prismaClient as prisma } from '../utils/prisma';
+import { prismaClient as prisma, isDbCircuitOpen, openDbCircuit } from '../utils/prisma';
 import { enrichSrmRowWithVlmAdmin, insertRawArticleAsFlat, type SrmRow } from './srmSyncService';
 
 // ── Cutoff: presentations on or before this date are already in extraction_results_flat
@@ -52,6 +52,11 @@ export async function runRawArticleExtraction(
 ): Promise<ExtractionRunResult> {
   if (_isRunning) {
     console.log('[RawExtract] Already running — skipping duplicate invocation');
+    return { claimed: 0, completed: 0, failed: 0, errors: 0 };
+  }
+
+  if (isDbCircuitOpen()) {
+    console.log('[RawExtract] DB circuit open — skipping this tick');
     return { claimed: 0, completed: 0, failed: 0, errors: 0 };
   }
 
@@ -167,6 +172,12 @@ export async function runRawArticleExtraction(
     console.log(`[RawExtract] Done — completed:${completed} failed:${failed} errors:${errors}`);
     return { claimed: claimed.length, completed, failed, errors };
 
+  } catch (err: any) {
+    const msg = String(err?.message || '').toLowerCase();
+    if (msg.includes('ecircuitbreaker') || msg.includes('too many authentication failures')) {
+      openDbCircuit();
+    }
+    throw err;
   } finally {
     _isRunning = false;
   }

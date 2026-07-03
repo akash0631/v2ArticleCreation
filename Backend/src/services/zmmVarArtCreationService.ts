@@ -13,12 +13,17 @@
  */
 
 import type { SapSyncItemResult } from './sapSyncService';
+import { mapWithConcurrency } from '../utils/concurrency';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const ZMM_VAR_RFC_URL =
     process.env.ZMM_VAR_RFC_URL ||
     'https://routemaster.v2retail.com:9010/api/ZMM_VAR_ART_CREATION_RFC';
+// Hard timeout per variant RFC call so a hung SAP endpoint can't stall the worker.
+const SAP_RFC_TIMEOUT_MS = parseInt(process.env.SAP_RFC_TIMEOUT_MS || '120000', 10);
+// Parallel SAP RFC calls ("lanes"). Shared setting with the generic RFC service.
+const SAP_RFC_CONCURRENCY = parseInt(process.env.SAP_RFC_CONCURRENCY || '7', 10);
 
 const ZMM_VAR_RFC_ENABLED =
     (process.env.ZMM_RFC_ENABLED ?? process.env.SAP_SYNC_ENABLED ?? 'true').toLowerCase() === 'true';
@@ -168,21 +173,21 @@ export async function syncVariantsToSapViaRfc(
         return results;
     }
 
-    const results: SapSyncItemResult[] = [];
-
-    for (const [genericId, variants] of variantsByGenericId) {
+    // IMPORTANT: variants of the SAME generic share one SAP material-group lock, so
+    // they MUST be created sequentially — firing them in parallel makes all but one
+    // fail with "The group data for the material … is locked". Different generics
+    // are independent, so we parallelise ACROSS generics (up to SAP_RFC_CONCURRENCY)
+    // while keeping each generic's own variants strictly one-at-a-time.
+    const entries = Array.from(variantsByGenericId.entries());
+    const perGeneric = await mapWithConcurrency(entries, SAP_RFC_CONCURRENCY, async ([genericId, variants]): Promise<SapSyncItemResult[]> => {
         const genericSapArt = genericSapArticleMap.get(genericId);
-
         if (!genericSapArt) {
-            // Generic creation failed or returned no article number — skip variants
             console.warn(`[ZMM_VAR_RFC] Skipping ${variants.length} variant(s) for genericId=${genericId}: no SAP article number`);
-            for (const v of variants) {
-                results.push({ id: v.id, success: false, message: 'Generic article SAP number not available; variant skipped' });
-            }
-            continue;
+            return variants.map((v) => ({ id: v.id, success: false, message: 'Generic article SAP number not available; variant skipped' }));
         }
 
-        for (const variant of variants) {
+        const out: SapSyncItemResult[] = [];
+        for (const variant of variants) { // sequential within a generic (shared SAP lock)
             const payload = buildVariantPayload(genericSapArt, variant);
 
             console.log(
@@ -191,11 +196,14 @@ export async function syncVariantsToSapViaRfc(
                 `  Variant DB fields: variantSize=${variant.variantSize} colour=${variant.colour} variantColor=${variant.variantColor} vendorCode=${variant.vendorCode} rate=${variant.rate} mrp=${variant.mrp}`
             );
 
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), SAP_RFC_TIMEOUT_MS);
             try {
                 const response = await fetch(ZMM_VAR_RFC_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
+                    signal: ctrl.signal,
                 });
 
                 const responseText = await response.text();
@@ -212,7 +220,7 @@ export async function syncVariantsToSapViaRfc(
                         ` fabricArticleNumber=${outcome.fabricArticleNumber ?? '-'}` +
                         ` for variantId=${variant.id}`
                     );
-                    results.push({
+                    out.push({
                         id: variant.id,
                         success: true,
                         statusCode: response.status,
@@ -223,7 +231,7 @@ export async function syncVariantsToSapViaRfc(
                     });
                 } else {
                     console.warn(`[ZMM_VAR_RFC] ❌ SAP rejected variantId=${variant.id}: ${outcome.message}`);
-                    results.push({
+                    out.push({
                         id: variant.id,
                         success: false,
                         statusCode: response.status,
@@ -231,16 +239,22 @@ export async function syncVariantsToSapViaRfc(
                     });
                 }
             } catch (err) {
+                const isTimeout = err instanceof Error && err.name === 'AbortError';
                 const msg = err instanceof Error ? err.message : 'Unknown network error';
-                console.error(`[ZMM_VAR_RFC] Network error for variantId=${variant.id}:`, msg);
-                results.push({
+                console.error(`[ZMM_VAR_RFC] ${isTimeout ? 'TIMEOUT' : 'Network error'} for variantId=${variant.id}:`, msg);
+                out.push({
                     id: variant.id,
                     success: false,
-                    message: `ZMM_VAR_ART_CREATION_RFC network error: ${msg}`,
+                    message: isTimeout
+                        ? `ZMM_VAR_ART_CREATION_RFC timed out after ${Math.round(SAP_RFC_TIMEOUT_MS / 1000)}s`
+                        : `ZMM_VAR_ART_CREATION_RFC network error: ${msg}`,
                 });
+            } finally {
+                clearTimeout(timer);
             }
         }
-    }
+        return out;
+    });
 
-    return results;
+    return perGeneric.flat();
 }

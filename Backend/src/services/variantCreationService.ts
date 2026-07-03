@@ -76,40 +76,13 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
       ...rest
     } = generic;
 
-    // Get original job to create new jobs for each variant
-    const originalJob = await prisma.extractionJob.findUnique({
-      where: { id: generic.jobId },
-      select: { categoryId: true, userId: true, aiModel: true }
-    });
-    if (!originalJob) return;
-
     for (const size of sizes) {
       try {
-        const newJob = await prisma.extractionJob.create({
-          data: {
-            userId: originalJob.userId,
-            categoryId: originalJob.categoryId,
-            imageUrl: generic.imageUrl || '',
-            status: 'COMPLETED',
-            aiModel: originalJob.aiModel,
-            processingTimeMs: generic.processingTimeMs,
-            tokensUsed: generic.totalTokens,
-            inputTokens: generic.inputTokens,
-            outputTokens: generic.outputTokens,
-            apiCost: generic.apiCost,
-            totalAttributes: generic.totalAttributes,
-            extractedCount: generic.extractedCount,
-            avgConfidence: generic.avgConfidence,
-            completedAt: new Date(),
-            designNumber: generic.articleNumber,
-          }
-        });
-
         const variantId = randomUUID();
         const variantData = {
           ...rest,
           id: variantId,
-          jobId: newJob.id,
+          jobId: null,
           imageUncPath: null,
           approvalStatus: 'PENDING' as const,
           approvedBy: null,
@@ -139,7 +112,12 @@ export async function createVariantsForGeneric(genericId: string): Promise<void>
   }
 }
 
-export async function addColorVariants(genericId: string, color: string, sizesOverride?: string[]): Promise<number> {
+export async function addColorVariants(
+  genericId: string,
+  color: string,
+  sizesOverride?: string[],
+  imageUrlOverride?: string,
+): Promise<number> {
   const generic = await prisma.extractionResultFlat.findUnique({ where: { id: genericId } });
   if (!generic) return 0;
 
@@ -150,16 +128,25 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
   // Manual mode: restrict to the requested sizes, keeping only those actually
   // allowed for this Major Category (the dropdown is MC-filtered, but this also
   // guards against tampering). Auto mode (no override) uses all allowed sizes.
-  const sizes = sizesOverride && sizesOverride.length > 0
+  const requestedSizes = sizesOverride && sizesOverride.length > 0
     ? allowedSizes.filter((s) => sizesOverride.some((o) => o.trim().toUpperCase() === s.trim().toUpperCase()))
     : allowedSizes;
-  if (sizes.length === 0) throw new Error('None of the selected sizes are valid for this Major Category.');
+  if (requestedSizes.length === 0) throw new Error('None of the selected sizes are valid for this Major Category.');
 
-  const originalJob = await prisma.extractionJob.findUnique({
-    where: { id: generic.jobId },
-    select: { categoryId: true, userId: true, aiModel: true }
+  // Skip any (size, color) combinations that already exist for this generic so
+  // re-adding a color for a new size never duplicates existing variant rows.
+  const colorUpper = color.trim().toUpperCase();
+  const existingForColor = await prisma.extractionResultFlat.findMany({
+    where: { genericArticleId: genericId, isGeneric: false },
+    select: { variantSize: true, variantColor: true },
   });
-  if (!originalJob) return 0;
+  const existingSizesForColor = new Set(
+    existingForColor
+      .filter((v) => (v.variantColor || '').trim().toUpperCase() === colorUpper)
+      .map((v) => (v.variantSize || '').trim().toUpperCase()),
+  );
+  const sizes = requestedSizes.filter((s) => !existingSizesForColor.has(s.trim().toUpperCase()));
+  if (sizes.length === 0) return 0; // every requested size already has this color
 
   const {
     id: _id, jobId: _jobId, imageUncPath: _unc, createdAt: _ca, updatedAt: _ua,
@@ -169,33 +156,19 @@ export async function addColorVariants(genericId: string, color: string, sizesOv
     ...rest
   } = generic;
 
+  // A per-color image (uploaded in the Add Color flow) overrides the generic's
+  // image so every size of this color shows that color's photo.
+  const variantImageUrl = (imageUrlOverride && imageUrlOverride.trim()) || generic.imageUrl || '';
+
   let created = 0;
   for (const size of sizes) {
     try {
-      const newJob = await prisma.extractionJob.create({
-        data: {
-          userId: originalJob.userId,
-          categoryId: originalJob.categoryId,
-          imageUrl: generic.imageUrl || '',
-          status: 'COMPLETED',
-          aiModel: originalJob.aiModel,
-          processingTimeMs: generic.processingTimeMs,
-          tokensUsed: generic.totalTokens,
-          inputTokens: generic.inputTokens,
-          outputTokens: generic.outputTokens,
-          apiCost: generic.apiCost,
-          totalAttributes: generic.totalAttributes,
-          extractedCount: generic.extractedCount,
-          avgConfidence: generic.avgConfidence,
-          completedAt: new Date(),
-          designNumber: generic.articleNumber,
-        }
-      });
       const colorVariantId = randomUUID();
       const colorVariantData = {
         ...rest,
         id: colorVariantId,
-        jobId: newJob.id,
+        jobId: null,
+        imageUrl: variantImageUrl,
         imageUncPath: null,
         approvalStatus: 'PENDING' as const,
         approvedBy: null,

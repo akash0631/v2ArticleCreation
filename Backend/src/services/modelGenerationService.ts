@@ -2,7 +2,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
 
-const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image';
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 // Lazily create the client so dotenv has run by the time we need the key.
 let _aiClient: GoogleGenAI | null = null;

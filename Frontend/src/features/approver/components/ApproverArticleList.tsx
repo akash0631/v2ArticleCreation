@@ -20,6 +20,7 @@ import {
   Minus,
   RotateCw,
   Search,
+  X,
 } from 'lucide-react';
 import {
   Autocomplete,
@@ -227,6 +228,65 @@ const REF_DESC_FIELDS = [
   'printPlacement', // M_PRINT_PLACEMENT
   'wash',           // M_WASH
 ];
+// color_master options for the BOM Colour dropdown — fetched once, cached across cards.
+let _masterColorsCache: { code: string; name: string }[] | null = null;
+
+// Searchable single-select for the BOM Colour field (color_master can be long).
+const ColorSelect: React.FC<{
+  value: string | null;
+  options: { code: string; name: string }[];
+  onPick: (code: string) => void;
+  onClose: () => void;
+}> = ({ value, options, onPick, onClose }) => {
+  const [q, setQ] = useState('');
+  const lower = q.trim().toLowerCase();
+  const filtered = lower
+    ? options.filter((c) => c.code.toLowerCase().includes(lower) || c.name.toLowerCase().includes(lower))
+    : options;
+  return (
+    <Popover defaultOpen onOpenChange={(o) => { if (!o) onClose(); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex h-6 w-full items-center justify-between rounded border border-input bg-background px-1.5 text-[11px]"
+        >
+          <span className="truncate">{value || 'Select…'}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[230px] p-0">
+        <div className="border-b border-border p-1.5">
+          <Input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search colors…"
+            className="h-7 text-[12px]"
+          />
+        </div>
+        <div className="max-h-[240px] overflow-y-auto py-1">
+          {filtered.map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => onPick(c.code)}
+              className={cn(
+                'flex w-full items-center justify-between gap-2 px-2.5 py-1 text-left text-[12px] transition-colors hover:bg-primary/5',
+                value === c.code && 'bg-primary/10 font-medium',
+              )}
+            >
+              <span className="truncate">{c.name}</span>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{c.code}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-2.5 py-2 text-[12px] text-muted-foreground">No colors match.</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const GROUP_COLORS: Record<string, string> = {
   FAB: '#e6f4ff',
@@ -327,7 +387,7 @@ export interface ApproverArticleListProps {
   onModify?: (item: ApproverItem, changes: Record<string, unknown>) => Promise<void>;
   attributes: MasterAttribute[];
   onRefresh: () => void;
-  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
+  pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   serverPagination: {
     total: number;
     current: number;
@@ -373,7 +433,7 @@ const ArticleCard = React.memo(
     attributes: MasterAttribute[];
     onRefresh: () => void;
     cardGroups: CardGroup[];
-    pathType?: 'old' | 'new' | 'rejected' | 'created' | 'pd';
+    pathType?: 'old' | 'new' | 'rejected' | 'created' | 'failed';
   }) => {
     const [showVariants, setShowVariants] = useState(false);
     const [imgModalOpen, setImgModalOpen] = useState(false);
@@ -706,6 +766,21 @@ const ArticleCard = React.memo(
     const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
     const refreshAttempted = React.useRef(false);
 
+    // color_master colors for the BOM Colour dropdown (fetched once, cached).
+    const [masterColors, setMasterColors] = useState<{ code: string; name: string }[]>(_masterColorsCache ?? []);
+    useEffect(() => {
+      if (_masterColorsCache) { setMasterColors(_masterColorsCache); return; }
+      const token = localStorage.getItem('authToken');
+      fetch(`${APP_CONFIG.api.baseURL}/approver/colors`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        .then((r) => (r.ok ? r.json() : { colors: [] }))
+        .then((d) => {
+          const c = Array.isArray(d?.colors) ? d.colors : [];
+          _masterColorsCache = c;
+          setMasterColors(c);
+        })
+        .catch(() => setMasterColors([]));
+    }, []);
+
     const FAB_FIELDS = useMemo(
       () =>
         (cardGroups.find((g) => g.group === 'FAB' || g.group === 'FABRIC')?.fields ?? []).filter(
@@ -758,9 +833,20 @@ const ArticleCard = React.memo(
     const isLocked = (item.approvalStatus === 'APPROVED' || item.approvalStatus === 'REJECTED') && !isModifyMode;
     const status = getDisplayStatus(item);
 
+    // Created-article identity/price fields are LOCKED even in modify mode — they
+    // are fixed at creation time and must never be edited afterward (so they can
+    // neither reach SAP nor change the local DB). The user cannot open these fields.
+    const MODIFY_LOCKED_FIELDS = new Set<string>([
+      'vendorCode', 'vendorName', 'mrp', 'rate', 'colour',
+      'designNumber', 'fabDiv', 'division', 'subDivision', 'majorCategory', 'segment',
+    ]);
+    const isFieldLocked = (field: string) =>
+      isLocked || (isModifyMode && MODIFY_LOCKED_FIELDS.has(field));
+
     // Division is non-editable for APPROVER/CATEGORY_HEAD users locked to a specific division
     const canEditDivision = useMemo(() => {
       if (isLocked) return false;
+      if (isModifyMode) return false; // locked on the Created page
       try {
         const raw = localStorage.getItem('user');
         if (raw) {
@@ -771,7 +857,7 @@ const ArticleCard = React.memo(
         /* ignore */
       }
       return true;
-    }, [isLocked]);
+    }, [isLocked, isModifyMode]);
 
     const imgSrc = refreshedUrl || item.imageUrl;
     const imgUrl = imgSrc && !failedImg ? getImageUrl(imgSrc) : null;
@@ -1016,7 +1102,7 @@ const ArticleCard = React.memo(
           : (item as any)[field];
       const displayVal = localValues[field] !== undefined ? localValues[field] : baseValue;
       const isEditingThis = editingField === `hdr_${field}`;
-      const canEdit = editable && !isLocked;
+      const canEdit = editable && !isFieldLocked(field);
       const isEmpty = !displayVal;
       const showRequiredError = required && isEmpty && !isLocked;
       return (
@@ -1172,13 +1258,14 @@ const ArticleCard = React.memo(
       const isMandatory = !attr.freeText && (attr.isMandatory ?? mandatoryKeys.has(attr.schemaKey));
       const isEditing = editingField === attr.field;
       const isUserEdited = !!localValues[attr.field];
+      const attrLocked = isFieldLocked(attr.field);
 
       return (
         <div
           key={attr.field}
           className="group flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
           style={{
-            cursor: isLocked ? 'default' : 'pointer',
+            cursor: attrLocked ? 'default' : 'pointer',
             background: isEditing
               ? '#e0f2fe'
               : isUserEdited
@@ -1190,7 +1277,7 @@ const ArticleCard = React.memo(
               : undefined,
           }}
           onClick={() => {
-            if (!isLocked && !isEditing) setEditingField(attr.field);
+            if (!attrLocked && !isEditing) setEditingField(attr.field);
           }}
         >
           <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-muted-foreground">{num}.</span>
@@ -1269,6 +1356,19 @@ const ArticleCard = React.memo(
                       className="flex-1 bg-transparent text-[11px] outline-none placeholder:text-muted-foreground"
                     />
                   </div>
+                  {!isEffectivelyEmpty && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSave(attr.field, null);
+                        setAttrSearch('');
+                      }}
+                      className="flex w-full items-center gap-1.5 border-b px-3 py-1.5 text-left text-[11px] font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <X className="h-3 w-3 shrink-0" />
+                      Clear selection
+                    </button>
+                  )}
                   <div className="max-h-56 overflow-y-auto py-1">
                     {(() => {
                       const q = attrSearch.trim().toLowerCase();
@@ -1469,16 +1569,16 @@ const ArticleCard = React.memo(
                 ) : (
                   <span
                     onClick={() => {
-                      if (!isLocked) setEditingField('topbar_subDivision');
+                      if (!isFieldLocked('subDivision')) setEditingField('topbar_subDivision');
                     }}
                     style={{
-                      cursor: isLocked ? 'default' : 'pointer',
-                      borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                      cursor: isFieldLocked('subDivision') ? 'default' : 'pointer',
+                      borderBottom: isFieldLocked('subDivision') ? 'none' : '1px dashed rgba(255,255,255,0.4)',
                       fontStyle: (localValues['subDivision'] ?? item.subDivision) ? 'normal' : 'italic',
                       opacity: (localValues['subDivision'] ?? item.subDivision) ? 1 : 0.7,
                     }}
                   >
-                    {(localValues['subDivision'] ?? item.subDivision) || (isLocked ? '—' : 'set sub-div')}
+                    {(localValues['subDivision'] ?? item.subDivision) || (isFieldLocked('subDivision') ? '—' : 'set sub-div')}
                   </span>
                 )}
               </span>
@@ -1506,14 +1606,14 @@ const ArticleCard = React.memo(
                   ) : (
                     <span
                       onClick={() => {
-                        if (!isLocked) setEditingField('topbar_designNumber');
+                        if (!isFieldLocked('designNumber')) setEditingField('topbar_designNumber');
                       }}
                       style={{
-                        cursor: isLocked ? 'default' : 'pointer',
-                        borderBottom: isLocked ? 'none' : '1px dashed rgba(255,255,255,0.4)',
+                        cursor: isFieldLocked('designNumber') ? 'default' : 'pointer',
+                        borderBottom: isFieldLocked('designNumber') ? 'none' : '1px dashed rgba(255,255,255,0.4)',
                       }}
                     >
-                      {(localValues['designNumber'] ?? item.designNumber) || (isLocked ? '—' : 'Click to fill')}
+                      {(localValues['designNumber'] ?? item.designNumber) || (isFieldLocked('designNumber') ? '—' : 'Click to fill')}
                     </span>
                   )}
                 </span>
@@ -1968,11 +2068,13 @@ const ArticleCard = React.memo(
                     </div>
                     <div className="space-y-0 p-1">
                       {[
-                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false },
-                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false },
-                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isMarkdown: true },
+                        { label: 'RATE / COST', field: 'rate', editable: true, mandatory: true, isDropdown: false, isColor: false, isMarkdown: false },
+                        { label: 'MRP', field: 'mrp', editable: true, mandatory: true, isDropdown: false, isColor: false, isMarkdown: false },
+                        { label: 'COLOUR', field: 'colour', editable: true, mandatory: true, isDropdown: true, isColor: true, isMarkdown: false },
+                        { label: 'MARKDOWN', field: '_markdown', editable: false, mandatory: false, isDropdown: false, isColor: false, isMarkdown: true },
                       ].map((bom) => {
                         const isEditingBom = editingField === `bom_${bom.field}`;
+                        const bomLocked = isFieldLocked(bom.field);
                         const val = bom.isMarkdown
                           ? markdown
                           : String(getValue(bom.field) ?? '').trim() || '—';
@@ -1990,15 +2092,15 @@ const ArticleCard = React.memo(
                             key={bom.field}
                             className="flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-muted/40"
                             style={{
-                              cursor: bom.editable && !isLocked ? 'pointer' : 'default',
+                              cursor: bom.editable && !bomLocked ? 'pointer' : 'default',
                               background: isEditingBom
                                 ? '#e0f2fe'
-                                : bom.mandatory && isEmpty && !isLocked
+                                : bom.mandatory && isEmpty && !bomLocked
                                 ? '#fffbeb'
                                 : undefined,
                             }}
                             onClick={() => {
-                              if (bom.editable && !isLocked && !isEditingBom) setEditingField(`bom_${bom.field}`);
+                              if (bom.editable && !bomLocked && !isEditingBom) setEditingField(`bom_${bom.field}`);
                             }}
                           >
                             <span
@@ -2012,7 +2114,14 @@ const ArticleCard = React.memo(
                               {bom.label}
                             </span>
                             <div className="w-[100px] shrink-0 text-right">
-                              {isEditingBom && bom.isDropdown ? (
+                              {isEditingBom && bom.isColor ? (
+                                <ColorSelect
+                                  value={val === '—' ? null : val}
+                                  options={masterColors}
+                                  onPick={(code) => handleSave('colour', code)}
+                                  onClose={() => setEditingField(null)}
+                                />
+                              ) : isEditingBom && bom.isDropdown ? (
                                 <Select
                                   defaultValue={val === '—' ? undefined : val}
                                   onValueChange={(v) => handleSave(bom.field, v ?? null)}
@@ -2070,8 +2179,8 @@ const ArticleCard = React.memo(
                 </div>
               )}
 
-              {/* Proceed for FG Article Creation — hidden on New Articles + PD Approval */}
-              {!item.articleNumber && pathType !== 'new' && pathType !== 'pd' &&
+              {/* Proceed for FG Article Creation — hidden on New Articles and Failed Creations */}
+              {!item.articleNumber && pathType !== 'new' && pathType !== 'failed' &&
                 (() => {
                   const effectiveVendorCode =
                     localValues['vendorCode'] !== undefined ? localValues['vendorCode'] : item.vendorCode;

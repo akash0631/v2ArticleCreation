@@ -11,6 +11,7 @@ import {
   XCircle,
   CheckCircle2,
   SlidersHorizontal,
+  BarChart3,
   Globe,
   User,
   AlertTriangle,
@@ -154,13 +155,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/approver/old-articles', Icon: History, label: 'Old articles' },
         { key: '/approver/rejected', Icon: XCircle, label: 'Rejected' },
         { key: '/approver/created', Icon: CheckCircle2, label: 'Created' },
+        { key: '/approver/failed', Icon: AlertTriangle, label: 'Failed Creations' },
       ],
     });
-  }
-
-  // PD Approval queue — Admin + PD only.
-  if (!isPdDesigner && (isAdmin || isPd)) {
-    items.push({ key: '/approver/pd', Icon: CheckCircle2, label: 'PD Approval' });
   }
 
   if (!isPdDesigner && (role === 'APPROVER' || role === 'CATEGORY_HEAD' || role === 'SUB_DIVISION_HEAD' || isAdmin)) {
@@ -173,6 +170,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
       Icon: SlidersHorizontal,
       label: 'Admin Panel',
       children: [
+        { key: '/admin/status-dashboard', Icon: BarChart3, label: 'Status Dashboard' },
         { key: '/admin/hierarchy', Icon: Globe, label: 'Hierarchy' },
         { key: '/admin/users', Icon: User, label: 'Users' },
         { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expenses' },
