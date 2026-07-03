@@ -37,6 +37,8 @@ import { ApproverController } from './controllers/ApproverController';
 import { disconnectPrismaClient, isAppShuttingDown, setAppIsShuttingDown, isDbCircuitOpen } from './utils/prisma';
 import srmHookRoutes from './routes/srmHook';
 import testApiRoutes from './routes/testApi';
+import ksmlRoutes from './routes/ksml';
+import poolBRoutes from './routes/poolB';
 import { syncVendorMaster } from './services/vendorMasterSyncService';
 import { runRawArticleExtraction, isExtractionRunning } from './services/rawArticleExtractionService';
 
@@ -176,9 +178,15 @@ app.use('/api/watcher', requestTimeout(4 * 60 * 1000));
 app.use('/api/srm-hook/trigger', requestTimeout(15 * 1000));
 app.use('/api/model-generation/bulk', requestTimeout(20 * 60 * 1000));
 app.use('/api/admin/majcat-grid/upload', requestTimeout(15 * 60 * 1000));
+// KSML commit pushes up to ~2000 pairs to SAP one-by-one (grouped) — can take 10-15 min.
+app.use('/api/ksml/commit', requestTimeout(20 * 60 * 1000));
+// Pool B commit patches many articles' attribute values via SAP — allow long runs.
+app.use('/api/poolb/commit', requestTimeout(30 * 60 * 1000));
 app.use('/api/', (req, res, next) => {
   if (req.path.startsWith('/model-generation/bulk/')) return next();
   if (req.path.startsWith('/admin/majcat-grid/upload')) return next();
+  if (req.path === '/ksml/commit') return next();
+  if (req.path === '/poolb/commit') return next();
   // Variant SAP sync (retry-variants) and approval (approve) can create many SAP
   // articles in one request via RFC (e.g. 20 size×colour variants), which easily
   // exceeds 90s. Give them up to 15 minutes.
@@ -240,6 +248,18 @@ app.use('/api/admin', authenticate, requireAdmin, auditLog, adminRoutes);
 // Raw-articles pipeline staging endpoints.
 // ═══════════════════════════════════════════════════════
 app.use('/api/test-api', authenticate, requireAdmin, testApiRoutes);
+
+// ═══════════════════════════════════════════════════════
+// KSML class-characteristic uploader (Admin role required)
+// Upload an Excel of (class, characteristic) pairs → push to SAP.
+// ═══════════════════════════════════════════════════════
+app.use('/api/ksml', authenticate, requireAdmin, ksmlRoutes);
+
+// ═══════════════════════════════════════════════════════
+// Pool B article-attribute-value uploader (Admin role required)
+// Upload a Matnr×characteristic-value Excel → patch values onto articles (AUSP).
+// ═══════════════════════════════════════════════════════
+app.use('/api/poolb', authenticate, requireAdmin, poolBRoutes);
 
 // ═══════════════════════════════════════════════════════
 // USER ROUTES (Authentication required + Audit logging)

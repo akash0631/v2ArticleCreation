@@ -15,6 +15,7 @@ import {
   Globe,
   User,
   AlertTriangle,
+  Upload,
   Bell,
   ChevronRight,
   ChevronDown,
@@ -175,6 +176,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, onCollapsedCh
         { key: '/admin/users', Icon: User, label: 'Users' },
         { key: '/admin/expenses', Icon: ShoppingBag, label: 'Expenses' },
         { key: '/admin/srm-failed', Icon: AlertTriangle, label: 'Failed Extractions' },
+        { key: '/admin/ksml-uploader', Icon: Upload, label: 'KSML Uploader' },
+        { key: '/admin/poolb-uploader', Icon: Upload, label: 'Pool B Uploader' },
       ],
     });
   }

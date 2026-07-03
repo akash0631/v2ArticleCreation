@@ -16,6 +16,8 @@ import { DashboardPage, ProfilePage, ProductsPage } from './features/dashboard';
 import { HierarchyManagement, UsersManagement, StatusDashboard } from './features/admin';
 import Admin from './features/admin/pages/Admin'; // Admin Dashboard
 import SrmFailedExtractionsPage from './features/admin/pages/SrmFailedExtractionsPage'; // SRM Failed Extractions
+import KsmlUploaderPage from './features/admin/pages/KsmlUploaderPage'; // KSML class-characteristic uploader
+import PoolBUploaderPage from './features/admin/pages/PoolBUploaderPage'; // Pool B article-value uploader
 import ApproverDashboard from './features/approver/pages/ApproverDashboard'; // Approver Dashboard
 import ArticleDetailPage from './features/approver/pages/ArticleDetailPage'; // Article detail view
 import POPresentationPage from './features/po-presentation/pages/POPresentationPage'; // PO Presentation
@@ -284,6 +286,26 @@ const App: React.FC = () => {
                   <AdminRoute>
                     <MainLayout>
                       <SrmFailedExtractionsPage />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/ksml-uploader"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <KsmlUploaderPage />
+                    </MainLayout>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/poolb-uploader"
+                element={
+                  <AdminRoute>
+                    <MainLayout>
+                      <PoolBUploaderPage />
                     </MainLayout>
                   </AdminRoute>
                 }
