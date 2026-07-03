@@ -36,6 +36,51 @@ const SAP_SALES_UNIT = process.env.SAP_SALES_UNIT  || 'EA';
 const SAP_TO_DATE    = process.env.SAP_TO_DATE      || '31129999';
 const SAP_TAX_CODE   = process.env.SAP_TAX_CODE    || 'J2';
 
+// SAP-side SoT validation (ZART_GRID_VALUES via Z_ART_VALIDATE_VARIANT_SIZE)
+const SAP_RFC_PROXY_URL = process.env.SAP_RFC_PROXY_URL || 'https://sap-api.v2retail.net/api/rfc/proxy';
+const SAP_RFC_PROXY_KEY = process.env.SAP_RFC_PROXY_KEY || 'v2-rfc-proxy-2026';
+const SAP_RFC_PROXY_ENV = process.env.SAP_RFC_PROXY_ENV || '';
+const SAP_SIZE_VALIDATION_ENABLED =
+    (process.env.SAP_SIZE_VALIDATION_ENABLED ?? 'true').toLowerCase() === 'true';
+
+async function validateVariantSizeOnSap(
+    genericSapArt: string,
+    variantSize: string
+): Promise<{ ok: boolean; matkl: string; message: string }> {
+    if (!SAP_SIZE_VALIDATION_ENABLED) {
+        return { ok: true, matkl: '', message: 'validation disabled' };
+    }
+    const padded = String(genericSapArt).replace(/^0+/, '').padStart(18, '0');
+    const url = SAP_RFC_PROXY_ENV
+        ? `${SAP_RFC_PROXY_URL}?env=${encodeURIComponent(SAP_RFC_PROXY_ENV)}`
+        : SAP_RFC_PROXY_URL;
+    const body = {
+        bapiname: 'Z_ART_VALIDATE_VARIANT_SIZE',
+        IM_GENERIC_ARTICLE: padded,
+        IM_SIZE: variantSize,
+    };
+    try {
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-RFC-Key': SAP_RFC_PROXY_KEY },
+            body: JSON.stringify(body),
+        });
+        const j: any = await r.json().catch(() => ({}));
+        const allowed = String(j?.EX_ALLOWED ?? '').toUpperCase() === 'X';
+        const rc = Number(j?.EX_RC ?? 0);
+        const msg = String(j?.EX_MSG ?? '');
+        return {
+            ok: allowed && rc === 0,
+            matkl: String(j?.EX_MATKL ?? ''),
+            message: allowed ? 'OK' : msg || `Size '${variantSize}' not permitted (RC=${rc})`,
+        };
+    } catch (err) {
+        const m = err instanceof Error ? err.message : 'unknown error';
+        console.warn(`[ZMM_VAR_RFC] SAP size-validation call failed (fail-open): ${m}`);
+        return { ok: true, matkl: '', message: `validation skipped: ${m}` };
+    }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FlatVariant = {
@@ -188,6 +233,23 @@ export async function syncVariantsToSapViaRfc(
 
         const out: SapSyncItemResult[] = [];
         for (const variant of variants) { // sequential within a generic (shared SAP lock)
+            const variantSizeStr = toStr(variant.variantSize);
+            if (variantSizeStr) {
+                const check = await validateVariantSizeOnSap(genericSapArt, variantSizeStr);
+                if (!check.ok) {
+                    console.warn(
+                        `[ZMM_VAR_RFC] ❌ Pre-flight SoT BLOCKED variantId=${variant.id} ` +
+                        `size='${variantSizeStr}' matkl='${check.matkl}' — ${check.message}`
+                    );
+                    out.push({
+                        id: variant.id,
+                        success: false,
+                        message: `Pre-flight ZART_GRID_VALUES rejected: ${check.message}`,
+                    });
+                    continue;
+                }
+            }
+
             const payload = buildVariantPayload(genericSapArt, variant);
 
             console.log(
